@@ -1,5 +1,5 @@
 import { basename } from 'node:path';
-import type { ClientRepository, CaseRepository, ContactsRepository } from '@legal-os/database';
+import type { ClientRepository, CaseRepository, ContactsRepository } from '@factum-il/database';
 import { discoverFields } from './field-discovery.js';
 
 const OLLAMA_BASE  = process.env['OLLAMA_BASE_URL'] ?? 'http://127.0.0.1:11434';

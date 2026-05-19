@@ -1,5 +1,5 @@
 import { generateLegalReasoning } from './ollama-legal-client.js';
-import type { CreateMilestoneInput, GeneratedSkeleton } from '@legal-os/shared';
+import type { CreateMilestoneInput, GeneratedSkeleton } from '@factum-il/shared';
 
 const MILESTONE_PROMPT = (caseType: string, legalBasis: string, sourceText: string) => `
 You are an Israeli legal procedure expert. Analyze the following legal framework and extract the standard procedural milestones for a ${caseType} case.

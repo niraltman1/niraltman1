@@ -2,7 +2,7 @@ using System.Net.Http;
 using System.Windows;
 using System.Windows.Threading;
 
-namespace LegalOS.Desktop;
+namespace FactumIL.Desktop;
 
 public partial class SplashWindow : Window
 {
@@ -34,7 +34,7 @@ public partial class SplashWindow : Window
             {
                 timer.Stop();
                 MessageBox.Show("שרת ה-API לא הגיב תוך 30 שניות.\nבדוק את Node.js ואת הלוגים.",
-                                "Legal-OS — שגיאה", MessageBoxButton.OK, MessageBoxImage.Error);
+                                "Factum IL — שגיאה", MessageBoxButton.OK, MessageBoxImage.Error);
                 Application.Current.Shutdown(1);
             }
         };

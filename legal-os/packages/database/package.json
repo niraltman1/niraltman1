@@ -1,5 +1,5 @@
 {
-  "name": "@legal-os/database",
+  "name": "@factum-il/database",
   "version": "1.0.0",
   "private": true,
   "type": "module",
@@ -14,7 +14,7 @@
   },
   "dependencies": {
     "better-sqlite3": "^9.6.0",
-    "@legal-os/shared": "workspace:*"
+    "@factum-il/shared": "workspace:*"
   },
   "devDependencies": {
     "@types/better-sqlite3": "^7.6.10",

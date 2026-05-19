@@ -5,7 +5,7 @@ import {
   normalizeCaseNumber,
   normalizePartiesSeparator,
   formatDateNevo,
-} from '@legal-os/citation-engine';
+} from '@factum-il/citation-engine';
 
 describe('normalizeWhitespace', () => {
   it('collapses multiple spaces', () => {

@@ -2,7 +2,7 @@
 // HTTP routes do NOT acquire this — only background timers (rag, retention, backup, nudge, content-update).
 // Prevents two schedulers from doing bulk SQLite writes simultaneously.
 
-import { logger } from '@legal-os/shared';
+import { logger } from '@factum-il/shared';
 
 let locked = false;
 const queue: Array<{ resolve: () => void; label: string }> = [];

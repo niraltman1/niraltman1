@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
-import { validateCitation } from '@legal-os/citation-engine';
-import type { CaseCitation, LawCitation, BookCitation, ArticleCitation } from '@legal-os/citation-engine';
+import { validateCitation } from '@factum-il/citation-engine';
+import type { CaseCitation, LawCitation, BookCitation, ArticleCitation } from '@factum-il/citation-engine';
 
 describe('validateCitation — CaseCitation', () => {
   const valid: CaseCitation = {

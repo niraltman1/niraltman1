@@ -9,13 +9,13 @@
  *
  * Destination base: [BaseDir]/[ClientName]/[CaseId?]/[SuggestedFilename]
  * BaseDir resolves to:
- *   - LEGAL_OS_ROOT env var   (set by installer on Windows)
+ *   - FACTUM_IL_ROOT env var   (set by installer on Windows)
  *   - process.cwd()/_data/files  (development / Linux fallback)
  */
 
 import { rename, mkdir, copyFile, unlink, access } from 'node:fs/promises';
 import { dirname, basename, join } from 'node:path';
-import type { ActionPlanEntry } from '@legal-os/shared';
+import type { ActionPlanEntry } from '@factum-il/shared';
 
 export interface ExecuteResult {
   planId:      string;
@@ -25,7 +25,7 @@ export interface ExecuteResult {
 }
 
 const BASE_DIR =
-  process.env['LEGAL_OS_ROOT'] ??
+  process.env['FACTUM_IL_ROOT'] ??
   join(process.cwd(), '_data', 'files');
 
 /**

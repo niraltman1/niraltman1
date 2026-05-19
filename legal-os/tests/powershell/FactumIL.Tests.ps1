@@ -1,22 +1,22 @@
 #Requires -Version 5.1
 <#
 .SYNOPSIS
-    Pester test suite for Legal-OS PowerShell modules.
-    Run with: Invoke-Pester ./tests/powershell/LegalOS.Tests.ps1 -Output Detailed
+    Pester test suite for Factum IL PowerShell modules.
+    Run with: Invoke-Pester ./tests/powershell/FactumIL.Tests.ps1 -Output Detailed
 #>
 
 BeforeAll {
     $repoRoot   = Resolve-Path (Join-Path $PSScriptRoot '..\..')
-    $moduleRoot = Join-Path $repoRoot 'legal-os\powershell'
+    $moduleRoot = Join-Path $repoRoot 'factum-il\powershell'
 
-    Import-Module (Join-Path $moduleRoot 'LegalOS.psm1') -Force
+    Import-Module (Join-Path $moduleRoot 'FactumIL.psm1') -Force
 
     # Temporary SQLite DB for tests
-    $Script:TestDbPath = Join-Path $env:TEMP "legal_os_test_$(Get-Random).db"
+    $Script:TestDbPath = Join-Path $env:TEMP "factum_il_test_$(Get-Random).db"
 
     # Apply migrations to the test database
     if (Get-Command sqlite3 -ErrorAction SilentlyContinue) {
-        $migrationsDir = Join-Path $repoRoot 'legal-os\migrations'
+        $migrationsDir = Join-Path $repoRoot 'factum-il\migrations'
         Get-ChildItem -Path $migrationsDir -Filter '*.sql' | Sort-Object Name | ForEach-Object {
             sqlite3 $Script:TestDbPath ".read `"$($_.FullName)`""
         }
@@ -38,12 +38,12 @@ AfterAll {
 # ─────────────────────────────────────────────
 Describe 'Logger' {
     BeforeAll {
-        $logDir = Join-Path $env:TEMP "legal_os_log_test_$(Get-Random)"
+        $logDir = Join-Path $env:TEMP "factum_il_log_test_$(Get-Random)"
         Initialize-Logger -LogDirectory $logDir -MinLevel 'DEBUG'
     }
 
     It 'initialises log directory' {
-        Test-Path (Join-Path $env:TEMP 'legal_os_log_test_*') | Should -Be $true
+        Test-Path (Join-Path $env:TEMP 'factum_il_log_test_*') | Should -Be $true
     }
 
     It 'writes an INFO entry without throwing' {
@@ -65,8 +65,8 @@ Describe 'Logger' {
 # ─────────────────────────────────────────────
 Describe 'HashValidator' {
     BeforeAll {
-        $Script:TestFile = Join-Path $env:TEMP "legal_os_hash_$(Get-Random).txt"
-        Set-Content -Path $Script:TestFile -Value 'Legal-OS test content' -Encoding UTF8
+        $Script:TestFile = Join-Path $env:TEMP "factum_il_hash_$(Get-Random).txt"
+        Set-Content -Path $Script:TestFile -Value 'Factum IL test content' -Encoding UTF8
     }
 
     AfterAll {
@@ -101,7 +101,7 @@ Describe 'HashValidator' {
     }
 
     It 'throws for non-existent file' {
-        { Get-FileHashSHA256 -FilePath 'C:\non_existent_legal_os.txt' } | Should -Throw
+        { Get-FileHashSHA256 -FilePath 'C:\non_existent_factum_il.txt' } | Should -Throw
     }
 }
 

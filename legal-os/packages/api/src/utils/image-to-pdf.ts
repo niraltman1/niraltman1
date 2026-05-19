@@ -41,7 +41,7 @@ function magickBin(): string {
  * Returns path to the temporary JPEG.
  */
 async function heicToJpeg(heicPath: string): Promise<string> {
-  const tmpPath = join(tmpdir(), `legal-os-${randomUUID()}.jpg`);
+  const tmpPath = join(tmpdir(), `factum-il-${randomUUID()}.jpg`);
   await execFileAsync(magickBin(), [
     heicPath,
     '-quality', '95',
@@ -77,7 +77,7 @@ async function runTesseractText(
   imagePath: string,
   langs = 'heb+eng',
 ): Promise<string> {
-  const tmpBase = join(tmpdir(), `legal-os-txt-${randomUUID()}`);
+  const tmpBase = join(tmpdir(), `factum-il-txt-${randomUUID()}`);
   try {
     await execFileAsync(tesseractBin(), [
       imagePath,

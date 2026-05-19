@@ -1,4 +1,4 @@
-import { utcNow } from '@legal-os/shared';
+import { utcNow } from '@factum-il/shared';
 import type { DatabaseConnection } from '../connection.js';
 
 export interface QueueStats {

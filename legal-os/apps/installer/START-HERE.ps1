@@ -1,7 +1,7 @@
 #Requires -Version 5.1
 <#
 .SYNOPSIS
-    Legal-OS — Installer, launcher, and environment bootstrapper.
+    Factum IL — Installer, launcher, and environment bootstrapper.
 .DESCRIPTION
     Installs all dependencies, sets up the office folder structure, initialises
     the database, builds the project, and creates a desktop shortcut.
@@ -27,7 +27,7 @@ param(
 Set-StrictMode -Version Latest
 $ErrorActionPreference = 'Stop'
 
-$Host.UI.RawUI.WindowTitle = "Legal-OS Installer"
+$Host.UI.RawUI.WindowTitle = "Factum IL Installer"
 
 # ─────────────────────────────────────────────
 #  Auto-elevate to Administrator
@@ -52,14 +52,14 @@ if (Test-Path $ConfigPath) { . $ConfigPath }
 $ProjectRoot  = Resolve-Path (Join-Path $PSScriptRoot '..\..')
 # When run from inside the installed package (Installer mode) the EXE lives next to START-HERE.ps1
 $DesktopExe   = if ($Mode -eq 'Installer') {
-    Join-Path $PSScriptRoot 'LegalOS.exe'
+    Join-Path $PSScriptRoot 'FactumIL.exe'
 } else {
-    Join-Path $ProjectRoot 'dist\win-x64\shell\LegalOS.Desktop.exe'
+    Join-Path $ProjectRoot 'dist\win-x64\shell\FactumIL.Desktop.exe'
 }
-$DesktopShortcut = Join-Path ([Environment]::GetFolderPath('Desktop')) 'Legal-OS.lnk'
+$DesktopShortcut = Join-Path ([Environment]::GetFolderPath('Desktop')) 'Factum IL.lnk'
 # Root of the installed package (used for tools/ paths in Installer mode)
-if ($Mode -eq 'Installer' -and -not $Script:LegalOS_Root) {
-    $Script:LegalOS_Root = $PSScriptRoot
+if ($Mode -eq 'Installer' -and -not $Script:FactumIL_Root) {
+    $Script:FactumIL_Root = $PSScriptRoot
 }
 
 # ─────────────────────────────────────────────
@@ -265,11 +265,11 @@ function Initialize-OllamaModels {
 # ─────────────────────────────────────────────
 
 function Install-WhisperFast {
-    if (-not $Script:LegalOS_Root) {
-        Write-Warn "LegalOS_Root not defined — skipping Whisper-fast install."
+    if (-not $Script:FactumIL_Root) {
+        Write-Warn "FactumIL_Root not defined — skipping Whisper-fast install."
         return
     }
-    $toolsDir   = Join-Path $Script:LegalOS_Root 'tools'
+    $toolsDir   = Join-Path $Script:FactumIL_Root 'tools'
     $whisperExe = Join-Path $toolsDir 'whisper-fast.exe'
 
     New-Item -ItemType Directory -Force $toolsDir | Out-Null
@@ -297,9 +297,9 @@ function Install-WhisperFast {
 # ─────────────────────────────────────────────
 
 function Set-GlobalEnvironment {
-    if ($Script:LegalOS_Root) {
-        [System.Environment]::SetEnvironmentVariable('LEGAL_OS_ROOT', $Script:LegalOS_Root, 'Machine')
-        Write-Ok "LEGAL_OS_ROOT = $Script:LegalOS_Root"
+    if ($Script:FactumIL_Root) {
+        [System.Environment]::SetEnvironmentVariable('FACTUM_IL_ROOT', $Script:FactumIL_Root, 'Machine')
+        Write-Ok "FACTUM_IL_ROOT = $Script:FactumIL_Root"
     }
     [System.Environment]::SetEnvironmentVariable('FFMPEG_EXE', 'ffmpeg', 'Machine')
     Write-Ok "FFMPEG_EXE = ffmpeg (PATH)"
@@ -357,9 +357,9 @@ function New-DesktopShortcut {
     $shortcut = $wsh.CreateShortcut($DesktopShortcut)
     $shortcut.TargetPath       = $DesktopExe
     $shortcut.WorkingDirectory = Split-Path $DesktopExe
-    $shortcut.Description      = "Legal-OS — אלטמן משרד עורכי דין"
+    $shortcut.Description      = "Factum IL — אלטמן משרד עורכי דין"
     $shortcut.Save()
-    Write-Ok "קיצור דרך 'Legal-OS' נוצר על שולחן העבודה."
+    Write-Ok "קיצור דרך 'Factum IL' נוצר על שולחן העבודה."
 }
 
 # ─────────────────────────────────────────────
@@ -409,12 +409,12 @@ switch ($Mode) {
         Write-Host ""
         Write-Host "  ╔══════════════════════════════════════════╗" -ForegroundColor Green
         Write-Host "  ║  ההתקנה הסתיימה בהצלחה!                 ║" -ForegroundColor Green
-        Write-Host "  ║  לחץ פעמיים על Legal-OS בשולחן העבודה. ║" -ForegroundColor Green
+        Write-Host "  ║  לחץ פעמיים על Factum IL בשולחן העבודה. ║" -ForegroundColor Green
         Write-Host "  ╚══════════════════════════════════════════╝" -ForegroundColor Green
         Write-Host ""
 
         if (-not $Silent -and (Test-Path $DesktopExe)) {
-            $launch = Read-Host "הפעל את Legal-OS עכשיו? (Y/n)"
+            $launch = Read-Host "הפעל את Factum IL עכשיו? (Y/n)"
             if ($launch -ne 'n') { Start-Process $DesktopExe }
         }
     }

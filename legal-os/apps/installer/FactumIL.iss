@@ -1,4 +1,4 @@
-; Legal-OS v13 -- Inno Setup 6 script
+; Factum IL v13 -- Inno Setup 6 script
 ; Build via: .\powershell\scripts\Build-DistPackage.ps1
 ; Compiled by ISCC with /DRepoRoot=<path> /DOutputDir=<desktop-path>
 
@@ -9,13 +9,13 @@
   #define OutputDir "{#RepoRoot}\dist-package"
 #endif
 
-#define AppName    "Legal-OS Beta"
+#define AppName    "Factum IL Beta"
 #ifndef AppVersion
   #define AppVersion "1.0.0-beta"
 #endif
-#define AppPublisher "Legal-OS"
+#define AppPublisher "Factum IL"
 #define AppURL     "https://github.com/niraltman1/Management-of-legal-documents-and-cases-"
-#define ExeName    "LegalOS.Desktop.exe"
+#define ExeName    "FactumIL.Desktop.exe"
 
 [Setup]
 AppId={{A1B2C3D4-E5F6-7890-ABCD-EF1234567890}
@@ -28,7 +28,7 @@ DefaultGroupName={#AppName}
 AllowNoIcons=yes
 DisableDirPage=no
 OutputDir={#OutputDir}
-OutputBaseFilename=LegalOS_Beta_Setup
+OutputBaseFilename=FactumIL_Beta_Setup
 Compression=lzma2/ultra64
 SolidCompression=yes
 WizardStyle=modern
@@ -65,8 +65,8 @@ Name: "{group}\הסר התקנה";          Filename: "{uninstallexe}"
 Name: "{autodesktop}\{#AppName}";   Filename: "{app}\{#ExeName}"; Tasks: desktopicon
 
 [Registry]
-; Persist the org directory so Legal-OS API can read it on first launch
-Root: HKLM; Subkey: "SOFTWARE\Legal-OS"; ValueType: string; ValueName: "OrgDirectory"; \
+; Persist the org directory so Factum IL API can read it on first launch
+Root: HKLM; Subkey: "SOFTWARE\Factum IL"; ValueType: string; ValueName: "OrgDirectory"; \
     ValueData: "{code:GetOrgDir}"; Flags: uninsdeletevalue
 
 [Run]
@@ -85,20 +85,20 @@ begin
     wpSelectDir,
     'Legal Documents Directory',
     'Select the main legal documents folder for this firm',
-    'Legal-OS will organise all documents into this directory.' + #13#10 +
+    'Factum IL will organise all documents into this directory.' + #13#10 +
     'You can change this later from System Settings.',
     False,
     ''
   );
   OrgDirPage.Add('');
-  OrgDirPage.Values[0] := 'C:\2026 Legal-OS Documents';
+  OrgDirPage.Values[0] := 'C:\2026 Factum IL Documents';
 end;
 
 function GetOrgDir(Param: String): String;
 begin
   Result := OrgDirPage.Values[0];
   if Result = '' then
-    Result := 'C:\2026 Legal-OS Documents';
+    Result := 'C:\2026 Factum IL Documents';
 end;
 
 // ── .NET 8 Runtime prerequisite check ────────────────────────────────────

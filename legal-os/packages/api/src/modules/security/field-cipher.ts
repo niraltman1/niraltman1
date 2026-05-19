@@ -1,4 +1,4 @@
-import type { DatabaseConnection } from '@legal-os/database';
+import type { DatabaseConnection } from '@factum-il/database';
 import { encryptAES256GCM, decryptAES256GCM } from './aes-cipher.js';
 import { deriveBackupKey } from './key-provider.js';
 

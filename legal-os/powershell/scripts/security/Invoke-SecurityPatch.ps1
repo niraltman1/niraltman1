@@ -1,7 +1,7 @@
 #Requires -RunAsAdministrator
 <#
 .SYNOPSIS
-  Channel 1 — Security patch runner for Legal-OS.
+  Channel 1 — Security patch runner for Factum IL.
   Runs winget upgrade and pnpm audit --fix, then logs the result.
 #>
 
@@ -36,8 +36,8 @@ try {
 # ── Channel 1b: pnpm audit ──────────────────────────────────────
 Write-PatchLog "Running pnpm audit --fix"
 try {
-  $legalOsRoot = Split-Path -Parent (Split-Path -Parent $PSScriptRoot)
-  Push-Location $legalOsRoot
+  $factumIlRoot = Split-Path -Parent (Split-Path -Parent $PSScriptRoot)
+  Push-Location $factumIlRoot
   $auditResult = & pnpm audit --fix 2>&1
   $details += @{ step = "pnpm_audit"; output = ($auditResult | Select-Object -Last 10) -join "`n" }
   Write-PatchLog "pnpm audit completed"

@@ -10,7 +10,7 @@ import {
   BackupRepository,
   SearchEngine,
   DatabaseHardening,
-} from '@legal-os/database';
+} from '@factum-il/database';
 import { createApp } from './app.js';
 import type { Repos } from './db.js';
 
@@ -182,7 +182,7 @@ beforeAll(() => {
   rawDb = buildTestDb();
 
   // DatabaseConnection wraps better-sqlite3; we pass the raw db object by casting
-  const db = rawDb as unknown as import('@legal-os/database').DatabaseConnection;
+  const db = rawDb as unknown as import('@factum-il/database').DatabaseConnection;
 
   const repos: Repos = {
     db,

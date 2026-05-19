@@ -25,10 +25,10 @@ importers:
 
   apps/dashboard:
     dependencies:
-      '@legal-os/database':
+      '@factum-il/database':
         specifier: workspace:*
         version: link:../../packages/database
-      '@legal-os/shared':
+      '@factum-il/shared':
         specifier: workspace:*
         version: link:../../packages/shared
       '@phosphor-icons/react':
@@ -104,7 +104,7 @@ importers:
 
   packages/ai:
     dependencies:
-      '@legal-os/shared':
+      '@factum-il/shared':
         specifier: workspace:*
         version: link:../shared
     devDependencies:
@@ -117,13 +117,13 @@ importers:
 
   packages/api:
     dependencies:
-      '@legal-os/citation-engine':
+      '@factum-il/citation-engine':
         specifier: workspace:*
         version: link:../citation-engine
-      '@legal-os/database':
+      '@factum-il/database':
         specifier: workspace:*
         version: link:../database
-      '@legal-os/shared':
+      '@factum-il/shared':
         specifier: workspace:*
         version: link:../shared
       archiver:
@@ -199,7 +199,7 @@ importers:
 
   packages/database:
     dependencies:
-      '@legal-os/shared':
+      '@factum-il/shared':
         specifier: workspace:*
         version: link:../shared
       better-sqlite3:
@@ -218,10 +218,10 @@ importers:
 
   packages/pipeline:
     dependencies:
-      '@legal-os/database':
+      '@factum-il/database':
         specifier: workspace:*
         version: link:../database
-      '@legal-os/shared':
+      '@factum-il/shared':
         specifier: workspace:*
         version: link:../shared
     devDependencies:

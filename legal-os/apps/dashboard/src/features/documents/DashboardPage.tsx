@@ -79,7 +79,7 @@ export function DashboardPage() {
         <div className="rounded-xl border border-parchment/10 bg-navy-100 p-8 text-center">
           <ScalesIcon size={48} weight="duotone" className="mx-auto text-gold mb-4" />
           <h2 className="text-xl font-serif font-bold text-parchment mb-2">
-            ברוך הבא ל-Legal-OS
+            ברוך הבא ל-Factum IL
           </h2>
           <p className="text-parchment/60 text-sm mb-6 max-w-sm mx-auto">
             גרור תיקיית מסמכים לחלון זה, או לחץ על הכפתור למטה כדי לבחור תיקייה לסריקה ראשונית.
@@ -234,7 +234,7 @@ export function DashboardPage() {
       </div>
 
       <p className="text-parchment/20 text-xs text-center">
-        Legal-OS · C:\אלטמן משרד עורכי דין - סדר 2026 · מערכת ניהול מסמכים מקומית
+        Factum IL · C:\אלטמן משרד עורכי דין - סדר 2026 · מערכת ניהול מסמכים מקומית
       </p>
     </div>
   );

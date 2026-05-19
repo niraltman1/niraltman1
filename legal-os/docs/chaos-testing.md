@@ -2,7 +2,7 @@
 
 ## Philosophy
 
-The chaos test suite validates that Legal-OS is **recoverable, not merely resilient**. Every test simulates a real failure mode and asserts that the system can reach a consistent state without human intervention.
+The chaos test suite validates that Factum IL is **recoverable, not merely resilient**. Every test simulates a real failure mode and asserts that the system can reach a consistent state without human intervention.
 
 ## Test Matrix
 
@@ -49,13 +49,13 @@ The chaos test suite validates that Legal-OS is **recoverable, not merely resili
 
 ```bash
 # TypeScript integration chaos tests
-pnpm --filter @legal-os/tests vitest run tests/integration/chaos.test.ts
+pnpm --filter @factum-il/tests vitest run tests/integration/chaos.test.ts
 
 # Full integration suite
-pnpm --filter @legal-os/tests vitest run tests/integration/
+pnpm --filter @factum-il/tests vitest run tests/integration/
 
 # Search scaling
-pnpm --filter @legal-os/tests vitest run tests/integration/search-scale.test.ts
+pnpm --filter @factum-il/tests vitest run tests/integration/search-scale.test.ts
 ```
 
 ## PowerShell Chaos Tests
@@ -63,7 +63,7 @@ pnpm --filter @legal-os/tests vitest run tests/integration/search-scale.test.ts
 ```powershell
 # Simulate crash by killing the process mid-queue
 $job = Start-Job {
-  Import-Module .\powershell\LegalOS.psd1
+  Import-Module .\powershell\FactumIL.psd1
   Add-QueueItem -FileHash 'abc' -FilePath 'C:\test.pdf' -DatabasePath $db
   $item = Get-NextQueueItem -DatabasePath $db
   Start-Sleep -Seconds 1

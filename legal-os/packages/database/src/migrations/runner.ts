@@ -2,7 +2,7 @@ import { readFileSync, readdirSync } from 'node:fs';
 import { join } from 'node:path';
 import { createHash } from 'node:crypto';
 import type { DatabaseConnection } from '../connection.js';
-import { logger } from '@legal-os/shared';
+import { logger } from '@factum-il/shared';
 
 interface MigrationRow {
   version: number;

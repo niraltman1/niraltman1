@@ -1,6 +1,6 @@
 import { readdirSync, statSync } from 'node:fs';
 import { join, extname } from 'node:path';
-import { logger } from '@legal-os/shared';
+import { logger } from '@factum-il/shared';
 
 const SUPPORTED_EXTENSIONS = new Set(['.pdf', '.png', '.jpg', '.jpeg', '.tiff', '.tif', '.docx', '.doc']);
 

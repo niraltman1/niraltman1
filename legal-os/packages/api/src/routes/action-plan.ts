@@ -10,7 +10,7 @@ import {
   signSchema,
   listActionPlanQuerySchema,
 } from '../validation/action-plan.js';
-import type { ActionPlanStatus } from '@legal-os/shared';
+import type { ActionPlanStatus } from '@factum-il/shared';
 import { basename } from 'node:path';
 import { executeEntries } from '../utils/file-executor.js';
 

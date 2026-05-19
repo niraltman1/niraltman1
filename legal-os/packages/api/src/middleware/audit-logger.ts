@@ -1,5 +1,5 @@
 import type { RequestHandler } from 'express';
-import type { DatabaseConnection } from '@legal-os/database';
+import type { DatabaseConnection } from '@factum-il/database';
 import type { Repos } from '../db.js';
 
 export interface AuditEvent {

@@ -1,6 +1,6 @@
 import { createHash } from 'node:crypto';
-import { logger } from '@legal-os/shared';
-import type { DatabaseConnection } from '@legal-os/database';
+import { logger } from '@factum-il/shared';
+import type { DatabaseConnection } from '@factum-il/database';
 
 const AGENT = 'AIStrategist';
 

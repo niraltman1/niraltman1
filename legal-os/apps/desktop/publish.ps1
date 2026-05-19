@@ -1,9 +1,9 @@
 #Requires -Version 5.1
 <#
 .SYNOPSIS
-    Builds and stages Legal-OS into LegalOS_Dist/ ready for Inno Setup packaging.
+    Builds and stages Factum IL into FactumIL_Dist/ ready for Inno Setup packaging.
     Output layout:
-        LegalOS_Dist/
+        FactumIL_Dist/
           shell/        WPF exe + WebView2 runtime DLLs
           backend/      Express API (isolated prod node_modules, no pnpm symlinks)
           dashboard/    React SPA compiled assets served by Express
@@ -11,11 +11,11 @@
           runtime/      Portable node.exe (no system Node.js required)
 .EXAMPLE
     .\apps\desktop\publish.ps1
-    .\apps\desktop\publish.ps1 -OutDir "C:\Build\LegalOS_Dist"
+    .\apps\desktop\publish.ps1 -OutDir "C:\Build\FactumIL_Dist"
 #>
 [CmdletBinding()]
 param(
-    [string] $OutDir      = (Join-Path $PSScriptRoot "..\..\LegalOS_Dist"),
+    [string] $OutDir      = (Join-Path $PSScriptRoot "..\..\FactumIL_Dist"),
     [string] $NodeVersion = "22.13.1"
 )
 
@@ -29,24 +29,24 @@ $DesktopDir = $PSScriptRoot
 if (Test-Path $OutDir) { Remove-Item -Recurse -Force $OutDir }
 New-Item -ItemType Directory -Force -Path $OutDir | Out-Null
 
-# ── [1/8] Build @legal-os/shared ─────────────────────────────────────────────
-Write-Host "[1/8] Building @legal-os/shared..." -ForegroundColor Cyan
+# ── [1/8] Build @factum-il/shared ─────────────────────────────────────────────
+Write-Host "[1/8] Building @factum-il/shared..." -ForegroundColor Cyan
 Push-Location (Join-Path $RepoRoot "packages\shared")
 npx tsc
-if ($LASTEXITCODE -ne 0) { throw "@legal-os/shared build failed" }
+if ($LASTEXITCODE -ne 0) { throw "@factum-il/shared build failed" }
 Pop-Location
 
-# ── [2/8] Build @legal-os/database ───────────────────────────────────────────
-Write-Host "[2/8] Building @legal-os/database..." -ForegroundColor Cyan
+# ── [2/8] Build @factum-il/database ───────────────────────────────────────────
+Write-Host "[2/8] Building @factum-il/database..." -ForegroundColor Cyan
 Push-Location (Join-Path $RepoRoot "packages\database")
 npx tsc
-if ($LASTEXITCODE -ne 0) { throw "@legal-os/database build failed" }
+if ($LASTEXITCODE -ne 0) { throw "@factum-il/database build failed" }
 Pop-Location
 
 # ── [3/8] Build Node.js API ───────────────────────────────────────────────────
 Write-Host "[3/8] Building Node.js API (pnpm build)..." -ForegroundColor Cyan
 Push-Location $RepoRoot
-pnpm --filter @legal-os/api build
+pnpm --filter @factum-il/api build
 if ($LASTEXITCODE -ne 0) { throw "API build failed" }
 Pop-Location
 
@@ -60,7 +60,7 @@ Pop-Location
 # ── [5/8] Publish C# WPF shell ───────────────────────────────────────────────
 Write-Host "[5/8] Publishing WPF shell (dotnet publish)..." -ForegroundColor Cyan
 Push-Location $DesktopDir
-dotnet publish LegalOS.Desktop.csproj `
+dotnet publish FactumIL.Desktop.csproj `
     --configuration Release `
     --runtime win-x64 `
     --output "$OutDir\shell" `
@@ -74,7 +74,7 @@ Pop-Location
 #  don't have pnpm installed.
 Write-Host "[6/8] Staging backend with pnpm deploy (production deps only)..." -ForegroundColor Cyan
 Push-Location $RepoRoot
-pnpm --filter @legal-os/api deploy --prod "$OutDir\backend"
+pnpm --filter @factum-il/api deploy --prod "$OutDir\backend"
 if ($LASTEXITCODE -ne 0) { throw "pnpm deploy failed" }
 Pop-Location
 
@@ -88,7 +88,7 @@ foreach ($pkg in @(
     @{ Name = 'database'; SrcDist = "$RepoRoot\packages\database\dist" },
     @{ Name = 'shared';   SrcDist = "$RepoRoot\packages\shared\dist"   }
 )) {
-    $pkgDir = "$OutDir\backend\node_modules\@legal-os\$($pkg.Name)"
+    $pkgDir = "$OutDir\backend\node_modules\@factum-il\$($pkg.Name)"
     if (-not (Test-Path $pkgDir)) {
         New-Item -ItemType Directory -Force -Path $pkgDir | Out-Null
     }
@@ -137,7 +137,7 @@ Copy-Item -Force "$NodeExtract\node-v$NodeVersion-win-x64\node.exe" "$OutDir\run
 Write-Host ""
 Write-Host "Build complete. Staged to: $OutDir" -ForegroundColor Green
 Write-Host ""
-Write-Host "  $OutDir\shell\LegalOS.Desktop.exe" -ForegroundColor White
+Write-Host "  $OutDir\shell\FactumIL.Desktop.exe" -ForegroundColor White
 Write-Host "  $OutDir\backend\dist\start.js"       -ForegroundColor White
 Write-Host "  $OutDir\dashboard\dist\index.html"   -ForegroundColor White
 Write-Host "  $OutDir\migrations\*.sql             ($((Get-ChildItem $OutDir\migrations\*.sql).Count) files)" -ForegroundColor White

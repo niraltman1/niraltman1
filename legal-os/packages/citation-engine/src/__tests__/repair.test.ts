@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { repairCitation } from '@legal-os/citation-engine';
+import { repairCitation } from '@factum-il/citation-engine';
 
 describe('repairCitation', () => {
   it('repairs un-quoted procedure + hyphen separator + נגד', () => {

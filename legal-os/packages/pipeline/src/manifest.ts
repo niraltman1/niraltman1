@@ -1,5 +1,5 @@
-import { generateUUID, utcNow, logger } from '@legal-os/shared';
-import type { DatabaseConnection } from '@legal-os/database';
+import { generateUUID, utcNow, logger } from '@factum-il/shared';
+import type { DatabaseConnection } from '@factum-il/database';
 
 export interface SnapshotResult {
   readonly snapshotId: string;

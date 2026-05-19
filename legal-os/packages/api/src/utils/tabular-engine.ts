@@ -1,5 +1,5 @@
 /**
- * Tabular Data Engine — CSV & Excel ingestion for Legal-OS.
+ * Tabular Data Engine — CSV & Excel ingestion for Factum IL.
  *
  * Parses spreadsheets and:
  *  1. Extracts legal entities (case numbers, client IDs, dates, attorney names).
@@ -18,8 +18,8 @@ import { createReadStream } from 'node:fs';
 import { stat } from 'node:fs/promises';
 import { basename, extname } from 'node:path';
 import * as XLSX from 'xlsx';
-import type { DocumentRepository } from '@legal-os/database';
-import type { ProcessedFilesRepository } from '@legal-os/database';
+import type { DocumentRepository } from '@factum-il/database';
+import type { ProcessedFilesRepository } from '@factum-il/database';
 import { computeFileHash } from './file-hash.js';
 import { EffortController } from './effort-controller.js';
 

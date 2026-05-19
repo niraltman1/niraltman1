@@ -1,7 +1,7 @@
 #Requires -Version 5.1
 <#
 .SYNOPSIS
-    File integrity hashing module for Legal-OS.
+    File integrity hashing module for Factum IL.
     Uses SHA-256 exclusively as the canonical hash algorithm.
 #>
 Set-StrictMode -Version Latest

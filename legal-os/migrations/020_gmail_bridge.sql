@@ -3,7 +3,7 @@
 CREATE TABLE IF NOT EXISTS GmailSyncConfig (
   id              INTEGER PRIMARY KEY AUTOINCREMENT,
   gmail_address   TEXT NOT NULL,
-  label_filter    TEXT NOT NULL DEFAULT 'Legal-OS',
+  label_filter    TEXT NOT NULL DEFAULT 'Factum IL',
   encrypted_token TEXT NOT NULL,
   token_iv        TEXT NOT NULL,
   token_tag       TEXT NOT NULL,

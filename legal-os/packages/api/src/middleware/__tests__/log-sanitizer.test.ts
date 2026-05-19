@@ -53,6 +53,6 @@ describe('PII redaction patterns', () => {
   });
 
   it('leaves clean strings unchanged', () => {
-    expect(sanitize('Processing document legal-os-2024.pdf')).toBe('Processing document legal-os-2024.pdf');
+    expect(sanitize('Processing document factum-il-2024.pdf')).toBe('Processing document factum-il-2024.pdf');
   });
 });

@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
-import { formatCitation } from '@legal-os/citation-engine';
-import type { LawCitation, RegulationCitation, BookCitation, ArticleCitation } from '@legal-os/citation-engine';
+import { formatCitation } from '@factum-il/citation-engine';
+import type { LawCitation, RegulationCitation, BookCitation, ArticleCitation } from '@factum-il/citation-engine';
 
 describe('formatCitation — LawCitation (Nevo 2021)', () => {
   it('formats law with publication', () => {

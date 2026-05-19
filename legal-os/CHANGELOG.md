@@ -1,6 +1,6 @@
 # Changelog
 
-All notable changes to Legal-OS are documented in this file.
+All notable changes to Factum IL are documented in this file.
 Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ---
@@ -96,7 +96,7 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 **`apps/desktop/MainWindow.xaml.cs`**
 - DB path corrected: was using `Environment.GetFolderPath(SpecialFolder.CommonApplicationData)`
   which resolves to `C:\ProgramData\` (not writable without admin in typical installs).
-  Changed to the branded office root literal `C:\אלטמן משרד עורכי דין - סדר 2026\_Data\legal-os.db`
+  Changed to the branded office root literal `C:\אלטמן משרד עורכי דין - סדר 2026\_Data\factum-il.db`
   matching `powershell/lib/Config.ps1` and the Node.js `start.ts` default.
 
 **`apps/dashboard/src/api/hooks.ts`** (Phase 5 retroactive fix)
@@ -133,11 +133,11 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 ### Added
 
 **Desktop Shell — `apps/desktop` (C# WPF + WebView2)**
-- `apps/desktop/LegalOS.Desktop.csproj` — WPF project targeting .NET 8 / win-x64; `PublishSingleFile` in Release; NuGet `Microsoft.Web.WebView2`
+- `apps/desktop/FactumIL.Desktop.csproj` — WPF project targeting .NET 8 / win-x64; `PublishSingleFile` in Release; NuGet `Microsoft.Web.WebView2`
 - `apps/desktop/app.manifest` — `requireAdministrator`, PerMonitorV2 DPI awareness, Windows 10/11 compatibility GUID
 - `apps/desktop/App.xaml` + `App.xaml.cs` — minimal WPF application entry point
 - `apps/desktop/MainWindow.xaml` — branded splash screen (navy/gold, Hebrew subtitle) + `wv2:WebView2` control hidden until API is ready
-- `apps/desktop/MainWindow.xaml.cs` — boot sequence: start Node.js API child process → poll `GET /api/clients` until HTTP 200 (max 30 s) → `EnsureCoreWebView2Async` → navigate to `http://localhost:3001`; DevTools enabled only when `Debugger.IsAttached`; `Kill(entireProcessTree: true)` on window close; `NODE_ENV=production` + `LEGAL_OS_DB_PATH` injected into child environment
+- `apps/desktop/MainWindow.xaml.cs` — boot sequence: start Node.js API child process → poll `GET /api/clients` until HTTP 200 (max 30 s) → `EnsureCoreWebView2Async` → navigate to `http://localhost:3001`; DevTools enabled only when `Debugger.IsAttached`; `Kill(entireProcessTree: true)` on window close; `NODE_ENV=production` + `FACTUM_IL_DB_PATH` injected into child environment
 - `apps/desktop/publish.ps1` — 4-step release pipeline: `pnpm build` API → `pnpm build` dashboard → `dotnet publish --runtime win-x64` → copy assets to `dist/win-x64/`
 
 **Installer — `apps/installer/START-HERE.ps1` (rewrite)**
@@ -148,7 +148,7 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 - `Initialize-OllamaModels` — starts `ollama serve`, pulls `llama3.2` + `qwen2.5:7b`
 - `Initialize-OfficeStructure` — delegates to `01-CreateFolderStructure.ps1` (Hebrew ACL)
 - `Build-Project` — `pnpm install` → `pnpm build` → `publish.ps1`
-- `New-DesktopShortcut` — creates `Legal-OS.lnk` on Windows Desktop pointing to the published `.exe`
+- `New-DesktopShortcut` — creates `Factum IL.lnk` on Windows Desktop pointing to the published `.exe`
 - `Invoke-SmokeTests` — node / pnpm / tesseract / gswin64c / ollama version checks
 - Three modes: `Install` (default), `Repair`, `Upgrade`; interactive launch prompt at end of Install
 
@@ -198,7 +198,7 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 **PowerShell — Office Configuration & Folder Bootstrap**
 - `powershell/lib/Config.ps1` — Branded root path (`C:\אלטמן משרד עורכי דין - סדר 2026\`), sub-folder map, WatchFolders (`Downloads`, `Documents`), `Get-WatchFolderLabel` helper
 - `powershell/scripts/01-CreateFolderStructure.ps1` — Idempotent bootstrap; creates root + sub-folders, grants ACL for Hebrew path, prints Hebrew success message
-- `powershell/LegalOS.psm1` — Now dot-sources `Config.ps1` before all sub-modules
+- `powershell/FactumIL.psm1` — Now dot-sources `Config.ps1` before all sub-modules
 - `apps/installer/START-HERE.ps1` — Added `Initialize-OfficeStructure` which runs the folder bootstrap before database init; displays branded Hebrew success message
 
 **Database — Migration & Repository Layer**

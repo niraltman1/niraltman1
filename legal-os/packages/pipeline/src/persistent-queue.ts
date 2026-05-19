@@ -1,6 +1,6 @@
-import { generateUUID, logger, utcNow } from '@legal-os/shared';
-import type { ProcessingState } from '@legal-os/shared';
-import type { DatabaseConnection } from '@legal-os/database';
+import { generateUUID, logger, utcNow } from '@factum-il/shared';
+import type { ProcessingState } from '@factum-il/shared';
+import type { DatabaseConnection } from '@factum-il/database';
 
 const AGENT = 'PipelineEngine';
 const BASE_BACKOFF_MS   = 5_000;

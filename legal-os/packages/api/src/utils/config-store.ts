@@ -1,8 +1,8 @@
 /**
  * Simple JSON config store for runtime settings that must survive restarts.
- * Stored at <db-dir>/legal-os-config.json alongside the SQLite database.
+ * Stored at <db-dir>/factum-il-config.json alongside the SQLite database.
  *
- * Reads the registry key HKLM\SOFTWARE\Legal-OS\OrgDirectory (written by
+ * Reads the registry key HKLM\SOFTWARE\Factum IL\OrgDirectory (written by
  * the Inno Setup installer) as the initial fallback, then allows in-app overrides.
  */
 
@@ -23,7 +23,7 @@ function readRegistryOrgDir(): string | null {
     // eslint-disable-next-line @typescript-eslint/no-var-requires
     const { execFileSync } = require('node:child_process') as typeof import('node:child_process');
     const out = execFileSync('reg', [
-      'query', 'HKLM\\SOFTWARE\\Legal-OS', '/v', 'OrgDirectory',
+      'query', 'HKLM\\SOFTWARE\\Factum IL', '/v', 'OrgDirectory',
     ], { encoding: 'utf-8', timeout: 3_000 });
     const m = /OrgDirectory\s+REG_SZ\s+(.+)/.exec(out);
     return m ? m[1]!.trim() : null;
@@ -37,7 +37,7 @@ export class ConfigStore {
   private data: ConfigData;
 
   constructor(dbPath: string) {
-    this.configPath = join(dirname(dbPath), 'legal-os-config.json');
+    this.configPath = join(dirname(dbPath), 'factum-il-config.json');
     this.data = this.load();
   }
 
@@ -49,7 +49,7 @@ export class ConfigStore {
     }
     // First run: seed from installer registry key or env var or default
     const orgDirectory =
-      process.env['LEGAL_OS_ORG_DIR'] ??
+      process.env['FACTUM_IL_ORG_DIR'] ??
       readRegistryOrgDir() ??
       DEFAULT_ORG_DIR;
     const initial: ConfigData = { orgDirectory };

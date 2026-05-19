@@ -7,7 +7,7 @@ function sanitize(s: string, maxLen = 40): string {
 }
 
 /**
- * Build the canonical document name per Legal-OS naming convention:
+ * Build the canonical document name per Factum IL naming convention:
  *   [YYYY-MM-DD] - [Document_Type] - [Client_Name].pdf
  */
 export function buildDocumentName(

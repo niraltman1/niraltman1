@@ -1,6 +1,6 @@
 import Database from 'better-sqlite3';
 import type { Database as BetterSQLite3Database, Statement } from 'better-sqlite3';
-import { logger } from '@legal-os/shared';
+import { logger } from '@factum-il/shared';
 
 export interface DatabaseConfig {
   readonly path: string;

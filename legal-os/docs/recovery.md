@@ -1,4 +1,4 @@
-# Legal-OS Recovery & Rollback Guide
+# Factum IL Recovery & Rollback Guide
 
 ## Core Safety Guarantees
 
@@ -17,7 +17,7 @@ If the pipeline is interrupted (power loss, process kill, system crash):
 ### Step 1 — Identify incomplete operations
 
 ```powershell
-Import-Module .\legal-os\powershell\LegalOS.psm1
+Import-Module .\factum-il\powershell\FactumIL.psm1
 sqlite3 $dbPath "SELECT * FROM ProcessingStatus WHERE success = 0 ORDER BY transitioned_at DESC LIMIT 20;"
 ```
 

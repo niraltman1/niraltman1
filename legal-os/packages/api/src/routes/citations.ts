@@ -4,7 +4,7 @@ import type { Repos } from '../db.js';
 import { asyncHandler } from '../utils/async-handler.js';
 import { ok, fail } from '../utils/response.js';
 import { validate } from '../middleware/validate.js';
-import { extractCitations, repairCitation, scoreCitation } from '@legal-os/citation-engine';
+import { extractCitations, repairCitation, scoreCitation } from '@factum-il/citation-engine';
 
 const linkSchema = z.object({
   caseLawId: z.number().int().positive(),

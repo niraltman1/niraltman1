@@ -1,4 +1,4 @@
-﻿# START-HERE.ps1 - Legal-OS Installer
+﻿# START-HERE.ps1 - Factum IL Installer
 # Note: This file must be saved in UTF-8 with BOM encoding to support Hebrew characters correctly in PowerShell.
 
 [CmdletBinding(SupportsShouldProcess=$true)]
@@ -13,12 +13,12 @@ if (-not ([Security.Principal.WindowsPrincipal][Security.Principal.WindowsIdenti
     }
 }
 
-Write-Host "Administrator privileges confirmed. Starting Legal-OS installation..."
+Write-Host "Administrator privileges confirmed. Starting Factum IL installation..."
 
 # ─── Process Purge & Port Clearance ──────────────────────────────────────────
 Write-Host 'Cleaning up stale processes...'
 
-@('node','LegalOS.Desktop','vite','tsc') | ForEach-Object {
+@('node','FactumIL.Desktop','vite','tsc') | ForEach-Object {
   Stop-Process -Name $_ -Force -ErrorAction SilentlyContinue
 }
 
@@ -30,7 +30,7 @@ foreach ($port in @(3001, 5173)) {
 
 $dbDir = Join-Path 'C:\אלטמן משרד עורכי דין - סדר 2026' '_Data'
 foreach ($ext in @('-wal', '-shm')) {
-  $f = Join-Path $dbDir "legal-os.db$ext"
+  $f = Join-Path $dbDir "factum-il.db$ext"
   if (Test-Path -LiteralPath $f) { Remove-Item -LiteralPath $f -Force -ErrorAction SilentlyContinue }
 }
 
@@ -110,7 +110,7 @@ if (Get-Command node -ErrorAction SilentlyContinue) {
     $nodeVersion = (node --version).TrimStart('v')
     $nodeMajor   = [int]($nodeVersion -split '\.')[0]
     if ($nodeMajor -lt 20) {
-        Write-Error "Legal-OS requires Node.js >= 20. Detected: v$nodeVersion"
+        Write-Error "Factum IL requires Node.js >= 20. Detected: v$nodeVersion"
         Write-Host "Download the LTS release from https://nodejs.org and re-run this script."
         exit 1
     }
@@ -142,16 +142,16 @@ if (Test-Path (Join-Path $projectRoot "package.json")) {
 }
 
 # --- 7. Desktop Shortcut Generation ---
-Write-Host "Generating Desktop Shortcut for Legal-OS..."
+Write-Host "Generating Desktop Shortcut for Factum IL..."
 try {
     $shell = New-Object -ComObject WScript.Shell
-    $shortcutPath = Join-Path ([System.Environment]::GetFolderPath('Desktop')) "Legal-OS.lnk"
-    $targetPath = Join-Path $projectRoot "apps\LegalOS.Desktop\bin\Release\net8.0-windows\LegalOS.Desktop.exe"
+    $shortcutPath = Join-Path ([System.Environment]::GetFolderPath('Desktop')) "Factum IL.lnk"
+    $targetPath = Join-Path $projectRoot "apps\FactumIL.Desktop\bin\Release\net8.0-windows\FactumIL.Desktop.exe"
 
     if (Test-Path $targetPath) {
         $shortcut = $shell.CreateShortcut($shortcutPath)
         $shortcut.TargetPath = $targetPath
-        $shortcut.Description = "Legal-OS Desktop Application"
+        $shortcut.Description = "Factum IL Desktop Application"
         $shortcut.Save()
         Write-Host "Desktop shortcut created at $shortcutPath"
     } else {
@@ -163,8 +163,8 @@ try {
 
 # --- 8. Auto-Launch ---
 if (Test-Path $targetPath) {
-    Write-Host "Launching Legal-OS Desktop Application..."
+    Write-Host "Launching Factum IL Desktop Application..."
     Start-Process -FilePath $targetPath
 }
 
-Write-Host "Legal-OS installation and launch complete!"
+Write-Host "Factum IL installation and launch complete!"

@@ -1,6 +1,6 @@
 import type { DatabaseConnection } from '../connection.js';
-import type { ActionPlanEntry, ActionPlanStatus, SignedActionPlan } from '@legal-os/shared';
-import { generateUUID } from '@legal-os/shared';
+import type { ActionPlanEntry, ActionPlanStatus, SignedActionPlan } from '@factum-il/shared';
+import { generateUUID } from '@factum-il/shared';
 
 export interface CreateActionPlanInput {
   documentId?:   number;

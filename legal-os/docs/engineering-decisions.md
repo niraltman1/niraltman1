@@ -221,7 +221,7 @@ and navigates WebView2 to `http://localhost:3001`.
 ### DB path: branded root literal
 
 ```csharp
-const string dbPath = @"C:\אלטמן משרד עורכי דין - סדר 2026\_Data\legal-os.db";
+const string dbPath = @"C:\אלטמן משרד עורכי דין - סדר 2026\_Data\factum-il.db";
 ```
 
 **Why not `AppData`?** `Environment.GetFolderPath(SpecialFolder.ApplicationData)` gives
@@ -255,7 +255,7 @@ classification and metadata extraction. The installer pulls it automatically.
 
 ## Installation Pack
 
-### ZIP at `/tmp/LegalOS-Install.zip` (not Desktop)
+### ZIP at `/tmp/FactumIL-Install.zip` (not Desktop)
 
 **Why:** The build environment is Linux (no Windows Desktop directory). The ZIP contains the full
 source tree (minus `node_modules` and `dist`) + `INSTALL.md`. On Windows, the user extracts it,

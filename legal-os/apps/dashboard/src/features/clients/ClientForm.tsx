@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { XIcon, UserPlusIcon } from '@phosphor-icons/react';
-import { validateIsraeliId } from '@legal-os/shared';
+import { validateIsraeliId } from '@factum-il/shared';
 import { useCreateClient } from '@/api/hooks.js';
 
 interface Props {

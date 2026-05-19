@@ -1,5 +1,5 @@
 {
-  "name": "@legal-os/api",
+  "name": "@factum-il/api",
   "version": "1.0.0",
   "type": "module",
   "scripts": {
@@ -11,9 +11,9 @@
     "test:security": "vitest run src/utils/prompt-security.test.ts src/middleware/__tests__/log-sanitizer.test.ts"
   },
   "dependencies": {
-    "@legal-os/citation-engine": "workspace:*",
-    "@legal-os/database": "workspace:*",
-    "@legal-os/shared": "workspace:*",
+    "@factum-il/citation-engine": "workspace:*",
+    "@factum-il/database": "workspace:*",
+    "@factum-il/shared": "workspace:*",
     "archiver": "^7.0.1",
     "cors": "^2.8.5",
     "docxtemplater": "^3.68.7",

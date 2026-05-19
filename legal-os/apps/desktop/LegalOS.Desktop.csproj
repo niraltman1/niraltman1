@@ -4,8 +4,8 @@
     <OutputType>WinExe</OutputType>
     <TargetFramework>net8.0-windows</TargetFramework>
     <UseWPF>true</UseWPF>
-    <AssemblyName>LegalOS.Desktop</AssemblyName>
-    <RootNamespace>LegalOS.Desktop</RootNamespace>
+    <AssemblyName>FactumIL.Desktop</AssemblyName>
+    <RootNamespace>FactumIL.Desktop</RootNamespace>
     <Nullable>enable</Nullable>
     <ImplicitUsings>enable</ImplicitUsings>
     <PlatformTarget>x64</PlatformTarget>

@@ -12,7 +12,7 @@ import {
   updateProcedureSchema,
   listTemplatesQuerySchema,
 } from '../validation/legal-engine.js';
-import type { CreateMilestoneInput } from '@legal-os/shared';
+import type { CreateMilestoneInput } from '@factum-il/shared';
 
 export function legalEngineRouter(repos: Repos): Router {
   const router = Router();

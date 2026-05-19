@@ -19,7 +19,7 @@ import type {
   GmailRepository,
   VacuumRepository,
   PipelineLogsRepository,
-} from '@legal-os/database';
+} from '@factum-il/database';
 import type { ConfigStore } from './utils/config-store.js';
 
 export interface Repos {

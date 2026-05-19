@@ -1,7 +1,7 @@
 #Requires -Version 5.1
 <#
 .SYNOPSIS
-    Document processing state machine for Legal-OS.
+    Document processing state machine for Factum IL.
     Enforces valid transitions and logs every state change atomically.
 #>
 Set-StrictMode -Version Latest

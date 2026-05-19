@@ -4,8 +4,8 @@
     <TargetFramework>net8.0-windows</TargetFramework>
     <UseWPF>true</UseWPF>
     <ApplicationIcon>Resources\icon.ico</ApplicationIcon>
-    <AssemblyName>LegalOS</AssemblyName>
-    <RootNamespace>LegalOS.Desktop</RootNamespace>
+    <AssemblyName>FactumIL</AssemblyName>
+    <RootNamespace>FactumIL.Desktop</RootNamespace>
     <Nullable>enable</Nullable>
     <ImplicitUsings>enable</ImplicitUsings>
     <AllowUnsafeBlocks>false</AllowUnsafeBlocks>
@@ -15,9 +15,9 @@
     <IncludeNativeLibrariesForSelfExtract>true</IncludeNativeLibrariesForSelfExtract>
     <Version>13.0.0</Version>
     <FileVersion>13.0.0.0</FileVersion>
-    <Product>Legal-OS V13</Product>
+    <Product>Factum IL V13</Product>
     <Company>Altman Law Firm</Company>
-    <Description>Legal-OS — Israeli Law Office Operating System</Description>
+    <Description>Factum IL — Israeli Law Office Operating System</Description>
     <Copyright>© 2024 Altman Law Firm. All rights reserved.</Copyright>
   </PropertyGroup>
 

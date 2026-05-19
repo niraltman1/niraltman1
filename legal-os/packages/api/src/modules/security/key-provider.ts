@@ -39,7 +39,7 @@ export async function deriveBackupKey(): Promise<DerivedKey | null> {
       const exec = prom(execFile);
       // Use PowerShell DPAPI to derive a machine-bound key from a fixed seed
       const psScript = `
-        $seed = [System.Text.Encoding]::UTF8.GetBytes('legal-os-backup-key')
+        $seed = [System.Text.Encoding]::UTF8.GetBytes('factum-il-backup-key')
         $protected = [System.Security.Cryptography.ProtectedData]::Protect($seed, $null, 'LocalMachine')
         [Convert]::ToBase64String($protected)
       `.trim();

@@ -1,7 +1,7 @@
 #Requires -Version 5.1
 <#
 .SYNOPSIS
-    Structured logging module for Legal-OS.
+    Structured logging module for Factum IL.
     Writes UTF-8 log files in JSONL format with RFC-3339 timestamps.
 #>
 Set-StrictMode -Version Latest
@@ -68,7 +68,7 @@ function Write-LegalLog {
 
     if ($Script:LoggerConfig.LogDirectory -eq '') {
         # Auto-init to temp if not configured
-        Initialize-Logger -LogDirectory (Join-Path $env:TEMP 'LegalOS\logs')
+        Initialize-Logger -LogDirectory (Join-Path $env:TEMP 'FactumIL\logs')
     }
 
     $configuredLevel = $Script:LevelOrder[$Script:LoggerConfig.MinLevel]

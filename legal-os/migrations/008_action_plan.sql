@@ -10,7 +10,7 @@ CREATE TABLE IF NOT EXISTS ActionPlan (
   suggested_name TEXT,
   source_folder  TEXT    NOT NULL DEFAULT 'ידני',  -- e.g. "תיקיית הורדות"
   original_path  TEXT    NOT NULL,
-  suggested_path TEXT,                             -- always under LegalOS_Root
+  suggested_path TEXT,                             -- always under FactumIL_Root
   action_type    TEXT    NOT NULL DEFAULT 'RENAME'
                  CHECK(action_type IN ('RENAME','MOVE','RENAME_AND_MOVE','SKIP')),
   status         TEXT    NOT NULL DEFAULT 'PENDING'

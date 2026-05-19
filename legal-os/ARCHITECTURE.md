@@ -1,9 +1,9 @@
-# Legal-OS — Architecture Reference
+# Factum IL — Architecture Reference
 
 ## 1. Monorepo Layout
 
 ```
-legal-os/
+factum-il/
 ├── apps/
 │   ├── dashboard/          # React + Vite + TailwindCSS — RTL Hebrew UI (port 5173 dev)
 │   └── installer/          # PowerShell START-HERE.ps1 — Windows one-click setup
@@ -60,7 +60,7 @@ RAG Worker (Ollama — legal-brain)
   └── Canvas enrichment (court receipt + PDF signature detection)
        │
        ▼
-SQLite Database (_data/legal-os.db)
+SQLite Database (_data/factum-il.db)
   ├── FTS5 full-text search (fts_documents, fts_study_questions)
   └── 22 migrations (idempotent, MigrationRunner)
        │
@@ -156,13 +156,13 @@ Regardless of tier, the Ollama alias `legal-brain` is always created. The Node.j
 | Variable | Default | Description |
 |----------|---------|-------------|
 | `PORT` | `3001` | API server port |
-| `LEGAL_OS_DB_PATH` | `_data/legal-os.db` | SQLite database path |
+| `FACTUM_IL_DB_PATH` | `_data/factum-il.db` | SQLite database path |
 | `OLLAMA_MODEL` | `legal-brain` | Ollama model name (set to `legal-brain` by installer) |
 | `OLLAMA_BASE_URL` | `http://127.0.0.1:11434` | Ollama server URL |
-| `WHISPER_EXE` | `<LEGAL_OS_ROOT>\tools\whisper-fast.exe` | Whisper binary path |
+| `WHISPER_EXE` | `<FACTUM_IL_ROOT>\tools\whisper-fast.exe` | Whisper binary path |
 | `FFMPEG_EXE` | `ffmpeg` | ffmpeg binary (PATH or full path) |
 | `WHISPER_MODEL` | `medium` | Whisper model size |
-| `LEGAL_OS_ROOT` | `process.cwd()` | Root for `tools/` directory |
+| `FACTUM_IL_ROOT` | `process.cwd()` | Root for `tools/` directory |
 | `ACADEMIC_ROOT` | _(empty)_ | Semicolon-separated paths that bypass Data Firewall |
 | `BACKUP_ENCRYPT` | _(off)_ | Set to `1` to encrypt backup snapshots |
 | `BACKUP_ENCRYPT_KEY` | _(empty)_ | Raw hex key for backup encryption |

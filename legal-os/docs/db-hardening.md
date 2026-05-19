@@ -53,7 +53,7 @@ If `report.ok === false`, the dashboard shows a red banner and logs the errors.
 ## Hot Backup
 
 ```typescript
-const result = await hardening.backup('/backups/legal-os-2024-01-15.db');
+const result = await hardening.backup('/backups/factum-il-2024-01-15.db');
 // result: { success: boolean; sizeBytes: number; backedUpAt: Date }
 ```
 

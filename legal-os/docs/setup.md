@@ -1,4 +1,4 @@
-# Legal-OS Setup Guide
+# Factum IL Setup Guide
 
 ## System Requirements
 
@@ -15,7 +15,7 @@
 ## Fresh Installation
 
 1. Open **PowerShell as Administrator**
-2. Navigate to the `legal-os/apps/installer` directory
+2. Navigate to the `factum-il/apps/installer` directory
 3. Run:
 
 ```powershell
@@ -53,7 +53,7 @@ Updates all components to their latest supported versions:
 ## Custom Install Path
 
 ```powershell
-.\START-HERE.ps1 -InstallPath "D:\LegalOS"
+.\START-HERE.ps1 -InstallPath "D:\FactumIL"
 ```
 
 ## Skip AI Model Pull (Air-Gapped)
@@ -67,7 +67,7 @@ If the Ollama model is pre-placed in the models directory:
 ## Starting the Dashboard Manually
 
 ```powershell
-cd legal-os/apps/dashboard
+cd factum-il/apps/dashboard
 pnpm install    # first time only
 pnpm dev
 ```
@@ -77,8 +77,8 @@ Open `http://localhost:5173` in a WebView2-compatible browser.
 ## Directory Layout After Install
 
 ```
-%LOCALAPPDATA%\LegalOS\
- ├── data\legal-os.db      SQLite database
+%LOCALAPPDATA%\FactumIL\
+ ├── data\factum-il.db      SQLite database
  ├── logs\                 Application logs (JSONL format)
  ├── manifests\            Manifest snapshots
  ├── storage\              Normalised document storage
@@ -90,12 +90,12 @@ Open `http://localhost:5173` in a WebView2-compatible browser.
 **PowerShell (Pester):**
 ```powershell
 Install-Module Pester -Force -SkipPublisherCheck
-Invoke-Pester ./tests/powershell/LegalOS.Tests.ps1 -Output Detailed
+Invoke-Pester ./tests/powershell/FactumIL.Tests.ps1 -Output Detailed
 ```
 
 **TypeScript (Vitest):**
 ```powershell
-cd legal-os
+cd factum-il
 pnpm install
 pnpm test
 ```

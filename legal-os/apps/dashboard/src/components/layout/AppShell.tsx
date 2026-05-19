@@ -35,7 +35,7 @@ export function AppShell() {
           <span style={{ color: 'var(--fg-4)' }}>·</span>
           <span>FTS5 פעיל</span>
           <span style={{ color: 'var(--fg-4)' }}>·</span>
-          <span>מסד נתונים: legal-os.db</span>
+          <span>מסד נתונים: factum-il.db</span>
           <span className="mr-auto flex items-center gap-1.5" style={{ color: 'var(--brand-cyan)' }}>
             <span>🔒</span>
             מקומי · ללא ענן

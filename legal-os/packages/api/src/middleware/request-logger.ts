@@ -1,5 +1,5 @@
 import type { RequestHandler } from 'express';
-import { sanitizeUrlForLog, logger } from '@legal-os/shared';
+import { sanitizeUrlForLog, logger } from '@factum-il/shared';
 
 export const requestLogger: RequestHandler = (req, res, next) => {
   const start = Date.now();

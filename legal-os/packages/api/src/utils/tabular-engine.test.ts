@@ -13,16 +13,16 @@ const pfStore:  Record<string, unknown> = {};
 const mockDocs = {
   findByHash:    (_h: string) => null,
   create:        (data: unknown) => { const id = Object.keys(docStore).length + 1; docStore[id] = data; return { id }; },
-} as unknown as import('@legal-os/database').DocumentRepository;
+} as unknown as import('@factum-il/database').DocumentRepository;
 
 const mockPf = {
   findByHash:    (_h: string) => null,
   register:      (data: unknown) => { pfStore['reg'] = data; },
   updateStatus:  () => {},
-} as unknown as import('@legal-os/database').ProcessedFilesRepository;
+} as unknown as import('@factum-il/database').ProcessedFilesRepository;
 
 // ── Fixtures ──────────────────────────────────────────────────────────────────
-const TMP = join(tmpdir(), `legal-os-tests-${randomUUID()}`);
+const TMP = join(tmpdir(), `factum-il-tests-${randomUUID()}`);
 let csvPath   = '';
 let xlsxPath  = '';
 

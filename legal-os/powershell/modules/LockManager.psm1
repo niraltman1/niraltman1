@@ -1,7 +1,7 @@
 #Requires -Version 5.1
 <#
 .SYNOPSIS
-    Distributed locking module for Legal-OS.
+    Distributed locking module for Factum IL.
     Provides file-level and resource-level mutex operations backed by SQLite.
     Locks auto-expire to prevent deadlocks from crashed workers.
 #>

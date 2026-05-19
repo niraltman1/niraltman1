@@ -1,16 +1,16 @@
 ; ============================================================================
-;  Legal-OS 11.0-MAX — Inno Setup Installer Script
+;  Factum IL 11.0-MAX — Inno Setup Installer Script
 ;  Compiler: Inno Setup 6.x  (https://jrsoftware.org/isinfo.php)
-;  Prerequisites: run apps\desktop\publish.ps1 first to populate LegalOS_Dist\
+;  Prerequisites: run apps\desktop\publish.ps1 first to populate FactumIL_Dist\
 ;  Run: ISCC.exe installer.iss
-;  Output: dist-package\LegalOS_11MAX_Installer.exe
+;  Output: dist-package\FactumIL_11MAX_Installer.exe
 ; ============================================================================
 
-#define AppName       "Legal-OS"
+#define AppName       "Factum IL"
 #define AppVersion    "11.0-MAX"
 #define AppPublisher  "Altman Law Firm"
 #define AppURL        "https://altman-law.co.il"
-#define AppExeName    "shell\LegalOS.Desktop.exe"
+#define AppExeName    "shell\FactumIL.Desktop.exe"
 #define AppGUID       "{{7A3F1B2C-9D4E-4F8A-B6C5-1E2D3A4B5C6D}"
 
 [Setup]
@@ -19,12 +19,12 @@ AppName={#AppName}
 AppVersion={#AppVersion}
 AppPublisher={#AppPublisher}
 AppPublisherURL={#AppURL}
-DefaultDirName={autopf}\LegalOS
+DefaultDirName={autopf}\FactumIL
 DefaultGroupName={#AppName}
 AllowNoIcons=yes
 OutputDir=dist-package
-OutputBaseFilename=LegalOS_11MAX_Installer
-SetupIconFile=LegalOS_Dist\shell\Resources\icon.ico
+OutputBaseFilename=FactumIL_11MAX_Installer
+SetupIconFile=FactumIL_Dist\shell\Resources\icon.ico
 Compression=lzma2/ultra64
 SolidCompression=yes
 WizardStyle=modern
@@ -42,27 +42,27 @@ Name: "english"; MessagesFile: "compiler:Default.isl"
 
 [Messages]
 ; English fallback (Hebrew ISL may not exist on all setups)
-WelcomeLabel1=ברוכים הבאים ל-Legal-OS
+WelcomeLabel1=ברוכים הבאים ל-Factum IL
 WelcomeLabel2=מערכת הפעלה משפטית לצרכי משרד עורכי דין אלטמן.%n%nגרסה 11.0-MAX%n%nלחצו הבא להמשך.
 
 [Tasks]
 Name: "desktopicon"; Description: "צור קיצור דרך בשולחן העבודה"; GroupDescription: "קיצורי דרך:"; Flags: checkedonce
 
 [Files]
-; ── C# WPF shell (LegalOS.Desktop.exe + WebView2 dlls) ───────────────────
-Source: "LegalOS_Dist\shell\*";       DestDir: "{app}\shell";      Flags: ignoreversion recursesubdirs
+; ── C# WPF shell (FactumIL.Desktop.exe + WebView2 dlls) ───────────────────
+Source: "FactumIL_Dist\shell\*";       DestDir: "{app}\shell";      Flags: ignoreversion recursesubdirs
 
 ; ── Node.js backend (Express API + production node_modules) ──────────────
-Source: "LegalOS_Dist\backend\*";     DestDir: "{app}\backend";    Flags: ignoreversion recursesubdirs
+Source: "FactumIL_Dist\backend\*";     DestDir: "{app}\backend";    Flags: ignoreversion recursesubdirs
 
 ; ── React dashboard static assets (served by Express at /) ───────────────
-Source: "LegalOS_Dist\dashboard\*";   DestDir: "{app}\dashboard";  Flags: ignoreversion recursesubdirs
+Source: "FactumIL_Dist\dashboard\*";   DestDir: "{app}\dashboard";  Flags: ignoreversion recursesubdirs
 
-; ── SQL migrations (run by start.ts on first boot via LEGAL_OS_ROOT) ─────
-Source: "LegalOS_Dist\migrations\*";  DestDir: "{app}\migrations"; Flags: ignoreversion
+; ── SQL migrations (run by start.ts on first boot via FACTUM_IL_ROOT) ─────
+Source: "FactumIL_Dist\migrations\*";  DestDir: "{app}\migrations"; Flags: ignoreversion
 
 ; ── Portable Node.js runtime (sovereign offline execution) ───────────────
-Source: "LegalOS_Dist\runtime\node.exe"; DestDir: "{app}\runtime"; Flags: ignoreversion
+Source: "FactumIL_Dist\runtime\node.exe"; DestDir: "{app}\runtime"; Flags: ignoreversion
 
 ; ── Optional bundled tools (graceful degradation if absent) ──────────────
 Source: "dist-package\tools\whisper-fast.exe"; DestDir: "{app}\tools"; Flags: ignoreversion skipifsourcedoesntexist
@@ -77,7 +77,7 @@ Name: "{commondesktop}\{#AppName}"; Filename: "{app}\{#AppExeName}"; Tasks: desk
 [Registry]
 ; Store installation root for PowerShell scripts and API service
 Root: HKLM; Subkey: "SYSTEM\CurrentControlSet\Control\Session Manager\Environment"; \
-  ValueType: expandsz; ValueName: "LEGAL_OS_ROOT"; ValueData: "{app}"; \
+  ValueType: expandsz; ValueName: "FACTUM_IL_ROOT"; ValueData: "{app}"; \
   Flags: preservestringtype uninsdeletevalue
 Root: HKLM; Subkey: "SYSTEM\CurrentControlSet\Control\Session Manager\Environment"; \
   ValueType: expandsz; ValueName: "WHISPER_EXE"; ValueData: "{app}\tools\whisper-fast.exe"; \
@@ -107,7 +107,7 @@ Filename: "powershell.exe"; \
 
 ; ── 4. Launch app after install (optional checkbox) ──────────────────────
 Filename: "{app}\{#AppExeName}"; \
-  Description: "הפעל את Legal-OS עכשיו"; \
+  Description: "הפעל את Factum IL עכשיו"; \
   Flags: nowait postinstall skipifsilent unchecked
 
 [UninstallDelete]
@@ -147,7 +147,7 @@ end;
 procedure InitializeWizard;
 begin
   if NeedsWebView2 then begin
-    if MsgBox('WebView2 Runtime נדרש ל-Legal-OS.' + #13#10 +
+    if MsgBox('WebView2 Runtime נדרש ל-Factum IL.' + #13#10 +
               'לחץ כן להורדה אוטומטית, לא לביטול.',
               mbConfirmation, MB_YESNO) = IDYES then begin
       ShellExec('open',

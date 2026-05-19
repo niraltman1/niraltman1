@@ -1,5 +1,5 @@
 import { createHash } from 'node:crypto';
-import { logger } from '@legal-os/shared';
+import { logger } from '@factum-il/shared';
 import type { DatabaseConnection } from '../connection.js';
 
 const CACHE_TTL_MS = 60_000;

@@ -1,7 +1,7 @@
 #Requires -Version 5.1
 <#
 .SYNOPSIS
-    Legal-OS File Watcher — monitors WatchFolders and POSTs new files to the ingest API.
+    Factum IL File Watcher — monitors WatchFolders and POSTs new files to the ingest API.
 
 .DESCRIPTION
     Uses .NET FileSystemWatcher to monitor the configured watch folders.
@@ -12,7 +12,7 @@
     Only processes: .pdf, .docx, .doc, .jpg, .jpeg, .png, .heic, .tiff, .webp
 
 .PARAMETER ApiBase
-    Base URL of the Legal-OS API (default: http://localhost:3001)
+    Base URL of the Factum IL API (default: http://localhost:3001)
 
 .PARAMETER DebounceSec
     Seconds to debounce rapid file-system events (default: 3)
@@ -112,7 +112,7 @@ foreach ($folder in $WatchFolders) {
     Write-Host "[Watcher] מנטר: $folder" -ForegroundColor Green
 }
 
-Write-Host "[Watcher] Legal-OS File Watcher פעיל — לעצור לחץ Ctrl+C" -ForegroundColor Green
+Write-Host "[Watcher] Factum IL File Watcher פעיל — לעצור לחץ Ctrl+C" -ForegroundColor Green
 
 try {
     while ($true) { Start-Sleep -Seconds 5 }

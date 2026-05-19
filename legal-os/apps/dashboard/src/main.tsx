@@ -3,7 +3,7 @@ import { createRoot } from 'react-dom/client';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { RouterProvider } from 'react-router-dom';
 import { router } from './router/index.js';
-import { logger, createConsoleSink } from '@legal-os/shared';
+import { logger, createConsoleSink } from '@factum-il/shared';
 import { SplashScreen } from './components/SplashScreen.js';
 import './styles/fonts.css';
 import './styles/globals.css';

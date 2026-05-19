@@ -54,6 +54,6 @@ export const useUIStore = create<UIState & UIActions>()(
       selectCase: (id) =>
         set({ selectedCaseId: id }, false, 'selectCase'),
     }),
-    { name: 'legal-os-ui' },
+    { name: 'factum-il-ui' },
   ),
 );

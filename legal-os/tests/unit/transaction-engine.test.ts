@@ -55,7 +55,7 @@ describe('ManifestTransactionEngine', () => {
   beforeEach(() => {
     db = createTestDb();
     engine = new ManifestTransactionEngine(db);
-    tmpDir = mkdtempSync(join(tmpdir(), 'legal-os-tx-test-'));
+    tmpDir = mkdtempSync(join(tmpdir(), 'factum-il-tx-test-'));
   });
 
   afterEach(() => {

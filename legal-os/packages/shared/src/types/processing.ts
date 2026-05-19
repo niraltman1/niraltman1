@@ -1,4 +1,4 @@
-/** All valid document processing states in the Legal-OS state machine. */
+/** All valid document processing states in the Factum IL state machine. */
 export type ProcessingState =
   | 'DISCOVERED'
   | 'HASHED'

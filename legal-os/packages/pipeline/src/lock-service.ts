@@ -1,5 +1,5 @@
-import { generateUUID, logger, utcNow } from '@legal-os/shared';
-import type { DatabaseConnection } from '@legal-os/database';
+import { generateUUID, logger, utcNow } from '@factum-il/shared';
+import type { DatabaseConnection } from '@factum-il/database';
 
 const AGENT = 'PipelineEngine';
 

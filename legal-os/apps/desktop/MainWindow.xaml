@@ -1,8 +1,8 @@
-<Window x:Class="LegalOS.Desktop.MainWindow"
+<Window x:Class="FactumIL.Desktop.MainWindow"
         xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         xmlns:wv2="clr-namespace:Microsoft.Web.WebView2.Wpf;assembly=Microsoft.Web.WebView2.Wpf"
-        Title="Legal-OS | אלטמן משרד עורכי דין"
+        Title="Factum IL | אלטמן משרד עורכי דין"
         Icon="Resources/icon.ico"
         Height="920" Width="1480"
         WindowState="Maximized"
@@ -12,7 +12,7 @@
         <!-- Splash / loading overlay — visible until API is ready -->
         <Grid x:Name="loadingGrid" Background="#111827" Panel.ZIndex="10">
             <StackPanel HorizontalAlignment="Center" VerticalAlignment="Center">
-                <TextBlock Text="Legal-OS"
+                <TextBlock Text="Factum IL"
                            FontSize="42" FontWeight="Bold"
                            Foreground="#C9A84C"
                            HorizontalAlignment="Center"/>

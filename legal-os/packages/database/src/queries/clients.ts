@@ -1,5 +1,5 @@
 import type { DatabaseConnection } from '../connection.js';
-import type { Client, ClientCreateInput, PaginatedResult } from '@legal-os/shared';
+import type { Client, ClientCreateInput, PaginatedResult } from '@factum-il/shared';
 
 export class ClientRepository {
   constructor(private readonly db: DatabaseConnection) {}

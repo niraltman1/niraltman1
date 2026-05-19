@@ -1,7 +1,7 @@
 import { join } from 'node:path';
 import { mkdirSync } from 'node:fs';
 import { createStream } from 'rotating-file-stream';
-import { logger, createConsoleSink, withSanitization, type LogEntry } from '@legal-os/shared';
+import { logger, createConsoleSink, withSanitization, type LogEntry } from '@factum-il/shared';
 
 export function initLogger(): void {
   const level = (process.env['LOG_LEVEL'] ?? 'INFO') as Parameters<typeof logger.configure>[0];
@@ -15,11 +15,11 @@ export function initLogger(): void {
   }
 
   if (process.env['NODE_ENV'] === 'production') {
-    const logDir = process.env['LEGAL_OS_LOG_DIR']
+    const logDir = process.env['FACTUM_IL_LOG_DIR']
       ?? join(
           process.env['LOCALAPPDATA']
             ?? join(process.env['USERPROFILE'] ?? process.env['HOME'] ?? '.', 'AppData', 'Local'),
-          'LegalOS', 'logs',
+          'FactumIL', 'logs',
         );
     mkdirSync(logDir, { recursive: true });
 

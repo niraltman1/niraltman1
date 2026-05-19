@@ -7,7 +7,7 @@ import { asyncHandler } from '../utils/async-handler.js';
 import { validate } from '../middleware/validate.js';
 import { ok } from '../utils/response.js';
 import { NotFoundError } from '../errors/api-error.js';
-import type { VacuumStatus } from '@legal-os/database';
+import type { VacuumStatus } from '@factum-il/database';
 
 const SCRIPTS_DIR = join(process.cwd(), 'powershell', 'scripts');
 

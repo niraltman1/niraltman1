@@ -1,5 +1,5 @@
 import type { DatabaseConnection } from '../connection.js';
-import { generateUUID } from '@legal-os/shared';
+import { generateUUID } from '@factum-il/shared';
 
 export interface BackupSnapshot {
   snapshotId:     string;

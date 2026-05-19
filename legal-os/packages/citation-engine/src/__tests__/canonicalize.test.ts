@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { canonicalizeProcedure, canonicalizeCitation } from '@legal-os/citation-engine';
+import { canonicalizeProcedure, canonicalizeCitation } from '@factum-il/citation-engine';
 
 describe('canonicalizeProcedure', () => {
   it('keeps canonical form unchanged', () => {

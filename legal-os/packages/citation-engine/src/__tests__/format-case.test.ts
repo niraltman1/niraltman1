@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
-import { formatCitation } from '@legal-os/citation-engine';
-import type { CaseCitation } from '@legal-os/citation-engine';
+import { formatCitation } from '@factum-il/citation-engine';
+import type { CaseCitation } from '@factum-il/citation-engine';
 
 describe('formatCitation — CaseCitation (Nevo 2021)', () => {
   it('formats full case citation with two parties, publication, and date', () => {

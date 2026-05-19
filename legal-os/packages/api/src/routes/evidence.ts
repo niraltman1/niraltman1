@@ -9,7 +9,7 @@ import { NotFoundError } from '../errors/api-error.js';
 import { EvidenceLocker } from '../modules/evidence/evidence-locker.js';
 
 const LOCKER_ROOT = process.env['EVIDENCE_LOCKER_ROOT']
-  ?? join(process.env['LEGAL_OS_ROOT'] ?? process.cwd(), 'Evidence_Locker');
+  ?? join(process.env['FACTUM_IL_ROOT'] ?? process.cwd(), 'Evidence_Locker');
 
 const lockSchema = z.object({
   sourcePath:  z.string().min(1),

@@ -1,7 +1,7 @@
 #Requires -Version 5.1
 <#
 .SYNOPSIS
-    Hardware detection and AI tier selection for Legal-OS.
+    Hardware detection and AI tier selection for Factum IL.
     Sets $Script:AI_* variables consumed by 02-SetupAIModels.ps1 and START-HERE.ps1.
 #>
 
@@ -49,7 +49,7 @@ $Script:AI_ALIAS = 'legal-brain'
 # ── Print summary ──────────────────────────────────────────────────────────────
 Write-Host ""
 Write-Host "  ┌────────────────────────────────────────────────┐" -ForegroundColor Cyan
-Write-Host "  │  Legal-OS Hardware Profile                     │" -ForegroundColor Cyan
+Write-Host "  │  Factum IL Hardware Profile                     │" -ForegroundColor Cyan
 Write-Host "  ├────────────────────────────────────────────────┤" -ForegroundColor Cyan
 Write-Host "  │  RAM:   $($Script:HW_RAM_GB) GB$((' ' * [Math]::Max(0, 39 - $Script:HW_RAM_GB.ToString().Length)))│" -ForegroundColor Cyan
 Write-Host "  │  GPU:   $($Script:HW_GPU_NAME.Substring(0, [Math]::Min(36, $Script:HW_GPU_NAME.Length)).PadRight(36)) │" -ForegroundColor Cyan

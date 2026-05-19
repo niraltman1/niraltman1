@@ -10,7 +10,7 @@ export interface ServerConfig {
 export function getServerConfigPath(): string {
   const localAppData = process.env['LOCALAPPDATA']
     ?? join(process.env['USERPROFILE'] ?? process.env['HOME'] ?? '.', 'AppData', 'Local');
-  return join(localAppData, 'LegalOS', 'runtime', 'server_config.json');
+  return join(localAppData, 'FactumIL', 'runtime', 'server_config.json');
 }
 
 export async function writeServerConfig(cfg: ServerConfig): Promise<void> {

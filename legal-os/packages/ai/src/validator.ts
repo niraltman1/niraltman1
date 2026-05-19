@@ -1,4 +1,4 @@
-import { logger, clamp, roundConfidence } from '@legal-os/shared';
+import { logger, clamp, roundConfidence } from '@factum-il/shared';
 
 const AGENT = 'AIStrategist';
 

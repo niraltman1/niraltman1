@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 
 const MESSAGES = [
-  'מאתחל את מנוע Legal-OS...',
+  'מאתחל את מנוע Factum IL...',
   'מתחבר לבסיס הנתונים המאובטח...',
   'מעיר עובדי הבינה המלאכותית...',
   'המערכת מוכנה ✓',
@@ -152,7 +152,7 @@ export function SplashScreen({ onReady }: { onReady: () => void }) {
           letterSpacing: '0.08em',
         }}
       >
-        Legal-OS Beta
+        Factum IL Beta
       </h1>
       <p
         style={{

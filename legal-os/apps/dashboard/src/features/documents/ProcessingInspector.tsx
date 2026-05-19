@@ -1,6 +1,6 @@
 import { useProcessingStatus } from '@/api/hooks.js';
 import { ClockCounterClockwiseIcon } from '@phosphor-icons/react';
-import type { ProcessingState } from '@legal-os/shared';
+import type { ProcessingState } from '@factum-il/shared';
 
 const STATE_ORDER: ProcessingState[] = [
   'DISCOVERED','HASHED','OCR_PENDING','OCR_COMPLETE',

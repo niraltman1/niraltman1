@@ -1,5 +1,5 @@
 {
-  "name": "@legal-os/dashboard",
+  "name": "@factum-il/dashboard",
   "version": "1.0.0",
   "private": true,
   "type": "module",
@@ -13,8 +13,8 @@
     "lint": "eslint src --ext ts,tsx --report-unused-disable-directives --max-warnings 0"
   },
   "dependencies": {
-    "@legal-os/database": "workspace:*",
-    "@legal-os/shared": "workspace:*",
+    "@factum-il/database": "workspace:*",
+    "@factum-il/shared": "workspace:*",
     "@phosphor-icons/react": "^2.1.7",
     "@tanstack/react-query": "^5.51.1",
     "@tanstack/react-query-devtools": "^5.51.1",

@@ -1,4 +1,4 @@
--- Legal-OS Master Database Schema
+-- Factum IL Master Database Schema
 -- SQLite 3.x with WAL mode and FTS5
 -- Applies on top of migrations; this file is the canonical reference.
 
@@ -72,7 +72,7 @@ CREATE TABLE IF NOT EXISTS Documents (
   id               INTEGER PRIMARY KEY AUTOINCREMENT,
   file_hash        TEXT    NOT NULL UNIQUE,   -- SHA-256 of original file bytes
   original_path    TEXT    NOT NULL,
-  storage_path     TEXT    NOT NULL,          -- normalised relative path inside legal-os storage
+  storage_path     TEXT    NOT NULL,          -- normalised relative path inside factum-il storage
   filename         TEXT    NOT NULL,
   extension        TEXT    NOT NULL,
   file_size_bytes  INTEGER NOT NULL,

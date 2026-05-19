@@ -10,7 +10,7 @@ import { tmpdir } from 'node:os';
  * Requires better-sqlite3 to be installed.
  */
 
-const TMP_DIR = join(tmpdir(), `legal_os_migration_test_${Date.now()}`);
+const TMP_DIR = join(tmpdir(), `factum_il_migration_test_${Date.now()}`);
 const DB_PATH = join(TMP_DIR, 'test.db');
 const MIGRATIONS_DIR = join(TMP_DIR, 'migrations');
 

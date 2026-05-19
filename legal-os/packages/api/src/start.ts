@@ -2,7 +2,7 @@
 const _nodeMajor = Number(process.versions.node.split('.')[0]);
 if (_nodeMajor < 20) {
   process.stderr.write(
-    `\n[Legal-OS] FATAL: Node.js >= 20 required. Detected: ${process.versions.node}\n` +
+    `\n[Factum IL] FATAL: Node.js >= 20 required. Detected: ${process.versions.node}\n` +
     `  Install the LTS release from https://nodejs.org and restart.\n\n`,
   );
   process.exit(1);
@@ -35,7 +35,7 @@ import {
   GmailRepository,
   VacuumRepository,
   PipelineLogsRepository,
-} from '@legal-os/database';
+} from '@factum-il/database';
 import { createApp } from './app.js';
 import type { Repos } from './db.js';
 import { startRagWorker, stopRagWorker } from './utils/rag-worker.js';
@@ -54,16 +54,16 @@ const __dirname = dirname(fileURLToPath(import.meta.url));
 const REQUESTED_PORT = Number(process.env['PORT'] ?? 3001);
 const { default: getPort, portNumbers } = await import('get-port');
 const PORT = await getPort({ port: portNumbers(REQUESTED_PORT, REQUESTED_PORT + 20) });
-const DB_PATH = process.env['LEGAL_OS_DB_PATH']
+const DB_PATH = process.env['FACTUM_IL_DB_PATH']
   ?? (process.env['NODE_ENV'] === 'production'
       ? join(
           process.env['LOCALAPPDATA'] ?? join(process.env['USERPROFILE'] ?? 'C:', 'AppData', 'Local'),
-          'LegalOS', 'legalos.db',
+          'FactumIL', 'factum-il.db',
         )
-      : join(__dirname, '..', '..', '..', '_data', 'legal-os.db'));
+      : join(__dirname, '..', '..', '..', '_data', 'factum-il.db'));
 
-const MIGRATIONS_DIR = process.env['LEGAL_OS_ROOT']
-  ? join(process.env['LEGAL_OS_ROOT'], 'migrations')
+const MIGRATIONS_DIR = process.env['FACTUM_IL_ROOT']
+  ? join(process.env['FACTUM_IL_ROOT'], 'migrations')
   : join(__dirname, '..', '..', '..', 'migrations');
 
 mkdirSync(dirname(DB_PATH), { recursive: true });
@@ -114,7 +114,7 @@ seedDefaultAdmin(repos);
 
 const server = app.listen(PORT, () => {
   void writeServerConfig({ port: PORT, pid: process.pid, ts: new Date().toISOString() });
-  console.log(`Legal-OS API ready — http://localhost:${PORT}`);
+  console.log(`Factum IL API ready — http://localhost:${PORT}`);
   startRagWorker(repos);
   startBackupScheduler(repos, DB_PATH);
   startContentUpdateScheduler(repos);

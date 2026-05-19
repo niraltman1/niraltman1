@@ -1,7 +1,7 @@
 #Requires -Version 5.1
 <#
 .SYNOPSIS
-    Crash recovery and system integrity validation for Legal-OS.
+    Crash recovery and system integrity validation for Factum IL.
     Handles: queue restoration, interrupted transaction recovery,
     manifest reconciliation, hash re-verification, and corruption detection.
 #>
@@ -221,7 +221,7 @@ function New-CrashBundle {
     if (-not (Test-Path $OutputDirectory)) { New-Item -ItemType Directory -Path $OutputDirectory -Force | Out-Null }
 
     $bundleId  = [System.Guid]::NewGuid().ToString()
-    $bundleDir = Join-Path $env:TEMP "legalos_crash_$bundleId"
+    $bundleDir = Join-Path $env:TEMP "factuml_crash_$bundleId"
     New-Item -ItemType Directory -Path $bundleDir -Force | Out-Null
 
     # Recent logs (last 24h)

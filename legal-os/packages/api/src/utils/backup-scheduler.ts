@@ -9,7 +9,7 @@
  *   BACKUP_MAX_KEEP      — number of snapshots to retain (default: 24)
  *   BACKUP_DIR           — override backup directory (default: <db_dir>/backups)
  *
- * Snapshot naming: legal-os-<YYYYMMDD-HHmmss>.db
+ * Snapshot naming: factum-il-<YYYYMMDD-HHmmss>.db
  *
  * Integration: call startBackupScheduler(repos) from start.ts after server.listen.
  */
@@ -20,7 +20,7 @@ import type { Repos } from '../db.js';
 import { encryptAES256GCM, deriveBackupKey } from '../modules/security/index.js';
 import { withWriteLock } from './write-mutex.js';
 import { emitActivity } from './activity-emitter.js';
-import { logger } from '@legal-os/shared';
+import { logger } from '@factum-il/shared';
 
 const INTERVAL_MS = Number(process.env['BACKUP_INTERVAL_MS'] ?? 3_600_000);
 const MAX_KEEP    = Number(process.env['BACKUP_MAX_KEEP']    ?? 24);
@@ -43,7 +43,7 @@ async function pruneOldSnapshots(backupDir: string): Promise<void> {
   let files: string[];
   try {
     files = (await readdir(backupDir))
-      .filter((f) => f.startsWith('legal-os-') && f.endsWith('.db'))
+      .filter((f) => f.startsWith('factum-il-') && f.endsWith('.db'))
       .sort(); // lexicographic = chronological for our naming scheme
   } catch {
     return;
@@ -58,7 +58,7 @@ async function pruneOldSnapshots(backupDir: string): Promise<void> {
 async function takeSnapshot(repos: Repos, backupDir: string, resolvedDbPath: string): Promise<void> {
   await mkdir(backupDir, { recursive: true });
 
-  const snapName = `legal-os-${timestampStr()}.db`;
+  const snapName = `factum-il-${timestampStr()}.db`;
   const snapPath = join(backupDir, snapName);
 
   await withWriteLock('backup-scheduler:snapshot', async () => {
@@ -120,7 +120,7 @@ export function startBackupScheduler(repos: Repos, dbPath?: string): void {
 
   const resolvedDbPath = dbPath
     ?? (repos.db as unknown as { path?: string }).path
-    ?? join(process.cwd(), '_data', 'legal-os.db');
+    ?? join(process.cwd(), '_data', 'factum-il.db');
 
   const backupDir = process.env['BACKUP_DIR'] ?? join(dirname(resolvedDbPath), 'backups');
 

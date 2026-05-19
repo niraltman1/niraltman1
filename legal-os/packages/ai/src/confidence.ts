@@ -1,5 +1,5 @@
-import { CONFIDENCE_THRESHOLD, clamp, roundConfidence } from '@legal-os/shared';
-import type { ConfidenceScore } from '@legal-os/shared';
+import { CONFIDENCE_THRESHOLD, clamp, roundConfidence } from '@factum-il/shared';
+import type { ConfidenceScore } from '@factum-il/shared';
 
 export interface ConfidenceInputs {
   ocrConfidence:           number;  // 0–1 from Tesseract

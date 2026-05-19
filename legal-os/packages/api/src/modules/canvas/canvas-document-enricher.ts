@@ -1,4 +1,4 @@
-import type { DatabaseConnection } from '@legal-os/database';
+import type { DatabaseConnection } from '@factum-il/database';
 import { detectCourtReceipt } from './court-receipt-detector.js';
 import { detectPdfSignature } from './pdf-signature-detector.js';
 

@@ -1,7 +1,7 @@
-<Window x:Class="LegalOS.Desktop.SplashWindow"
+<Window x:Class="FactumIL.Desktop.SplashWindow"
         xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-        Title="Legal-OS" Height="280" Width="480"
+        Title="Factum IL" Height="280" Width="480"
         WindowStyle="None" AllowsTransparency="True"
         Background="Transparent"
         WindowStartupLocation="CenterScreen"
@@ -9,7 +9,7 @@
   <Border Background="#0E1629" CornerRadius="12"
           BorderBrush="#C9A94F" BorderThickness="1">
     <StackPanel VerticalAlignment="Center" HorizontalAlignment="Center" Margin="40">
-      <TextBlock Text="⚖ Legal-OS" FontSize="32" FontFamily="Georgia"
+      <TextBlock Text="⚖ Factum IL" FontSize="32" FontFamily="Georgia"
                  Foreground="#C9A94F" HorizontalAlignment="Center" />
       <TextBlock Text="Altman Law Firm · V13"
                  FontSize="13" Foreground="#E8D9B5" Opacity="0.6"

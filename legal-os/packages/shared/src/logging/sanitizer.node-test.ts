@@ -33,7 +33,7 @@ describe('sanitizeForLog', () => {
   });
 
   test('leaves clean strings unchanged', () => {
-    const clean = 'Processing document legal-os-2024.pdf';
+    const clean = 'Processing document factum-il-2024.pdf';
     assert.equal(sanitizeForLog(clean), clean);
   });
 });

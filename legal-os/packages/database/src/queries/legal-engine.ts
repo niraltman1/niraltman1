@@ -5,7 +5,7 @@ import type {
   CaseProcedure,
   CreateTemplateInput,
   CreateMilestoneInput,
-} from '@legal-os/shared';
+} from '@factum-il/shared';
 
 export class LegalEngineRepository {
   constructor(private readonly db: DatabaseConnection) {}

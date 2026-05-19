@@ -134,7 +134,7 @@ export function casesRouter(repos: Repos): Router {
     const cas = cases.findById(id);
     if (!cas) throw new NotFoundError('Case');
 
-    const outDir = path.join(process.env['LEGAL_OS_ROOT'] ?? process.cwd(), '_evidence');
+    const outDir = path.join(process.env['FACTUM_IL_ROOT'] ?? process.cwd(), '_evidence');
     await fs.mkdir(outDir, { recursive: true });
 
     const safeNum = String((cas as unknown as Record<string, unknown>)['caseNumber'] ?? `case-${id}`)

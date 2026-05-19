@@ -1,6 +1,6 @@
 using System.Windows;
 
-namespace LegalOS.Desktop;
+namespace FactumIL.Desktop;
 
 public partial class MainWindow : Window
 {
@@ -15,7 +15,7 @@ public partial class MainWindow : Window
         // Minimise to tray instead of closing
         e.Cancel = true;
         Hide();
-        TrayIcon.ShowBalloonTip("Legal-OS", "המערכת ממשיכה לרוץ ברקע", Hardcodet.Wpf.TaskbarNotification.BalloonIcon.Info);
+        TrayIcon.ShowBalloonTip("Factum IL", "המערכת ממשיכה לרוץ ברקע", Hardcodet.Wpf.TaskbarNotification.BalloonIcon.Info);
     }
 
     private void TrayMenu_Open(object sender, RoutedEventArgs e)

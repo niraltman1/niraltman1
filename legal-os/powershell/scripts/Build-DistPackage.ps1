@@ -21,7 +21,7 @@ param(
 $Root  = Resolve-Path "$PSScriptRoot\..\.."
 $Dist  = Join-Path $Root 'dist-package'
 
-Write-Host "`n=== Legal-OS V13 — Build & Stage ===" -ForegroundColor Cyan
+Write-Host "`n=== Factum IL V13 — Build & Stage ===" -ForegroundColor Cyan
 Write-Host "Root : $Root"
 Write-Host "Dist : $Dist`n"
 
@@ -37,7 +37,7 @@ if (-not $SkipNodeBuild) {
   Write-Host '[1/5] Building Node.js API + Dashboard...' -ForegroundColor Yellow
   Push-Location $Root
   pnpm install --frozen-lockfile
-  pnpm --filter '@legal-os/api' build
+  pnpm --filter '@factum-il/api' build
   pnpm --filter 'dashboard' build
   Pop-Location
 }
@@ -61,7 +61,7 @@ Copy-Item (Join-Path $Root 'migrations') (Join-Path $Dist 'app\migrations') -Rec
 Write-Host '  Pruning devDependencies from node_modules...' -ForegroundColor Gray
 $NmSrc = Join-Path $Root 'node_modules'
 Push-Location $Root
-pnpm deploy --filter '@legal-os/api' --prod (Join-Path $Dist 'app\node_modules_deploy')
+pnpm deploy --filter '@factum-il/api' --prod (Join-Path $Dist 'app\node_modules_deploy')
 Pop-Location
 # Copy pruned node_modules
 if (Test-Path (Join-Path $Dist 'app\node_modules_deploy\node_modules')) {
@@ -72,8 +72,8 @@ Remove-Item (Join-Path $Dist 'app\node_modules_deploy') -Recurse -Force -ErrorAc
 # ── 2. C# WPF Wrapper build ──────────────────────────────────────────────────
 if (-not $SkipDotNetBuild) {
   Write-Host '[2/5] Building C# WPF Wrapper...' -ForegroundColor Yellow
-  $CsprojDir = Join-Path $Root 'LegalOS.Desktop'
-  dotnet publish "$CsprojDir\LegalOS.Desktop.csproj" `
+  $CsprojDir = Join-Path $Root 'FactumIL.Desktop'
+  dotnet publish "$CsprojDir\FactumIL.Desktop.csproj" `
     -c Release -r win-x64 --self-contained true `
     -p:PublishSingleFile=false `
     -o (Join-Path $Dist 'wrapper')
@@ -140,9 +140,9 @@ if (-not $SkipIscc) {
   if ($LASTEXITCODE -ne 0) { throw 'ISCC failed' }
   Pop-Location
 
-  $Exe = Join-Path $Dist 'LegalOS_V13_Installer.exe'
+  $Exe = Join-Path $Dist 'FactumIL_V13_Installer.exe'
   $Size = [math]::Round((Get-Item $Exe).Length / 1MB, 1)
-  Write-Host "`n✅ LegalOS_V13_Installer.exe — ${Size} MB" -ForegroundColor Green
+  Write-Host "`n✅ FactumIL_V13_Installer.exe — ${Size} MB" -ForegroundColor Green
 } else {
   Write-Host '[5/5] Skipped ISCC (run manually: ISCC.exe installer.iss)' -ForegroundColor Gray
 }

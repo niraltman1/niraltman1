@@ -1,5 +1,5 @@
 import type { DatabaseConnection } from '../connection.js';
-import type { Document, DocumentCreateInput, PaginatedResult, DocumentSearchResult } from '@legal-os/shared';
+import type { Document, DocumentCreateInput, PaginatedResult, DocumentSearchResult } from '@factum-il/shared';
 
 export class DocumentRepository {
   constructor(private readonly db: DatabaseConnection) {}

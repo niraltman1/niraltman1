@@ -5,9 +5,9 @@ import {
   generateUUID,
   utcNow,
   CONFIDENCE_THRESHOLD,
-} from '@legal-os/shared';
-import type { ProcessingState, AgentName } from '@legal-os/shared';
-import type { DatabaseConnection } from '@legal-os/database';
+} from '@factum-il/shared';
+import type { ProcessingState, AgentName } from '@factum-il/shared';
+import type { DatabaseConnection } from '@factum-il/database';
 import { ManifestService } from './manifest.js';
 import { HashService } from './hash.js';
 import { LockService } from './lock-service.js';

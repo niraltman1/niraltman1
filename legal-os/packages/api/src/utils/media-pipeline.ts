@@ -19,7 +19,7 @@
 import { extname, basename, dirname, join } from 'path';
 import { access, open as fsOpen } from 'fs/promises';
 import { execFile } from 'node:child_process';
-import type { ProcessedFilesRepository, DocumentRepository, EvidenceRepository, ClientRepository, CaseRepository, PipelineLogsRepository, ContactsRepository } from '@legal-os/database';
+import type { ProcessedFilesRepository, DocumentRepository, EvidenceRepository, ClientRepository, CaseRepository, PipelineLogsRepository, ContactsRepository } from '@factum-il/database';
 import { computeFileHash, getFileSize, mimeFromExtension, isImageExtension } from './file-hash.js';
 import { convertImageToPdf } from './image-to-pdf.js';
 import { buildDocumentName } from './file-namer.js';

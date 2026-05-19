@@ -28,7 +28,7 @@ import { routeEntities } from './entity-router.js';
 import { isSystemIdle } from './idle-throttle.js';
 import { withWriteLock } from './write-mutex.js';
 import { emitActivity } from './activity-emitter.js';
-import { logger } from '@legal-os/shared';
+import { logger } from '@factum-il/shared';
 
 const OLLAMA_BASE  = process.env['OLLAMA_BASE_URL'] ?? 'http://127.0.0.1:11434';
 const OLLAMA_MODEL = process.env['OLLAMA_MODEL']    ?? 'legal-brain';

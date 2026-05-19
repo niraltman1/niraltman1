@@ -54,7 +54,7 @@ export async function runGmailSync(repos: Repos, configId: number): Promise<Sync
     messagesFound = messages.length;
 
     let lastMsgId: string | null = config.last_message_id;
-    const tmpDir = join(tmpdir(), `legal-os-gmail-${configId}-${Date.now()}`);
+    const tmpDir = join(tmpdir(), `factum-il-gmail-${configId}-${Date.now()}`);
     await mkdir(tmpDir, { recursive: true });
 
     for (const msg of messages) {

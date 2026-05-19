@@ -5,7 +5,7 @@ import { asyncHandler } from '../utils/async-handler.js';
 import { ok } from '../utils/response.js';
 import { validate } from '../middleware/validate.js';
 import { NotFoundError } from '../errors/api-error.js';
-import type { TrafficLifecycleState } from '@legal-os/database';
+import type { TrafficLifecycleState } from '@factum-il/database';
 
 const VALID_STATES: TrafficLifecycleState[] = [
   'request_to_stand_trial',

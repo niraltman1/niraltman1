@@ -2,7 +2,7 @@ import { EventEmitter } from 'node:events';
 import { watch, statSync, openSync, closeSync, existsSync } from 'node:fs';
 import { extname, resolve } from 'node:path';
 import type { FSWatcher } from 'node:fs';
-import type { DatabaseConnection } from '@legal-os/database';
+import type { DatabaseConnection } from '@factum-il/database';
 
 export interface WatcherOptions {
   debounceMs?:        number;   // default 800

@@ -2,7 +2,7 @@ using System.Diagnostics;
 using System.IO;
 using System.Windows;
 
-namespace LegalOS.Desktop;
+namespace FactumIL.Desktop;
 
 /// <summary>
 /// Manages the lifecycle of the Node.js API server process.
@@ -28,14 +28,14 @@ internal sealed class ApiHostService
         Path.Combine(AppRoot, "app", "api", "dist", "start.js");
 
     private static string DbPath =>
-        Path.Combine(AppRoot, "data", "legal-os.db");
+        Path.Combine(AppRoot, "data", "factum-il.db");
 
     public void Start()
     {
         if (!File.Exists(ApiEntry))
         {
             MessageBox.Show($"לא נמצא קובץ שרת:\n{ApiEntry}",
-                            "Legal-OS — שגיאה", MessageBoxButton.OK, MessageBoxImage.Error);
+                            "Factum IL — שגיאה", MessageBoxButton.OK, MessageBoxImage.Error);
             Application.Current.Shutdown(1);
             return;
         }
@@ -53,8 +53,8 @@ internal sealed class ApiHostService
 
         psi.EnvironmentVariables["PORT"]             = "3001";
         psi.EnvironmentVariables["NODE_ENV"]         = "production";
-        psi.EnvironmentVariables["LEGAL_OS_DB_PATH"] = DbPath;
-        psi.EnvironmentVariables["LEGAL_OS_ROOT"]    = AppRoot;
+        psi.EnvironmentVariables["FACTUM_IL_DB_PATH"] = DbPath;
+        psi.EnvironmentVariables["FACTUM_IL_ROOT"]    = AppRoot;
 
         // Forward installer-set env vars if present
         foreach (var key in new[] { "OLLAMA_MODEL", "WHISPER_EXE", "FFMPEG_EXE",

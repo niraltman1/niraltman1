@@ -47,7 +47,7 @@ export function canvasRouter(repos: Repos): Router {
     const doc = repos.documents.findById(id);
     if (!doc) throw new NotFoundError(`document ${id}`);
 
-    const createInput: import('@legal-os/shared').TaskCreateInput = {
+    const createInput: import('@factum-il/shared').TaskCreateInput = {
       title:      body.title,
       source:     'manual',
       documentId: id,

@@ -1,4 +1,4 @@
-import { logger, utcNow } from '@legal-os/shared';
+import { logger, utcNow } from '@factum-il/shared';
 import { copyFileSync, existsSync, mkdirSync } from 'node:fs';
 import { join, dirname } from 'node:path';
 import type { DatabaseConnection } from './connection.js';
@@ -105,7 +105,7 @@ export class DatabaseHardening {
 
     const dbPath    = this.db.raw.name;
     const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
-    const backupPath = join(backupDir, `legal-os-backup-${timestamp}.db`);
+    const backupPath = join(backupDir, `factum-il-backup-${timestamp}.db`);
 
     copyFileSync(dbPath, backupPath);
 

@@ -1,6 +1,6 @@
-# Legal-OS — Production Release Manifest
+# Factum IL — Production Release Manifest
 
-**Branch:** `claude/legal-os-phase-1-init-0EkMh`  
+**Branch:** `claude/factum-il-phase-1-init-0EkMh`  
 **Date:** 2026-05-16  
 **Migrations applied:** 001–024  
 **TypeScript errors:** 0 (API + Dashboard)
@@ -96,8 +96,8 @@ Each section is independently try/catch wrapped so one failure never blocks othe
 | Ollama | latest | Local AI inference | `C:\Users\<user>\AppData\Local\Programs\Ollama\` |
 | Tesseract OCR | 5.x | Image → searchable PDF | `C:\Program Files\Tesseract-OCR\` |
 | FFmpeg | 6.x | Audio format conversion | must be on `PATH` |
-| whisper-fast.exe | any | Hebrew speech-to-text | `<LEGAL_OS_ROOT>\tools\whisper-fast.exe` |
-| SQLite | bundled | Database (via better-sqlite3) | `_data\legal-os.db` |
+| whisper-fast.exe | any | Hebrew speech-to-text | `<FACTUM_IL_ROOT>\tools\whisper-fast.exe` |
+| SQLite | bundled | Database (via better-sqlite3) | `_data\factum-il.db` |
 
 ### AI Model Setup
 ```powershell
@@ -113,11 +113,11 @@ ollama create law-il-E2B -f .\Modelfile
 |----------|---------|-------|
 | `OLLAMA_MODEL` | `law-il-E2B` | Must match the alias created in Step 2 |
 | `OLLAMA_BASE_URL` | `http://127.0.0.1:11434` | Do not change unless Ollama port differs |
-| `WHISPER_EXE` | `<LEGAL_OS_ROOT>\tools\whisper-fast.exe` | Absolute path, supports Hebrew/space in path |
+| `WHISPER_EXE` | `<FACTUM_IL_ROOT>\tools\whisper-fast.exe` | Absolute path, supports Hebrew/space in path |
 | `FFMPEG_EXE` | `ffmpeg` | Must be on PATH or set to absolute path |
 | `WHISPER_MODEL` | `medium` | Options: tiny, base, small, medium, large |
-| `LEGAL_OS_ROOT` | `process.cwd()` | Set explicitly if running from a different directory |
-| `LEGAL_OS_DB_PATH` | `_data\legal-os.db` | Directory must exist before first run |
+| `FACTUM_IL_ROOT` | `process.cwd()` | Set explicitly if running from a different directory |
+| `FACTUM_IL_DB_PATH` | `_data\factum-il.db` | Directory must exist before first run |
 | `ACADEMIC_ROOT` | _(empty)_ | Semicolon-separated paths for academic bypass |
 | `BACKUP_ENCRYPT` | `0` | Set `1` to enable AES-256-GCM backup encryption |
 | `BACKUP_ENCRYPT_KEY` | _(empty)_ | 64-char hex key; derived via scrypt if absent |
@@ -129,7 +129,7 @@ ollama create law-il-E2B -f .\Modelfile
 pnpm install
 
 # 2. Start the API server (runs migrations on startup)
-pnpm --filter @legal-os/api dev
+pnpm --filter @factum-il/api dev
 
 # 3. In a second terminal, start the dashboard
 pnpm --filter dashboard dev

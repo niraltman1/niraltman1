@@ -1,13 +1,17 @@
 #Requires -Version 5.1
 <#
 .SYNOPSIS
-    Legal-OS root PowerShell module.  Dot-sources all sub-modules.
+    Factum IL root PowerShell module.  Dot-sources all sub-modules.
 #>
 Set-StrictMode -Version Latest
 
-# Load global config first — all modules may reference $Script:LegalOS_Root etc.
+# Load global config first — all modules may reference $Script:FactumIL_Root etc.
 $configPath = Join-Path $PSScriptRoot 'lib\Config.ps1'
 if (Test-Path $configPath) { . $configPath }
+
+# Load identifier parser — Parse-CaseIdentifier, Get-CaseTypeFromPrefix, Get-ProcedureTypeFromCode
+$parserPath = Join-Path $PSScriptRoot 'lib\IdentifierParser.ps1'
+if (Test-Path $parserPath) { . $parserPath }
 
 $moduleRoot = $PSScriptRoot
 $subModules = @(
@@ -29,6 +33,6 @@ foreach ($sub in $subModules) {
     if (Test-Path $path) {
         . $path
     } else {
-        Write-Warning "[LegalOS] Sub-module not found: $path"
+        Write-Warning "[FactumIL] Sub-module not found: $path"
     }
 }

@@ -1,5 +1,5 @@
 import type { DatabaseConnection } from '../connection.js';
-import type { Case, CaseCreateInput, CaseStatus, PaginatedResult, TimelineEvent } from '@legal-os/shared';
+import type { Case, CaseCreateInput, CaseStatus, PaginatedResult, TimelineEvent } from '@factum-il/shared';
 
 export class CaseRepository {
   constructor(private readonly db: DatabaseConnection) {}

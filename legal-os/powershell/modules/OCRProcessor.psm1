@@ -1,7 +1,7 @@
 #Requires -Version 5.1
 <#
 .SYNOPSIS
-    Production-grade OCR pipeline for Legal-OS.
+    Production-grade OCR pipeline for Factum IL.
     Handles PDF extraction, image preprocessing, automatic rotation correction,
     DPI normalization, quality scoring, multi-language support, and result caching.
 #>
@@ -301,7 +301,7 @@ function Invoke-OCR {
             }
 
             # Rasterise PDF pages
-            $pdfTmpDir = Join-Path $env:TEMP "legalos_ocr_$(Get-Random)"
+            $pdfTmpDir = Join-Path $env:TEMP "factuml_ocr_$(Get-Random)"
             $tempFiles.Add($pdfTmpDir)
             $pages = Convert-PDFToImages -PdfPath $FilePath -OutputDir $pdfTmpDir -DPI $DPI
             $pageCount = $pages.Count

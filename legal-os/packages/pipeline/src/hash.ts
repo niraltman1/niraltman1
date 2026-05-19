@@ -1,6 +1,6 @@
 import { createHash } from 'node:crypto';
 import { createReadStream, statSync } from 'node:fs';
-import { logger } from '@legal-os/shared';
+import { logger } from '@factum-il/shared';
 
 export interface FileMetadata {
   readonly path: string;

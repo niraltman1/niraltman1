@@ -9,7 +9,7 @@ import {
   updateTaskSchema,
   listTasksQuerySchema,
 } from '../validation/tasks.js';
-import type { TaskCreateInput, TaskUpdateInput } from '@legal-os/shared';
+import type { TaskCreateInput, TaskUpdateInput } from '@factum-il/shared';
 
 export function tasksRouter(repos: Repos): Router {
   const router = Router();

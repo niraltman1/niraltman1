@@ -7,7 +7,7 @@ using System.Threading.Tasks;
 using System.Windows;
 using Microsoft.Web.WebView2.Core;
 
-namespace LegalOS.Desktop;
+namespace FactumIL.Desktop;
 
 public partial class MainWindow : Window
 {
@@ -31,7 +31,7 @@ public partial class MainWindow : Window
 
     private async Task BootAsync()
     {
-        SetStatus("מפעיל את מנוע Legal-OS...");
+        SetStatus("מפעיל את מנוע Factum IL...");
         if (!await StartApiServerAsync()) return;
 
         SetStatus("מחבר לבסיס הנתונים המאובטח...");
@@ -42,7 +42,7 @@ public partial class MainWindow : Window
         catch (TimeoutException)
         {
             MessageBox.Show(
-                "שרת ה-API לא הגיב תוך 25 שניות.\nנסה להפעיל את Legal-OS שנית.",
+                "שרת ה-API לא הגיב תוך 25 שניות.\nנסה להפעיל את Factum IL שנית.",
                 "שגיאת אתחול", MessageBoxButton.OK, MessageBoxImage.Warning);
             Application.Current.Shutdown();
             return;
@@ -86,10 +86,10 @@ public partial class MainWindow : Window
             return false;
         }
 
-        // ── Safeguard 1: Write DB to %LOCALAPPDATA%\LegalOS — writable even ──
+        // ── Safeguard 1: Write DB to %LOCALAPPDATA%\FactumIL — writable even ──
         // ── without UAC elevation, safe under C:\Program Files install root  ──
         string localAppData = Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData);
-        string dbDir        = Path.Combine(localAppData, "LegalOS");
+        string dbDir        = Path.Combine(localAppData, "FactumIL");
         Directory.CreateDirectory(dbDir);
 
         var psi = new ProcessStartInfo
@@ -104,8 +104,8 @@ public partial class MainWindow : Window
             RedirectStandardError  = true,
         };
         psi.Environment["NODE_ENV"]          = "production";
-        psi.Environment["LEGAL_OS_ROOT"]     = appRoot;
-        psi.Environment["LEGAL_OS_DB_PATH"]  = Path.Combine(dbDir, "legalos.db");
+        psi.Environment["FACTUM_IL_ROOT"]     = appRoot;
+        psi.Environment["FACTUM_IL_DB_PATH"]  = Path.Combine(dbDir, "factum-il.db");
 
         _apiProcess = new Process { StartInfo = psi };
         _apiProcess.OutputDataReceived += (_, e) => Debug.WriteLine(e.Data);

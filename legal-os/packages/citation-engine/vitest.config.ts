@@ -8,7 +8,7 @@ const __dirname = dirname(fileURLToPath(import.meta.url));
 export default defineConfig({
   resolve: {
     alias: {
-      '@legal-os/citation-engine': resolve(__dirname, './dist/index.js'),
+      '@factum-il/citation-engine': resolve(__dirname, './dist/index.js'),
     },
   },
   test: {
@@ -16,7 +16,7 @@ export default defineConfig({
     include: ['src/**/*.test.ts'],
     server: {
       deps: {
-        external: [/@legal-os\/citation-engine/, /citation-engine\/dist/],
+        external: [/@factum-il\/citation-engine/, /citation-engine\/dist/],
       },
     },
   },

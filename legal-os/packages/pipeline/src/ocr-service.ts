@@ -2,8 +2,8 @@ import { execFileSync } from 'node:child_process';
 import { existsSync, readFileSync, mkdirSync, rmSync } from 'node:fs';
 import { join, extname } from 'node:path';
 import { tmpdir } from 'node:os';
-import { logger } from '@legal-os/shared';
-import type { DatabaseConnection } from '@legal-os/database';
+import { logger } from '@factum-il/shared';
+import type { DatabaseConnection } from '@factum-il/database';
 import { HashService } from './hash.js';
 
 const AGENT           = 'PipelineEngine';

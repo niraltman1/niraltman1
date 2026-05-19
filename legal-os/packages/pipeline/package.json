@@ -1,5 +1,5 @@
 {
-  "name": "@legal-os/pipeline",
+  "name": "@factum-il/pipeline",
   "version": "1.0.0",
   "private": true,
   "type": "module",
@@ -12,8 +12,8 @@
     "test": "vitest run"
   },
   "dependencies": {
-    "@legal-os/shared": "workspace:*",
-    "@legal-os/database": "workspace:*"
+    "@factum-il/shared": "workspace:*",
+    "@factum-il/database": "workspace:*"
   },
   "devDependencies": {
     "typescript": "^5.5.0",

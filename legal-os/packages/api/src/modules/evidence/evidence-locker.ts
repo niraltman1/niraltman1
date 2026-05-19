@@ -3,7 +3,7 @@ import { execFile } from 'node:child_process';
 import { promisify } from 'node:util';
 import { join, basename, extname } from 'node:path';
 import { mkdir } from 'node:fs/promises';
-import type { EvidenceRepository, EvidenceItem } from '@legal-os/database';
+import type { EvidenceRepository, EvidenceItem } from '@factum-il/database';
 import { computeFileHash, mimeFromExtension } from '../../utils/file-hash.js';
 
 const execFileAsync = promisify(execFile);

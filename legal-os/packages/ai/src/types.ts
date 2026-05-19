@@ -1,4 +1,4 @@
-import type { DocumentType, DocumentLanguage } from '@legal-os/shared';
+import type { DocumentType, DocumentLanguage } from '@factum-il/shared';
 
 export interface EnrichmentRequest {
   readonly documentId: number;

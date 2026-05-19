@@ -58,17 +58,63 @@ const COL_MAP: Record<string, keyof ImportRow> = {
   client_id_number: 'clientIdNum',
 };
 
+// ── Case prefix → type map ────────────────────────────────────────────────────
+// IMPORTANT: 'ת"א' is the official abbreviation for תיק אזרחי (Civil Case)
+// in the Net HaMishpat registry.  It must NEVER be classified as a location
+// (Tel Aviv / תל אביב).  This mapping is authoritative and takes precedence
+// over any geographic inference.
 const CASE_TYPE_MAP: Record<string, string> = {
+  // Hebrew type labels
   'פלילי':          'criminal',
   'אזרחי':          'civil',
   'משפחה':          'family',
   'עבודה':          'labour',
   'מנהלי':          'administrative',
+  // Hebrew case prefixes — ת"א variants (civil, NOT location)
+  'ת"א':            'civil',      // תיק אזרחי — Civil Case (strict; not Tel Aviv)
+  "ת'א":            'civil',      // alternate geresh
+  'ת.א':            'civil',      // period variant
+  'תא':             'civil',      // without punctuation (OCR artefact)
+  // Other common prefixes
+  'ת"פ':            'criminal',   // תיק פלילי
+  "ת'פ":            'criminal',
+  'תפ':             'criminal',
+  'ע"פ':            'criminal',   // ערעור פלילי
+  'ע"א':            'civil',      // ערעור אזרחי
+  'תמ"ש':           'family',     // תיק משפחה
+  'ת"ק':            'traffic_administrative',
+  'עמ"ת':           'traffic_criminal',
+  'בג"ץ':           'administrative',
+  'פש"ר':           'insolvency',
+  // English canonical values (pass-through)
   criminal:         'criminal',
   civil:            'civil',
+  civil_standard:   'civil_standard',
   family:           'family',
   labour:           'labour',
   administrative:   'administrative',
+  insolvency:       'insolvency',
+  traffic_administrative: 'traffic_administrative',
+  traffic_criminal:       'traffic_criminal',
+};
+
+// ── Procedure code → procedure_type map ───────────────────────────────────────
+// Code 32 is STRICTLY 'civil_standard' (סדר דין רגיל). No fallback to 'civil'.
+const PROCEDURE_CODE_MAP: Record<string, string> = {
+  '1':  'civil',
+  '2':  'civil',
+  '10': 'criminal',
+  '11': 'criminal',
+  '20': 'traffic_administrative',
+  '21': 'traffic_criminal',
+  '30': 'civil',
+  '31': 'civil',
+  '32': 'civil_standard',   // סדר דין רגיל — strict, no exceptions
+  '33': 'civil',
+  '40': 'family',
+  '50': 'administrative',
+  '60': 'insolvency',
+  '70': 'labour',
 };
 
 const STATUS_MAP: Record<string, string> = {

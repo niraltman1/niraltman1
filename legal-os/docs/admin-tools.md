@@ -93,7 +93,7 @@ If either check fails, the event is dropped (it will fire again when the copy co
 For manual recovery, use PowerShell directly:
 
 ```powershell
-Import-Module .\powershell\LegalOS.psd1
+Import-Module .\powershell\FactumIL.psd1
 
 # Release stale locks + re-queue failed items
 Invoke-QueueRecovery -DatabasePath $db
@@ -106,5 +106,5 @@ Invoke-FullRecovery -DatabasePath $db
 Invoke-ManifestReconciliation -DatabasePath $db
 
 # Create crash bundle for diagnostics
-New-CrashBundle -DatabasePath $db -OutputDir C:\legal-os\crash-reports
+New-CrashBundle -DatabasePath $db -OutputDir C:\factum-il\crash-reports
 ```

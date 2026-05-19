@@ -1,5 +1,5 @@
 import type { DatabaseConnection } from '../connection.js';
-import type { Task, TaskCreateInput, TaskUpdateInput, TaskUrgency } from '@legal-os/shared';
+import type { Task, TaskCreateInput, TaskUpdateInput, TaskUrgency } from '@factum-il/shared';
 
 function computeUrgency(dueDate: string | null, status: string): TaskUrgency {
   if (!dueDate || status === 'checked' || status === 'cancelled') return 'normal';

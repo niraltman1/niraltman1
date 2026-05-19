@@ -16,8 +16,8 @@ const ROLE_ORDER: Record<UserRole, number> = {
 const SESSION_TTL_HOURS = Number(process.env['SESSION_TTL_HOURS'] ?? 8);
 
 // Default admin seeded on first startup when no users exist
-const DEFAULT_ADMIN_USERNAME = process.env['LEGAL_OS_ADMIN_USER'] ?? 'admin';
-const DEFAULT_ADMIN_PASSWORD = process.env['LEGAL_OS_ADMIN_PASS'] ?? 'changeme';
+const DEFAULT_ADMIN_USERNAME = process.env['FACTUM_IL_ADMIN_USER'] ?? 'admin';
+const DEFAULT_ADMIN_PASSWORD = process.env['FACTUM_IL_ADMIN_PASS'] ?? 'changeme';
 
 export function hashPassword(password: string): string {
   const salt = randomBytes(16).toString('hex');

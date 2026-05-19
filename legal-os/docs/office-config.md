@@ -8,7 +8,7 @@ All managed documents are stored under a single branded root:
 C:\אלטמן משרד עורכי דין - סדר 2026\
 ```
 
-This path is defined in `powershell/lib/Config.ps1` as `$Script:LegalOS_Root`.
+This path is defined in `powershell/lib/Config.ps1` as `$Script:FactumIL_Root`.
 
 ## Sub-folder Structure
 
@@ -38,7 +38,7 @@ These are set in `$Script:WatchFolders` and `$Script:WatchFolderLabels` in `Conf
 
 `powershell/scripts/01-CreateFolderStructure.ps1` is idempotent:
 
-1. Checks `Test-Path $Script:LegalOS_Root`
+1. Checks `Test-Path $Script:FactumIL_Root`
 2. If absent: creates root + all sub-folders + grants ACL (FullControl, ContainerInherit + ObjectInherit)
 3. Prints Hebrew success or "already exists" message
 4. Called automatically from `START-HERE.ps1` before database initialisation
@@ -61,7 +61,7 @@ $rule = New-Object System.Security.AccessControl.FileSystemAccessRule(
 ## Database Location
 
 ```
-C:\אלטמן משרד עורכי דין - סדר 2026\_Data\legal-os.db
+C:\אלטמן משרד עורכי דין - סדר 2026\_Data\factum-il.db
 ```
 
-Defined as `$Script:LegalOS_DBPath` in `Config.ps1`.
+Defined as `$Script:FactumIL_DBPath` in `Config.ps1`.

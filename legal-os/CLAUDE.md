@@ -1,4 +1,4 @@
-# Legal-OS — Claude Code Reference
+# Factum IL — Claude Code Reference
 
 ## Quick Commands
 
@@ -7,7 +7,7 @@
 pnpm dev
 
 # Build
-pnpm --filter @legal-os/api build
+pnpm --filter @factum-il/api build
 pnpm --filter dashboard build
 
 # Tests
@@ -22,7 +22,7 @@ pnpm install
 Monorepo managed with pnpm workspaces:
 
 ```
-legal-os/
+factum-il/
 ├── apps/
 │   ├── dashboard/          # React + Vite + TailwindCSS (RTL Hebrew UI)
 │   └── installer/          # PowerShell START-HERE.ps1 (Windows desktop install)
@@ -57,12 +57,12 @@ ollama create law-il-E2B -f Modelfile
 |----------|---------|-------------|
 | `OLLAMA_MODEL` | `law-il-E2B` | Model name used by rag-worker + studies route |
 | `OLLAMA_BASE_URL` | `http://127.0.0.1:11434` | Ollama server URL |
-| `WHISPER_EXE` | `<LEGAL_OS_ROOT>\tools\whisper-fast.exe` | Whisper speech-to-text binary |
+| `WHISPER_EXE` | `<FACTUM_IL_ROOT>\tools\whisper-fast.exe` | Whisper speech-to-text binary |
 | `FFMPEG_EXE` | `ffmpeg` (PATH) | ffmpeg for audio conversion |
 | `WHISPER_MODEL` | `medium` | Whisper model size |
-| `LEGAL_OS_ROOT` | `process.cwd()` | Root path for tools/ directory |
+| `FACTUM_IL_ROOT` | `process.cwd()` | Root path for tools/ directory |
 | `ACADEMIC_ROOT` | _(empty)_ | Semicolon-separated paths where medical/nursing terms are allowed |
-| `LEGAL_OS_DB_PATH` | `_data/legal-os.db` | SQLite database path |
+| `FACTUM_IL_DB_PATH` | `_data/factum-il.db` | SQLite database path |
 
 ## Database
 

@@ -1,8 +1,8 @@
-# Legal-OS Architecture — Phase 1
+# Factum IL Architecture — Phase 1
 
 ## System Overview
 
-Legal-OS is a **local-first** document management and CRM operating system for Israeli boutique law firms. All data remains on-device. No cloud services, telemetry, or external APIs are used after installation.
+Factum IL is a **local-first** document management and CRM operating system for Israeli boutique law firms. All data remains on-device. No cloud services, telemetry, or external APIs are used after installation.
 
 ## Technology Stack
 
@@ -23,7 +23,7 @@ Legal-OS is a **local-first** document management and CRM operating system for I
 ## Repository Structure
 
 ```
-/legal-os
+/factum-il
  ├── /apps
  │    ├── dashboard        React 19 UI
  │    ├── installer        START-HERE.ps1 + helper scripts
@@ -33,7 +33,7 @@ Legal-OS is a **local-first** document management and CRM operating system for I
  │    ├── database         SQLite connection + repositories + migration runner
  │    ├── ai               OllamaClient, ConfidenceCalculator
  │    └── pipeline         FileQueue, HashService, ManifestService
- ├── /powershell           PowerShell module (LegalOS.psm1)
+ ├── /powershell           PowerShell module (FactumIL.psm1)
  │    └── /modules         Logger, StateMachine, ActionLog, ManifestSnapshot, HashValidator
  ├── /schemas              Canonical database schema SQL
  ├── /migrations           Ordered SQL migration files (001, 002, 003, 004…)

@@ -57,7 +57,7 @@ export class GmailRepository {
       VALUES (?, ?, ?, ?, ?)
     `).run(
       data.gmail_address,
-      data.label_filter ?? 'Legal-OS',
+      data.label_filter ?? 'Factum IL',
       data.encrypted_token,
       data.token_iv,
       data.token_tag,

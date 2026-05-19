@@ -41,7 +41,7 @@ describe('Queue durability — simulated crash and recovery', () => {
   let dbPath: string;
 
   beforeEach(() => {
-    tmpDir = mkdtempSync(join(tmpdir(), 'legal-os-queue-int-'));
+    tmpDir = mkdtempSync(join(tmpdir(), 'factum-il-queue-int-'));
     dbPath = join(tmpDir, 'test.db');
   });
 
@@ -129,7 +129,7 @@ describe('LockService durability', () => {
   let dbPath: string;
 
   beforeEach(() => {
-    tmpDir = mkdtempSync(join(tmpdir(), 'legal-os-lock-int-'));
+    tmpDir = mkdtempSync(join(tmpdir(), 'factum-il-lock-int-'));
     dbPath = join(tmpDir, 'locks.db');
   });
 

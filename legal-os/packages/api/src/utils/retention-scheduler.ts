@@ -3,7 +3,7 @@ import { waitForIdle } from './idle-throttle.js';
 import { logAuditEvent } from '../middleware/audit-logger.js';
 import { withWriteLock } from './write-mutex.js';
 import { emitActivity } from './activity-emitter.js';
-import { logger } from '@legal-os/shared';
+import { logger } from '@factum-il/shared';
 
 const INTERVAL_MS = Number(process.env['RETENTION_INTERVAL_MS'] ?? 86_400_000); // 24h
 

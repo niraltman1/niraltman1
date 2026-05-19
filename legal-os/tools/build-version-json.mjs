@@ -24,7 +24,7 @@ async function writeAtomic(dest, content) {
 }
 
 const payload = JSON.stringify({
-  name:                 'Legal-OS Beta',
+  name:                 'Factum IL Beta',
   version:              '1.0.0-beta',
   buildTimestamp:       new Date().toISOString(),
   gitSha:               getGitSha(),

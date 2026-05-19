@@ -9,7 +9,7 @@
  *   3. Transcript is stored as ocr_text in the Documents table
  *
  * Tool locations (configurable via env):
- *   WHISPER_EXE  — path to whisper-fast.exe (default: <LEGAL_OS_ROOT>\tools\whisper-fast.exe)
+ *   WHISPER_EXE  — path to whisper-fast.exe (default: <FACTUM_IL_ROOT>\tools\whisper-fast.exe)
  *   FFMPEG_EXE   — path to ffmpeg.exe (default: "ffmpeg" from PATH)
  *   WHISPER_MODEL — whisper model name (default: "medium")
  *
@@ -22,13 +22,13 @@ import { promisify } from 'node:util';
 import { join, basename, extname } from 'node:path';
 import { unlink, access } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
-import type { ProcessedFilesRepository, DocumentRepository } from '@legal-os/database';
+import type { ProcessedFilesRepository, DocumentRepository } from '@factum-il/database';
 import { computeFileHash, getFileSize, mimeFromExtension } from './file-hash.js';
 
 const execFileAsync = promisify(execFile);
 
-const LEGAL_OS_ROOT = process.env['LEGAL_OS_ROOT'] ?? process.cwd();
-const WHISPER_EXE   = process.env['WHISPER_EXE']   ?? join(LEGAL_OS_ROOT, 'tools', 'whisper-fast.exe');
+const FACTUM_IL_ROOT = process.env['FACTUM_IL_ROOT'] ?? process.cwd();
+const WHISPER_EXE   = process.env['WHISPER_EXE']   ?? join(FACTUM_IL_ROOT, 'tools', 'whisper-fast.exe');
 const FFMPEG_EXE    = process.env['FFMPEG_EXE']     ?? 'ffmpeg';
 const WHISPER_MODEL = process.env['WHISPER_MODEL']  ?? 'medium';
 

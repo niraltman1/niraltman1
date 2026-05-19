@@ -1,7 +1,7 @@
 import type { Repos } from '../db.js';
 import { waitForIdle } from './idle-throttle.js';
 import { notificationService } from './notification-service.js';
-import { logger } from '@legal-os/shared';
+import { logger } from '@factum-il/shared';
 
 const INTERVAL_MS = Number(process.env['NUDGE_INTERVAL_MS'] ?? 24 * 60 * 60 * 1000);
 

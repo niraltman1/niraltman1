@@ -23,7 +23,7 @@ function getDesktopPath(): string {
 function getLogPath(): string {
   const localAppData = process.env['LOCALAPPDATA']
     ?? join(process.env['USERPROFILE'] ?? process.env['HOME'] ?? '.', 'AppData', 'Local');
-  return join(localAppData, 'LegalOS', 'logs', 'app.log');
+  return join(localAppData, 'FactumIL', 'logs', 'app.log');
 }
 
 function isoTimestamp(): string {
@@ -101,7 +101,7 @@ export function bugReportRouter(repos: Repos): Router {
     };
 
     const ts         = isoTimestamp();
-    const zipName    = `LegalOS_Beta_Bug_${ts}.zip`;
+    const zipName    = `FactumIL_Beta_Bug_${ts}.zip`;
     const desktopDir = getDesktopPath();
     const zipPath    = join(desktopDir, zipName);
 
@@ -111,7 +111,7 @@ export function bugReportRouter(repos: Repos): Router {
 
     // 1 — claude_manifest.json
     const manifest = {
-      schema:              'legal-os-bug-report/v1',
+      schema:              'factum-il-bug-report/v1',
       app:                 vi.name,
       version:             vi.version,
       buildTimestamp:      vi.buildTimestamp,

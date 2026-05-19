@@ -1,5 +1,5 @@
-import type { DatabaseConnection } from '@legal-os/database';
-import { logger } from '@legal-os/shared';
+import type { DatabaseConnection } from '@factum-il/database';
+import { logger } from '@factum-il/shared';
 
 export function ensureAutoVacuum(db: DatabaseConnection): void {
   const row = db.prepare('PRAGMA auto_vacuum').get() as { auto_vacuum: number } | undefined;

@@ -1,6 +1,6 @@
 import { EventEmitter } from 'node:events';
-import { generateUUID } from '@legal-os/shared';
-import type { DatabaseConnection } from '@legal-os/database';
+import { generateUUID } from '@factum-il/shared';
+import type { DatabaseConnection } from '@factum-il/database';
 
 export type WorkerType   = 'ocr' | 'classify' | 'enrich' | 'watcher';
 export type WorkerStatus = 'idle' | 'busy' | 'stopping' | 'dead';

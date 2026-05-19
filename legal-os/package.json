@@ -1,5 +1,5 @@
 {
-  "name": "legal-os",
+  "name": "factum-il",
   "version": "1.0.0",
   "private": true,
   "description": "Local-first document management and CRM operating system for Israeli boutique law firms",
@@ -8,13 +8,13 @@
     "packages/*"
   ],
   "scripts": {
-    "dev": "concurrently -n api,ui -c cyan,magenta \"pnpm --filter @legal-os/api dev\" \"pnpm --filter dashboard dev\"",
-    "dev:win": "concurrently -n api,ui,watch -c cyan,magenta,yellow \"pnpm --filter @legal-os/api dev\" \"pnpm --filter dashboard dev\" \"pwsh -NoProfile -File powershell/scripts/Start-FileWatcher.ps1\"",
+    "dev": "concurrently -n api,ui -c cyan,magenta \"pnpm --filter @factum-il/api dev\" \"pnpm --filter dashboard dev\"",
+    "dev:win": "concurrently -n api,ui,watch -c cyan,magenta,yellow \"pnpm --filter @factum-il/api dev\" \"pnpm --filter dashboard dev\" \"pwsh -NoProfile -File powershell/scripts/Start-FileWatcher.ps1\"",
     "dev:ui": "pnpm --filter dashboard dev",
-    "dev:api": "pnpm --filter @legal-os/api dev",
+    "dev:api": "pnpm --filter @factum-il/api dev",
     "dev:watch": "pwsh -NoProfile -File powershell/scripts/Start-FileWatcher.ps1",
     "build": "pnpm --filter dashboard build",
-    "build:all": "pnpm --filter @legal-os/api build && pnpm --filter dashboard build",
+    "build:all": "pnpm --filter @factum-il/api build && pnpm --filter dashboard build",
     "typecheck": "pnpm -r typecheck",
     "test": "pnpm -r test",
     "test:unit": "pnpm --filter dashboard vitest run",
