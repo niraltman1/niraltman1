@@ -1,0 +1,17 @@
+export { ManifestService } from './manifest.js';
+export { HashService } from './hash.js';
+export { FileQueue } from './queue.js';
+export { PipelineEngine } from './engine.js';
+export { PersistentQueue } from './persistent-queue.js';
+export { LockService } from './lock-service.js';
+export { OCRService } from './ocr-service.js';
+export { ManifestTransactionEngine } from './transaction.js';
+export { WorkerSupervisor } from './supervisor.js';
+export { FileWatcher } from './file-watcher.js';
+export { OCRPreprocessor } from './ocr-preprocessor.js';
+export type { QueueItem, EnqueueOptions } from './persistent-queue.js';
+export type { OCRResult } from './ocr-service.js';
+export type { PipelineConfig, PipelineStageResult } from './engine.js';
+export type { WorkerType, WorkerStatus, WorkerSnapshot, SupervisorOptions } from './supervisor.js';
+export type { WatcherOptions, WatcherEvent } from './file-watcher.js';
+export type { PreprocessOptions, PreprocessResult } from './ocr-preprocessor.js';

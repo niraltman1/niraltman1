@@ -1,0 +1,47 @@
+import type {
+  DatabaseConnection,
+  ClientRepository,
+  CaseRepository,
+  DocumentRepository,
+  QueueRepository,
+  ActionPlanRepository,
+  BackupRepository,
+  SearchEngine,
+  DatabaseHardening,
+  TaskRepository,
+  LegalEngineRepository,
+  ProcessedFilesRepository,
+  TrafficCasesRepository,
+  ContactsRepository,
+  AcademicRepository,
+  EvidenceRepository,
+  StensRepository,
+  GmailRepository,
+  VacuumRepository,
+  PipelineLogsRepository,
+} from '@legal-os/database';
+import type { ConfigStore } from './utils/config-store.js';
+
+export interface Repos {
+  db:             DatabaseConnection;
+  config:         ConfigStore;
+  clients:        ClientRepository;
+  cases:          CaseRepository;
+  documents:      DocumentRepository;
+  queue:          QueueRepository;
+  actionPlan:     ActionPlanRepository;
+  backups:        BackupRepository;
+  search:         SearchEngine;
+  hardening:      DatabaseHardening;
+  tasks:          TaskRepository;
+  legalEngine:    LegalEngineRepository;
+  processedFiles: ProcessedFilesRepository;
+  trafficCases:   TrafficCasesRepository;
+  contacts:       ContactsRepository;
+  academic:       AcademicRepository;
+  evidence:       EvidenceRepository;
+  stens:          StensRepository;
+  gmail:          GmailRepository;
+  vacuum:         VacuumRepository;
+  pipelineLogs:   PipelineLogsRepository;
+}
