@@ -29,6 +29,7 @@ AllowNoIcons=yes
 DisableDirPage=no
 OutputDir={#OutputDir}
 OutputBaseFilename=FactumIL_Beta_Setup
+SetupIconFile={#RepoRoot}\assets\logo\factum-il-icon.ico
 Compression=lzma2/ultra64
 SolidCompression=yes
 WizardStyle=modern

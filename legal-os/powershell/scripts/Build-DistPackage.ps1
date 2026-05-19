@@ -116,13 +116,26 @@ Start-Process $tmp -ArgumentList '/install /quiet /norestart' -Wait
 Remove-Item $tmp -Force
 '@ | Set-Content $DotNetScript
 
-# ── 4. Copy PowerShell scripts ───────────────────────────────────────────────
-Write-Host '[4/5] Copying PowerShell scripts...' -ForegroundColor Yellow
+# ── 4. Copy PowerShell scripts + Legal Registry ──────────────────────────────
+Write-Host '[4/5] Copying PowerShell scripts + Legal Registry...' -ForegroundColor Yellow
 $ScriptsSrc = Join-Path $Root 'powershell\scripts'
 Copy-Item "$ScriptsSrc\*" (Join-Path $Dist 'scripts') -Recurse -Force
 Copy-Item (Join-Path $Root 'apps\installer\START-HERE.ps1') (Join-Path $Dist 'scripts') -Force
 Copy-Item (Join-Path $Root 'Modelfile')       (Join-Path $Dist 'scripts') -Force
 Copy-Item (Join-Path $Root 'Modelfile.gemma2') (Join-Path $Dist 'scripts') -Force
+
+# Legal Registry — ships with the installer so the system is ready-to-run
+# on first launch without requiring the user to run ingest-legal-sources.mjs.
+$LibSrc = Join-Path $Root 'powershell\lib'
+$LibDst = Join-Path $Dist 'app\powershell\lib'
+New-Item -ItemType Directory -Force $LibDst | Out-Null
+Copy-Item (Join-Path $LibSrc 'Legal_Registry.json') $LibDst -Force
+# Create User_Extensions placeholder directory in the staged package
+New-Item -ItemType Directory -Force (Join-Path $LibDst 'User_Extensions') | Out-Null
+Copy-Item (Join-Path $Root 'powershell\lib\Config.ps1')             $LibDst -Force -ErrorAction SilentlyContinue
+Copy-Item (Join-Path $Root 'powershell\lib\IdentifierParser.ps1')   $LibDst -Force -ErrorAction SilentlyContinue
+
+Write-Host '  Legal_Registry.json staged for ready-to-run install' -ForegroundColor Gray
 
 # ── 5. Compile with Inno Setup ───────────────────────────────────────────────
 if (-not $SkipIscc) {

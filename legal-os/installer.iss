@@ -24,7 +24,7 @@ DefaultGroupName={#AppName}
 AllowNoIcons=yes
 OutputDir=dist-package
 OutputBaseFilename=FactumIL_11MAX_Installer
-SetupIconFile=FactumIL_Dist\shell\Resources\icon.ico
+SetupIconFile=assets\logo\factum-il-icon.ico
 Compression=lzma2/ultra64
 SolidCompression=yes
 WizardStyle=modern
@@ -68,6 +68,10 @@ Source: "FactumIL_Dist\runtime\node.exe"; DestDir: "{app}\runtime"; Flags: ignor
 Source: "dist-package\tools\whisper-fast.exe"; DestDir: "{app}\tools"; Flags: ignoreversion skipifsourcedoesntexist
 Source: "dist-package\tools\ffmpeg.exe";       DestDir: "{app}\tools"; Flags: ignoreversion skipifsourcedoesntexist
 Source: "dist-package\tools\OllamaSetup.exe";  DestDir: "{app}\tools"; Flags: ignoreversion skipifsourcedoesntexist
+
+; ── Legal Registry — offline normative knowledge base (ready-to-run) ─────
+Source: "powershell\lib\Legal_Registry.json";  DestDir: "{app}\powershell\lib"; Flags: ignoreversion
+Source: "assets\logo\factum-il-icon.ico";      DestDir: "{app}\assets\logo";    Flags: ignoreversion
 
 [Icons]
 Name: "{group}\{#AppName}";         Filename: "{app}\{#AppExeName}"; IconFilename: "{app}\shell\Resources\icon.ico"
