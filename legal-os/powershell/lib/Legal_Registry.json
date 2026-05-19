@@ -1,0 +1,1306 @@
+{
+  "metadata": {
+    "version": "1.0.0",
+    "generated_at": "2026-05-19T18:18:03.580Z",
+    "sources": [
+      "seed_taxonomy_table_net_hamishpat_2025"
+    ],
+    "note": "Base registry seeded from the official Net HaMishpat case-type taxonomy. Regulation text (deadline_rules) must be supplied by the user via User_Extensions/. Nevo.co.il content is NOT included — it is commercial and requires a separate license."
+  },
+  "procedure_domains": {
+    "civil_procedure": {
+      "name_he": "תקנות סדר הדין האזרחי",
+      "year": 2018
+    },
+    "criminal_procedure": {
+      "name_he": "תקנות סדר הדין הפלילי",
+      "year": 1974
+    },
+    "execution": {
+      "name_he": "תקנות ההוצאה לפועל",
+      "year": 1979
+    },
+    "insolvency": {
+      "name_he": "תקנות חדלות פירעון ושיקום כלכלי",
+      "year": 2019
+    },
+    "traffic": {
+      "name_he": "תקנות התעבורה",
+      "year": 1961
+    },
+    "family": {
+      "name_he": "חוק בית משפט לענייני משפחה",
+      "year": 1995
+    },
+    "administrative": {
+      "name_he": "חוק בתי משפט לעניינים מנהליים",
+      "year": 2000
+    },
+    "labour": {
+      "name_he": "חוק בית הדין לעבודה",
+      "year": 1969
+    }
+  },
+  "case_types": [
+    {
+      "id": 1,
+      "prefix_code": "אבייע",
+      "full_name_he": "אבעיה",
+      "subject_he": "בקשה בכתב מסוג אבעיה",
+      "case_type": "civil",
+      "procedure_domain": "civil_procedure",
+      "deadline_rules": [],
+      "registry_source": "seed"
+    },
+    {
+      "id": 2,
+      "prefix_code": "בעייק",
+      "full_name_he": "בקשה לאישור עיקול",
+      "subject_he": "בקשה לאישור עיקול",
+      "case_type": "civil",
+      "procedure_domain": "civil_procedure",
+      "deadline_rules": [],
+      "registry_source": "seed"
+    },
+    {
+      "id": 3,
+      "prefix_code": "בשייז",
+      "full_name_he": "בקשה לשחזור תיק",
+      "subject_he": "בקשה לשחזור תיק",
+      "case_type": "civil",
+      "procedure_domain": "civil_procedure",
+      "deadline_rules": [],
+      "registry_source": "seed"
+    },
+    {
+      "id": 4,
+      "prefix_code": "בתיית",
+      "full_name_he": "בקשה לתשלום תכוף",
+      "subject_he": "בקשה לתשלום תכוף",
+      "case_type": "civil",
+      "procedure_domain": "civil_procedure",
+      "deadline_rules": [],
+      "registry_source": "seed"
+    },
+    {
+      "id": 5,
+      "prefix_code": null,
+      "full_name_he": null,
+      "subject_he": "צו למניעת הטרדה מאיימת",
+      "case_type": "civil",
+      "procedure_domain": "civil_procedure",
+      "deadline_rules": [],
+      "registry_source": "seed"
+    },
+    {
+      "id": 6,
+      "prefix_code": "הייט",
+      "full_name_he": "הטרדה מאיימת וצו הגנה",
+      "subject_he": "צו למניעת הטרדה מאיימת - חסוי",
+      "case_type": "civil",
+      "procedure_domain": "civil_procedure",
+      "deadline_rules": [],
+      "registry_source": "seed"
+    },
+    {
+      "id": 7,
+      "prefix_code": null,
+      "full_name_he": null,
+      "subject_he": "צו הגנה לפי חוק למניעת אלימות במשפחה",
+      "case_type": "family",
+      "procedure_domain": "family",
+      "deadline_rules": [],
+      "registry_source": "seed"
+    },
+    {
+      "id": 8,
+      "prefix_code": "וייה",
+      "full_name_he": "ועדת היתרים",
+      "subject_he": "קבלת מתנות בשירות המדינה",
+      "case_type": "administrative",
+      "procedure_domain": "administrative",
+      "deadline_rules": [],
+      "registry_source": "seed"
+    },
+    {
+      "id": 9,
+      "prefix_code": null,
+      "full_name_he": null,
+      "subject_he": "ועדת ערר אימוץ ואומנה",
+      "case_type": "family",
+      "procedure_domain": "family",
+      "deadline_rules": [],
+      "registry_source": "seed"
+    },
+    {
+      "id": 10,
+      "prefix_code": "רייע",
+      "full_name_he": "ועדת ערר או ועדת ערעור",
+      "subject_he": "ועדת הכרעה לפי חוק ההתיישבות החקלאית",
+      "case_type": "administrative",
+      "procedure_domain": "administrative",
+      "deadline_rules": [],
+      "registry_source": "seed"
+    },
+    {
+      "id": 11,
+      "prefix_code": null,
+      "full_name_he": null,
+      "subject_he": "ועדת עררים לפי חוק התגמולים לנפגעי פעולות איבה",
+      "case_type": "administrative",
+      "procedure_domain": "administrative",
+      "deadline_rules": [],
+      "registry_source": "seed"
+    },
+    {
+      "id": 12,
+      "prefix_code": null,
+      "full_name_he": null,
+      "subject_he": "ועדת ערר לפי חוק רישום קבלנים",
+      "case_type": "administrative",
+      "procedure_domain": "administrative",
+      "deadline_rules": [],
+      "registry_source": "seed"
+    },
+    {
+      "id": 13,
+      "prefix_code": null,
+      "full_name_he": null,
+      "subject_he": "ועדת ערר לפי חוק מיסוי מקרקעין",
+      "case_type": "administrative",
+      "procedure_domain": "administrative",
+      "deadline_rules": [],
+      "registry_source": "seed"
+    },
+    {
+      "id": 14,
+      "prefix_code": null,
+      "full_name_he": null,
+      "subject_he": "ועדת ערעור לפי חוק להסדר תפיסת מקרקעין בשעת חירום",
+      "case_type": "administrative",
+      "procedure_domain": "administrative",
+      "deadline_rules": [],
+      "registry_source": "seed"
+    },
+    {
+      "id": 15,
+      "prefix_code": null,
+      "full_name_he": null,
+      "subject_he": "ועדת ערעור לפי חוק הנכים",
+      "case_type": "administrative",
+      "procedure_domain": "administrative",
+      "deadline_rules": [],
+      "registry_source": "seed"
+    },
+    {
+      "id": 16,
+      "prefix_code": null,
+      "full_name_he": null,
+      "subject_he": "ועדת ערעור לפי חוק משפחות חיילים שנספו במערכה",
+      "case_type": "administrative",
+      "procedure_domain": "administrative",
+      "deadline_rules": [],
+      "registry_source": "seed"
+    },
+    {
+      "id": 17,
+      "prefix_code": null,
+      "full_name_he": null,
+      "subject_he": "ועדת ערעור לפי חוק נכי המלחמה בנאצים",
+      "case_type": "administrative",
+      "procedure_domain": "administrative",
+      "deadline_rules": [],
+      "registry_source": "seed"
+    },
+    {
+      "id": 18,
+      "prefix_code": null,
+      "full_name_he": null,
+      "subject_he": "ועדת עררים לפי חוק נכי רדיפות הנאצים",
+      "case_type": "administrative",
+      "procedure_domain": "administrative",
+      "deadline_rules": [],
+      "registry_source": "seed"
+    },
+    {
+      "id": 19,
+      "prefix_code": null,
+      "full_name_he": null,
+      "subject_he": "ועדת ערעור לפי חוק שירות הקבע (גימלאות)",
+      "case_type": "administrative",
+      "procedure_domain": "administrative",
+      "deadline_rules": [],
+      "registry_source": "seed"
+    },
+    {
+      "id": 20,
+      "prefix_code": null,
+      "full_name_he": null,
+      "subject_he": "ועדת ערר לפי חוק הסעד (טיפול באנשים עם מוגבלות)",
+      "case_type": "administrative",
+      "procedure_domain": "administrative",
+      "deadline_rules": [],
+      "registry_source": "seed"
+    },
+    {
+      "id": 21,
+      "prefix_code": null,
+      "full_name_he": null,
+      "subject_he": "ועדת ערר לפי חוק הרשויות המקומיות (ביוב)",
+      "case_type": "administrative",
+      "procedure_domain": "administrative",
+      "deadline_rules": [],
+      "registry_source": "seed"
+    },
+    {
+      "id": 22,
+      "prefix_code": null,
+      "full_name_he": null,
+      "subject_he": "ועדת ערר לפי חוק כביש אגרה",
+      "case_type": "administrative",
+      "procedure_domain": "administrative",
+      "deadline_rules": [],
+      "registry_source": "seed"
+    },
+    {
+      "id": 23,
+      "prefix_code": null,
+      "full_name_he": "ועדה למתן היתרים - עובדי מדינה",
+      "subject_he": "ועדה למתן היתרים לפי חוק הגבלות לאחר פרישה",
+      "case_type": "administrative",
+      "procedure_domain": "administrative",
+      "deadline_rules": [],
+      "registry_source": "seed"
+    },
+    {
+      "id": 24,
+      "prefix_code": null,
+      "full_name_he": "ועדה למתן היתרים - פורשי צה\"ל",
+      "subject_he": "ועדה למתן היתרים לפי חוק הגבלות לאחר פרישה",
+      "case_type": "administrative",
+      "procedure_domain": "administrative",
+      "deadline_rules": [],
+      "registry_source": "seed"
+    },
+    {
+      "id": 25,
+      "prefix_code": null,
+      "full_name_he": null,
+      "subject_he": "ועדה לפי חוק ביטוח נפגעי חיסון",
+      "case_type": "administrative",
+      "procedure_domain": "administrative",
+      "deadline_rules": [],
+      "registry_source": "seed"
+    },
+    {
+      "id": 26,
+      "prefix_code": null,
+      "full_name_he": "וייע (ועדת ערעור/ערר) - אחר",
+      "subject_he": "וייע (ועדת ערעור/ערר) - אחר",
+      "case_type": "administrative",
+      "procedure_domain": "administrative",
+      "deadline_rules": [],
+      "registry_source": "seed"
+    },
+    {
+      "id": 27,
+      "prefix_code": "חייא",
+      "full_name_he": "חוזה אחיד",
+      "subject_he": "חוזה אחיד",
+      "case_type": "civil",
+      "procedure_domain": "civil_procedure",
+      "deadline_rules": [],
+      "registry_source": "seed"
+    },
+    {
+      "id": 28,
+      "prefix_code": "חד\"א",
+      "full_name_he": "חיקור דין אזרחי",
+      "subject_he": "חיקור דין",
+      "case_type": "civil",
+      "procedure_domain": "civil_procedure",
+      "deadline_rules": [],
+      "registry_source": "seed"
+    },
+    {
+      "id": 29,
+      "prefix_code": null,
+      "full_name_he": null,
+      "subject_he": "בקשת יחיד לצו לפתיחת הליכים",
+      "case_type": "insolvency",
+      "procedure_domain": "insolvency",
+      "deadline_rules": [],
+      "registry_source": "seed"
+    },
+    {
+      "id": 30,
+      "prefix_code": null,
+      "full_name_he": null,
+      "subject_he": "בקשת נושה לצו לפתיחת הליכים נגד יחיד",
+      "case_type": "insolvency",
+      "procedure_domain": "insolvency",
+      "deadline_rules": [],
+      "registry_source": "seed"
+    },
+    {
+      "id": 31,
+      "prefix_code": null,
+      "full_name_he": null,
+      "subject_he": "בקשת היועמ\"ש לצו לפתיחת הליכים נגד יחיד",
+      "case_type": "insolvency",
+      "procedure_domain": "insolvency",
+      "deadline_rules": [],
+      "registry_source": "seed"
+    },
+    {
+      "id": 32,
+      "prefix_code": null,
+      "full_name_he": null,
+      "subject_he": "הכרה בהליך זר",
+      "case_type": "insolvency",
+      "procedure_domain": "insolvency",
+      "deadline_rules": [],
+      "registry_source": "seed"
+    },
+    {
+      "id": 33,
+      "prefix_code": "חדלייפ",
+      "full_name_he": "הסדר נושים לפי פרק י' לחוק חדלות פירעון",
+      "subject_he": "חדלות פירעון של יחיד",
+      "case_type": "insolvency",
+      "procedure_domain": "insolvency",
+      "deadline_rules": [],
+      "registry_source": "seed"
+    },
+    {
+      "id": 34,
+      "prefix_code": null,
+      "full_name_he": null,
+      "subject_he": "העברה מהוצאה לפועל ברשות",
+      "case_type": "insolvency",
+      "procedure_domain": "insolvency",
+      "deadline_rules": [],
+      "registry_source": "seed"
+    },
+    {
+      "id": 35,
+      "prefix_code": null,
+      "full_name_he": null,
+      "subject_he": "הליך לפי חוק הסדרים במגזר החקלאי המשפחתי",
+      "case_type": "insolvency",
+      "procedure_domain": "insolvency",
+      "deadline_rules": [],
+      "registry_source": "seed"
+    },
+    {
+      "id": 36,
+      "prefix_code": null,
+      "full_name_he": null,
+      "subject_he": "עיכוב הליכים בידי יחיד לשם הסדר חוב",
+      "case_type": "insolvency",
+      "procedure_domain": "insolvency",
+      "deadline_rules": [],
+      "registry_source": "seed"
+    },
+    {
+      "id": 37,
+      "prefix_code": null,
+      "full_name_he": null,
+      "subject_he": "בקשה בנוגע למשא ומתן",
+      "case_type": "insolvency",
+      "procedure_domain": "insolvency",
+      "deadline_rules": [],
+      "registry_source": "seed"
+    },
+    {
+      "id": 38,
+      "prefix_code": null,
+      "full_name_he": null,
+      "subject_he": "בקשה להסדר לפי חלק י' לחוק חדלות פירעון",
+      "case_type": "insolvency",
+      "procedure_domain": "insolvency",
+      "deadline_rules": [],
+      "registry_source": "seed"
+    },
+    {
+      "id": 39,
+      "prefix_code": null,
+      "full_name_he": null,
+      "subject_he": "בקשה לעיכוב הליכים בידי תאגיד לשם הסדר חוב",
+      "case_type": "insolvency",
+      "procedure_domain": "insolvency",
+      "deadline_rules": [],
+      "registry_source": "seed"
+    },
+    {
+      "id": 40,
+      "prefix_code": null,
+      "full_name_he": null,
+      "subject_he": "בקשת חברה (סולבנטית) לפירוקה בידי בית המשפט",
+      "case_type": "insolvency",
+      "procedure_domain": "insolvency",
+      "deadline_rules": [],
+      "registry_source": "seed"
+    },
+    {
+      "id": 41,
+      "prefix_code": "חדליית",
+      "full_name_he": "חדלות פירעון תאגיד",
+      "subject_he": "בקשת חברה (סולבנטית) לפירוקה בידי בעל מניה",
+      "case_type": "insolvency",
+      "procedure_domain": "insolvency",
+      "deadline_rules": [],
+      "registry_source": "seed"
+    },
+    {
+      "id": 42,
+      "prefix_code": null,
+      "full_name_he": null,
+      "subject_he": "בקשת תאגיד לצו לפתיחת הליכים",
+      "case_type": "insolvency",
+      "procedure_domain": "insolvency",
+      "deadline_rules": [],
+      "registry_source": "seed"
+    },
+    {
+      "id": 43,
+      "prefix_code": null,
+      "full_name_he": null,
+      "subject_he": "בקשת נושה לצו לפתיחת הליכים נגד תאגיד",
+      "case_type": "insolvency",
+      "procedure_domain": "insolvency",
+      "deadline_rules": [],
+      "registry_source": "seed"
+    },
+    {
+      "id": 44,
+      "prefix_code": null,
+      "full_name_he": null,
+      "subject_he": "בקשת היועץ המשפטי לממשלה לצו לפתיחת הליכים נגד תאגיד",
+      "case_type": "insolvency",
+      "procedure_domain": "insolvency",
+      "deadline_rules": [],
+      "registry_source": "seed"
+    },
+    {
+      "id": 45,
+      "prefix_code": null,
+      "full_name_he": null,
+      "subject_he": "מתן הוראות לביטוח הלאומי",
+      "case_type": "insolvency",
+      "procedure_domain": "insolvency",
+      "deadline_rules": [],
+      "registry_source": "seed"
+    },
+    {
+      "id": 46,
+      "prefix_code": "חה\"ע",
+      "full_name_he": "חוק להגנה על עדים",
+      "subject_he": "בקשה לפי חוק הגנה על עדים",
+      "case_type": "criminal",
+      "procedure_domain": "criminal_procedure",
+      "deadline_rules": [],
+      "registry_source": "seed"
+    },
+    {
+      "id": 47,
+      "prefix_code": null,
+      "full_name_he": null,
+      "subject_he": "בקשה בעניין העברת נכס לקניין המדינה",
+      "case_type": "civil",
+      "procedure_domain": "civil_procedure",
+      "deadline_rules": [],
+      "registry_source": "seed"
+    },
+    {
+      "id": 48,
+      "prefix_code": null,
+      "full_name_he": null,
+      "subject_he": "בקשה בעניין שחרור הרכוש",
+      "case_type": "civil",
+      "procedure_domain": "civil_procedure",
+      "deadline_rules": [],
+      "registry_source": "seed"
+    },
+    {
+      "id": 49,
+      "prefix_code": "נעייד",
+      "full_name_he": "ניהול רכושם של נעדרים או שבויים",
+      "subject_he": "בקשה למתן הוראות",
+      "case_type": "civil",
+      "procedure_domain": "civil_procedure",
+      "deadline_rules": [],
+      "registry_source": "seed"
+    },
+    {
+      "id": 50,
+      "prefix_code": null,
+      "full_name_he": null,
+      "subject_he": "בקשה למתן הוראות (ניהול רכוש)",
+      "case_type": "civil",
+      "procedure_domain": "civil_procedure",
+      "deadline_rules": [],
+      "registry_source": "seed"
+    },
+    {
+      "id": 51,
+      "prefix_code": null,
+      "full_name_he": null,
+      "subject_he": "ניהול רכושם של נעדרים או שבויים בלא התנגדות",
+      "case_type": "civil",
+      "procedure_domain": "civil_procedure",
+      "deadline_rules": [],
+      "registry_source": "seed"
+    },
+    {
+      "id": 52,
+      "prefix_code": null,
+      "full_name_he": null,
+      "subject_he": "ניהול רכושם של נעדרים או שבויים עם התנגדות",
+      "case_type": "civil",
+      "procedure_domain": "civil_procedure",
+      "deadline_rules": [],
+      "registry_source": "seed"
+    },
+    {
+      "id": 53,
+      "prefix_code": null,
+      "full_name_he": null,
+      "subject_he": "ערעור על החלטה לפי חוק למניעת אלימות/הטרדה מאיימת",
+      "case_type": "civil",
+      "procedure_domain": "civil_procedure",
+      "deadline_rules": [],
+      "registry_source": "seed"
+    },
+    {
+      "id": 54,
+      "prefix_code": null,
+      "full_name_he": null,
+      "subject_he": "ערעור על החלטת בית משפט לעניינים מקומיים",
+      "case_type": "administrative",
+      "procedure_domain": "administrative",
+      "deadline_rules": [],
+      "registry_source": "seed"
+    },
+    {
+      "id": 55,
+      "prefix_code": null,
+      "full_name_he": null,
+      "subject_he": "ערעור על החלטת נשיא שלום להעברת תיק",
+      "case_type": "civil",
+      "procedure_domain": "civil_procedure",
+      "deadline_rules": [],
+      "registry_source": "seed"
+    },
+    {
+      "id": 56,
+      "prefix_code": null,
+      "full_name_he": null,
+      "subject_he": "ערעור על תביעת נזקקות",
+      "case_type": "civil",
+      "procedure_domain": "civil_procedure",
+      "deadline_rules": [],
+      "registry_source": "seed"
+    },
+    {
+      "id": 57,
+      "prefix_code": null,
+      "full_name_he": null,
+      "subject_he": "ערעור על החלטת בית משפט השלום - הרכב",
+      "case_type": "civil",
+      "procedure_domain": "civil_procedure",
+      "deadline_rules": [],
+      "registry_source": "seed"
+    },
+    {
+      "id": 58,
+      "prefix_code": "עע\"א",
+      "full_name_he": "ערעור אזרחי",
+      "subject_he": "ערעור על החלטת בית משפט השלום - דן יחיד",
+      "case_type": "civil",
+      "procedure_domain": "civil_procedure",
+      "deadline_rules": [],
+      "registry_source": "seed"
+    },
+    {
+      "id": 59,
+      "prefix_code": null,
+      "full_name_he": null,
+      "subject_he": "ערעור על החלטה לפי סעיף 77 לחוק העונשין",
+      "case_type": "criminal",
+      "procedure_domain": "criminal_procedure",
+      "deadline_rules": [],
+      "registry_source": "seed"
+    },
+    {
+      "id": 60,
+      "prefix_code": null,
+      "full_name_he": null,
+      "subject_he": "ערעור על החלטה שעניינה פטור מאגרה / ערבון",
+      "case_type": "civil",
+      "procedure_domain": "civil_procedure",
+      "deadline_rules": [],
+      "registry_source": "seed"
+    },
+    {
+      "id": 61,
+      "prefix_code": null,
+      "full_name_he": null,
+      "subject_he": "ערעור על תיק נזקי גוף (דן יחיד)",
+      "case_type": "civil",
+      "procedure_domain": "civil_procedure",
+      "deadline_rules": [],
+      "registry_source": "seed"
+    },
+    {
+      "id": 62,
+      "prefix_code": null,
+      "full_name_he": null,
+      "subject_he": "ערעור על תיק נזקי גוף (הרכב)",
+      "case_type": "civil",
+      "procedure_domain": "civil_procedure",
+      "deadline_rules": [],
+      "registry_source": "seed"
+    },
+    {
+      "id": 63,
+      "prefix_code": null,
+      "full_name_he": null,
+      "subject_he": "ערעור על החלטת בית דין למשמעת (לשכה/מדינה)",
+      "case_type": "administrative",
+      "procedure_domain": "administrative",
+      "deadline_rules": [],
+      "registry_source": "seed"
+    },
+    {
+      "id": 64,
+      "prefix_code": "עבייי",
+      "full_name_he": "ערעור על החלטת בית דין למשמעת",
+      "subject_he": "ערעור על החלטות בית דין למשמעת (אחר)",
+      "case_type": "administrative",
+      "procedure_domain": "administrative",
+      "deadline_rules": [],
+      "registry_source": "seed"
+    },
+    {
+      "id": 65,
+      "prefix_code": null,
+      "full_name_he": null,
+      "subject_he": "ערעור על החלטת ועדת המשמעת (חוקרים פרטיים)",
+      "case_type": "administrative",
+      "procedure_domain": "administrative",
+      "deadline_rules": [],
+      "registry_source": "seed"
+    },
+    {
+      "id": 66,
+      "prefix_code": null,
+      "full_name_he": null,
+      "subject_he": "ערעור על החלטת הוועדה לפי חוק הנכים",
+      "case_type": "administrative",
+      "procedure_domain": "administrative",
+      "deadline_rules": [],
+      "registry_source": "seed"
+    },
+    {
+      "id": 67,
+      "prefix_code": "עייר",
+      "full_name_he": "ערעור על החלטת ועדה",
+      "subject_he": "ערעור על החלטת הוועדה לפי חוק משפחות חיילים",
+      "case_type": "administrative",
+      "procedure_domain": "administrative",
+      "deadline_rules": [],
+      "registry_source": "seed"
+    },
+    {
+      "id": 68,
+      "prefix_code": null,
+      "full_name_he": null,
+      "subject_he": "ערעור על החלטת ועדה פסיכיאטרית",
+      "case_type": "administrative",
+      "procedure_domain": "administrative",
+      "deadline_rules": [],
+      "registry_source": "seed"
+    },
+    {
+      "id": 69,
+      "prefix_code": null,
+      "full_name_he": null,
+      "subject_he": "ערעור על החלטת ועדה רפואית עליונה",
+      "case_type": "administrative",
+      "procedure_domain": "administrative",
+      "deadline_rules": [],
+      "registry_source": "seed"
+    },
+    {
+      "id": 70,
+      "prefix_code": null,
+      "full_name_he": null,
+      "subject_he": "ערעור על החלטת ועדה לפי חוק נכי רדיפות הנאצים",
+      "case_type": "administrative",
+      "procedure_domain": "administrative",
+      "deadline_rules": [],
+      "registry_source": "seed"
+    },
+    {
+      "id": 71,
+      "prefix_code": null,
+      "full_name_he": null,
+      "subject_he": "ערעור על החלטת ועדה לפי חוק נכי המלחמה בנאצים",
+      "case_type": "administrative",
+      "procedure_domain": "administrative",
+      "deadline_rules": [],
+      "registry_source": "seed"
+    },
+    {
+      "id": 72,
+      "prefix_code": null,
+      "full_name_he": null,
+      "subject_he": "ערעור על החלטת הוועדה לפי חוק ביטוח נפגעי חיסון",
+      "case_type": "administrative",
+      "procedure_domain": "administrative",
+      "deadline_rules": [],
+      "registry_source": "seed"
+    },
+    {
+      "id": 73,
+      "prefix_code": null,
+      "full_name_he": null,
+      "subject_he": "ערעור על החלטות ועדות אחרות",
+      "case_type": "administrative",
+      "procedure_domain": "administrative",
+      "deadline_rules": [],
+      "registry_source": "seed"
+    },
+    {
+      "id": 74,
+      "prefix_code": null,
+      "full_name_he": null,
+      "subject_he": "ערעור על החלטת נאמן",
+      "case_type": "insolvency",
+      "procedure_domain": "insolvency",
+      "deadline_rules": [],
+      "registry_source": "seed"
+    },
+    {
+      "id": 75,
+      "prefix_code": null,
+      "full_name_he": null,
+      "subject_he": "ערעור על החלטת רשם הוצאה לפועל",
+      "case_type": "civil",
+      "procedure_domain": "execution",
+      "deadline_rules": [],
+      "registry_source": "seed"
+    },
+    {
+      "id": 76,
+      "prefix_code": null,
+      "full_name_he": null,
+      "subject_he": "ערעור על החלטת של הממונה",
+      "case_type": "administrative",
+      "procedure_domain": "administrative",
+      "deadline_rules": [],
+      "registry_source": "seed"
+    },
+    {
+      "id": 77,
+      "prefix_code": "עחדיים",
+      "full_name_he": "ערעור חדלות פירעון",
+      "subject_he": "ערעור על פסק דין של בית משפט שלום (חייב)",
+      "case_type": "insolvency",
+      "procedure_domain": "insolvency",
+      "deadline_rules": [],
+      "registry_source": "seed"
+    },
+    {
+      "id": 78,
+      "prefix_code": null,
+      "full_name_he": null,
+      "subject_he": "ערעור על פסק דין של בית משפט שלום (נושה)",
+      "case_type": "insolvency",
+      "procedure_domain": "insolvency",
+      "deadline_rules": [],
+      "registry_source": "seed"
+    },
+    {
+      "id": 79,
+      "prefix_code": null,
+      "full_name_he": null,
+      "subject_he": "ערעור לפי חוק חדלות פירעון שמגיש עובד",
+      "case_type": "insolvency",
+      "procedure_domain": "insolvency",
+      "deadline_rules": [],
+      "registry_source": "seed"
+    },
+    {
+      "id": 80,
+      "prefix_code": null,
+      "full_name_he": null,
+      "subject_he": "ערעור על פסק דין של בית משפט שלום (נאמן)",
+      "case_type": "insolvency",
+      "procedure_domain": "insolvency",
+      "deadline_rules": [],
+      "registry_source": "seed"
+    },
+    {
+      "id": 81,
+      "prefix_code": "עחייק",
+      "full_name_he": "ערר לפי חוק המים",
+      "subject_he": "ערר לפי חוק המים",
+      "case_type": "administrative",
+      "procedure_domain": "administrative",
+      "deadline_rules": [],
+      "registry_source": "seed"
+    },
+    {
+      "id": 82,
+      "prefix_code": null,
+      "full_name_he": null,
+      "subject_he": "ערעור על החלטת פקיד השומה (מס הכנסה)",
+      "case_type": "civil",
+      "procedure_domain": "civil_procedure",
+      "deadline_rules": [],
+      "registry_source": "seed"
+    },
+    {
+      "id": 83,
+      "prefix_code": "עיימ",
+      "full_name_he": "ערעור מיסים",
+      "subject_he": "ערעור לפי חוק מס ערך מוסף",
+      "case_type": "civil",
+      "procedure_domain": "civil_procedure",
+      "deadline_rules": [],
+      "registry_source": "seed"
+    },
+    {
+      "id": 84,
+      "prefix_code": null,
+      "full_name_he": null,
+      "subject_he": "ערעור על החלטת ועדת ערר לפי חוק מס רכוש",
+      "case_type": "civil",
+      "procedure_domain": "civil_procedure",
+      "deadline_rules": [],
+      "registry_source": "seed"
+    },
+    {
+      "id": 85,
+      "prefix_code": "עמיים",
+      "full_name_he": "ערעור לפי חוק חיילים שנספו במערכה",
+      "subject_he": "ערעור לפי חוק משפחות חיילים שנספו במערכה",
+      "case_type": "administrative",
+      "procedure_domain": "administrative",
+      "deadline_rules": [],
+      "registry_source": "seed"
+    },
+    {
+      "id": 86,
+      "prefix_code": null,
+      "full_name_he": null,
+      "subject_he": "ערעור בעניין חוק השמות",
+      "case_type": "civil",
+      "procedure_domain": "civil_procedure",
+      "deadline_rules": [],
+      "registry_source": "seed"
+    },
+    {
+      "id": 87,
+      "prefix_code": null,
+      "full_name_he": null,
+      "subject_he": "ערעור בעניין חטיפת ילדים",
+      "case_type": "family",
+      "procedure_domain": "family",
+      "deadline_rules": [],
+      "registry_source": "seed"
+    },
+    {
+      "id": 88,
+      "prefix_code": null,
+      "full_name_he": null,
+      "subject_he": "ערעור לפי חוק קביעת גיל",
+      "case_type": "civil",
+      "procedure_domain": "civil_procedure",
+      "deadline_rules": [],
+      "registry_source": "seed"
+    },
+    {
+      "id": 89,
+      "prefix_code": "עמייש",
+      "full_name_he": "ערעור משפחה",
+      "subject_he": "ערעור בעניין עזבונות",
+      "case_type": "family",
+      "procedure_domain": "family",
+      "deadline_rules": [],
+      "registry_source": "seed"
+    },
+    {
+      "id": 90,
+      "prefix_code": null,
+      "full_name_he": null,
+      "subject_he": "ערעור על החלטה לפי החוק למניעת אלימות במשפחה",
+      "case_type": "family",
+      "procedure_domain": "family",
+      "deadline_rules": [],
+      "registry_source": "seed"
+    },
+    {
+      "id": 91,
+      "prefix_code": null,
+      "full_name_he": null,
+      "subject_he": "ערעור על פסק דין של בית משפט לענייני משפחה",
+      "case_type": "family",
+      "procedure_domain": "family",
+      "deadline_rules": [],
+      "registry_source": "seed"
+    },
+    {
+      "id": 92,
+      "prefix_code": null,
+      "full_name_he": null,
+      "subject_he": "ערעור על פסק דין משפחה (בני זוג)",
+      "case_type": "family",
+      "procedure_domain": "family",
+      "deadline_rules": [],
+      "registry_source": "seed"
+    },
+    {
+      "id": 93,
+      "prefix_code": null,
+      "full_name_he": null,
+      "subject_he": "ערעור בעניין אימוץ",
+      "case_type": "family",
+      "procedure_domain": "family",
+      "deadline_rules": [],
+      "registry_source": "seed"
+    },
+    {
+      "id": 94,
+      "prefix_code": "עמ\"צ",
+      "full_name_he": "ערעור משפחה אימוץ",
+      "subject_he": "ערעור על החלטה לפי סעיף 12(ג) לחוק אימוץ ילדים",
+      "case_type": "family",
+      "procedure_domain": "family",
+      "deadline_rules": [],
+      "registry_source": "seed"
+    },
+    {
+      "id": 95,
+      "prefix_code": null,
+      "full_name_he": null,
+      "subject_he": "ערעור על החלטה לפי סעיף 13 או 13(א) לחוק האימוץ",
+      "case_type": "family",
+      "procedure_domain": "family",
+      "deadline_rules": [],
+      "registry_source": "seed"
+    },
+    {
+      "id": 96,
+      "prefix_code": "ענייא",
+      "full_name_he": "ערעור נוער אזרחי",
+      "subject_he": "ערעור על החלטת בית המשפט לנוער",
+      "case_type": "civil",
+      "procedure_domain": "civil_procedure",
+      "deadline_rules": [],
+      "registry_source": "seed"
+    },
+    {
+      "id": 97,
+      "prefix_code": null,
+      "full_name_he": null,
+      "subject_he": "ערעור על החלטת רשם (פטור מאגרה/עירבון)",
+      "case_type": "civil",
+      "procedure_domain": "civil_procedure",
+      "deadline_rules": [],
+      "registry_source": "seed"
+    },
+    {
+      "id": 98,
+      "prefix_code": "עייר",
+      "full_name_he": "ערעור על החלטת רשם בית משפט",
+      "subject_he": "ערעור על החלטת רשם בית משפט",
+      "case_type": "civil",
+      "procedure_domain": "civil_procedure",
+      "deadline_rules": [],
+      "registry_source": "seed"
+    },
+    {
+      "id": 99,
+      "prefix_code": null,
+      "full_name_he": null,
+      "subject_he": "ערעור על החלטה בעניין פטור מאגרה",
+      "case_type": "civil",
+      "procedure_domain": "civil_procedure",
+      "deadline_rules": [],
+      "registry_source": "seed"
+    },
+    {
+      "id": 100,
+      "prefix_code": null,
+      "full_name_he": null,
+      "subject_he": "רשות ערעור על החלטת רשם המרכז לגביית קנסות",
+      "case_type": "administrative",
+      "procedure_domain": "administrative",
+      "deadline_rules": [],
+      "registry_source": "seed"
+    },
+    {
+      "id": 101,
+      "prefix_code": null,
+      "full_name_he": null,
+      "subject_he": "ערעור אחר",
+      "case_type": "civil",
+      "procedure_domain": "civil_procedure",
+      "deadline_rules": [],
+      "registry_source": "seed"
+    },
+    {
+      "id": 102,
+      "prefix_code": null,
+      "full_name_he": null,
+      "subject_he": "ערעור על החלטה בעניין היטל השבחה",
+      "case_type": "civil",
+      "procedure_domain": "civil_procedure",
+      "deadline_rules": [],
+      "registry_source": "seed"
+    },
+    {
+      "id": 103,
+      "prefix_code": "עשייא",
+      "full_name_he": "ערעור שונה - אזרחי",
+      "subject_he": "ערעור על החלטת ראש הוצאה לפועל",
+      "case_type": "civil",
+      "procedure_domain": "execution",
+      "deadline_rules": [],
+      "registry_source": "seed"
+    },
+    {
+      "id": 104,
+      "prefix_code": null,
+      "full_name_he": null,
+      "subject_he": "ערעור על החלטת רשם ההוצאה לפועל (הפטר)",
+      "case_type": "civil",
+      "procedure_domain": "execution",
+      "deadline_rules": [],
+      "registry_source": "seed"
+    },
+    {
+      "id": 105,
+      "prefix_code": null,
+      "full_name_he": null,
+      "subject_he": "ערעור על החלטת רשם ההוצאה לפועל",
+      "case_type": "civil",
+      "procedure_domain": "execution",
+      "deadline_rules": [],
+      "registry_source": "seed"
+    },
+    {
+      "id": 106,
+      "prefix_code": null,
+      "full_name_he": null,
+      "subject_he": "ערעור על החלטת רשם המרכז לגביית קנסות",
+      "case_type": "administrative",
+      "procedure_domain": "administrative",
+      "deadline_rules": [],
+      "registry_source": "seed"
+    },
+    {
+      "id": 107,
+      "prefix_code": null,
+      "full_name_he": null,
+      "subject_he": "ערעור על החלטת הסיוע המשפטי",
+      "case_type": "civil",
+      "procedure_domain": "civil_procedure",
+      "deadline_rules": [],
+      "registry_source": "seed"
+    },
+    {
+      "id": 108,
+      "prefix_code": null,
+      "full_name_he": null,
+      "subject_he": "ערר לפי חוק הספורט",
+      "case_type": "civil",
+      "procedure_domain": "civil_procedure",
+      "deadline_rules": [],
+      "registry_source": "seed"
+    },
+    {
+      "id": 109,
+      "prefix_code": null,
+      "full_name_he": null,
+      "subject_he": "ערעור לפי סעיף 10 לחוק שיקים ללא כיסוי",
+      "case_type": "civil",
+      "procedure_domain": "civil_procedure",
+      "deadline_rules": [],
+      "registry_source": "seed"
+    },
+    {
+      "id": 110,
+      "prefix_code": null,
+      "full_name_he": null,
+      "subject_he": "ערעור על המפקח על המקרקעין",
+      "case_type": "civil",
+      "procedure_domain": "civil_procedure",
+      "deadline_rules": [],
+      "registry_source": "seed"
+    },
+    {
+      "id": 111,
+      "prefix_code": null,
+      "full_name_he": null,
+      "subject_he": "ערעור על רשם הפטנטים",
+      "case_type": "civil",
+      "procedure_domain": "civil_procedure",
+      "deadline_rules": [],
+      "registry_source": "seed"
+    },
+    {
+      "id": 112,
+      "prefix_code": null,
+      "full_name_he": null,
+      "subject_he": "ערעור על החלטת רשם העיצובים",
+      "case_type": "civil",
+      "procedure_domain": "civil_procedure",
+      "deadline_rules": [],
+      "registry_source": "seed"
+    },
+    {
+      "id": 113,
+      "prefix_code": null,
+      "full_name_he": null,
+      "subject_he": "עשייא - אחר",
+      "case_type": "civil",
+      "procedure_domain": "civil_procedure",
+      "deadline_rules": [],
+      "registry_source": "seed"
+    },
+    {
+      "id": 114,
+      "prefix_code": null,
+      "full_name_he": null,
+      "subject_he": "עתירות אסירים",
+      "case_type": "criminal",
+      "procedure_domain": "criminal_procedure",
+      "deadline_rules": [],
+      "registry_source": "seed"
+    },
+    {
+      "id": 115,
+      "prefix_code": null,
+      "full_name_he": null,
+      "subject_he": "עתירה על החלטת ועדת שחרורים",
+      "case_type": "criminal",
+      "procedure_domain": "criminal_procedure",
+      "deadline_rules": [],
+      "registry_source": "seed"
+    },
+    {
+      "id": 116,
+      "prefix_code": "עתייא",
+      "full_name_he": "עתירות אסירים",
+      "subject_he": "ערעור על החלטת הממונה על עבודות שירות",
+      "case_type": "criminal",
+      "procedure_domain": "criminal_procedure",
+      "deadline_rules": [],
+      "registry_source": "seed"
+    },
+    {
+      "id": 117,
+      "prefix_code": null,
+      "full_name_he": null,
+      "subject_he": "עתירה על החלטות היחידה למאסרים קצרים",
+      "case_type": "criminal",
+      "procedure_domain": "criminal_procedure",
+      "deadline_rules": [],
+      "registry_source": "seed"
+    },
+    {
+      "id": 118,
+      "prefix_code": null,
+      "full_name_he": null,
+      "subject_he": "עתירה על המלצת ועדת שחרורים מיוחדת (קציבה)",
+      "case_type": "criminal",
+      "procedure_domain": "criminal_procedure",
+      "deadline_rules": [],
+      "registry_source": "seed"
+    },
+    {
+      "id": 119,
+      "prefix_code": null,
+      "full_name_he": null,
+      "subject_he": "רשות ערעור על החלטת הממונה",
+      "case_type": "criminal",
+      "procedure_domain": "criminal_procedure",
+      "deadline_rules": [],
+      "registry_source": "seed"
+    },
+    {
+      "id": 120,
+      "prefix_code": null,
+      "full_name_he": null,
+      "subject_he": "רשות ערעור על החלטת בית משפט שלום (חייב)",
+      "case_type": "insolvency",
+      "procedure_domain": "insolvency",
+      "deadline_rules": [],
+      "registry_source": "seed"
+    },
+    {
+      "id": 121,
+      "prefix_code": "רחדייפ",
+      "full_name_he": "רשות ערעור חדלות פירעון",
+      "subject_he": "רשות ערעור על החלטת בית משפט שלום (נושה)",
+      "case_type": "insolvency",
+      "procedure_domain": "insolvency",
+      "deadline_rules": [],
+      "registry_source": "seed"
+    },
+    {
+      "id": 122,
+      "prefix_code": null,
+      "full_name_he": null,
+      "subject_he": "רשות ערעור על החלטת רשם ההוצאה לפועל",
+      "case_type": "civil",
+      "procedure_domain": "execution",
+      "deadline_rules": [],
+      "registry_source": "seed"
+    },
+    {
+      "id": 123,
+      "prefix_code": null,
+      "full_name_he": null,
+      "subject_he": "רשות ערעור על החלטת בית משפט שלום (ערכאת ערעור)",
+      "case_type": "insolvency",
+      "procedure_domain": "insolvency",
+      "deadline_rules": [],
+      "registry_source": "seed"
+    },
+    {
+      "id": 124,
+      "prefix_code": null,
+      "full_name_he": null,
+      "subject_he": "ערעור על החלטה לפי החוק למניעת אלימות במשפחה",
+      "case_type": "family",
+      "procedure_domain": "family",
+      "deadline_rules": [],
+      "registry_source": "seed"
+    },
+    {
+      "id": 125,
+      "prefix_code": null,
+      "full_name_he": null,
+      "subject_he": "רשות ערעור אימוץ",
+      "case_type": "family",
+      "procedure_domain": "family",
+      "deadline_rules": [],
+      "registry_source": "seed"
+    },
+    {
+      "id": 126,
+      "prefix_code": "רמייש",
+      "full_name_he": "רשות ערעור משפחה",
+      "subject_he": "רשות ערעור בעניין משפחה",
+      "case_type": "family",
+      "procedure_domain": "family",
+      "deadline_rules": [],
+      "registry_source": "seed"
+    }
+  ]
+}

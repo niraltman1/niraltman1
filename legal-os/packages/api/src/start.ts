@@ -43,6 +43,8 @@ import { startBackupScheduler, stopBackupScheduler } from './utils/backup-schedu
 import { startContentUpdateScheduler, stopContentUpdateScheduler } from './modules/updates/update-scheduler.js';
 import { startInsolvencyNudgeScheduler, stopInsolvencyNudgeScheduler } from './utils/insolvency-nudge-scheduler.js';
 import { startRetentionScheduler, stopRetentionScheduler } from './utils/retention-scheduler.js';
+import { startDeadlineTracker, stopDeadlineTracker } from './utils/deadline-tracker-scheduler.js';
+import { initRegistry } from './utils/legal-registry-loader.js';
 import { seedDefaultAdmin } from './middleware/auth.js';
 import { initLogger } from './utils/logger.js';
 import { ConfigStore } from './utils/config-store.js';
@@ -111,6 +113,7 @@ if (process.env['NODE_ENV'] === 'production') {
 }
 
 seedDefaultAdmin(repos);
+initRegistry();
 
 const server = app.listen(PORT, () => {
   void writeServerConfig({ port: PORT, pid: process.pid, ts: new Date().toISOString() });
@@ -120,12 +123,13 @@ const server = app.listen(PORT, () => {
   startContentUpdateScheduler(repos);
   startInsolvencyNudgeScheduler(repos);
   startRetentionScheduler(repos);
+  startDeadlineTracker(repos);
 });
 
 function shutdown() {
   void clearServerConfig();
   stopRagWorker(); stopBackupScheduler(); stopContentUpdateScheduler();
-  stopInsolvencyNudgeScheduler(); stopRetentionScheduler();
+  stopInsolvencyNudgeScheduler(); stopRetentionScheduler(); stopDeadlineTracker();
   server.close();
 }
 

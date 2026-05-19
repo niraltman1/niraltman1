@@ -20,6 +20,11 @@ FactumIL_V13_Installer.exe
 # Runtime data (SQLite, Evidence Locker, downloaded binaries)
 _data/
 _evidence/
+
+# User-supplied legal extension files (user places licensed regulation text here)
+# The directory itself (.gitkeep) IS tracked; the user's content is not.
+powershell/lib/User_Extensions/*
+!powershell/lib/User_Extensions/.gitkeep
 tools/whisper-fast.exe
 tools/ffmpeg.exe
 tools/OllamaSetup.exe

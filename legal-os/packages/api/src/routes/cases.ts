@@ -79,6 +79,19 @@ export function casesRouter(repos: Repos): Router {
       ok(res, result);
       return;
     }
+    if (query['registry_status']) {
+      const registryStatus = String(query['registry_status']);
+      const { page, pageSize } = parsePagination(query);
+      const offset = (page - 1) * pageSize;
+      const rows = db.prepare(`
+        SELECT * FROM Cases WHERE registry_status = ? ORDER BY created_at DESC LIMIT ? OFFSET ?
+      `).all(registryStatus, pageSize, offset) as Record<string, unknown>[];
+      const { total } = db.prepare(
+        'SELECT COUNT(*) AS total FROM Cases WHERE registry_status = ?'
+      ).get(registryStatus) as { total: number };
+      ok(res, { items: rows, total, page, pageSize, hasNextPage: total > page * pageSize });
+      return;
+    }
     const { page, pageSize } = parsePagination(query);
     const result = cases.list(page, pageSize);
     ok(res, result);

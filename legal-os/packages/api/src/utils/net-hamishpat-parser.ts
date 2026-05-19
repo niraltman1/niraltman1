@@ -17,6 +17,7 @@
 import { createReadStream, existsSync } from 'node:fs';
 import { createInterface } from 'node:readline';
 import type { Repos } from '../db.js';
+import { lookupPrefix, tagManualReview, tagMapped } from './legal-registry-loader.js';
 
 export interface ImportRow {
   caseNumber:   string;
@@ -248,12 +249,18 @@ export async function importNetHaMishpatCSV(
     const status    = STATUS_MAP[rawStatus]   ?? 'open';
     const openedDate = normalizeDate(get('openedDate'));
 
+    // Registry lookup: determine if the case prefix is in the Legal_Registry.
+    // ת"א and all its variants are always 'mapped' (they resolve to 'civil').
+    // Unknown prefixes are tagged manual_review_required.
+    const registryEntry  = rawType ? lookupPrefix(rawType) : null;
+    const registryStatus = registryEntry ? 'mapped' : (rawType ? 'manual_review_required' : null);
+
     try {
-      repos.db.prepare(`
+      const insertResult = repos.db.prepare(`
         INSERT INTO Cases
-          (case_number, case_type, title_he, client_id, court_name, status, opened_date, notes, created_at, updated_at)
+          (case_number, case_type, title_he, client_id, court_name, status, opened_date, notes, registry_status, created_at, updated_at)
         VALUES
-          (@caseNumber, @caseType, @titleHe, @clientId, @courtName, @status, @openedDate, @notes,
+          (@caseNumber, @caseType, @titleHe, @clientId, @courtName, @status, @openedDate, @notes, @registryStatus,
            strftime('%Y-%m-%dT%H:%M:%fZ','now'), strftime('%Y-%m-%dT%H:%M:%fZ','now'))
       `).run({
         caseNumber,
@@ -263,8 +270,18 @@ export async function importNetHaMishpatCSV(
         courtName:  get('courtName'),
         status,
         openedDate,
-        notes:      get('notes'),
+        notes:          get('notes'),
+        registryStatus,
       });
+
+      // Apply explicit tag helpers for any post-insert hooks
+      const newId = insertResult.lastInsertRowid as number;
+      if (registryStatus === 'manual_review_required') {
+        tagManualReview(newId, repos);
+      } else if (registryStatus === 'mapped') {
+        tagMapped(newId, repos);
+      }
+
       result.inserted++;
     } catch (e) {
       result.errors.push(`שגיאה בשורה ${result.total}: ${String(e)}`);

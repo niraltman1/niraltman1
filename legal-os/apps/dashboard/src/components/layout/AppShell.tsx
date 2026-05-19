@@ -3,6 +3,7 @@ import { Sidebar } from './Sidebar.js';
 import { SpotlightSearch } from '@/components/common/SpotlightSearch.js';
 import { useSpotlightShortcut } from '@/hooks/useSpotlight.js';
 import { useUIStore } from '@/store/index.js';
+import { ReviewRequiredBanner } from '@/components/admin/ReviewRequiredBanner.js';
 
 export function AppShell() {
   useSpotlightShortcut();
@@ -13,6 +14,7 @@ export function AppShell() {
       <Sidebar />
 
       <main className="flex-1 overflow-auto flex flex-col">
+        <ReviewRequiredBanner />
         <div className="flex-1 p-6">
           <Outlet />
         </div>
