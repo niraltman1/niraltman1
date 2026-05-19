@@ -1,0 +1,85 @@
+import { Router } from 'express';
+import type { Repos } from '../db.js';
+import { asyncHandler } from '../utils/async-handler.js';
+import { ok } from '../utils/response.js';
+import { parsePagination } from '../utils/pagination.js';
+import { NotFoundError, ValidationError } from '../errors/api-error.js';
+import { emitActivity } from '../utils/activity-emitter.js';
+import { logAuditEvent } from '../middleware/audit-logger.js';
+
+export function documentsRouter(repos: Repos): Router {
+  const router = Router();
+  const { documents, db } = repos;
+
+  router.get('/', asyncHandler((req, res) => {
+    const { page, pageSize } = parsePagination(req.query as Record<string, unknown>);
+    const result = documents.list({ page, pageSize });
+    ok(res, result);
+  }));
+
+  router.get('/:id', asyncHandler((req, res) => {
+    const id = Number(req.params['id']);
+    const doc = documents.findById(id);
+    if (!doc) throw new NotFoundError('Document');
+    ok(res, doc);
+  }));
+
+  router.get('/:id/status', asyncHandler((req, res) => {
+    const id = Number(req.params['id']);
+    const doc = documents.findById(id);
+    if (!doc) throw new NotFoundError('Document');
+    const history = db
+      .prepare('SELECT * FROM ProcessingStatus WHERE document_id = ? ORDER BY created_at ASC')
+      .all(id) as Record<string, unknown>[];
+    ok(res, history);
+  }));
+
+  router.get('/:id/insights', asyncHandler((req, res) => {
+    const id = Number(req.params['id']);
+    if (!Number.isFinite(id)) throw new ValidationError('invalid id');
+    const doc = documents.findById(id);
+    if (!doc) throw new NotFoundError('Document');
+    const insights = documents.findInsights(id);
+    ok(res, insights ?? {});
+  }));
+
+  // Verify (approve/reject) an insight
+  router.post('/insights/:id/verify', asyncHandler((req, res) => {
+    const insightId = Number(req.params['id']);
+    if (!Number.isFinite(insightId)) throw new ValidationError('invalid id');
+
+    const { state } = req.body as { state?: string };
+    if (state !== 'approved' && state !== 'rejected') {
+      throw new ValidationError("state must be 'approved' or 'rejected'");
+    }
+
+    const insight = db.prepare(
+      'SELECT id, document_id FROM DocumentInsights WHERE id = ?',
+    ).get(insightId) as { id: number; document_id: number } | undefined;
+    if (!insight) throw new NotFoundError('Insight');
+
+    db.prepare(
+      'UPDATE DocumentInsights SET verification_state = ? WHERE id = ?',
+    ).run(state, insightId);
+
+    const actorId = (req as unknown as { userId?: number }).userId;
+    logAuditEvent(db, {
+      eventType:    'update',
+      ...(actorId !== undefined ? { actorId } : {}),
+      resourceType: 'document_insight',
+      resourceId:   String(insightId),
+      actionDetail: { state, documentId: insight.document_id },
+      severity:     'info',
+    });
+    emitActivity(repos, {
+      kind:       'verification_completed',
+      documentId: insight.document_id,
+      message:    `Insight ${state}`,
+      details:    { insightId, state },
+    });
+
+    ok(res, { id: insightId, verification_state: state });
+  }));
+
+  return router;
+}
