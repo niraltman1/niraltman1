@@ -1,4 +1,8 @@
-; Factum IL v13 -- Inno Setup 6 script
+; NOTE: This file is the development/beta variant.
+; The canonical production installer is installer.iss at the repo root.
+; Build via: .\apps\desktop\publish.ps1  then  ISCC.exe installer.iss
+
+; Factum IL v13 -- Inno Setup 6 script (dev/beta)
 ; Build via: .\powershell\scripts\Build-DistPackage.ps1
 ; Compiled by ISCC with /DRepoRoot=<path> /DOutputDir=<desktop-path>
 

@@ -94,7 +94,7 @@ await mkdir(LIB_DIR, { recursive: true });
 const seed = loadSeed();
 if (!seed) {
   console.error('[ingest] ERROR: Legal_Registry.json seed file not found at', OUT_PATH);
-  console.error('[ingest] Run `git checkout legal-os/powershell/lib/Legal_Registry.json` to restore the seed.');
+  console.error('[ingest] Run `git checkout main -- powershell/lib/Legal_Registry.json` to restore the seed.');
   process.exit(1);
 }
 

@@ -113,6 +113,22 @@ Copy-Item -Recurse -Force "$RepoRoot\apps\dashboard\dist\*" "$OutDir\dashboard\d
 New-Item -ItemType Directory -Force -Path "$OutDir\migrations" | Out-Null
 Copy-Item -Force "$RepoRoot\migrations\*.sql" "$OutDir\migrations"
 
+# ── [7.5/8] Stage Legal Registry + PowerShell scripts ────────────────────────
+Write-Host "[7.5/8] Staging Legal Registry and PowerShell scripts..." -ForegroundColor Cyan
+
+$LibSrc = Join-Path $RepoRoot 'powershell\lib'
+$LibDst = "$OutDir\powershell\lib"
+New-Item -ItemType Directory -Force -Path $LibDst | Out-Null
+Copy-Item (Join-Path $LibSrc 'Legal_Registry.json') $LibDst -Force
+Copy-Item (Join-Path $LibSrc 'Config.ps1')           $LibDst -Force -ErrorAction SilentlyContinue
+Copy-Item (Join-Path $LibSrc 'IdentifierParser.ps1') $LibDst -Force -ErrorAction SilentlyContinue
+New-Item -ItemType Directory -Force -Path "$LibDst\User_Extensions" | Out-Null
+
+$ScriptsDst = "$OutDir\scripts"
+New-Item -ItemType Directory -Force -Path $ScriptsDst | Out-Null
+Copy-Item (Join-Path $RepoRoot 'apps\installer\START-HERE.ps1') $ScriptsDst -Force
+Copy-Item "$($RepoRoot)\powershell\scripts\*.ps1" $ScriptsDst -Force -ErrorAction SilentlyContinue
+
 # ── [8/8] Download portable Node.js runtime ──────────────────────────────────
 Write-Host "[8/8] Staging portable Node.js v$NodeVersion runtime..." -ForegroundColor Cyan
 New-Item -ItemType Directory -Force -Path "$OutDir\runtime" | Out-Null
@@ -137,10 +153,12 @@ Copy-Item -Force "$NodeExtract\node-v$NodeVersion-win-x64\node.exe" "$OutDir\run
 Write-Host ""
 Write-Host "Build complete. Staged to: $OutDir" -ForegroundColor Green
 Write-Host ""
-Write-Host "  $OutDir\shell\FactumIL.Desktop.exe" -ForegroundColor White
-Write-Host "  $OutDir\backend\dist\start.js"       -ForegroundColor White
-Write-Host "  $OutDir\dashboard\dist\index.html"   -ForegroundColor White
-Write-Host "  $OutDir\migrations\*.sql             ($((Get-ChildItem $OutDir\migrations\*.sql).Count) files)" -ForegroundColor White
-Write-Host "  $OutDir\runtime\node.exe"             -ForegroundColor White
+Write-Host "  $OutDir\shell\FactumIL.Desktop.exe"              -ForegroundColor White
+Write-Host "  $OutDir\backend\dist\start.js"                 -ForegroundColor White
+Write-Host "  $OutDir\dashboard\dist\index.html"             -ForegroundColor White
+Write-Host "  $OutDir\migrations\*.sql                       ($((Get-ChildItem $OutDir\migrations\*.sql).Count) files)" -ForegroundColor White
+Write-Host "  $OutDir\runtime\node.exe"                      -ForegroundColor White
+Write-Host "  $OutDir\powershell\lib\Legal_Registry.json"    -ForegroundColor White
+Write-Host "  $OutDir\scripts\START-HERE.ps1"                -ForegroundColor White
 Write-Host ""
 Write-Host "Next step: ISCC.exe installer.iss" -ForegroundColor Yellow

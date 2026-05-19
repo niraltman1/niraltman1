@@ -34,7 +34,7 @@ interface RegistryFile {
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const REPO_ROOT  = process.env['FACTUM_IL_ROOT']
-  ?? join(__dirname, '..', '..', '..', '..');   // dist/utils → api → packages → legal-os
+  ?? join(__dirname, '..', '..', '..', '..');   // dist/utils → api → packages → factum-il
 const LIB_DIR    = join(REPO_ROOT, 'powershell', 'lib');
 const BASE_PATH  = join(LIB_DIR, 'Legal_Registry.json');
 const EXT_DIR    = join(LIB_DIR, 'User_Extensions');
