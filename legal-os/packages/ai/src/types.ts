@@ -32,6 +32,7 @@ export interface OllamaGenerateRequest {
   readonly options?: {
     readonly temperature?: number;
     readonly num_predict?: number;
+    readonly repeat_penalty?: number;
   };
 }
 

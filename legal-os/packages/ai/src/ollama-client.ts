@@ -133,9 +133,10 @@ export class OllamaClient {
     const fieldsEnriched: string[] = [];
 
     try {
-      const jsonMatch = raw.match(/\{[\s\S]*\}/);
-      if (jsonMatch) {
-        parsed = JSON.parse(jsonMatch[0]) as Record<string, unknown>;
+      // Destructure index 0 directly to satisfy noUncheckedIndexedAccess
+      const [jsonMatch] = raw.match(/\{[\s\S]*\}/) ?? [];
+      if (jsonMatch !== undefined) {
+        parsed = JSON.parse(jsonMatch) as Record<string, unknown>;
       }
     } catch {
       logger.warn(`AI response JSON parse failed for doc=${req.documentId}`, {
