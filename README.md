@@ -1,39 +1,49 @@
-# 🚀 Welcome to Nir Altman's AI-Powered Legal Knowledge Management System! 🤖⚖️
+# Factum IL
 
-Hey there! I'm Nir Altman, an Israeli criminal and traffic law attorney with a twist. While I'm a pro at navigating the courtroom, I'm a total newbie when it comes to coding. But hey, who says you can't teach an old dog new tricks, right?
+Local-first legal operating system for Israeli boutique law firms.  
+Built on a TypeScript/React monorepo, SQLite, and a portable Node.js runtime — no cloud dependency at runtime.
 
-## 🕵️‍♂️ What's This All About?
+## Quick Start
 
-I'm on a mission to build a cutting-edge knowledge and document management system for my legal practice. And guess what? I'm doing it with the power of AI and the awesomeness of open-source code!
+```bash
+pnpm install
+pnpm dev          # API + dashboard in watch mode
+```
 
-## 🎢 The Adventure So Far
+## Build & Package
 
-This project is my rollercoaster ride into the world of tech. Picture this: a lawyer who can recite traffic laws in his sleep, now grappling with pull requests and merge conflicts. It's like "Law & Order" meets "Silicon Valley"!
+```powershell
+# Windows — produces dist-package\FactumIL_V13_Installer.exe
+.\Build-FactumIL.ps1
+```
 
-## 🤔 Why Am I Doing This?
+Prerequisites: Node.js 22, pnpm 9, .NET 8 SDK, Inno Setup 6.
 
-- To supercharge my legal practice with AI smarts
-- To learn cool new skills (because why not?)
-- To prove that you're never too old (or too lawyer-y) to learn coding
+## Project Structure
 
-## 🏗️ What You'll Find Here
+```
+apps/
+  dashboard/          React 19 + Vite + Tailwind (RTL Hebrew UI)
+  desktop/            C# WPF shell hosting the dashboard via WebView2
+  installer/          START-HERE.ps1 bootstrap
+packages/
+  api/                Express API (30+ routes)
+  database/           better-sqlite3, 39 SQL migrations
+  shared/             Types and utilities shared across packages
+  ai/                 Ollama integration (law-il-E2B model)
+  citation-engine/    Israeli legal citation parser
+  pipeline/           Media pipeline (Whisper transcription, evidence lock)
+migrations/           SQL migration files 001–039
+powershell/           Registry, config, and automation helpers
+assets/               Icons and branding
+installer.iss         Inno Setup 6 production installer script
+Build-FactumIL.ps1   Master build script
+```
 
-- My attempts at building an AI-powered document management system
-- Probably some code that'll make seasoned developers chuckle (hey, we all start somewhere!)
-- A journey of learning, mistakes, and small victories
+## Architecture
 
-## 🤝 Want to Help?
+See [ARCHITECTURE.md](./ARCHITECTURE.md) for the full system design.
 
-If you're a developer who's stumbled upon this project and you're not too busy laughing at my code, I'd love your input! Feel free to:
+## Status
 
-- Suggest improvements (be gentle, remember I'm new at this!)
-- Share resources that might help
-- Tell me if I'm accidentally building Skynet instead of a document management system
-
-## 📞 Get in Touch
-
-Want to chat about law, coding, or the perfect balance of both? Reach out! I'm always up for a good conversation, especially if it involves explaining recursive functions over a cup of coffee.
-
-Remember, in coding as in law, it's all about continuous learning and improvement. So let's code, learn, and maybe solve some legal puzzles along the way!
-
-Happy coding (and lawyering)! 🎉👨‍⚖️💻
+![CI](https://github.com/niraltman1/Factum-IL/actions/workflows/ci.yml/badge.svg)
