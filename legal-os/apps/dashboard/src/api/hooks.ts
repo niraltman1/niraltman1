@@ -2016,3 +2016,16 @@ export function useHealth() {
     retry: false,
   });
 }
+
+// ── Mail Reply Generator ──────────────────────────────────────────────────────
+
+export function useGenerateMailReply() {
+  return useMutation({
+    mutationFn: (payload: {
+      caseId:    number;
+      tone:      'formal' | 'assertive' | 'conciliatory';
+      emailBody: string;
+      emailId?:  string;
+    }) => postJSON<{ draftBody: string }>('/api/mail/generate-reply', payload),
+  });
+}

@@ -32,6 +32,7 @@ import { stensRouter }       from './routes/stens.js';
 import { updatesRouter }     from './routes/updates.js';
 import { canvasRouter }      from './routes/canvas.js';
 import { gmailRouter }       from './routes/gmail.js';
+import { mailRouter }        from './routes/mail.js';
 import { vacuumRouter }      from './routes/vacuum.js';
 import { eventsRouter }      from './routes/events.js';
 import { precedentsRouter }  from './routes/precedents.js';
@@ -115,6 +116,7 @@ export function createApp(repos: Repos, dbPath?: string): express.Express {
   app.use('/api/updates',      updatesRouter(repos));
   app.use('/api/canvas',       canvasRouter(repos));
   app.use('/api/gmail',        gmailRouter(repos));
+  app.use('/api/mail',         mailRouter(repos));
   app.use('/api/vacuum',       vacuumRouter(repos));
   app.use('/api/events',       eventsRouter());
   app.use('/api/precedents',   precedentsRouter(repos));

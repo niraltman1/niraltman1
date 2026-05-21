@@ -9,6 +9,7 @@ import {
   GearIcon,
   HardDriveIcon,
   BugIcon,
+  EnvelopeIcon,
 } from '@phosphor-icons/react';
 import { useUIStore } from '@/store/index.js';
 import { BugReportModal } from '@/components/admin/BugReportModal.js';
@@ -17,6 +18,7 @@ const NAV_ITEMS = [
   { to: '/dashboard', label: 'לוח בקרה',             Icon: SealCheckIcon   },
   { to: '/queue',     label: 'צינור קליטה ואישורים', Icon: ListBulletsIcon },
   { to: '/clients',   label: 'ניהול תיקים ולקוחות',  Icon: UsersIcon       },
+  { to: '/mail',      label: 'מחולל מייל',            Icon: EnvelopeIcon    },
   { to: '/activity',  label: 'פעילות',                Icon: PulseIcon       },
 ] as const;
 
