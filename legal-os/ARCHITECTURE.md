@@ -13,17 +13,22 @@ factum-il/
 │   │   └── src/
 │   │       ├── modules/    # Feature modules: canvas, evidence, gmail, security, updates
 │   │       ├── routes/     # REST endpoints (one file per resource)
-│   │       └── utils/      # Shared utilities: MediaPipeline, RAG worker, seed, etc.
+│   │       └── utils/      # MediaPipeline, RAG worker, legal-registry-loader, ingest-adapter
+│   ├── citation-engine/    # Deterministic Israeli citation parser (Nevo 2021 / כללי הציטוט האחיד)
 │   ├── database/           # better-sqlite3 repositories + MigrationRunner
 │   │   └── src/queries/    # One repository class per table group
 │   └── shared/             # TypeScript interfaces shared across packages
-├── migrations/             # SQL files 001–022, run exactly once by MigrationRunner
+├── migrations/             # SQL files 001–039, run exactly once by MigrationRunner
 ├── powershell/
-│   ├── lib/Config.ps1      # Office root: C:\אלטמן משרד עורכי דין - סדר 2026
+│   ├── lib/
+│   │   ├── Config.ps1              # Office root: C:\אלטמן משרד עורכי דין - סדר 2026
+│   │   ├── Legal_Registry.json     # 126-entry Net HaMishpat offline case taxonomy
+│   │   └── User_Extensions/        # gitignored user deadline-rule overrides (.gitkeep tracked)
 │   └── scripts/
+│       ├── 01-CreateFolderStructure.ps1
 │       ├── 01-SystemCheck.ps1      # RAM/GPU detection → AI tier decision
 │       ├── 02-SetupAIModels.ps1    # Pull base model → create legal-brain alias
-│       ├── 03-CreateFolderStructure.ps1
+│       ├── 11-Open-Workspace.ps1   # Per-case workspace launcher (opens Explorer)
 │       └── …
 ├── Modelfile               # Ollama definition for law-il-E2B (high-end hardware)
 ├── Modelfile.gemma2        # Ollama definition for gemma2:9b / 2b (standard / low)
@@ -81,6 +86,8 @@ React Dashboard (RTL Hebrew, Vite, TanStack Query)
 | D | Gmail Bridge | `modules/gmail/`, `routes/gmail.ts`, `queries/gmail.ts` | Complete |
 | E | AES-256 Vault | `modules/security/aes-cipher.ts`, `key-provider.ts` | Complete |
 | F | Update Channels | `modules/updates/`, `routes/updates.ts` | Complete |
+| G | Legal Brain | `powershell/lib/Legal_Registry.json`, `utils/legal-registry-loader.ts`, `migrations/039_registry_status.sql` | Complete |
+| H | Citation Engine | `packages/citation-engine/`, `migrations/035_citation_engine.sql`, `migrations/031_citation_registry.sql` | Complete |
 
 ### Gmail Bridge (Module D) Detail
 
@@ -90,7 +97,7 @@ React Dashboard (RTL Hebrew, Vite, TanStack Query)
 - Enabled only when `GMAIL_ENABLED=true`
 - Sync runs on-demand (POST `/api/gmail/configs/:id/sync`) — no automatic scheduler by default
 
-## 4. Database Schema Summary (22 Migrations)
+## 4. Database Schema Summary (39 Migrations)
 
 | Range | Tables Added |
 |-------|-------------|
@@ -108,6 +115,23 @@ React Dashboard (RTL Hebrew, Vite, TanStack Query)
 | 020 | GmailSyncConfig, GmailSyncLog |
 | 021 | UpdateLog |
 | 022 | DocumentCanvas (canvas-document enricher) |
+| 023 | SearchMetaTrigger fix, VacuumSessions |
+| 024 | LearningFeedback, PipelineLogs |
+| 025 | ComplexCrmRoles |
+| 026 | PrecedentCaching |
+| 027 | PaymentLedger |
+| 028 | CourtHearings (hearing_date, court_name, room, judge_name, reminder_sent) |
+| 029 | InsolvencyModule (debt-arrangement proceedings) |
+| 030 | CaseLawRegistry (precedent tagging) |
+| 031 | CitationRegistry |
+| 032 | ContactAudit, ClientsExt |
+| 033 | ExcelImportSessions |
+| 034 | TrafficDrivingLicense |
+| 035 | CitationEngine (citation match cache) |
+| 036 | SecurityCompliance |
+| 037 | Reliability / observability tables |
+| 038 | CivilStandardProcedure |
+| 039 | Cases.registry_status (`mapped` \| `manual_review_required`) |
 
 ## 5. Security Model
 

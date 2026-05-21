@@ -29,13 +29,16 @@ factum-il/
 ├── packages/
 │   ├── ai/                 # OllamaClient — wraps local Ollama HTTP API
 │   ├── api/                # Express server :3001 — all REST endpoints
-│   ├── citation-engine/    # Deterministic Israeli legal citation engine (Nevo 2021)
+│   ├── citation-engine/    # Deterministic Israeli citation parser (Nevo 2021 / כללי הציטוט האחיד)
 │   ├── database/           # better-sqlite3 repositories + migrations runner
 │   └── shared/             # TypeScript interfaces shared across packages
-├── migrations/             # SQL migration files (001_*.sql, 002_*.sql, …)
+├── migrations/             # SQL migration files 001–039, run once by MigrationRunner
 ├── powershell/             # Windows automation scripts
-│   ├── lib/Config.ps1      # Office path: C:\אלטמן משרד עורכי דין - סדר 2026
-│   └── scripts/            # 01-CreateFolderStructure, 02-SetupAIModels, …
+│   ├── lib/
+│   │   ├── Config.ps1              # Office path: C:\אלטמן משרד עורכי דין - סדר 2026
+│   │   ├── Legal_Registry.json     # 126-entry Net HaMishpat offline case taxonomy
+│   │   └── User_Extensions/        # User deadline-rule overrides (gitignored, .gitkeep tracked)
+│   └── scripts/            # 01-CreateFolderStructure, 02-SetupAIModels, 11-Open-Workspace, …
 ├── Modelfile               # Ollama model definition for law-il-E2B
 └── CLAUDE.md               # This file
 ```
@@ -70,11 +73,18 @@ SQLite via `better-sqlite3` (fully synchronous API — no async/await in reposit
 
 **Migrations:** numbered files in `migrations/` run via `MigrationRunner` on server start. Each migration runs exactly once (tracked in `_migrations` table, wrapped in a transaction).
 
-**Current migrations:** 001–016
+**Current migrations:** 001–039
 - 001–013: core schema + contacts CRM
 - 014: `judge_name`, `procedure_type`, `statute_deadline` on Cases; `ai_enriched` on Documents
 - 015: `DocumentInsights` table (AI-extracted entities per document)
 - 016: Academic Hub — AcademicSubjects, AcademicCourses, StudyQuestions, GraphNodes + FTS5
+- 017–022: EvidenceItems, StensTemplates, CanvasDocuments, GmailSync, UpdateLog, DocumentCanvas
+- 023–024: SearchMetaTrigger fix, VacuumSessions, LearningFeedback, PipelineLogs
+- 025–027: ComplexCrmRoles, PrecedentCaching, PaymentLedger
+- 028–030: CourtHearings, InsolvencyModule, CaseLawRegistry
+- 031–035: CitationRegistry, ContactAudit/ClientsExt, ExcelImportSessions, TrafficDrivingLicense, CitationEngine
+- 036–038: SecurityCompliance, Reliability/observability, CivilStandardProcedure
+- 039: `Cases.registry_status` (`mapped` | `manual_review_required`) for Legal Brain tagging
 
 ## Data Firewall (Zero-Root Rule + Vacuum Protocol)
 

@@ -5,6 +5,95 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ---
 
+## [Phase 11 — Production Finalization] — 2026-05-20
+
+### Added
+- `FactumIL.Desktop/Resources/icon.ico` — ICO file was absent after the `LegalOS.Desktop/` → `FactumIL.Desktop/` directory rename; the file is now present (MD5 ef38df67, identical to `assets/logo/factum-il-icon.ico`).
+
+### Fixed
+- `.gitignore` — added `FactumIL.Desktop/bin/`, `FactumIL.Desktop/obj/`, and `FactumIL_Dist/` so generated C# and staging directories are no longer tracked.
+
+---
+
+## [Phase 10 — Complete LegalOS → Factum IL Rebrand] — 2026-05-19
+
+### Changed
+- All remaining `LegalOS` / `legal-os` / `LegalOS.Desktop` strings removed from source, configs, and comments. Only `Factum IL` / `factum-il` / `FactumIL` is used hereafter.
+- `apps/installer/FactumIL.iss` — added deprecation header; canonical production installer is now `installer.iss` at repo root.
+- `packages/api/src/utils/legal-registry-loader.ts` — package path comment corrected to `// dist/utils → api → packages → factum-il`.
+- `tools/ingest-legal-sources.mjs` — git command comment corrected to reference `main` branch (was `legal-os/...`).
+- `installer.iss` — V13 production Inno Setup 6 script: `AppId={7A3F1B2C…}`, `AppName="Factum IL"`, `AppVersion=13.0`, sources all files from `FactumIL_Dist\` staging layout.
+- `apps/desktop/publish.ps1` — csproj reference corrected to `FactumIL.Desktop.csproj`; added step [7.5/8] to copy `Legal_Registry.json`, `Config.ps1`, `User_Extensions/`, and `START-HERE.ps1` into `FactumIL_Dist/`.
+
+---
+
+## [Phase 9 — Uniform Citation Rules Compliance] — 2026-05-19
+
+### Added
+- `packages/citation-engine/src/__tests__/uniform-citation.test.ts` — 5 new compliance tests against the Nevo 2021 / כללי הציטוט האחיד standard: Supreme Court appeal, בג"ץ (פ"ד), legislation (ס"ח), regulations (ק"ת), and determinism. All 63 citation-engine tests pass.
+- `packages/citation-engine/README.md` — documents the Nevo 2021 compliance guarantee, canonical output format table (case / law / regulation / book / article), and test coverage.
+- `packages/api/src/utils/ingest-adapter.ts` — `IngestAdapter` interface abstracting `FileWatcher` for the document ingestion pipeline; allows alternate input sources (API upload, watched directory, Gmail attachment) to share the same `enqueue()` contract.
+
+---
+
+## [Phase 8 — Branding, Icon & Installer Readiness] — 2026-05-19
+
+### Added
+- `assets/logo/factum-il-icon.ico` — 7-layer ICO file (256/128/64/48/32/24/16 px, PNG-encoded frames, Vista+ compatible), 136 KB. Generated from the chess-knight-circuit-board logo with manual ICO encoder.
+- `installer.iss` (root) — complete rewrite as the canonical V13 production Inno Setup 6 script. Covers: `[Files]` (shell, backend, dashboard, migrations, runtime, powershell/lib, scripts, optional tools, icon); `[Registry]` (`FACTUM_IL_ROOT`, `WHISPER_EXE`, `FFMPEG_EXE`, `OrgDirectory`); `[Run]` (Ollama install, `START-HERE.ps1 -Mode Installer -Silent`, optional app launch); `[Code]` triple-source `.NET 8` check, `NeedsOllama`, `NeedsWebView2`, `InitializeWizard` (legal documents directory page), `GetOrgDir`.
+- `apps/desktop/publish.ps1` — added step [7.5/8]: stages `powershell/lib/Legal_Registry.json`, `Config.ps1`, `User_Extensions/` `.gitkeep`, and `apps/installer/START-HERE.ps1` into `FactumIL_Dist/`.
+
+### Changed
+- `FactumIL.Desktop/FactumIL.Desktop.csproj` — `<ApplicationIcon>Resources\icon.ico</ApplicationIcon>` now resolves to the real 7-layer ICO.
+- `apps/desktop/FactumIL.Desktop.csproj` (`publish.ps1` pipeline variant) — AssemblyName correctly set to `FactumIL.Desktop`.
+
+---
+
+## [Phase 7 — Legal Brain: Registry, Deadline Tracker & Workspace Launcher] — 2026-05-19
+
+### Added
+
+**Legal Registry**
+- `powershell/lib/Legal_Registry.json` — 126-entry offline Israeli court case taxonomy, seeded from the Net HaMishpat classification scheme. Schema: `metadata` (version, source, last_updated), `case_types[]` (126 records with `id`, `name_he`, `name_en`, `prefix`, `procedure_domain`, `deadline_days`, `statute`), `procedure_domains{}`.
+- `packages/api/src/utils/legal-registry-loader.ts` — `initRegistry()`, `lookupPrefix(prefix)`, `tagManualReview(caseId)`, `tagMapped(caseId)`. Reads `Legal_Registry.json` from `node:fs` (offline, no HTTP).
+- `migrations/039_registry_status.sql` — `ALTER TABLE Cases ADD COLUMN registry_status TEXT CHECK(registry_status IN ('mapped','manual_review_required'))`. Cases that don't match a known prefix are tagged `manual_review_required`.
+- `powershell/lib/User_Extensions/` — gitignored directory for user-supplied regulation text (deadline rule overrides); `.gitkeep` is force-tracked.
+- `tools/ingest-legal-sources.mjs` — build-time script that fetches the Net HaMishpat case-type list; gracefully falls back to the 126-row embedded seed when gov.il returns 403 (offline or sandbox).
+
+**Deadline Tracker**
+- `migrations/028_court_hearings.sql` — `CourtHearings` table (`case_id`, `hearing_date`, `court_name`, `room`, `judge_name`, `notes`, `reminder_sent`).
+- `migrations/029_insolvency_module.sql` — insolvency and debt-arrangement proceedings tables.
+- `migrations/030_case_law_registry.sql` — `CaseLawRegistry` table for tagging precedents to open cases.
+
+**Workspace Launcher**
+- `powershell/scripts/11-Open-Workspace.ps1` — per-case workspace launcher; reads `Cases` table to find the case folder under the branded office root, opens Windows Explorer at that path, logs the open event to `ActionLog`.
+
+**Production Hardening (Steps 1–6, same sprint)**
+- Step 1 — dynamic TCP port discovery: API server writes chosen port + PID to `%LOCALAPPDATA%\FactumIL\runtime\server_config.json`; WPF host reads this file before navigating WebView2.
+- Step 2 — SQLite auto-vacuum strategy: `PRAGMA auto_vacuum = INCREMENTAL` set at DB open; `Invoke-VacuumProtocol.ps1` runs periodic `incremental_vacuum()`.
+- Step 3 — PII log sanitisation: all log sinks strip Israeli ID numbers (9-digit), phone patterns (`05x`), and email addresses before writing to disk. RBAC session table and audit event ledger added.
+- Step 4 — air-gap typography: Google Fonts CDN `<link>` tags replaced with locally bundled WOFF2 files; build-time version-stamp injected into installer, API, and dashboard.
+- Step 5 — frontend UI compliance: 70-component React frontend fully RTL; settings sidebar with three-tier topology; Regulatory Compliance Banner certifying offline/air-gap mode.
+- Step 6 — LLM-parsable feedback loop: local crash reporting engine; Whisper Hebrew audio transcription pipeline wired to Action Log.
+
+**Migrations added in this sprint**
+- 023 — `fix_search_meta_trigger` + `vacuum_sessions`
+- 024 — `learning_feedback` + `pipeline_logs`
+- 025 — `complex_crm_roles`
+- 026 — `precedent_caching`
+- 027 — `payment_ledger`
+- 031 — `citation_registry`
+- 032 — `contact_audit_clients_ext`
+- 033 — `excel_import_sessions`
+- 034 — `traffic_driving_license`
+- 035 — `citation_engine`
+- 036 — `security_compliance`
+- 037 — `reliability`
+- 038 — `civil_standard_procedure`
+- 039 — `registry_status`
+
+---
+
 ## [Phase 6 — TypeScript Hardening & Build Fixes] — 2026-05-11
 
 ### Fixed
