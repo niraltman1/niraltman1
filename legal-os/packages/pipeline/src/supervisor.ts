@@ -104,7 +104,7 @@ export class WorkerSupervisor extends EventEmitter {
     } finally {
       w.activeCount--;
       if (w.activeCount === 0) {
-        w.status      = w.status === 'stopping' ? 'stopping' : 'idle';
+        w.status      = (w.status as WorkerStatus) === 'stopping' ? 'stopping' : 'idle';
         w.currentTask = null;
       }
       w.lastHeartbeat = new Date();

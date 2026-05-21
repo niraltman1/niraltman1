@@ -87,8 +87,10 @@ function parseCsv(text: string): string[][] {
     for (let i = 0; i < line.length; i++) {
       const ch = line[i];
       if (ch === '"') {
-        if (inQ && line[i + 1] === '"') { cur += '"'; i++; }
-        else { inQ = !inQ; }
+        if (!inQ && cur === '') { inQ = true; }       // start of quoted field
+        else if (inQ && line[i + 1] === '"') { cur += '"'; i++; } // escaped quote
+        else if (inQ) { inQ = false; }                // end of quoted field
+        else { cur += ch; }                           // literal " inside plain field
       } else if (ch === ',' && !inQ) {
         cells.push(cur); cur = '';
       } else {

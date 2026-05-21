@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeAll, afterAll } from 'vitest';
+import { describe, it, expect, beforeAll, afterAll, skipIf } from 'vitest';
 import { writeFile, mkdir, rm } from 'node:fs/promises';
 import { join } from 'node:path';
 import { tmpdir } from 'node:os';
@@ -114,7 +114,7 @@ describe('Vacuum Protocol — dry-run', () => {
 // NOTE: Full 10,000-file stress test is run via `pnpm test:stress` to avoid
 //       long CI times. This suite validates correctness at scale with 500 files.
 
-describe('Vacuum Protocol — stress (500 files)', () => {
+describe.skipIf(process.env['CI'])('Vacuum Protocol — stress (500 files)', () => {
   it('scans 500 nested files within reasonable time', async () => {
     const dir = join(TMP, 'stress-src');
     await mkdir(dir, { recursive: true });

@@ -88,7 +88,7 @@ export class OCRPreprocessor {
     return {
       outputPath: current,
       appliedOps: applied,
-      skewAngle,
+      ...(skewAngle !== undefined ? { skewAngle } : {}),
       durationMs: Date.now() - t0,
     };
   }

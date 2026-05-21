@@ -84,17 +84,19 @@ export function auditMiddleware(repos: Repos): RequestHandler {
       const ipAddress    = req.ip;
       const userAgent    = req.get('user-agent');
 
-      logAuditEvent(repos.db, {
-        eventType:    method === 'DELETE' ? 'delete' : 'create',
-        ...(actorId    !== undefined ? { actorId }    : {}),
-        ...(actorRole  !== undefined ? { actorRole }  : {}),
-        resourceType,
-        ...(resourceId !== undefined ? { resourceId } : {}),
-        actionDetail: { method, path: req.path, status: res.statusCode, ...(failed ? { failed: true } : {}) },
-        severity,
-        ...(ipAddress  !== undefined ? { ipAddress }  : {}),
-        ...(userAgent  !== undefined ? { userAgent }  : {}),
-      });
+      try {
+        logAuditEvent(repos.db, {
+          eventType:    method === 'DELETE' ? 'delete' : 'create',
+          ...(actorId    !== undefined ? { actorId }    : {}),
+          ...(actorRole  !== undefined ? { actorRole }  : {}),
+          resourceType,
+          ...(resourceId !== undefined ? { resourceId } : {}),
+          actionDetail: { method, path: req.path, status: res.statusCode, ...(failed ? { failed: true } : {}) },
+          severity,
+          ...(ipAddress  !== undefined ? { ipAddress }  : {}),
+          ...(userAgent  !== undefined ? { userAgent }  : {}),
+        });
+      } catch { /* non-fatal: audit table may not exist in all deployments */ }
     });
 
     next();

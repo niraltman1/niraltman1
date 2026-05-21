@@ -72,7 +72,7 @@ export class PipelineEngine {
       { from: 'ENRICHED',      to: 'REVIEW_PENDING',stage: () => this.stageQueueReview(documentId) },
     ];
 
-    let currentState = doc.processingState as ProcessingState;
+    let currentState = doc['processingState'] as ProcessingState;
 
     for (const step of sequence) {
       if (currentState !== step.from) continue;
@@ -114,9 +114,9 @@ export class PipelineEngine {
   /** HASHED stage: verify the stored hash matches the file on disk. */
   private async stageHash(documentId: number): Promise<void> {
     const doc  = this.getDocument(documentId)!;
-    const disk = await this.hasher.hashFile(doc.storagePath || doc.originalPath);
-    if (disk !== doc.fileHash) {
-      throw new Error(`Hash mismatch: stored=${doc.fileHash} disk=${disk}`);
+    const disk = await this.hasher.hashFile((doc['storagePath'] || doc['originalPath']) as string);
+    if (disk !== doc['fileHash']) {
+      throw new Error(`Hash mismatch: stored=${doc['fileHash']} disk=${disk}`);
     }
   }
 
@@ -128,8 +128,8 @@ export class PipelineEngine {
          current_state, target_state, priority)
       VALUES (?, ?, ?, ?, 'OCR_PENDING', 'OCR_COMPLETE', 5)
     `).run(generateUUID(), documentId,
-      this.getDocument(documentId)!.fileHash,
-      this.getDocument(documentId)!.originalPath,
+      this.getDocument(documentId)!['fileHash'],
+      this.getDocument(documentId)!['originalPath'],
     );
   }
 
@@ -138,7 +138,7 @@ export class PipelineEngine {
     // OCR is executed externally by the PowerShell OCR worker.
     // This stage validates that ocr_text has been populated.
     const doc = this.getDocument(_documentId)!;
-    if (!doc.ocrText || doc.ocrText.trim().length === 0) {
+    if (!doc['ocrText'] || (doc['ocrText'] as string).trim().length === 0) {
       throw new Error('OCR text not populated — OCR worker may not have completed.');
     }
   }
@@ -146,7 +146,7 @@ export class PipelineEngine {
   /** CLASSIFIED stage: applies document type classification. */
   private async stageClassify(documentId: number): Promise<void> {
     const doc = this.getDocument(documentId)!;
-    const classified = this.classifyByRegex(doc.filename, doc.ocrText ?? '');
+    const classified = this.classifyByRegex(doc['filename'] as string, (doc['ocrText'] as string | null) ?? '');
     if (classified) {
       this.db.prepare(
         "UPDATE Documents SET document_type = ?, updated_at = ? WHERE id = ?",
@@ -192,7 +192,7 @@ export class PipelineEngine {
           (document_id, from_state, to_state, agent, success, duration_ms)
         VALUES (?, ?, ?, ?, 1, ?)
       `).run(documentId, from, to, AGENT, durationMs);
-    })();
+    });
   }
 
   private recordFailure(documentId: number, fromState: ProcessingState, error: string): void {
@@ -205,7 +205,7 @@ export class PipelineEngine {
           (document_id, from_state, to_state, agent, success, error_message)
         VALUES (?, ?, 'FAILED', ?, 0, ?)
       `).run(documentId, fromState, AGENT, error);
-    })();
+    });
   }
 
   private getDocument(id: number): Record<string, unknown> | null {
