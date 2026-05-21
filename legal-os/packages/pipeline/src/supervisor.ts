@@ -104,7 +104,9 @@ export class WorkerSupervisor extends EventEmitter {
     } finally {
       w.activeCount--;
       if (w.activeCount === 0) {
-        w.status      = w.status === 'stopping' ? 'stopping' : 'idle';
+        // Re-read from the Map: terminate() may have set status to 'stopping' during await fn()
+        const latest: WorkerStatus = (this.workers.get(workerId) ?? w).status;
+        w.status      = latest === 'stopping' ? 'stopping' : 'idle';
         w.currentTask = null;
       }
       w.lastHeartbeat = new Date();

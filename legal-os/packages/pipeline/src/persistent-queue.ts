@@ -134,7 +134,7 @@ export class PersistentQueue {
           manifestRef:  (row['manifest_ref'] as string | null),
         };
       }
-    })();
+    });
 
     return claimed;
   }

@@ -1,5 +1,5 @@
 import { execFileSync } from 'node:child_process';
-import { existsSync, readFileSync, mkdirSync, rmSync } from 'node:fs';
+import { existsSync, readFileSync, mkdirSync, rmSync, readdirSync } from 'node:fs';
 import { join, extname } from 'node:path';
 import { tmpdir } from 'node:os';
 import { logger } from '@factum-il/shared';
@@ -116,7 +116,6 @@ export class OCRService {
       pdfPath,
     ], { timeout: 120_000 });
 
-    const { readdirSync } = await import('node:fs');
     return readdirSync(tmpDir)
       .filter((f) => f.startsWith('page_') && f.endsWith('.png'))
       .sort()

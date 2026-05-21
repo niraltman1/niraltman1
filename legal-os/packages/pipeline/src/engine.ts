@@ -14,6 +14,15 @@ import { LockService } from './lock-service.js';
 
 const AGENT: AgentName = 'PipelineEngine';
 
+interface DocumentRow {
+  processingState: string;
+  storagePath:     string | null;
+  originalPath:    string;
+  fileHash:        string;
+  ocrText:         string | null;
+  filename:        string;
+}
+
 export interface PipelineStageResult {
   readonly success: boolean;
   readonly toState: ProcessingState;
@@ -72,7 +81,7 @@ export class PipelineEngine {
       { from: 'ENRICHED',      to: 'REVIEW_PENDING',stage: () => this.stageQueueReview(documentId) },
     ];
 
-    let currentState = doc.processingState as ProcessingState;
+    let currentState = doc.processingState as ProcessingState; // DB value is the canonical string
 
     for (const step of sequence) {
       if (currentState !== step.from) continue;
@@ -192,7 +201,7 @@ export class PipelineEngine {
           (document_id, from_state, to_state, agent, success, duration_ms)
         VALUES (?, ?, ?, ?, 1, ?)
       `).run(documentId, from, to, AGENT, durationMs);
-    })();
+    });
   }
 
   private recordFailure(documentId: number, fromState: ProcessingState, error: string): void {
@@ -205,11 +214,11 @@ export class PipelineEngine {
           (document_id, from_state, to_state, agent, success, error_message)
         VALUES (?, ?, 'FAILED', ?, 0, ?)
       `).run(documentId, fromState, AGENT, error);
-    })();
+    });
   }
 
-  private getDocument(id: number): Record<string, unknown> | null {
-    return (this.db.prepare('SELECT * FROM Documents WHERE id = ?').get(id) as Record<string, unknown> | undefined) ?? null;
+  private getDocument(id: number): DocumentRow | null {
+    return (this.db.prepare('SELECT * FROM Documents WHERE id = ?').get(id) as DocumentRow | undefined) ?? null;
   }
 
   /** Simple regex-based document type classifier. */
