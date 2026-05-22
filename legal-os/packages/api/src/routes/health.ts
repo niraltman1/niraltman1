@@ -5,6 +5,7 @@ import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import type { Repos } from '../db.js';
 import { asyncHandler } from '../utils/async-handler.js';
+import type { RagHealingService } from '../utils/rag-healing.js';
 
 const _dir = dirname(fileURLToPath(import.meta.url));
 const versionInfo = JSON.parse(
@@ -121,7 +122,7 @@ async function checkDisk(dbPath: string): Promise<CheckResult> {
   };
 }
 
-export function healthRouter(repos: Repos, dbPath: string): Router {
+export function healthRouter(repos: Repos, dbPath: string, healingService: RagHealingService): Router {
   const router = Router();
 
   router.get('/', asyncHandler(async (_req, res) => {
@@ -132,11 +133,18 @@ export function healthRouter(repos: Repos, dbPath: string): Router {
       Promise.resolve(checkQueue(repos)),
       checkDisk(dbPath),
     ]);
-    const checks = { db, migrations, ollama, queue, disk };
-    const ok = db.healthy && migrations.healthy && queue.healthy && disk.healthy;
-    // Ollama down is degraded, not unhealthy — server can still serve cached data
-    res.status(ok ? 200 : 503).json({
-      ok, ts: Date.now(), checks,
+
+    const fts5Healthy = healingService.probeFts5();
+    const rag = {
+      fts5:        { healthy: fts5Healthy, ...(fts5Healthy ? {} : { detail: 'FTS5 index unavailable — run POST /api/admin/repair/rag' }) },
+      ollamaLastOkAt: healingService.getLastOllamaOkAt(),
+    };
+
+    const checks = { db, migrations, ollama, queue, disk, rag };
+    const isOk = db.healthy && migrations.healthy && queue.healthy && disk.healthy;
+    // Ollama and FTS5 down are degraded, not fatal — server still serves cached data
+    res.status(isOk ? 200 : 503).json({
+      ok: isOk, ts: Date.now(), checks,
       ai_ready: getAiReady(),
       version: versionInfo.version,
     });

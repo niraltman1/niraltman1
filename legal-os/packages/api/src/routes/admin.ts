@@ -6,8 +6,9 @@ import { getStatus as getResourceStatus, setTurboMode } from '../utils/resource-
 import { seedDemo } from '../utils/seed-demo.js';
 import { runVacuumProtocol } from '../utils/vacuum-protocol.js';
 import { ValidationError } from '../errors/api-error.js';
+import type { RagHealingService } from '../utils/rag-healing.js';
 
-export function adminRouter(repos: Repos): Router {
+export function adminRouter(repos: Repos, healingService: RagHealingService): Router {
   const router = Router();
   const { db, backups, hardening, queue, config } = repos;
 
@@ -140,6 +141,12 @@ export function adminRouter(repos: Repos): Router {
     }
     config.setOrgDirectory(orgDirectory.trim());
     ok(res, config.toJSON());
+  }));
+
+  // ── RAG self-heal — probes FTS5 + Ollama, auto-repairs if needed ─────────
+  router.post('/repair/rag', asyncHandler(async (_req, res) => {
+    const report = await healingService.runHealingCycle();
+    ok(res, report);
   }));
 
   // ── FTS5 full reconstruct — drops and rebuilds corrupt fts_documents ─────

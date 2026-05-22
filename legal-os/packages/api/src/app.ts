@@ -43,9 +43,17 @@ import { citationsRouter }   from './routes/citations.js';
 import { erasureRouter }     from './routes/erasure.js';
 import { bugReportRouter }   from './routes/bug-report.js';
 import { recordActivity }    from './utils/resource-controller.js';
+import { RagHealingService } from './utils/rag-healing.js';
 
 export function createApp(repos: Repos, dbPath?: string): express.Express {
   const app = express();
+
+  const healingService = new RagHealingService(
+    repos.db,
+    process.env['OLLAMA_BASE_URL'] ?? 'http://127.0.0.1:11434',
+  );
+  // Non-blocking startup check — repairs FTS5 if corrupt and begins Ollama probe loop if needed
+  void healingService.runHealingCycle();
 
   // Security headers
   app.use(helmet({
@@ -91,7 +99,7 @@ export function createApp(repos: Repos, dbPath?: string): express.Express {
   app.use(requestLogger);
   app.use(auditMiddleware(repos));
 
-  app.use('/api/health',          healthRouter(repos, dbPath ?? ''));
+  app.use('/api/health',          healthRouter(repos, dbPath ?? '', healingService));
   app.use('/api/activity',        activityRouter(repos));
   app.use('/api/mission-control', missionControlRouter(repos));
 
@@ -101,7 +109,7 @@ export function createApp(repos: Repos, dbPath?: string): express.Express {
   app.use('/api/search',      searchRouter(repos));
   app.use('/api/queue',       queueRouter(repos));
   app.use('/api/action-plan', actionPlanRouter(repos));
-  app.use('/api/admin',       adminRouter(repos));
+  app.use('/api/admin',       adminRouter(repos, healingService));
   app.use('/api/legal-ai',    legalAiRouter(repos));
   app.use('/api/tasks',        tasksRouter(repos));
   app.use('/api/legal-engine', legalEngineRouter(repos));
