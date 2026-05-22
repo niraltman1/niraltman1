@@ -29,10 +29,14 @@ import { isSystemIdle } from './idle-throttle.js';
 import { withWriteLock } from './write-mutex.js';
 import { emitActivity } from './activity-emitter.js';
 import { logger } from '@factum-il/shared';
+import type { EventBus } from '@factum-il/events';
+import { selectModel } from '@factum-il/model-router';
 
 const OLLAMA_BASE  = process.env['OLLAMA_BASE_URL'] ?? 'http://127.0.0.1:11434';
-const OLLAMA_MODEL = process.env['OLLAMA_MODEL']    ?? 'legal-brain';
-const INTERVAL_MS  = Number(process.env['RAG_INTERVAL_MS'] ?? 60_000);
+// Model resolved via model-router at runtime; env override still respected for legacy compat
+const OLLAMA_MODEL = process.env['OLLAMA_MODEL']    ?? 'law-il-E2B';
+// Catch-up sweep interval — event-driven processing handles immediate triggers
+const INTERVAL_MS  = Number(process.env['RAG_INTERVAL_MS'] ?? 300_000);
 const BATCH_SIZE   = Number(process.env['RAG_BATCH_SIZE']  ?? 3);
 
 const CASE_NUMBER_RE = /(\d{1,5}[-–]\d{2}[-–]\d{2,6}|ת["״]פ\s*\d+|ת["״]ד\s*\d+|ע["״]פ\s*\d+|רת["״]פ\s*\d+)/;
@@ -219,17 +223,23 @@ function applyExtraction(repos: Repos, docId: number, ext: RagExtraction, raw: s
   });
 }
 
-async function runCycle(repos: Repos): Promise<void> {
-  if (!isSystemIdle()) return;
+async function runCycle(repos: Repos, targetDocumentId?: number): Promise<void> {
+  // Targeted single-doc processing (event-driven) skips idle check
+  if (targetDocumentId === undefined && !isSystemIdle()) return;
 
-  const pending = repos.db.prepare(`
-    SELECT id, ocr_text, storage_path FROM Documents
-    WHERE ai_enriched = 0
-      AND ocr_text IS NOT NULL
-      AND length(ocr_text) > 50
-    ORDER BY created_at ASC
-    LIMIT ?
-  `).all(BATCH_SIZE) as { id: number; ocr_text: string; storage_path: string }[];
+  const pending = targetDocumentId !== undefined
+    ? repos.db.prepare(`
+        SELECT id, ocr_text, storage_path FROM Documents
+        WHERE id = ? AND ai_enriched = 0 AND ocr_text IS NOT NULL
+      `).all(targetDocumentId) as { id: number; ocr_text: string; storage_path: string }[]
+    : repos.db.prepare(`
+        SELECT id, ocr_text, storage_path FROM Documents
+        WHERE ai_enriched = 0
+          AND ocr_text IS NOT NULL
+          AND length(ocr_text) > 50
+        ORDER BY created_at ASC
+        LIMIT ?
+      `).all(BATCH_SIZE) as { id: number; ocr_text: string; storage_path: string }[];
 
   for (const doc of pending) {
     try {
@@ -281,9 +291,25 @@ async function runCycle(repos: Repos): Promise<void> {
 
 let _timer: ReturnType<typeof setInterval> | null = null;
 
-export function startRagWorker(repos: Repos): void {
+export function startRagWorker(repos: Repos, eventBus?: EventBus): void {
   if (_timer) return;
-  logger.info(`RAG worker started — interval=${INTERVAL_MS / 1000}s batch=${BATCH_SIZE} model=${OLLAMA_MODEL}`, { category: 'ai' });
+
+  // Resolve model via router; fall back to env var if router can't route
+  const routeResult = selectModel({ task: 'enrich' });
+  const resolvedModel = routeResult.ok ? routeResult.model.config.ollamaName : OLLAMA_MODEL;
+
+  logger.info(
+    `RAG worker started — sweep=${INTERVAL_MS / 1000}s batch=${BATCH_SIZE} model=${resolvedModel} eventDriven=${!!eventBus}`,
+    { category: 'ai' },
+  );
+
+  // Event-driven trigger: process immediately when OCR completes
+  eventBus?.subscribe('OCRCompleted', 'rag-worker:enrich', async (event) => {
+    logger.info(`RAG: OCRCompleted event for doc=${event.documentId}`, { category: 'ai' });
+    await runCycle(repos, event.documentId);
+  });
+
+  // Catch-up sweep for documents that missed the event (reduced from 60s → 300s)
   void runCycle(repos);
   _timer = setInterval(() => void runCycle(repos), INTERVAL_MS);
   _timer.unref();

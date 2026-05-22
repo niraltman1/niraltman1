@@ -1,5 +1,9 @@
 import type { Repos } from '../db.js';
 import { broadcast } from '../routes/events.js';
+import type { EventBus } from '@factum-il/events';
+
+let _eventBus: EventBus | null = null;
+export function configureEventBus(bus: EventBus): void { _eventBus = bus; }
 
 export type ActivityKind =
   | 'ocr_completed' | 'ocr_failed' | 'entities_extracted' | 'deadline_detected'
@@ -31,4 +35,17 @@ export function emitActivity(repos: Repos, event: ActivityEvent): void {
     event.details    ? JSON.stringify(event.details) : null,
   );
   broadcast('ACTIVITY', { ...event, emittedAt: new Date().toISOString() });
+
+  // Fan-out to domain event bus for event-driven subscribers
+  if (_eventBus) {
+    if (event.kind === 'ocr_completed' && event.documentId !== undefined) {
+      void _eventBus.publish({ kind: 'OCRCompleted', documentId: event.documentId, caseId: event.caseId ?? null, ocrTextLength: 0 });
+    } else if (event.kind === 'ocr_failed' && event.documentId !== undefined) {
+      void _eventBus.publish({ kind: 'OCRFailed', documentId: event.documentId, reason: event.message ?? 'unknown' });
+    } else if (event.kind === 'entities_extracted' && event.documentId !== undefined) {
+      void _eventBus.publish({ kind: 'EntitiesExtracted', documentId: event.documentId, caseId: event.caseId ?? null });
+    } else if (event.kind === 'deadline_detected' && event.caseId !== undefined) {
+      void _eventBus.publish({ kind: 'DeadlineDetected', caseId: event.caseId, deadlineDate: String(event.details?.['deadlineDate'] ?? '') });
+    }
+  }
 }

@@ -8,6 +8,7 @@ import { errorHandler } from './middleware/error.js';
 import { auditMiddleware } from './middleware/audit-logger.js';
 import { authRouter } from './middleware/auth.js';
 import { correlationId } from './middleware/correlation-id.js';
+import { observabilityMiddleware } from '@factum-il/observability';
 import { healthRouter }         from './routes/health.js';
 import { activityRouter }       from './routes/activity.js';
 import { missionControlRouter } from './routes/mission-control.js';
@@ -96,6 +97,7 @@ export function createApp(repos: Repos, dbPath?: string): express.Express {
   app.use('/api/docx/', rateLimit({ windowMs: 60_000, max: 30, standardHeaders: true, legacyHeaders: false }));
 
   app.use(correlationId);
+  app.use(observabilityMiddleware());
   app.use(requestLogger);
   app.use(auditMiddleware(repos));
 

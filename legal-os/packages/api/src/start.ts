@@ -48,6 +48,9 @@ import { initRegistry } from './utils/legal-registry-loader.js';
 import { seedDefaultAdmin } from './middleware/auth.js';
 import { initLogger } from './utils/logger.js';
 import { ConfigStore } from './utils/config-store.js';
+import { EventStore, createEventBus } from '@factum-il/events';
+import { wireMetricsStore } from '@factum-il/observability';
+import { configureEventBus } from './utils/activity-emitter.js';
 
 initLogger();
 
@@ -115,10 +118,17 @@ if (process.env['NODE_ENV'] === 'production') {
 seedDefaultAdmin(repos);
 initRegistry();
 
+// Wire infrastructure spine — metrics persistence + domain event bus
+// repos.db (DatabaseConnection) satisfies the duck-typed DbHandle in both packages
+const _db = repos.db as unknown as { prepare: (sql: string) => { run: (...a: unknown[]) => void; get: (...a: unknown[]) => unknown; all: (...a: unknown[]) => unknown[] }; transaction: <T>(fn: () => T) => T };
+wireMetricsStore(_db);
+const eventBus = createEventBus(new EventStore(_db));
+configureEventBus(eventBus);
+
 const server = app.listen(PORT, () => {
   void writeServerConfig({ port: PORT, pid: process.pid, ts: new Date().toISOString() });
   console.log(`Factum IL API ready — http://localhost:${PORT}`);
-  startRagWorker(repos);
+  startRagWorker(repos, eventBus);
   startBackupScheduler(repos, DB_PATH);
   startContentUpdateScheduler(repos);
   startInsolvencyNudgeScheduler(repos);

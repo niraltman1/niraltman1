@@ -13,6 +13,9 @@
   "dependencies": {
     "@factum-il/citation-engine": "workspace:*",
     "@factum-il/database": "workspace:*",
+    "@factum-il/events": "workspace:*",
+    "@factum-il/model-router": "workspace:*",
+    "@factum-il/observability": "workspace:*",
     "@factum-il/shared": "workspace:*",
     "archiver": "^7.0.1",
     "cors": "^2.8.5",

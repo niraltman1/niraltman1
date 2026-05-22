@@ -26,7 +26,7 @@ async function runCycle(repos: Repos): Promise<void> {
   await waitForIdle();
 
   // Tasks due within TASK_WARN_DAYS
-  const tasks = repos.db.prepare<[], TaskRow>(`
+  const tasks = repos.db.prepare(`
     SELECT t.id, t.title, t.due_date,
            c.case_number,
            cl.whatsapp_phone
@@ -53,7 +53,7 @@ async function runCycle(repos: Repos): Promise<void> {
   }
 
   // Cases with statute_deadline within CASE_WARN_DAYS
-  const cases = repos.db.prepare<[], CaseRow>(`
+  const cases = repos.db.prepare(`
     SELECT c.id, c.case_number, c.statute_deadline,
            cl.whatsapp_phone
       FROM Cases   c
