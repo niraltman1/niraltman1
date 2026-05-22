@@ -117,7 +117,7 @@ export class AIValidator {
     // Document date: dd/mm/yyyy or dd.mm.yyyy
     const dateMatch = combined.match(/\b(\d{1,2}[.\/]\d{1,2}[.\/]\d{4})\b/);
     if (dateMatch) {
-      const parts = dateMatch[1].split(/[.\/]/);
+      const parts = dateMatch[1]!.split(/[.\/]/);
       if (parts.length === 3) {
         ground['document_date'] = `${parts[2]!}-${parts[1]!.padStart(2,'0')}-${parts[0]!.padStart(2,'0')}`;
       }

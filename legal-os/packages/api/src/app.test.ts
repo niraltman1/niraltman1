@@ -171,6 +171,20 @@ function buildTestDb(): Database.Database {
       detected_at TEXT NOT NULL DEFAULT (datetime('now')),
       processed   INTEGER NOT NULL DEFAULT 0
     );
+
+    CREATE TABLE audit_events (
+      id            INTEGER PRIMARY KEY AUTOINCREMENT,
+      event_type    TEXT NOT NULL,
+      actor_id      INTEGER,
+      actor_role    TEXT,
+      resource_type TEXT NOT NULL,
+      resource_id   TEXT,
+      action_detail TEXT,
+      ip_address    TEXT,
+      user_agent    TEXT,
+      severity      TEXT NOT NULL DEFAULT 'info',
+      logged_at     TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ','now'))
+    );
   `);
   return raw;
 }

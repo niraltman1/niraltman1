@@ -85,7 +85,7 @@ export class PromptManager {
           INSERT INTO AIPromptVersions (prompt_key, version, prompt_template, prompt_hash)
           VALUES (?, ?, ?, ?)
         `).run(key, version, template, hash);
-      })();
+      });
     }
 
     const pv: PromptVersion = { key, version, template, hash };

@@ -4,7 +4,7 @@ export interface NotificationService {
 
 export class ConsoleNotificationService implements NotificationService {
   async send(phone: string, message: string): Promise<void> {
-    console.log(`[WhatsApp stub] → ${phone}: ${message}`);
+    console.log(`[WhatsApp stub] → ${phone.slice(0, 4)}***`);
   }
 }
 

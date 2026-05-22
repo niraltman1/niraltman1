@@ -99,7 +99,7 @@ export async function routeEntities(repos: Repos, input: EntityRouterInput): Pro
         try { repos.contacts.linkToCase(caseId, c.id, 'שופט/ת'); } catch { /* duplicate ok */ }
         broadcast('CONTACT_EXTRACTED', { documentId, contactId: c.id, role: 'court_clerk', nameHe: c.nameHe });
       } catch (err) {
-        console.warn(`[EntityRouter] judge contact failed doc=${documentId} name=${judgeName}:`, err);
+        console.warn(`[EntityRouter] judge contact failed doc=${documentId}:`, String(err));
       }
     }
 

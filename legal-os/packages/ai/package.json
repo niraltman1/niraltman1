@@ -9,13 +9,14 @@
   },
   "scripts": {
     "typecheck": "tsc --noEmit",
-    "test": "vitest run"
+    "test": "vitest run --passWithNoTests"
   },
   "dependencies": {
+    "@factum-il/database": "workspace:*",
     "@factum-il/shared": "workspace:*"
   },
   "devDependencies": {
     "typescript": "^5.5.0",
-    "vitest": "^1.6.0"
+    "vitest": "^3.0.0"
   }
 }

@@ -87,8 +87,10 @@ function parseCsv(text: string): string[][] {
     for (let i = 0; i < line.length; i++) {
       const ch = line[i];
       if (ch === '"') {
-        if (inQ && line[i + 1] === '"') { cur += '"'; i++; }
-        else { inQ = !inQ; }
+        if (!inQ && cur === '') { inQ = true; }                     // RFC 4180: opening quote only valid at field start
+        else if (inQ && line[i + 1] === '"') { cur += '"'; i++; }  // escaped quote inside quoted field
+        else if (inQ) { inQ = false; }                              // closing quote
+        else { cur += ch; }                                         // mid-field quote (e.g. עו"ד) — literal
       } else if (ch === ',' && !inQ) {
         cells.push(cur); cur = '';
       } else {

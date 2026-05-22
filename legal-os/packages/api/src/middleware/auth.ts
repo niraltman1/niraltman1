@@ -48,7 +48,7 @@ export function seedDefaultAdmin(repos: Repos): void {
     repos.db.prepare(
       "INSERT INTO system_users (username, password_hash, role) VALUES (?, ?, 'admin')",
     ).run(DEFAULT_ADMIN_USERNAME, hash);
-    console.log(`[Auth] Default admin created: ${DEFAULT_ADMIN_USERNAME} / ${DEFAULT_ADMIN_PASSWORD}`);
+    console.log(`[Auth] Default admin account created (username: ${DEFAULT_ADMIN_USERNAME})`);
     console.log('[Auth] IMPORTANT: Change the admin password after first login');
   }
 }

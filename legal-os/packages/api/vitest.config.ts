@@ -15,12 +15,12 @@ export default defineConfig({
     },
   },
   test: {
-    environment:  'node',
-    include:      ['src/**/*.test.ts'],
-    setupFiles:   ['./vitest.setup.ts'],
-    deps: {
-      external:       ['better-sqlite3'],
-      interopDefault: true,
+    environment: 'node',
+    include:     ['src/**/*.test.ts'],
+    server: {
+      deps: {
+        external: ['better-sqlite3', 'xlsx'],
+      },
     },
   },
 });

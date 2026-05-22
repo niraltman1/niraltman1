@@ -138,12 +138,13 @@ export async function runVacuumProtocol(opts: VacuumOptions): Promise<VacuumRepo
   let pendingCount = 0;
   let skipCount    = 0;
 
-  for (const filePath of filePaths) {
+  for (let idx = 0; idx < filePaths.length; idx++) {
+    const filePath   = filePaths[idx]!;
     const fileName   = basename(filePath);
     const detectedAt = new Date().toISOString();
 
-    // ── PDF safety gate ────────────────────────────────────────────────────
-    await effort.throttle();
+    // Sample CPU every 10 files to avoid 250ms overhead per file
+    if (idx % 10 === 0) await effort.throttle();
 
     if (extname(fileName).toLowerCase() === '.pdf') {
       const { valid, encrypted } = await isPdfSafe(filePath);
