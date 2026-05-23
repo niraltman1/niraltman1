@@ -32,3 +32,7 @@ export type { VacuumSession, VacuumStatus } from './queries/vacuum.js';
 export type { IntegrityReport, BackupResult, WALCheckpointMode } from './hardening.js';
 export type { SearchHit, SearchOptions } from './search/engine.js';
 export type { BackupSnapshot } from './queries/backups.js';
+export { DocumentVersionRepository } from './queries/document-versions.js';
+export type { DocumentVersion, DocumentVersionCreateInput } from './queries/document-versions.js';
+export { AnnotationRepository } from './queries/annotations.js';
+export type { Annotation, AnnotationCreateInput } from './queries/annotations.js';

@@ -59,17 +59,24 @@ export class OCRService {
 
     try {
       if (ext === '.pdf') {
-        // Try native text extraction first
-        text = this.extractPdfNative(filePath, tmpDir);
-        if (text.trim().length < 50) {
-          // Rasterise and OCR
-          const pages = this.rasterisePDF(filePath, tmpDir, DEFAULT_DPI);
-          pageCount = pages.length;
-          const parts: string[] = [];
-          for (const pg of pages) {
-            parts.push(this.runTesseract(pg, tmpDir, lang));
+        // Try OCRmyPDF first (higher quality, handles deskew/rotation)
+        const ocrmypdfText = this.tryOCRmyPDF(filePath, tmpDir, lang);
+        if (ocrmypdfText && ocrmypdfText.trim().length >= 50) {
+          text = ocrmypdfText;
+          pageCount = this.countPages(ocrmypdfText);
+        } else {
+          // Fall back to native text extraction
+          text = this.extractPdfNative(filePath, tmpDir);
+          if (text.trim().length < 50) {
+            // Fall back to Ghostscript rasterisation + Tesseract
+            const pages = this.rasterisePDF(filePath, tmpDir, DEFAULT_DPI);
+            pageCount = pages.length;
+            const parts: string[] = [];
+            for (const pg of pages) {
+              parts.push(this.runTesseract(pg, tmpDir, lang));
+            }
+            text = parts.join('\n');
           }
-          text = parts.join('\n');
         }
       } else {
         text = this.runTesseract(filePath, tmpDir, lang);
@@ -94,6 +101,32 @@ export class OCRService {
     });
 
     return { text, confidence, pageCount, fromCache: false, durationMs };
+  }
+
+  private tryOCRmyPDF(pdfPath: string, tmpDir: string, lang: string): string | null {
+    try {
+      const outPdf = join(tmpDir, 'ocrmypdf_out.pdf');
+      execFileSync('ocrmypdf', [
+        '--language', lang,
+        '--deskew',
+        '--rotate-pages',
+        '--force-ocr',
+        '--output-type', 'pdf',
+        pdfPath,
+        outPdf,
+      ], { timeout: 180_000 });
+
+      if (!existsSync(outPdf)) return null;
+
+      const outTxt = join(tmpDir, 'ocrmypdf_out.txt');
+      execFileSync('pdftotext', ['-enc', 'UTF-8', '-layout', outPdf, outTxt], { timeout: 30_000 });
+      if (existsSync(outTxt)) return readFileSync(outTxt, 'utf-8');
+    } catch { /* ocrmypdf not found or failed — fall through */ }
+    return null;
+  }
+
+  private countPages(text: string): number {
+    return Math.max(1, (text.match(/\f/g) ?? []).length + 1);
   }
 
   private extractPdfNative(pdfPath: string, tmpDir: string): string {
