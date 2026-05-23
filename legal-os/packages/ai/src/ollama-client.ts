@@ -1,5 +1,6 @@
 import { createHash } from 'node:crypto';
 import { logger, clamp, roundConfidence } from '@factum-il/shared';
+import { getCircuitBreaker } from '@factum-il/model-router';
 import type {
   EnrichmentRequest,
   EnrichmentResponse,
@@ -13,27 +14,6 @@ const CONFIDENCE_FLOOR     = 0.0;
 const CONFIDENCE_CEILING   = 1.0;
 const CONNECT_TIMEOUT_MS   = 5_000;
 const REQUEST_TIMEOUT_MS   = 45_000;
-const CIRCUIT_FAILURE_LIMIT = 3;
-const CIRCUIT_RESET_MS     = 60_000;
-
-// ── Circuit Breaker (module-level, shared across all OllamaClient instances) ──
-let _circuitFailures  = 0;
-let _circuitOpenedAt  = 0;
-
-function isCircuitOpen(): boolean {
-  if (_circuitFailures < CIRCUIT_FAILURE_LIMIT) return false;
-  if (Date.now() - _circuitOpenedAt > CIRCUIT_RESET_MS) {
-    _circuitFailures = 0; // half-open: allow one probe
-    return false;
-  }
-  return true;
-}
-
-function recordCircuitSuccess(): void { _circuitFailures = 0; }
-function recordCircuitFailure(): void {
-  _circuitFailures++;
-  if (_circuitFailures >= CIRCUIT_FAILURE_LIMIT) _circuitOpenedAt = Date.now();
-}
 
 /**
  * Thin HTTP client for the local Ollama API.
@@ -62,7 +42,8 @@ export class OllamaClient {
   }
 
   async enrich(request: EnrichmentRequest): Promise<EnrichmentResponse> {
-    if (isCircuitOpen()) {
+    const cb = getCircuitBreaker('law-il-E2B');
+    if (cb.isOpen()) {
       throw new Error('Ollama circuit breaker open — skipping enrichment until service recovers');
     }
 
@@ -90,16 +71,16 @@ export class OllamaClient {
         signal:  AbortSignal.timeout(REQUEST_TIMEOUT_MS),
       });
     } catch (e) {
-      recordCircuitFailure();
+      cb.recordFailure();
       throw new Error(`Ollama connection failed: ${String(e)}`);
     }
 
     if (!res.ok) {
-      recordCircuitFailure();
+      cb.recordFailure();
       throw new Error(`Ollama API error: ${res.status} ${res.statusText}`);
     }
 
-    recordCircuitSuccess();
+    cb.recordSuccess();
     const data = await res.json() as OllamaGenerateResponse;
     return this.parseResponse(request, promptHash, data.response);
   }

@@ -1,75 +1,42 @@
-# TASKS.md — Factum-IL Session Tracker
+# Factum-IL — Task Tracker
 
-> Claude Code: Read this FIRST at the start of every session. Update this LAST at the end of every session.
+## Phase 0 — Stability ✅ COMPLETE
+- TypeScript typecheck errors fixed across 7 packages
+- vitest 1.x → 3.x upgrade
+- CSV parser fixed (Hebrew mid-field quote)
+- GitHub Actions CI wired
+- Husky pre-commit hooks wired
+- PII redacted from all console.log calls
 
----
+## Phase 1 — Infrastructure Spine ✅ COMPLETE
+- `@factum-il/events` — typed domain event bus, idempotent handlers, dead-letter queue
+- `@factum-il/observability` — AsyncLocalStorage trace IDs, metrics SQLite sink, Express middleware
+- `@factum-il/model-router` — per-model circuit breakers, routing policies
+- migrations/040 — Metrics table
+- migrations/041 — EventStore, EventHandlerLog, DeadLetterQueue
+- RAG worker migrated from 60s polling → event-driven (OCRCompleted)
+- activity-emitter wired to EventBus
 
-## 🔴 IN PROGRESS (pick up here)
+## Phase 2 — Intelligence Foundation 🔄 IN PROGRESS
+- `@factum-il/legal-ontology` — entity types, court hierarchy, synonym registry (migration 042)
+- `@factum-il/memory` — case memory, session store, context assembler (migration 043)
+- `@factum-il/retrieval` — clause chunker, embedder, hybrid BM25+vector search (migration 044)
 
-### Fix typecheck errors in packages/pipeline
-**Status:** Mid-task — session hit token limit  
-**Last action:** Fixed 3 errors in `packages/ai` and `packages/api/src/utils/deadline-tracker-scheduler.ts`. Pre-existing typecheck errors in `packages/pipeline` were exposed and need fixing.  
-**Next step:** Run `pnpm typecheck --filter @factum-il/pipeline` and fix all errors found.  
-**Branch:** (check current branch before starting)
+## Phase 3 — AI Safety (NEXT)
+- `@factum-il/evals` — golden datasets, eval runner, precision/recall metrics
+- `@factum-il/ai-guardrails` — hallucination detector, citation verifier, confidence gate
 
----
+## Phase 4 — Agent Layer
+- `@factum-il/agent-core` — planner, tool registry, agent loop
+- Case Summarizer agent
+- Timeline Builder agent
 
-## ✅ COMPLETED (this migration cycle)
+## Phase 5 — Document Intelligence
+- OCRmyPDF integration
+- `@factum-il/litigation-intelligence` — procedural completeness, risk scoring
+- PDF annotation layer
+- Docling integration
 
-- [x] Rebranded all references from Legal-OS → Factum-IL across monorepo
-- [x] Fixed `validator.ts:120` — added non-null assertion to `dateMatch[1]`
-- [x] Fixed `packages/ai/package.json` — added `@factum-il/database` as workspace dependency
-- [x] Fixed `packages/api/src/utils/deadline-tracker-scheduler.ts` lines 29 and 56 — removed invalid generic type args from `prepare()`
-- [x] Fixed `DatabaseConnection.transaction()` call on line 88 — removed erroneous `()` on void return
-- [x] Updated lockfile after package.json changes
-
----
-
-## 📋 TODO (not started yet)
-
-### High priority — before beta
-- [ ] Fix all remaining `packages/pipeline` typecheck errors
-- [ ] Confirm full CI passes green (build + typecheck + lint all packages)
-- [ ] Test Ollama graceful fallback — kill Ollama, run pipeline, confirm no crash
-- [ ] Test Hebrew RTL rendering in WebView2 on Windows
-- [ ] Verify WebView2 installer prompt appears when WebView2 not found
-- [ ] End-to-end test: scan → OCR → parse → report → workspace
-
-### Medium priority
-- [ ] Add pre-commit hooks (see `.husky/` setup)
-- [ ] Add structured CI error output (JSON format for Claude Code)
-- [ ] Beta tester onboarding guide (Hebrew)
-- [ ] Review all console.log statements — remove any that log document content or client data
-
-### Low priority
-- [ ] Archive / freeze the PowerShell legacy repo with a clear README notice
-- [ ] Add CHANGELOG.md
-
----
-
-## 📝 Session Log
-
-| Date | What happened |
-|------|--------------|
-| Last session | Factum-IL rebrand migration, fixed type errors in ai/api packages, hit session limit mid-pipeline typecheck |
-
----
-
-## ⚡ Quick Commands
-
-```bash
-# Run typechecks for all packages
-pnpm typecheck
-
-# Run typecheck for one package only
-pnpm typecheck --filter @factum-il/pipeline
-
-# Build everything
-pnpm build
-
-# Run CI checks locally
-pnpm ci
-
-# Check Ollama is running
-curl http://localhost:11434/api/tags
-```
+## Phase 6 — Extensibility
+- `@factum-il/sdk` — plugin SDK
+- RBAC multi-attorney roles

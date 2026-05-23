@@ -13,6 +13,7 @@
   },
   "dependencies": {
     "@factum-il/database": "workspace:*",
+    "@factum-il/model-router": "workspace:*",
     "@factum-il/shared": "workspace:*"
   },
   "devDependencies": {
