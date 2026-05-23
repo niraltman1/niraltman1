@@ -44,6 +44,7 @@ import { caseLawRouter }     from './routes/case-law.js';
 import { citationsRouter }   from './routes/citations.js';
 import { erasureRouter }     from './routes/erasure.js';
 import { bugReportRouter }   from './routes/bug-report.js';
+import { agentsRouter }      from './routes/agents.js';
 import { recordActivity }    from './utils/resource-controller.js';
 import { RagHealingService } from './utils/rag-healing.js';
 
@@ -139,6 +140,7 @@ export function createApp(repos: Repos, dbPath?: string): express.Express {
   app.use('/api/auth',         authRouter(repos));
   app.use('/api/erasure',      erasureRouter(repos));
   app.use('/api/bug-report',   bugReportRouter(repos));
+  app.use('/api/agents',       agentsRouter(repos));
 
   // Track activity for Day/Night resource controller
   app.use((_req, _res, next) => { recordActivity(); next(); });
