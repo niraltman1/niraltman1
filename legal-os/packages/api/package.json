@@ -14,6 +14,7 @@
     "@factum-il/agent-core": "workspace:*",
     "@factum-il/ai": "workspace:*",
     "@factum-il/ai-guardrails": "workspace:*",
+    "@factum-il/litigation-intelligence": "workspace:*",
     "@factum-il/memory": "workspace:*",
     "@factum-il/citation-engine": "workspace:*",
     "@factum-il/database": "workspace:*",

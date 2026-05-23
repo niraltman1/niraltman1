@@ -64,3 +64,47 @@ export function makeCaseHearingsTool(repos: Repos, caseId: number): Tool {
       `).all(caseId),
   };
 }
+
+// Returns a Tool that fetches document OCR text and type
+export function makeDocumentTool(repos: Repos, documentId: number): Tool {
+  return {
+    name: 'get_document',
+    description: 'מביא תוכן מסמך ופרטיו',
+    execute: async () =>
+      repos.db.prepare(`
+        SELECT id, filename, document_type, ocr_text, created_at
+          FROM Documents
+         WHERE id = ?
+      `).get(documentId),
+  };
+}
+
+// Returns a Tool that fetches AI-extracted entities from a document
+export function makeDocumentInsightsTool(repos: Repos, documentId: number): Tool {
+  return {
+    name: 'get_document_entities',
+    description: 'מביא ישויות שחולצו על ידי AI מהמסמך',
+    execute: async () =>
+      repos.db.prepare(`
+        SELECT entity_type, entity_value, confidence
+          FROM DocumentInsights
+         WHERE document_id = ?
+         ORDER BY confidence DESC
+      `).all(documentId),
+  };
+}
+
+// Returns a Tool that fetches evidence items for a case
+export function makeCaseEvidenceTool(repos: Repos, caseId: number): Tool {
+  return {
+    name: 'get_case_evidence',
+    description: 'מביא פריטי ראיות בתיק',
+    execute: async () =>
+      repos.db.prepare(`
+        SELECT id, title, evidence_type, source, status, created_at
+          FROM EvidenceItems
+         WHERE case_id = ?
+         ORDER BY created_at DESC
+      `).all(caseId),
+  };
+}
