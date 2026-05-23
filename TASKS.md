@@ -35,12 +35,17 @@
 - Research Agent — POST /api/agents/research (with guardrail check)
 - migrations/045 — AgentResults table
 
-## Phase 5 — Document Intelligence
-- OCRmyPDF integration
-- `@factum-il/litigation-intelligence` — procedural completeness, risk scoring
-- PDF annotation layer
-- Docling integration
+## Phase 5 — Document Intelligence ✅ COMPLETE
+- OCRmyPDF fast lane in pipeline (deskew + rotate-pages → pdftotext, fallback to Ghostscript+Tesseract)
+- `@factum-il/litigation-intelligence` — completeness checker (seeded from Rules_Engine), risk scorer (weighted 40/30/20/10), evidence gap analyzer, contradiction detector, filing dependency graph
+- migrations/046: ProceduralChecklist + RiskAssessments tables
+- DocumentVersions + Annotations tables (migrations/047) + repositories in database
+- PDF annotation types: highlight, note, redline, bookmark
 
-## Phase 6 — Extensibility
-- `@factum-il/sdk` — plugin SDK
+## Phase 6 — Extensibility (NEXT)
+- `@factum-il/sdk` — plugin SDK + extension points
 - RBAC multi-attorney roles
+- Contract Review Agent
+- Discovery Agent
+- Full eval suite with automated regression detection
+- Docling integration (layout-aware OCR lane for complex multi-column verdicts)
