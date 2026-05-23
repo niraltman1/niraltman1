@@ -17,19 +17,23 @@
 - RAG worker migrated from 60s polling → event-driven (OCRCompleted)
 - activity-emitter wired to EventBus
 
-## Phase 2 — Intelligence Foundation 🔄 IN PROGRESS
+## Phase 2 — Intelligence Foundation ✅ COMPLETE
 - `@factum-il/legal-ontology` — entity types, court hierarchy, synonym registry (migration 042)
 - `@factum-il/memory` — case memory, session store, context assembler (migration 043)
 - `@factum-il/retrieval` — clause chunker, embedder, hybrid BM25+vector search (migration 044)
 
-## Phase 3 — AI Safety (NEXT)
+## Phase 3 — AI Safety ✅ COMPLETE
 - `@factum-il/evals` — golden datasets, eval runner, precision/recall metrics
 - `@factum-il/ai-guardrails` — hallucination detector, citation verifier, confidence gate
+- Streaming Ollama client + SSE endpoint in API
 
-## Phase 4 — Agent Layer
-- `@factum-il/agent-core` — planner, tool registry, agent loop
-- Case Summarizer agent
-- Timeline Builder agent
+## Phase 4 — Agent Layer ✅ COMPLETE
+- `@factum-il/agent-core` — tool-runner (parallel), prompt-builder (Hebrew 5-step), ollama-caller (graceful degradation), agent-runner (confidence gate + human-review flag)
+- `db-tools.ts` — 4 Tool factories (case, documents, tasks, hearings)
+- Case Summarizer — POST /api/agents/summarize
+- Timeline Builder — POST /api/agents/timeline
+- Research Agent — POST /api/agents/research (with guardrail check)
+- migrations/045 — AgentResults table
 
 ## Phase 5 — Document Intelligence
 - OCRmyPDF integration
