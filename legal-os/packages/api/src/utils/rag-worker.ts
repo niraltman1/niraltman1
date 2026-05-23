@@ -31,6 +31,7 @@ import { emitActivity } from './activity-emitter.js';
 import { logger } from '@factum-il/shared';
 import type { EventBus } from '@factum-il/events';
 import { selectModel } from '@factum-il/model-router';
+import { runGuardrails } from '@factum-il/ai-guardrails';
 
 const OLLAMA_BASE  = process.env['OLLAMA_BASE_URL'] ?? 'http://127.0.0.1:11434';
 // Model resolved via model-router at runtime; env override still respected for legacy compat
@@ -245,6 +246,32 @@ async function runCycle(repos: Repos, targetDocumentId?: number): Promise<void> 
     try {
       const result = await extractWithOllama(doc.ocr_text);
       if (result) {
+        const guardrailResult = runGuardrails(
+          {
+            caseNumber:    result.extraction.caseNumber,
+            courtName:     result.extraction.courtName,
+            judgeName:     result.extraction.judgeName,
+            offenseType:   result.extraction.offenseType,
+            charges:       result.extraction.charges,
+            nextHearing:   result.extraction.nextHearing,
+            procedureType: result.extraction.procedureType,
+            documentType:  result.extraction.documentType,
+            confidence:    result.extraction.confidence,
+          },
+          { ocrText: doc.ocr_text, documentId: doc.id },
+        );
+        if (!guardrailResult.shouldApply) {
+          logger.warn(
+            `RAG guardrail FAIL doc=${doc.id}: ${guardrailResult.results.map(r => r.message).join('; ')}`,
+            { category: 'ai' },
+          );
+          continue;  // skip applyExtraction — don't persist bad data
+        }
+        if (guardrailResult.flagForReview) {
+          logger.warn(`RAG guardrail WARN doc=${doc.id}: flagged for review`, { category: 'ai' });
+          // still apply, but log the warning
+        }
+
         const { caseId } = await withWriteLock('rag-worker:applyExtraction', () =>
           applyExtraction(repos, doc.id, result.extraction, result.raw),
         );

@@ -11,6 +11,7 @@
     "test:security": "vitest run src/utils/prompt-security.test.ts src/middleware/__tests__/log-sanitizer.test.ts"
   },
   "dependencies": {
+    "@factum-il/ai-guardrails": "workspace:*",
     "@factum-il/citation-engine": "workspace:*",
     "@factum-il/database": "workspace:*",
     "@factum-il/events": "workspace:*",

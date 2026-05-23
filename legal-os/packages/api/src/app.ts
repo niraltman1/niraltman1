@@ -20,6 +20,7 @@ import { queueRouter } from './routes/queue.js';
 import { actionPlanRouter } from './routes/action-plan.js';
 import { adminRouter } from './routes/admin.js';
 import { legalAiRouter } from './routes/legal-ai.js';
+import { aiStreamRouter } from './routes/ai-stream.js';
 import { tasksRouter } from './routes/tasks.js';
 import { legalEngineRouter } from './routes/legal-engine.js';
 import { mediaRouter }       from './routes/media.js';
@@ -113,6 +114,7 @@ export function createApp(repos: Repos, dbPath?: string): express.Express {
   app.use('/api/action-plan', actionPlanRouter(repos));
   app.use('/api/admin',       adminRouter(repos, healingService));
   app.use('/api/legal-ai',    legalAiRouter(repos));
+  app.use('/api/ai',          aiStreamRouter(repos));
   app.use('/api/tasks',        tasksRouter(repos));
   app.use('/api/legal-engine', legalEngineRouter(repos));
   app.use('/api/media',        mediaRouter(repos));
