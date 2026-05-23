@@ -8,12 +8,14 @@
   "scripts": {
     "build": "tsc",
     "typecheck": "tsc --noEmit",
-    "test": "vitest run --passWithNoTests"
+    "test": "vitest run --passWithNoTests",
+    "eval": "tsx src/run-evals.ts --baseline baselines/v1.json"
   },
   "dependencies": {
     "@factum-il/shared": "workspace:*"
   },
   "devDependencies": {
+    "tsx": "^4.7.0",
     "typescript": "^5.5.0",
     "vitest": "^3.0.0"
   }

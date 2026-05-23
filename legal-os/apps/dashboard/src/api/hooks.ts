@@ -2017,6 +2017,107 @@ export function useHealth() {
   });
 }
 
+// ── Signatures ────────────────────────────────────────────────────────────────
+
+export function useRequestSignature() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (documentId: number) =>
+      postJSON<Record<string, unknown>>('/api/signatures/request', { documentId }),
+    onSuccess: (_data, documentId) => {
+      void qc.invalidateQueries({ queryKey: ['signatures', 'document', documentId] });
+      void qc.invalidateQueries({ queryKey: ['signatures', 'pending'] });
+    },
+  });
+}
+
+export function useSignDocument() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: ({ signatureId, notes }: { signatureId: number; notes?: string }) =>
+      postJSON<Record<string, unknown>>('/api/signatures/sign', { signatureId, notes }),
+    onSuccess: () => {
+      void qc.invalidateQueries({ queryKey: ['signatures'] });
+    },
+  });
+}
+
+export function useRejectSignature() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: ({ signatureId, notes }: { signatureId: number; notes: string }) =>
+      postJSON<Record<string, unknown>>('/api/signatures/reject', { signatureId, notes }),
+    onSuccess: () => {
+      void qc.invalidateQueries({ queryKey: ['signatures'] });
+    },
+  });
+}
+
+export function useDocumentSignatures(documentId: number | null) {
+  return useQuery({
+    queryKey: ['signatures', 'document', documentId],
+    queryFn: () => fetchJSON<Record<string, unknown>[]>(`/api/signatures/document/${documentId}`),
+    enabled: documentId !== null,
+  });
+}
+
+export function usePendingSignatures() {
+  return useQuery({
+    queryKey: ['signatures', 'pending'],
+    queryFn: () => fetchJSON<Record<string, unknown>[]>('/api/signatures/pending'),
+  });
+}
+
+// ── Agent Workspace ───────────────────────────────────────────────────────────
+
+export interface AgentOutput {
+  agentName:       string;
+  traceId:         string;
+  result:          string;
+  confidence:      number;
+  toolResults:     Array<{ toolName: string; durationMs: number; error?: string; input: unknown; output: unknown }>;
+  flagForReview:   boolean;
+  durationMs:      number;
+  ollamaAvailable: boolean;
+}
+
+export type { AgentOutput as AgentOutputType };
+
+export function useAgentSummarize() {
+  return useMutation({
+    mutationFn: (caseId: number) =>
+      postJSON<AgentOutput>('/api/agents/summarize', { caseId }),
+  });
+}
+
+export function useAgentTimeline() {
+  return useMutation({
+    mutationFn: (caseId: number) =>
+      postJSON<AgentOutput>('/api/agents/timeline', { caseId }),
+  });
+}
+
+export function useAgentResearch() {
+  return useMutation({
+    mutationFn: ({ question, caseId }: { question: string; caseId?: number }) =>
+      postJSON<AgentOutput>('/api/agents/research', { question, caseId }),
+  });
+}
+
+export function useAgentContractReview() {
+  return useMutation({
+    mutationFn: (documentId: number) =>
+      postJSON<AgentOutput>('/api/agents/contract-review', { documentId }),
+  });
+}
+
+export function useAgentDiscovery() {
+  return useMutation({
+    mutationFn: (caseId: number) =>
+      postJSON<AgentOutput>('/api/agents/discovery', { caseId }),
+  });
+}
+
 // ── Mail Reply Generator ──────────────────────────────────────────────────────
 
 export function useGenerateMailReply() {

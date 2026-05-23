@@ -59,23 +59,30 @@ export class OCRService {
 
     try {
       if (ext === '.pdf') {
-        // Try OCRmyPDF first (higher quality, handles deskew/rotation)
+        // Lane 1: OCRmyPDF (deskew + rotate-pages, highest quality for scanned PDFs)
         const ocrmypdfText = this.tryOCRmyPDF(filePath, tmpDir, lang);
         if (ocrmypdfText && ocrmypdfText.trim().length >= 50) {
           text = ocrmypdfText;
           pageCount = this.countPages(ocrmypdfText);
         } else {
-          // Fall back to native text extraction
+          // Lane 2: native text extraction (already-digital PDFs)
           text = this.extractPdfNative(filePath, tmpDir);
           if (text.trim().length < 50) {
-            // Fall back to Ghostscript rasterisation + Tesseract
-            const pages = this.rasterisePDF(filePath, tmpDir, DEFAULT_DPI);
-            pageCount = pages.length;
-            const parts: string[] = [];
-            for (const pg of pages) {
-              parts.push(this.runTesseract(pg, tmpDir, lang));
+            // Lane 3: Docling (layout-aware — multi-column court verdicts, tables)
+            const doclingText = this.tryDocling(filePath, tmpDir);
+            if (doclingText && doclingText.trim().length >= 50) {
+              text = doclingText;
+              pageCount = this.countPages(doclingText);
+            } else {
+              // Lane 4: Ghostscript rasterisation + Tesseract (last resort)
+              const pages = this.rasterisePDF(filePath, tmpDir, DEFAULT_DPI);
+              pageCount = pages.length;
+              const parts: string[] = [];
+              for (const pg of pages) {
+                parts.push(this.runTesseract(pg, tmpDir, lang));
+              }
+              text = parts.join('\n');
             }
-            text = parts.join('\n');
           }
         }
       } else {
@@ -123,6 +130,25 @@ export class OCRService {
       if (existsSync(outTxt)) return readFileSync(outTxt, 'utf-8');
     } catch { /* ocrmypdf not found or failed — fall through */ }
     return null;
+  }
+
+  private tryDocling(pdfPath: string, tmpDir: string): string | null {
+    try {
+      const basename = pdfPath.split('/').pop()?.replace(/\.pdf$/i, '') ?? 'output';
+      execFileSync('docling', ['convert', pdfPath, '--to', 'json', '--output-dir', tmpDir], {
+        timeout: 300_000,
+      });
+      const jsonPath = join(tmpDir, `${basename}.json`);
+      if (!existsSync(jsonPath)) return null;
+      const raw = readFileSync(jsonPath, 'utf-8');
+      const parsed = JSON.parse(raw) as { main_text?: Array<{ text?: string }> };
+      const parts = (parsed.main_text ?? [])
+        .map((item) => item.text ?? '')
+        .filter((t) => t.length > 0);
+      return parts.length > 0 ? parts.join('\n') : null;
+    } catch {
+      return null;  // docling not installed or failed — fall through
+    }
   }
 
   private countPages(text: string): number {
