@@ -42,10 +42,15 @@
 - DocumentVersions + Annotations tables (migrations/047) + repositories in database
 - PDF annotation types: highlight, note, redline, bookmark
 
-## Phase 6 — Extensibility (NEXT)
-- `@factum-il/sdk` — plugin SDK + extension points
-- RBAC multi-attorney roles
-- Contract Review Agent
-- Discovery Agent
-- Full eval suite with automated regression detection
-- Docling integration (layout-aware OCR lane for complex multi-column verdicts)
+## Phase 6 — Extensibility ✅ COMPLETE
+- `@factum-il/sdk` — plugin manifest validator, ExtensionPointRegistry (fire hooks across plugins), loadPlugin with capability sandboxing; 8/8 tests
+- RBAC: already implemented in auth.ts (admin/attorney/assistant/reviewer/read_only roles + requireRole middleware)
+- Contract Review Agent — POST /api/agents/contract-review (clauses, risks, missing sections; always flagForReview)
+- Discovery Agent — POST /api/agents/discovery (pre-computes evidence gaps + completeness via litigation-intelligence, then LLM discovery plan; always flagForReview)
+- db-tools: makeDocumentTool, makeDocumentInsightsTool, makeCaseEvidenceTool
+
+## Future Work
+- Docling integration (layout-aware OCR lane for complex multi-column court verdicts)
+- Full eval suite with automated regression detection on prompt/model changes
+- Dashboard UI for agents (contract-review, discovery, risk score panels)
+- E-signature flow (Documenso self-hosted integration)
