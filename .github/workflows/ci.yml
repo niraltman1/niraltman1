@@ -9,9 +9,6 @@ jobs:
   check:
     name: Typecheck + Test + Lint
     runs-on: ubuntu-latest
-    defaults:
-      run:
-        working-directory: legal-os
 
     steps:
       - uses: actions/checkout@v4
@@ -24,7 +21,7 @@ jobs:
         with:
           node-version: '22'
           cache: pnpm
-          cache-dependency-path: legal-os/pnpm-lock.yaml
+          cache-dependency-path: pnpm-lock.yaml
 
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
@@ -38,9 +35,6 @@ jobs:
   evals:
     name: Eval Regression
     runs-on: ubuntu-latest
-    defaults:
-      run:
-        working-directory: legal-os
     steps:
       - uses: actions/checkout@v4
 
@@ -52,7 +46,7 @@ jobs:
         with:
           node-version: '22'
           cache: pnpm
-          cache-dependency-path: legal-os/pnpm-lock.yaml
+          cache-dependency-path: pnpm-lock.yaml
 
       - name: Install dependencies
         run: pnpm install --frozen-lockfile

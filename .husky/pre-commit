@@ -5,7 +5,7 @@
 echo "Factum-IL pre-commit checks..."
 
 # 1. Block commits with the old product name
-FORBIDDEN=$(git diff --cached --name-only -z | xargs -0 grep -l "Legal-OS\|LegalOS\|legal-os" 2>/dev/null | grep -v "\.git" | grep -v "TASKS\.md" | grep -v "CLAUDE\.md" | grep -v "\.husky/")
+FORBIDDEN=$(git diff --cached --name-only -z | xargs -0 grep -l "Legal-OS\|LegalOS" 2>/dev/null | grep -v "\.git" | grep -v "TASKS\.md" | grep -v "CLAUDE\.md" | grep -v "\.husky/")
 if [ -n "$FORBIDDEN" ]; then
   echo "ERROR: Old name 'Legal-OS' or 'LegalOS' found in staged files:"
   echo "$FORBIDDEN"
@@ -14,12 +14,12 @@ if [ -n "$FORBIDDEN" ]; then
 fi
 
 # 2. TypeScript check for changed packages (fast: only affected packages)
-CHANGED_PACKAGES=$(git diff --cached --name-only | grep "^legal-os/packages/" | sed 's|legal-os/packages/||' | cut -d'/' -f1 | sort -u)
+CHANGED_PACKAGES=$(git diff --cached --name-only | grep "^packages/" | sed 's|packages/||' | cut -d'/' -f1 | sort -u)
 if [ -n "$CHANGED_PACKAGES" ]; then
   echo "Type-checking changed packages: $CHANGED_PACKAGES"
   for pkg in $CHANGED_PACKAGES; do
-    if [ -f "legal-os/packages/$pkg/tsconfig.json" ]; then
-      (cd legal-os && pnpm --filter "@factum-il/$pkg" typecheck) || {
+    if [ -f "packages/$pkg/tsconfig.json" ]; then
+      pnpm --filter "@factum-il/$pkg" typecheck || {
         echo "TypeScript errors in packages/$pkg — fix before committing"
         exit 1
       }

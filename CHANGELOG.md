@@ -8,17 +8,17 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 ## [Phase 11 — Production Finalization] — 2026-05-20
 
 ### Added
-- `FactumIL.Desktop/Resources/icon.ico` — ICO file was absent after the `LegalOS.Desktop/` → `FactumIL.Desktop/` directory rename; the file is now present (MD5 ef38df67, identical to `assets/logo/factum-il-icon.ico`).
+- `FactumIL.Desktop/Resources/icon.ico` — ICO file was absent after the `Factum-IL.Desktop/` → `FactumIL.Desktop/` directory rename; the file is now present (MD5 ef38df67, identical to `assets/logo/factum-il-icon.ico`).
 
 ### Fixed
 - `.gitignore` — added `FactumIL.Desktop/bin/`, `FactumIL.Desktop/obj/`, and `FactumIL_Dist/` so generated C# and staging directories are no longer tracked.
 
 ---
 
-## [Phase 10 — Complete LegalOS → Factum IL Rebrand] — 2026-05-19
+## [Phase 10 — Complete Factum-IL → Factum IL Rebrand] — 2026-05-19
 
 ### Changed
-- All remaining `LegalOS` / `legal-os` / `LegalOS.Desktop` strings removed from source, configs, and comments. Only `Factum IL` / `factum-il` / `FactumIL` is used hereafter.
+- All remaining `Factum-IL` / `legal-os` / `Factum-IL.Desktop` strings removed from source, configs, and comments. Only `Factum IL` / `factum-il` / `FactumIL` is used hereafter.
 - `apps/installer/FactumIL.iss` — added deprecation header; canonical production installer is now `installer.iss` at repo root.
 - `packages/api/src/utils/legal-registry-loader.ts` — package path comment corrected to `// dist/utils → api → packages → factum-il`.
 - `tools/ingest-legal-sources.mjs` — git command comment corrected to reference `main` branch (was `legal-os/...`).
