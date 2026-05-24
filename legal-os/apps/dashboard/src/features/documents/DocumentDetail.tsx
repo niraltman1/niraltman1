@@ -1,11 +1,14 @@
+import { useState } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import {
   FileTextIcon, ArrowRightIcon, CheckCircleIcon,
   WarningCircleIcon, RobotIcon, CalendarIcon, SquaresFourIcon,
   ThumbsUpIcon, ThumbsDownIcon, ShieldCheckIcon,
 } from '@phosphor-icons/react';
-import { useDocument, useDocumentInsights, useVerifyInsight } from '@/api/hooks.js';
+import { useDocument, useDocumentInsights, useVerifyInsight, useAgentContractReview } from '@/api/hooks.js';
+import type { AgentOutput } from '@/api/hooks.js';
 import { DocumentSigningPanel } from './DocumentSigningPanel.js';
+import { AgentOutputPanel } from '@/components/common/AgentOutputPanel.js';
 
 const PROC_STATE_LABELS: Record<string, { label: string; cls: string }> = {
   DISCOVERED:     { label: 'התגלה',    cls: 'badge badge-neutral' },
@@ -39,7 +42,9 @@ export function DocumentDetail() {
   const docId = Number(id);
   const { data: doc, isLoading, isError } = useDocument(docId);
   const { data: insights } = useDocumentInsights(docId > 0 ? docId : null);
-  const verifyInsight = useVerifyInsight();
+  const verifyInsight    = useVerifyInsight();
+  const contractReviewAgent = useAgentContractReview();
+  const [contractOutput, setContractOutput] = useState<AgentOutput | null>(null);
 
   if (isLoading) {
     return (
@@ -242,6 +247,27 @@ export function DocumentDetail() {
           </div>
         )}
       </div>
+      {/* Contract Review AI */}
+      <div className="bg-navy-100 border border-parchment/10 rounded-xl p-5 space-y-3">
+        <div className="flex items-center justify-between">
+          <h2 className="text-parchment/50 text-xs font-semibold uppercase tracking-widest flex items-center gap-2">
+            <RobotIcon size={12} className="text-blue-400" />
+            סקירת חוזה AI
+          </h2>
+          <button
+            className="btn-primary flex items-center gap-1.5 text-xs px-3 py-1.5"
+            disabled={contractReviewAgent.isPending}
+            onClick={() => { setContractOutput(null); contractReviewAgent.mutate(docId, { onSuccess: setContractOutput }); }}
+          >
+            <RobotIcon size={13} />
+            {contractReviewAgent.isPending ? 'מנתח...' : 'נתח מסמך'}
+          </button>
+        </div>
+        {(contractReviewAgent.isPending || contractOutput) && (
+          <AgentOutputPanel output={contractOutput} loading={contractReviewAgent.isPending} agentLabel="סקירת חוזה" />
+        )}
+      </div>
+
       <DocumentSigningPanel documentId={docId} />
     </div>
   );

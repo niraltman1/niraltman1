@@ -3,10 +3,11 @@ import { useParams, Link } from 'react-router-dom';
 import {
   GavelIcon, UserIcon, CalendarIcon, ArrowRightIcon,
   UsersIcon, FileTextIcon, RobotIcon, PulseIcon,
-  WarningCircleIcon, CheckCircleIcon,
+  WarningCircleIcon, CheckCircleIcon, CaretDownIcon, CaretUpIcon, ShieldCheckIcon,
 } from '@phosphor-icons/react';
-import { useCase, useCaseContacts, useDocuments, useCaseInsights, useCaseActivity } from '@/api/hooks.js';
-import type { CaseContactRecord, CaseInsightRecord, ActivityEventRow } from '@/api/hooks.js';
+import { useCase, useCaseContacts, useDocuments, useCaseInsights, useCaseActivity, useAgentSummarize, useAgentTimeline, useAgentDiscovery } from '@/api/hooks.js';
+import type { CaseContactRecord, CaseInsightRecord, ActivityEventRow, AgentOutput } from '@/api/hooks.js';
+import { AgentOutputPanel } from '@/components/common/AgentOutputPanel.js';
 
 const STATUS_LABELS: Record<string, string> = {
   open:      'פתוח',
@@ -35,6 +36,13 @@ export function CaseDetail() {
   const { id } = useParams<{ id: string }>();
   const caseId = Number(id);
   const [tab, setTab] = useState<Tab>('documents');
+  const [aiOpen,   setAiOpen]   = useState(false);
+  const [aiOutput, setAiOutput] = useState<AgentOutput | null>(null);
+  const [aiLabel,  setAiLabel]  = useState('');
+  const summarize = useAgentSummarize();
+  const timeline  = useAgentTimeline();
+  const discovery = useAgentDiscovery();
+  const aiLoading = summarize.isPending || timeline.isPending || discovery.isPending;
 
   const { data: caseData, isLoading, isError } = useCase(caseId);
   const { data: contacts = [] }    = useCaseContacts(tab === 'contacts' ? caseId : null);
@@ -258,6 +266,57 @@ export function CaseDetail() {
           )}
         </div>
       )}
+
+      {/* AI Intelligence section */}
+      <div className="bg-navy-100 border border-parchment/10 rounded-xl overflow-hidden">
+        <button
+          onClick={() => setAiOpen((v) => !v)}
+          className="w-full flex items-center justify-between px-5 py-3.5 hover:bg-white/5 transition-colors"
+        >
+          <div className="flex items-center gap-2">
+            <RobotIcon size={15} weight="duotone" className="text-blue-400" />
+            <span className="text-parchment/70 text-sm font-medium">בינה מלאכותית</span>
+            <span className="badge badge-neutral text-[10px]">law-il-E2B</span>
+          </div>
+          {aiOpen
+            ? <CaretUpIcon size={14} className="text-parchment/30" />
+            : <CaretDownIcon size={14} className="text-parchment/30" />}
+        </button>
+
+        {aiOpen && (
+          <div className="px-5 pb-5 space-y-4 border-t border-parchment/10">
+            <div className="flex gap-2 pt-3 flex-wrap">
+              <button
+                className="btn-primary flex items-center gap-1.5 text-xs px-3 py-1.5"
+                disabled={aiLoading}
+                onClick={() => { setAiLabel('סיכום תיק'); setAiOutput(null); summarize.mutate(caseId, { onSuccess: setAiOutput }); }}
+              >
+                <FileTextIcon size={13} />
+                סכם תיק
+              </button>
+              <button
+                className="btn-primary flex items-center gap-1.5 text-xs px-3 py-1.5"
+                disabled={aiLoading}
+                onClick={() => { setAiLabel('ציר זמן'); setAiOutput(null); timeline.mutate(caseId, { onSuccess: setAiOutput }); }}
+              >
+                <CalendarIcon size={13} />
+                בנה ציר זמן
+              </button>
+              <button
+                className="btn-primary flex items-center gap-1.5 text-xs px-3 py-1.5"
+                disabled={aiLoading}
+                onClick={() => { setAiLabel('גילוי ראיות'); setAiOutput(null); discovery.mutate(caseId, { onSuccess: setAiOutput }); }}
+              >
+                <ShieldCheckIcon size={13} />
+                נתח גילוי ראיות
+              </button>
+            </div>
+            {(aiLoading || aiOutput) && (
+              <AgentOutputPanel output={aiOutput} loading={aiLoading} agentLabel={aiLabel} />
+            )}
+          </div>
+        )}
+      </div>
     </div>
   );
 }
