@@ -147,6 +147,7 @@ export function createApp(repos: Repos, dbPath?: string): express.Express {
   // Track activity for Day/Night resource controller
   app.use((_req, _res, next) => { recordActivity(); next(); });
 
+  app.use((_req, res) => res.status(404).json({ error: 'Not Found', code: 'NOT_FOUND' }));
   app.use(errorHandler);
 
   return app;

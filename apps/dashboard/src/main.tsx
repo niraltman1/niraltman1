@@ -5,6 +5,7 @@ import { RouterProvider } from 'react-router-dom';
 import { router } from './router/index.js';
 import { logger, createConsoleSink } from '@factum-il/shared';
 import { SplashScreen } from './components/SplashScreen.js';
+import { ErrorBoundary } from './components/ErrorBoundary.js';
 import './styles/fonts.css';
 import './styles/globals.css';
 
@@ -27,9 +28,11 @@ function AppRoot() {
   if (!ready) return <SplashScreen onReady={() => setReady(true)} />;
 
   return (
-    <QueryClientProvider client={queryClient}>
-      <RouterProvider router={router} />
-    </QueryClientProvider>
+    <ErrorBoundary>
+      <QueryClientProvider client={queryClient}>
+        <RouterProvider router={router} />
+      </QueryClientProvider>
+    </ErrorBoundary>
   );
 }
 
