@@ -5,6 +5,7 @@ import {
   ThumbsUpIcon, ThumbsDownIcon, ShieldCheckIcon,
 } from '@phosphor-icons/react';
 import { useDocument, useDocumentInsights, useVerifyInsight } from '@/api/hooks.js';
+import { DocumentSigningPanel } from './DocumentSigningPanel.js';
 
 const PROC_STATE_LABELS: Record<string, { label: string; cls: string }> = {
   DISCOVERED:     { label: 'התגלה',    cls: 'badge badge-neutral' },
@@ -241,6 +242,7 @@ export function DocumentDetail() {
           </div>
         )}
       </div>
+      <DocumentSigningPanel documentId={docId} />
     </div>
   );
 }

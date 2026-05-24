@@ -26,6 +26,7 @@ import { StensLibraryPage }   from '@/features/stens/StensLibraryPage.js';
 import { CanvasPage }         from '@/features/canvas/CanvasPage.js';
 import { GmailBridgePage }    from '@/features/gmail/GmailBridgePage.js';
 import { MailWorkspacePage }  from '@/features/mail/MailWorkspacePage.js';
+import { AgentsWorkspacePage } from '@/features/agents/AgentsWorkspacePage.js';
 import { ContactsPage }       from '@/features/contacts/ContactsPage.js';
 import { PrecedentsPage }     from '@/features/precedents/PrecedentsPage.js';
 import { NotFoundPage }       from '@/components/common/NotFoundPage.js';
@@ -56,6 +57,7 @@ export const router: RemixRouter = createBrowserRouter([
       { path: 'stens',             element: <StensLibraryPage />     },
       { path: 'gmail',             element: <GmailBridgePage />      },
       { path: 'mail',              element: <MailWorkspacePage />    },
+      { path: 'agents',             element: <AgentsWorkspacePage />  },
       { path: 'contacts',          element: <ContactsPage />         },
       { path: 'precedents',        element: <PrecedentsPage />       },
       { path: 'canvas/:id',        element: <CanvasPage />           },
