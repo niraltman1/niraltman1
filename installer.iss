@@ -1,12 +1,12 @@
 ; ============================================================================
-;  Factum IL V13 — Inno Setup 6 Production Installer
+;  Factum IL — Inno Setup 6 Beta Installer
 ;  Prerequisites: .\apps\desktop\publish.ps1  (populates FactumIL_Dist\)
 ;  Compile:       ISCC.exe installer.iss
-;  Output:        dist-package\FactumIL_V13_Installer.exe
+;  Output:        dist-package\FactumIL_Beta_Installer.exe
 ; ============================================================================
 
-#define AppName      "Factum IL"
-#define AppVersion   "13.0"
+#define AppName      "Factum IL Beta"
+#define AppVersion   "1.0-beta.1"
 #define AppPublisher "Altman Law Firm"
 #define AppURL       "https://altman-law.co.il"
 #define AppExeName   "shell\FactumIL.Desktop.exe"
@@ -23,7 +23,7 @@ DefaultGroupName={#AppName}
 AllowNoIcons=yes
 DisableDirPage=no
 OutputDir=dist-package
-OutputBaseFilename=FactumIL_V13_Installer
+OutputBaseFilename=FactumIL_Beta_Installer
 SetupIconFile=assets\logo\factum-il-icon.ico
 Compression=lzma2/ultra64
 SolidCompression=yes
@@ -41,8 +41,8 @@ Name: "hebrew";  MessagesFile: "compiler:Languages\Hebrew.isl"
 Name: "english"; MessagesFile: "compiler:Default.isl"
 
 [Messages]
-WelcomeLabel1=ברוכים הבאים ל-Factum IL
-WelcomeLabel2=מערכת הפעלה משפטית לצרכי משרד עורכי דין אלטמן.%n%nגרסה 13.0%n%nלחצו הבא להמשך.
+WelcomeLabel1=ברוכים הבאים ל-Factum IL Beta
+WelcomeLabel2=מערכת ניהול תיקים ומסמכים משפטיים — גרסת בטא.%n%nגרסה 1.0-beta.1%n%nלחצו הבא להמשך.
 
 [Tasks]
 Name: "desktopicon"; Description: "צור קיצור דרך בשולחן העבודה"; GroupDescription: "קיצורי דרך:"; Flags: checkedonce
