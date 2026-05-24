@@ -111,9 +111,59 @@ packages/
 
 Next available: **050**
 
+## Phase 8 — Case-Isolated Intelligence Architecture ✅ COMPLETE (2026-05-24)
+
+### What was completed this session
+All 4 additive layers of the architecture audit are implemented and green. Strictly no breaking changes.
+
+**Layer 1 — DB Architecture & Native Vector Performance**
+- `packages/database/src/connection.ts` — ATTACH `_data.db` AS data_store on every non-memory connection; skipped for `:memory:` and read-only
+- `migrations/052_vec_chunks.sql` — SKIP_ON_ERROR pragma; `vec_chunks` vec0 virtual table + sync trigger for ChunkEmbeddings
+- `packages/retrieval/src/hybrid-search.ts` — native sqlite-vec KNN path with JS cosine fallback; audit warn when caseId absent
+- `packages/retrieval/package.json` — `sqlite-vec ^0.1.6` dependency
+
+**Layer 2 — CaseExecutionContext + User Isolation**
+- `packages/agent-core/src/case-execution-context.ts` — `computeCaseStateHash`, `checkExecutionValidity` (returns `isStale`, never throws)
+- `packages/agent-core/src/case-isolation-domain.ts` — RBAC v1 (active user + case existence), `AuthorizationError`, `createCaseDomain` factory
+
+**Layer 3 — Case-Scoped Facades**
+- `packages/retrieval/src/case-scoped-retriever.ts` — `createCaseScopedRetriever(caseId, db)`
+- `packages/memory/src/case-scoped-memory.ts` — `createCaseScopedMemory`, `CaseScopedSessionStore` (key prefix isolation)
+
+**Layer 4 — API Route Wiring**
+- `packages/api/src/middleware/case-execution-guard.ts` — `withCaseExecutionGuard` (INSERT OR IGNORE → 409 AGENT_BUSY)
+- `packages/api/src/routes/agents.ts` — all 5 routes use guard + markAgentCompleted/Failed + `{ isStale, staleReason }` response
+- `packages/policy-engine/src/agent-policy.ts` — NULL-safe SQL fix: `IS ?` → `(= ? OR (IS NULL AND ? IS NULL))`
+
+### Draft PR
+https://github.com/niraltman1/niraltman1/pull/8
+
+### What to do next
+- Review & merge PR #8 when ready
+- Consider adding per-attorney `CaseAssignments` table for RBAC v2 (hook point is marked in `case-isolation-domain.ts`)
+- Consider moving DocumentChunks + ChunkEmbeddings + OCRCache to the `data_store` schema now that ATTACH is live
+
+## Migration Slots Used
+001–039: core schema, CRM, academic hub, FTS5, security, observability
+040: Metrics
+041: EventStore + EventHandlerLog + DeadLetterQueue
+042: Entities + EntityRelations (legal-ontology)
+043: CaseMemory + UserPreferences + AgentRunLog
+044: DocumentChunks + ChunkEmbeddings + fts_document_chunks
+045: AgentResults
+046: ProceduralChecklist + RiskAssessments
+047: DocumentVersions + Annotations
+048: DocumentSignatures
+049: WorkflowStates + WorkflowIdempotencyLog + AgentRunRegistry
+050: PipelineLogs
+051: VacuumSessions
+052: vec_chunks (SKIP_ON_ERROR)
+
+Next available: **053**
+
 ## CI Status
 All checks pass locally from repo root (post-hoist):
 - `pnpm install --frozen-lockfile` ✓ (21 workspace packages)
 - `pnpm -r typecheck` ✓ (0 errors across all 21 packages)
-- `pnpm -r test` ✓ (87 tests: evals 5, agent-core 2, ai-guardrails 24, sdk 8, api 48)
+- `pnpm -r test` ✓ (278 tests across all packages)
 - `pnpm --filter @factum-il/evals eval` ✓ (eval regression passed)
