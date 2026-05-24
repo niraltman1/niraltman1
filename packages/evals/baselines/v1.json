@@ -1,0 +1,7 @@
+{
+  "minPrecision": 0.0,
+  "minRecall": 0.0,
+  "minF1": 0.0,
+  "maxHallucinations": 4,
+  "maxLowConfidence": 3
+}
