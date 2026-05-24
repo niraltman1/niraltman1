@@ -10,7 +10,8 @@
     "test": "vitest run"
   },
   "dependencies": {
-    "@factum-il/shared": "workspace:*"
+    "@factum-il/shared": "workspace:*",
+    "sqlite-vec": "^0.1.6"
   },
   "devDependencies": {
     "typescript": "^5.5.0",

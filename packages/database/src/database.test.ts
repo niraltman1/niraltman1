@@ -225,7 +225,84 @@ describe('MigrationRunner', () => {
 });
 
 // ---------------------------------------------------------------------------
-// Group 4: DatabaseConnection.close()
+// Group 4: MigrationRunner — SKIP_ON_ERROR pragma
+// ---------------------------------------------------------------------------
+describe('MigrationRunner — SKIP_ON_ERROR', () => {
+  let db: DatabaseConnection;
+  let tmpMigrDir: string;
+
+  beforeEach(() => {
+    db = new DatabaseConnection({ path: ':memory:' });
+    tmpMigrDir = mkdtempSync(join(tmpdir(), 'migrations-skip-'));
+  });
+
+  afterEach(() => {
+    db.close();
+  });
+
+  it('does not throw when a SKIP_ON_ERROR migration fails', () => {
+    writeFileSync(
+      join(tmpMigrDir, '001_good.sql'),
+      'CREATE TABLE good_table (id INTEGER PRIMARY KEY);',
+    );
+    // Intentionally invalid SQL with SKIP_ON_ERROR
+    writeFileSync(
+      join(tmpMigrDir, '002_bad.sql'),
+      '-- SKIP_ON_ERROR\nCREATE VIRTUAL TABLE noext USING nonexistent_extension(x);',
+    );
+
+    const runner = new MigrationRunner(db, tmpMigrDir);
+    expect(() => runner.run()).not.toThrow();
+  });
+
+  it('still applies a preceding good migration when a SKIP_ON_ERROR one fails', () => {
+    writeFileSync(
+      join(tmpMigrDir, '001_good.sql'),
+      'CREATE TABLE good_table (id INTEGER PRIMARY KEY);',
+    );
+    writeFileSync(
+      join(tmpMigrDir, '002_bad.sql'),
+      '-- SKIP_ON_ERROR\nINVALID SQL HERE;',
+    );
+
+    const runner = new MigrationRunner(db, tmpMigrDir);
+    runner.run();
+
+    const row = db.raw
+      .prepare("SELECT name FROM sqlite_master WHERE type='table' AND name='good_table'")
+      .get() as { name: string } | undefined;
+    expect(row?.name).toBe('good_table');
+  });
+
+  it('retries a SKIP_ON_ERROR migration on every run (does NOT record as applied)', () => {
+    writeFileSync(
+      join(tmpMigrDir, '001_retryable.sql'),
+      '-- SKIP_ON_ERROR\nINVALID SQL;',
+    );
+
+    const runner = new MigrationRunner(db, tmpMigrDir);
+    runner.run();
+    runner.run(); // second run must also not throw
+
+    const applied = db.raw
+      .prepare('SELECT version FROM _migrations WHERE version = 1')
+      .get() as { version: number } | undefined;
+    expect(applied).toBeUndefined(); // was never recorded because it always failed
+  });
+
+  it('does throw for a failing migration WITHOUT SKIP_ON_ERROR', () => {
+    writeFileSync(
+      join(tmpMigrDir, '001_hard_fail.sql'),
+      'INVALID SQL THAT WILL FAIL;',
+    );
+
+    const runner = new MigrationRunner(db, tmpMigrDir);
+    expect(() => runner.run()).toThrow();
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Group 5: DatabaseConnection.close()
 // ---------------------------------------------------------------------------
 describe('DatabaseConnection.close()', () => {
   it('throws when exec() is called after close()', () => {
