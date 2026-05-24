@@ -1,13 +1,13 @@
 import { describe, it, expect, vi, afterEach } from 'vitest';
 import { OllamaClient } from './ollama-client.js';
 import type { EnrichmentRequest } from './types.js';
-import type { ModelCircuitBreaker } from '@factum-il/model-router';
 
-const mockCb = {
-  isOpen: vi.fn<() => boolean>().mockReturnValue(false),
-  recordFailure: vi.fn<() => void>(),
-  recordSuccess: vi.fn<() => void>(),
-};
+// vi.hoisted() runs before vi.mock() factories so mockCb is available in the factory
+const mockCb = vi.hoisted(() => ({
+  isOpen:         vi.fn<() => boolean>().mockReturnValue(false),
+  recordFailure:  vi.fn<() => void>(),
+  recordSuccess:  vi.fn<() => void>(),
+}));
 
 vi.mock('@factum-il/model-router', () => ({
   getCircuitBreaker: () => mockCb,
@@ -30,6 +30,10 @@ const baseRequest: EnrichmentRequest = {
 
 afterEach(() => {
   vi.restoreAllMocks();
+  // Reset mockCb state between tests
+  mockCb.isOpen.mockReturnValue(false);
+  mockCb.recordFailure.mockReset();
+  mockCb.recordSuccess.mockReset();
 });
 
 describe('OllamaClient', () => {
@@ -94,45 +98,26 @@ describe('OllamaClient', () => {
 
   describe('enrich() error paths', () => {
     it('calls cb.recordFailure() when fetch throws', async () => {
-      const recordFailure = vi.fn();
-      vi.doMock('@factum-il/model-router', () => ({
-        getCircuitBreaker: () => ({
-          isOpen: () => false,
-          recordFailure,
-          recordSuccess: vi.fn(),
-        }),
-      }));
       vi.stubGlobal('fetch', vi.fn().mockRejectedValue(new Error('connection refused')));
       const client = new OllamaClient();
       await expect(client.enrich(baseRequest)).rejects.toThrow('Ollama connection failed');
+      expect(mockCb.recordFailure).toHaveBeenCalled();
     });
 
     it('throws when circuit breaker is open', async () => {
-      const { getCircuitBreaker } = await import('@factum-il/model-router');
-      vi.mocked(getCircuitBreaker).mockReturnValueOnce({
-        isOpen: () => true,
-        recordFailure: vi.fn(),
-        recordSuccess: vi.fn(),
-      } as unknown as ModelCircuitBreaker);
+      mockCb.isOpen.mockReturnValueOnce(true);
       const client = new OllamaClient();
-      await expect(client.enrich(baseRequest)).rejects.toThrow('circuit breaker open');
+      await expect(client.enrich(baseRequest)).rejects.toThrow(/circuit breaker open/i);
     });
 
     it('calls cb.recordSuccess() on successful enrich', async () => {
-      const recordSuccess = vi.fn();
-      const { getCircuitBreaker } = await import('@factum-il/model-router');
-      vi.mocked(getCircuitBreaker).mockReturnValueOnce({
-        isOpen: () => false,
-        recordFailure: vi.fn(),
-        recordSuccess,
-      } as unknown as ModelCircuitBreaker);
       vi.stubGlobal('fetch', vi.fn().mockResolvedValue({
         ok: true,
         json: async () => ({ response: '{}' }),
       }));
       const client = new OllamaClient();
       await client.enrich(baseRequest);
-      expect(recordSuccess).toHaveBeenCalled();
+      expect(mockCb.recordSuccess).toHaveBeenCalled();
     });
   });
 
