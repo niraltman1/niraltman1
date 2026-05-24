@@ -4,3 +4,4 @@ export { SessionStore, sessionStore } from './session-store.js';
 export { setPreference, getPreference, getAllPreferences } from './user-memory.js';
 export { assembleContext } from './context-assembler.js';
 export type { AssembledContext } from './context-assembler.js';
+export { guardMemoryWrite } from './memory-guard.js';

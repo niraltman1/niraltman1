@@ -8,7 +8,8 @@
     "test": "vitest run --passWithNoTests"
   },
   "dependencies": {
-    "@factum-il/shared": "workspace:*"
+    "@factum-il/shared": "workspace:*",
+    "@factum-il/policy-engine": "workspace:*"
   },
   "devDependencies": {
     "typescript": "^5.5.0",

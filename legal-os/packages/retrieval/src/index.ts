@@ -5,3 +5,4 @@ export { indexDocument } from './indexer.js';
 export type { IndexResult } from './indexer.js';
 export { hybridSearch } from './hybrid-search.js';
 export type { SearchResult } from './hybrid-search.js';
+export { deterministicSearch } from './deterministic-wrapper.js';

@@ -9,3 +9,4 @@ export type {
   AgentOutput,
   OllamaConfig,
 } from './types.js';
+export { canRunAgent, markAgentCompleted, markAgentFailed } from './execution-guard.js';

@@ -1,0 +1,12 @@
+{
+  "name": "@factum-il/orchestrator",
+  "version": "1.0.0",
+  "type": "module",
+  "main": "./src/index.ts",
+  "scripts": {
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@factum-il/shared": "workspace:*"
+  }
+}

@@ -61,3 +61,23 @@ export function wireMetricsStore(db: DbHandle): MetricsStore {
   metrics.addSink(store.sink());
   return store;
 }
+
+export function recordWorkflowStageDuration(stage: string, durationMs: number): void {
+  metrics.record('workflow_stage_duration_ms', durationMs, 'ms', 'workflow', undefined, { stage });
+}
+
+export function recordEventProcessingLag(lagMs: number): void {
+  metrics.record('event_processing_lag_ms', lagMs, 'ms', 'events');
+}
+
+export function incrementMemoryRejections(): void {
+  metrics.record('memory_rejections_total', 1, 'count', 'memory');
+}
+
+export function recordRetrievalCacheHit(hit: boolean): void {
+  metrics.record('retrieval_cache_hit', hit ? 1 : 0, 'count', 'retrieval');
+}
+
+export function incrementAgentRacePrevented(): void {
+  metrics.record('agent_race_prevented_total', 1, 'count', 'agent-core');
+}
