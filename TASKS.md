@@ -110,3 +110,10 @@ packages/
 049: WorkflowStates + WorkflowIdempotencyLog + AgentRunRegistry
 
 Next available: **050**
+
+## CI Status
+All checks pass locally from repo root (post-hoist):
+- `pnpm install --frozen-lockfile` ✓ (21 workspace packages)
+- `pnpm -r typecheck` ✓ (0 errors across all 21 packages)
+- `pnpm -r test` ✓ (87 tests: evals 5, agent-core 2, ai-guardrails 24, sdk 8, api 48)
+- `pnpm --filter @factum-il/evals eval` ✓ (eval regression passed)
