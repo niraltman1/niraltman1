@@ -15,3 +15,5 @@ export {
   checkExecutionValidity,
 } from './case-execution-context.js';
 export type { CaseExecutionContext, ValidityResult } from './case-execution-context.js';
+export { createCaseDomain, AuthorizationError } from './case-isolation-domain.js';
+export type { CaseIsolationDomain } from './case-isolation-domain.js';

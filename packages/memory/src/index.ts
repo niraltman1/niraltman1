@@ -5,3 +5,5 @@ export { setPreference, getPreference, getAllPreferences } from './user-memory.j
 export { assembleContext } from './context-assembler.js';
 export type { AssembledContext } from './context-assembler.js';
 export { guardMemoryWrite } from './memory-guard.js';
+export { createCaseScopedMemory, CaseScopedSessionStore } from './case-scoped-memory.js';
+export type { CaseScopedMemoryHandle } from './case-scoped-memory.js';
