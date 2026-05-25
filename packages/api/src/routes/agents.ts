@@ -9,7 +9,7 @@ import { researchLegalQuestion } from '../modules/agents/research-agent.js';
 import { reviewContract } from '../modules/agents/contract-review.js';
 import { runDiscovery } from '../modules/agents/discovery-agent.js';
 import { withCaseExecutionGuard } from '../middleware/case-execution-guard.js';
-import { checkExecutionValidity, markAgentCompleted, markAgentFailed } from '@factum-il/agent-core';
+import { checkExecutionValidity, markAgentCompleted, markAgentFailed, journalEvent } from '@factum-il/agent-core';
 import type { CaseExecutionContext } from '@factum-il/agent-core';
 import type { Repos } from '../db.js';
 
@@ -59,12 +59,17 @@ export function agentsRouter(repos: Repos): Router {
       if (!caseRow) throw new NotFoundError(`Case ${caseId} not found`);
 
       const { traceId, caseStateHash, username } = guardMeta(req);
+      journalEvent(repos.db, 'execution_started', traceId, caseId, username);
       try {
         const output = await summarizeCase(repos, caseId);
+        const stale = staleMeta(caseId, caseStateHash, username, repos.db);
+        if (stale.isStale) journalEvent(repos.db, 'stale_detected', traceId, caseId, username, { reason: stale.staleReason });
         markAgentCompleted(traceId, repos.db);
-        ok(res, { ...output, ...staleMeta(caseId, caseStateHash, username, repos.db) });
+        journalEvent(repos.db, 'execution_completed', traceId, caseId, username);
+        ok(res, { ...output, ...stale });
       } catch (err) {
         markAgentFailed(traceId, String(err), repos.db);
+        journalEvent(repos.db, 'execution_failed', traceId, caseId, username, { error: String(err) });
         throw err;
       }
     }),
@@ -81,12 +86,17 @@ export function agentsRouter(repos: Repos): Router {
       if (!caseRow) throw new NotFoundError(`Case ${caseId} not found`);
 
       const { traceId, caseStateHash, username } = guardMeta(req);
+      journalEvent(repos.db, 'execution_started', traceId, caseId, username);
       try {
         const output = await buildTimeline(repos, caseId);
+        const stale = staleMeta(caseId, caseStateHash, username, repos.db);
+        if (stale.isStale) journalEvent(repos.db, 'stale_detected', traceId, caseId, username, { reason: stale.staleReason });
         markAgentCompleted(traceId, repos.db);
-        ok(res, { ...output, ...staleMeta(caseId, caseStateHash, username, repos.db) });
+        journalEvent(repos.db, 'execution_completed', traceId, caseId, username);
+        ok(res, { ...output, ...stale });
       } catch (err) {
         markAgentFailed(traceId, String(err), repos.db);
+        journalEvent(repos.db, 'execution_failed', traceId, caseId, username, { error: String(err) });
         throw err;
       }
     }),
@@ -103,19 +113,23 @@ export function agentsRouter(repos: Repos): Router {
 
       const { traceId, caseStateHash, username } = guardMeta(req);
       const resolvedCaseId = typeof caseId === 'number' ? caseId : null;
+      journalEvent(repos.db, 'execution_started', traceId, resolvedCaseId, username);
       try {
         const output = await researchLegalQuestion(
           repos,
           question.trim(),
           resolvedCaseId ?? undefined,
         );
-        markAgentCompleted(traceId, repos.db);
         const stale = resolvedCaseId !== null
           ? staleMeta(resolvedCaseId, caseStateHash, username, repos.db)
           : { isStale: false, staleReason: null };
+        if (stale.isStale) journalEvent(repos.db, 'stale_detected', traceId, resolvedCaseId, username, { reason: stale.staleReason });
+        markAgentCompleted(traceId, repos.db);
+        journalEvent(repos.db, 'execution_completed', traceId, resolvedCaseId, username);
         ok(res, { ...output, ...stale });
       } catch (err) {
         markAgentFailed(traceId, String(err), repos.db);
+        journalEvent(repos.db, 'execution_failed', traceId, resolvedCaseId, username, { error: String(err) });
         throw err;
       }
     }),
@@ -131,14 +145,17 @@ export function agentsRouter(repos: Repos): Router {
       const docRow = repos.db.prepare('SELECT id FROM Documents WHERE id = ?').get(documentId);
       if (!docRow) throw new NotFoundError(`Document ${documentId} not found`);
 
-      const { traceId } = guardMeta(req);
+      const { traceId, username } = guardMeta(req);
+      journalEvent(repos.db, 'execution_started', traceId, null, username, { documentId });
       try {
         const output = await reviewContract(repos, documentId);
         markAgentCompleted(traceId, repos.db);
+        journalEvent(repos.db, 'execution_completed', traceId, null, username);
         // Contract review is document-scoped; no case staleness check needed
         ok(res, { ...output, isStale: false, staleReason: null });
       } catch (err) {
         markAgentFailed(traceId, String(err), repos.db);
+        journalEvent(repos.db, 'execution_failed', traceId, null, username, { error: String(err) });
         throw err;
       }
     }),
@@ -155,12 +172,17 @@ export function agentsRouter(repos: Repos): Router {
       if (!caseRow) throw new NotFoundError(`Case ${caseId} not found`);
 
       const { traceId, caseStateHash, username } = guardMeta(req);
+      journalEvent(repos.db, 'execution_started', traceId, caseId, username);
       try {
         const output = await runDiscovery(repos, caseId);
+        const stale = staleMeta(caseId, caseStateHash, username, repos.db);
+        if (stale.isStale) journalEvent(repos.db, 'stale_detected', traceId, caseId, username, { reason: stale.staleReason });
         markAgentCompleted(traceId, repos.db);
-        ok(res, { ...output, ...staleMeta(caseId, caseStateHash, username, repos.db) });
+        journalEvent(repos.db, 'execution_completed', traceId, caseId, username);
+        ok(res, { ...output, ...stale });
       } catch (err) {
         markAgentFailed(traceId, String(err), repos.db);
+        journalEvent(repos.db, 'execution_failed', traceId, caseId, username, { error: String(err) });
         throw err;
       }
     }),

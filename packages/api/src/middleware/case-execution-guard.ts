@@ -1,5 +1,5 @@
 import type { RequestHandler } from 'express';
-import { canRunAgent, computeCaseStateHash } from '@factum-il/agent-core';
+import { canRunAgent, computeCaseStateHash, journalEvent } from '@factum-il/agent-core';
 import { ConflictError } from '../errors/api-error.js';
 import type { Repos } from '../db.js';
 
@@ -36,6 +36,7 @@ export function withCaseExecutionGuard(
       const { allowed, traceId } = canRunAgent(agentType, caseId, repos.db);
 
       if (!allowed) {
+        journalEvent(repos.db, 'concurrency_blocked', traceId, caseId, username, { agentType });
         return next(
           new ConflictError(
             `Agent "${agentType}" is already running for this case — please wait and retry`,

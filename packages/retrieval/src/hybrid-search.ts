@@ -139,7 +139,15 @@ export async function hybridSearch(
       ).all(...(opts?.caseId !== undefined ? [opts.caseId] : [])) as EmbeddingRow[];
 
       for (const er of embedRows) {
-        const vec = JSON.parse(er.embedding) as number[];
+        // Skip null/empty embeddings gracefully (corrupted or not-yet-generated rows)
+        if (!er.embedding) continue;
+        let vec: number[];
+        try {
+          vec = JSON.parse(er.embedding) as number[];
+        } catch {
+          continue; // skip malformed JSON — do not crash the search
+        }
+        if (!Array.isArray(vec) || vec.length === 0) continue;
         const score = cosineSimilarity(queryEmbedding, vec);
         if (score > 0.3) {
           const chunkRow = db.prepare(

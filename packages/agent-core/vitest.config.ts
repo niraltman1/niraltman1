@@ -5,4 +5,9 @@ export default defineConfig({
     environment: 'node',
     include: ['src/**/*.test.ts'],
   },
+  build: {
+    rollupOptions: {
+      external: ['better-sqlite3'],
+    },
+  },
 });

@@ -17,3 +17,5 @@ export {
 export type { CaseExecutionContext, ValidityResult } from './case-execution-context.js';
 export { createCaseDomain, AuthorizationError } from './case-isolation-domain.js';
 export type { CaseIsolationDomain } from './case-isolation-domain.js';
+export { journalEvent } from './execution-journal.js';
+export type { JournalEventType } from './execution-journal.js';
