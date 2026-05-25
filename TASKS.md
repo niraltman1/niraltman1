@@ -161,9 +161,78 @@ https://github.com/niraltman1/niraltman1/pull/8
 
 Next available: **053**
 
+## Phase 9 — Pre-Release Validation & Merge Hardening ✅ COMPLETE (2026-05-25)
+
+### What was completed this session
+
+**Observability Journal (Migration 053)**
+- `migrations/053_agent_execution_events.sql` — AgentExecutionEvents table + 4 indexes
+- `packages/agent-core/src/execution-journal.ts` — `journalEvent()` (never throws; append-only)
+- Wired into all 5 agent routes: `execution_started`, `execution_completed`, `execution_failed`, `stale_detected`
+- Wired into concurrency guard middleware: `concurrency_blocked`
+- Exported from `packages/agent-core/src/index.ts`
+
+**New Test Files (69 additional tests → 347 total)**
+- `packages/agent-core/src/concurrency-stress.test.ts` — 7 tests (lock race prevention, release, cross-case independence)
+- `packages/agent-core/src/stale-execution.test.ts` — 8 tests (4 mutation types, DB error optimism, case deletion)
+- `packages/agent-core/src/rbac-integration.test.ts` — 8 tests (auth-first order, AuthorizationError class integrity)
+- `packages/agent-core/src/agent-chaos.test.ts` — 5 tests (Chaos A: execution failures, lock cleanup, DB integrity)
+- `packages/retrieval/src/sqlite-vec-compat.test.ts` — 7 tests (7 fallback scenarios)
+- `packages/retrieval/src/embedding-chaos.test.ts` — 7 tests (Chaos B: null/malformed/empty embeddings)
+- `packages/retrieval/src/case-isolation-retrieval.test.ts` — 5 tests (scoped retrieval, audit warning)
+- `packages/database/src/migration-chaos.test.ts` — 6 tests (Chaos C: SKIP_ON_ERROR, retry, DB integrity)
+
+**Production Bug Fixed**
+- `packages/retrieval/src/hybrid-search.ts` — JS cosine fallback now guards against null embeddings,
+  malformed JSON, and empty vectors. Found via chaos testing (Chaos B).
+
+**Scripts**
+- `scripts/healthcheck.ts` — 6-check JSON healthcheck (sqlite, filesystem, vec_extension, port, ollama)
+- `scripts/release-validate.sh` — clean-env build + test validation pipeline
+
+**Reports (9 files in reports/)**
+- `reports/static-validation-report.md`
+- `reports/case-isolation-report.md`
+- `reports/concurrency-report.md`
+- `reports/stale-execution-report.md`
+- `reports/sqlite-vec-compatibility-report.md`
+- `reports/rbac-validation-report.md`
+- `reports/chaos-testing-report.md`
+- `reports/release-verification-report.md`
+- `reports/final-release-readiness-report.md`
+
+**Portable Runtime Bundle**
+- `dist/factum-il-portable/` — start.sh, start.bat, config/.env.example, VERSION, README.md (gitignored, generated at build time)
+
+### What to do next
+- Merge PR #8 (all validation complete, verdict: READY)
+- RBAC v2: add `CaseAssignments` table (hook point in `case-isolation-domain.ts`)
+- vec_chunks backfill script: one-time migration for existing ChunkEmbeddings rows
+- AgentExecutionEvents API + dashboard view (GET /api/admin/journal)
+- ESLint configuration for monorepo
+
+## Migration Slots Used
+001–039: core schema, CRM, academic hub, FTS5, security, observability
+040: Metrics
+041: EventStore + EventHandlerLog + DeadLetterQueue
+042: Entities + EntityRelations (legal-ontology)
+043: CaseMemory + UserPreferences + AgentRunLog
+044: DocumentChunks + ChunkEmbeddings + fts_document_chunks
+045: AgentResults
+046: ProceduralChecklist + RiskAssessments
+047: DocumentVersions + Annotations
+048: DocumentSignatures
+049: WorkflowStates + WorkflowIdempotencyLog + AgentRunRegistry
+050: PipelineLogs
+051: VacuumSessions
+052: vec_chunks (SKIP_ON_ERROR)
+053: AgentExecutionEvents
+
+Next available: **054**
+
 ## CI Status
-All checks pass locally from repo root (post-hoist):
-- `pnpm install --frozen-lockfile` ✓ (21 workspace packages)
-- `pnpm -r typecheck` ✓ (0 errors across all 21 packages)
-- `pnpm -r test` ✓ (278 tests across all packages)
+All checks pass (2026-05-25):
+- `pnpm -r typecheck` ✓ (0 errors, 23 packages)
+- `pnpm -r test` ✓ (347 tests, 0 failures)
 - `pnpm --filter @factum-il/evals eval` ✓ (eval regression passed)
+- Pre-commit hook: ✓ (typecheck on changed packages)
