@@ -50,7 +50,7 @@ jobs:
         run: |
           $version = "${{ github.event.inputs.version || '1.0-beta.1' }}"
           Write-Host "Building version: $version"
-          .\apps\desktop\publish.ps1
+          .\publish.ps1
         shell: pwsh
 
       - name: Compile installer (ISCC)
@@ -64,7 +64,7 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: FactumIL-Beta-Installer
-          path: dist-package\FactumIL_Beta_Installer.exe
+          path: dist-package\FactumIL_v1.0.0_Setup.exe
           retention-days: 30
 
       - name: Create GitHub Release (on tag push)
@@ -91,4 +91,4 @@ jobs:
             - כל הנתונים נשמרים מקומית בלבד
           draft: false
           prerelease: true
-          files: dist-package\FactumIL_Beta_Installer.exe
+          files: dist-package\FactumIL_v1.0.0_Setup.exe

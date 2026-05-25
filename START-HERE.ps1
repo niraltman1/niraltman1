@@ -93,9 +93,9 @@ Write-Host "Configuring Ollama AI models..."
 try {
     # Check if ollama is in path
     if (Get-Command ollama -ErrorAction SilentlyContinue) {
-        Write-Host "Pulling Ollama model llama3.2..."
-        ollama pull llama3.2
-        
+        Write-Host "Pulling Ollama model BrainboxAI/law-il-E2B:Q4_K_M (Israeli legal model)..."
+        ollama pull BrainboxAI/law-il-E2B:Q4_K_M
+
         Write-Host "Ollama configuration complete."
     } else {
         Write-Warning "Ollama command not found. Please ensure it's installed and in PATH."

@@ -129,6 +129,16 @@ Root: HKLM; Subkey: "SYSTEM\CurrentControlSet\Control\Session Manager\Environmen
   ValueType: expandsz; ValueName: "FFMPEG_EXE"; ValueData: "{app}\tools\ffmpeg.exe"; \
   Flags: preservestringtype uninsdeletevalue
 
+; AI model — must always be the Israeli legal model, forwarded to Node process by ApiHostService
+Root: HKLM; Subkey: "SYSTEM\CurrentControlSet\Control\Session Manager\Environment"; \
+  ValueType: string; ValueName: "OLLAMA_MODEL"; ValueData: "BrainboxAI/law-il-E2B:Q4_K_M"; \
+  Flags: preservestringtype uninsdeletevalue
+
+; AI tier — standard by default (controls reasoning depth in model-router)
+Root: HKLM; Subkey: "SYSTEM\CurrentControlSet\Control\Session Manager\Environment"; \
+  ValueType: string; ValueName: "AI_TIER"; ValueData: "standard"; \
+  Flags: preservestringtype uninsdeletevalue
+
 ; Legal documents directory chosen by the user in the wizard
 Root: HKLM; Subkey: "SOFTWARE\Factum IL"; ValueType: string; ValueName: "OrgDirectory"; \
   ValueData: "{code:GetOrgDir}"; Flags: uninsdeletevalue
