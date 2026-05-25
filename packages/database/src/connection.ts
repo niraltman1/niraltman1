@@ -29,6 +29,22 @@ export class DatabaseConnection {
     this.db.pragma('cache_size = -32000');  // 32 MB cache
     this.db.pragma('auto_vacuum = INCREMENTAL');
 
+    // Attach the heavy-data store (DocumentChunks, ChunkEmbeddings, OCR outputs).
+    // Skipped for :memory: databases used in tests and for read-only connections.
+    // The attached schema alias is `data_store`; tables not yet migrated there
+    // continue to resolve from the main schema transparently.
+    if (config.path !== ':memory:' && !(config.readonly ?? false)) {
+      const dataPath = config.path.replace(/\.db$/, '_data.db');
+      try {
+        this.db.exec(`ATTACH DATABASE '${dataPath}' AS data_store`);
+      } catch (err) {
+        logger.warn(`Failed to attach data_store at ${dataPath}: ${String(err)}`, {
+          category: 'system',
+          agentSource: 'DataArchitect',
+        });
+      }
+    }
+
     logger.info('Database connection established', {
       category: 'system',
       agentSource: 'DataArchitect',

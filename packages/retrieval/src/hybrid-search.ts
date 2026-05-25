@@ -24,6 +24,12 @@ interface EmbeddingRow {
   chunk_id: number; embedding: string;
 }
 
+// Row shape returned by the native sqlite-vec KNN query
+interface VecKnnRow {
+  rowid: number; distance: number;
+  document_id: number; chunk_index: number; chunk_text: string;
+}
+
 const RRF_K = 60;
 
 export async function hybridSearch(
@@ -31,9 +37,18 @@ export async function hybridSearch(
   db:     DbHandle,
   opts?:  { limit?: number; caseId?: number },
 ): Promise<SearchResult[]> {
+  // Cross-case retrieval is permitted for global/admin searches, but every
+  // case-specific agent call MUST pass caseId via createCaseScopedRetriever().
+  if (opts?.caseId === undefined) {
+    console.warn(
+      '[retrieval] hybridSearch called without caseId — results span ALL cases. ' +
+      'Use createCaseScopedRetriever() for case-specific agent calls.',
+    );
+  }
+
   const limit = opts?.limit ?? 10;
 
-  // Step 1: FTS5 BM25 search
+  // ─── Step 1: FTS5 BM25 search ──────────────────────────────────────────────
   const ftsQuery = query.replace(/['"*]/g, ' ').trim();
   let ftsRows: ChunkRow[] = [];
   try {
@@ -57,31 +72,95 @@ export async function hybridSearch(
     // FTS table may not exist yet
   }
 
-  // Step 2: Vector similarity
+  // ─── Step 2: Vector similarity ─────────────────────────────────────────────
   const queryEmbedding = await embed(query);
   const vectorResults: Array<{ row: ChunkRow; score: number }> = [];
 
   if (queryEmbedding) {
-    const embedRows = db.prepare(
-      `SELECT ce.chunk_id, ce.embedding FROM ChunkEmbeddings ce
-       JOIN DocumentChunks dc ON dc.id = ce.chunk_id
-       ${opts?.caseId !== undefined ? 'JOIN Documents d ON d.id = dc.document_id WHERE d.case_id = ?' : ''}`,
-    ).all(...(opts?.caseId !== undefined ? [opts.caseId] : [])) as EmbeddingRow[];
+    // Attempt native sqlite-vec KNN path first (fast, in-engine).
+    // Falls back to the JS cosine loop when the vec_chunks virtual table or
+    // the sqlite-vec extension is not available.
+    let usedNativePath = false;
+    try {
+      const embeddingJson = JSON.stringify(queryEmbedding);
+      // Inner subquery performs KNN; outer JOIN applies case filter and fetches text.
+      const knnSql = opts?.caseId !== undefined
+        ? `SELECT vc.rowid, vc.distance,
+                  dc.document_id, dc.chunk_index, dc.chunk_text
+             FROM (
+               SELECT rowid, distance FROM vec_chunks
+                WHERE embedding MATCH vec_f32(?)
+                ORDER BY distance LIMIT ?
+             ) vc
+             JOIN DocumentChunks dc ON dc.id = vc.rowid
+             JOIN Documents d ON d.id = dc.document_id
+            WHERE d.case_id = ?`
+        : `SELECT vc.rowid, vc.distance,
+                  dc.document_id, dc.chunk_index, dc.chunk_text
+             FROM (
+               SELECT rowid, distance FROM vec_chunks
+                WHERE embedding MATCH vec_f32(?)
+                ORDER BY distance LIMIT ?
+             ) vc
+             JOIN DocumentChunks dc ON dc.id = vc.rowid`;
 
-    for (const er of embedRows) {
-      const vec = JSON.parse(er.embedding) as number[];
-      const score = cosineSimilarity(queryEmbedding, vec);
-      if (score > 0.3) {
-        const chunkRow = db.prepare(
-          `SELECT id, document_id, chunk_index, chunk_text FROM DocumentChunks WHERE id = ?`,
-        ).get(er.chunk_id) as ChunkRow | undefined;
-        if (chunkRow) vectorResults.push({ row: chunkRow, score });
+      const params: unknown[] = opts?.caseId !== undefined
+        ? [embeddingJson, limit * 5, opts.caseId]
+        : [embeddingJson, limit * 5];
+
+      const rows = db.prepare(knnSql).all(...params) as VecKnnRow[];
+      for (const r of rows) {
+        // vec_distance_cosine returns cosine distance (1 - similarity)
+        const score = 1.0 - r.distance;
+        if (score > 0.3) {
+          vectorResults.push({
+            row: {
+              id: r.rowid,
+              document_id: r.document_id,
+              chunk_index: r.chunk_index,
+              chunk_text: r.chunk_text,
+            },
+            score,
+          });
+        }
       }
+      vectorResults.sort((a, b) => b.score - a.score);
+      usedNativePath = true;
+    } catch {
+      // sqlite-vec extension or vec_chunks table not available — use JS fallback
     }
-    vectorResults.sort((a, b) => b.score - a.score);
+
+    if (!usedNativePath) {
+      // JS cosine fallback: load all embeddings for the case and score in-process
+      const embedRows = db.prepare(
+        `SELECT ce.chunk_id, ce.embedding FROM ChunkEmbeddings ce
+         JOIN DocumentChunks dc ON dc.id = ce.chunk_id
+         ${opts?.caseId !== undefined ? 'JOIN Documents d ON d.id = dc.document_id WHERE d.case_id = ?' : ''}`,
+      ).all(...(opts?.caseId !== undefined ? [opts.caseId] : [])) as EmbeddingRow[];
+
+      for (const er of embedRows) {
+        // Skip null/empty embeddings gracefully (corrupted or not-yet-generated rows)
+        if (!er.embedding) continue;
+        let vec: number[];
+        try {
+          vec = JSON.parse(er.embedding) as number[];
+        } catch {
+          continue; // skip malformed JSON — do not crash the search
+        }
+        if (!Array.isArray(vec) || vec.length === 0) continue;
+        const score = cosineSimilarity(queryEmbedding, vec);
+        if (score > 0.3) {
+          const chunkRow = db.prepare(
+            `SELECT id, document_id, chunk_index, chunk_text FROM DocumentChunks WHERE id = ?`,
+          ).get(er.chunk_id) as ChunkRow | undefined;
+          if (chunkRow) vectorResults.push({ row: chunkRow, score });
+        }
+      }
+      vectorResults.sort((a, b) => b.score - a.score);
+    }
   }
 
-  // Step 3: RRF fusion
+  // ─── Step 3: RRF fusion ────────────────────────────────────────────────────
   if (ftsRows.length === 0 && vectorResults.length === 0) return [];
 
   const rrfMap = new Map<string, { row: ChunkRow; rrfScore: number }>();

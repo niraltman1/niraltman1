@@ -93,19 +93,36 @@ export class MigrationRunner {
     const sql      = readFileSync(filePath, 'utf-8');
     const checksum = this.checksum(sql);
 
+    // If the migration declares -- SKIP_ON_ERROR on its first non-empty line,
+    // failures are logged as warnings rather than crashing the app. The migration
+    // is NOT recorded as applied so it is retried on every startup (useful for
+    // extension-dependent virtual tables like vec0 that may not always be available).
+    const skipOnError = /^\s*--\s*SKIP_ON_ERROR\b/.test(sql);
+
     logger.info(`Applying migration: ${file}`, {
       category: 'migration',
       agentSource: 'DataArchitect',
     });
 
-    this.db.transaction(() => {
-      this.db.exec(sql);
-      this.db
-        .prepare(
-          "INSERT OR REPLACE INTO _migrations (version, name, checksum) VALUES (?, ?, ?)",
-        )
-        .run(version, file.replace('.sql', ''), checksum);
-    });
+    try {
+      this.db.transaction(() => {
+        this.db.exec(sql);
+        this.db
+          .prepare(
+            "INSERT OR REPLACE INTO _migrations (version, name, checksum) VALUES (?, ?, ?)",
+          )
+          .run(version, file.replace('.sql', ''), checksum);
+      });
+    } catch (err) {
+      if (skipOnError) {
+        logger.warn(`Migration ${file} failed and was skipped (SKIP_ON_ERROR): ${String(err)}`, {
+          category: 'migration',
+          agentSource: 'DataArchitect',
+        });
+        return; // leave unapplied so it is retried next startup
+      }
+      throw err;
+    }
 
     logger.info(`Migration applied: ${file}`, {
       category: 'migration',

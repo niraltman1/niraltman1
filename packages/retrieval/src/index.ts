@@ -6,3 +6,5 @@ export type { IndexResult } from './indexer.js';
 export { hybridSearch } from './hybrid-search.js';
 export type { SearchResult } from './hybrid-search.js';
 export { deterministicSearch } from './deterministic-wrapper.js';
+export { createCaseScopedRetriever } from './case-scoped-retriever.js';
+export type { CaseScopedRetriever } from './case-scoped-retriever.js';
