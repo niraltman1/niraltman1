@@ -188,10 +188,30 @@ foreach ($pkg in $WorkspacePackages) {
     }
 }
 
+# ── Rebuild native modules for Windows x64 ───────────────────────────────────
+# better-sqlite3 and sqlite-vec contain platform-specific .node binaries.
+# After pnpm deploy, force a Windows rebuild so the installer bundles the
+# correct Win32 binaries (critical when building on Windows; no-op on Linux).
+if ($IsWindows) {
+    Write-Host "  Rebuilding native modules (better-sqlite3, sqlite-vec) for win-x64 ..." -ForegroundColor Gray
+    Push-Location $BackendOut
+    node node_modules\.bin\node-gyp-build 2>$null; $true   # best-effort, may not exist
+    # better-sqlite3 ships prebuilds — use their own rebuild tool
+    if (Test-Path "node_modules\better-sqlite3\package.json") {
+        node node_modules\better-sqlite3\scripts\download-prebuilt.js `
+             --platform win32 --arch x64 2>$null; $true
+    }
+    Pop-Location
+}
+
 # ── Stage dashboard + migrations ──────────────────────────────────────────────
 Step "Staging dashboard and migrations"
 
-$DashboardDst = Join-Path $OutDir "dashboard"
+# The API entry (app/api/dist/start.js) resolves the dashboard via:
+#   join(__dirname, '..', '..', 'dashboard', 'dist')
+# So from {app}\app\api\dist\ it looks for {app}\app\dashboard\dist\
+# We preserve the "dist\" subfolder level during staging.
+$DashboardDst = Join-Path $OutDir "dashboard\dist"
 New-Item -ItemType Directory -Force -Path $DashboardDst | Out-Null
 Copy-Item -Recurse -Force "$RepoRoot\apps\dashboard\dist\*" $DashboardDst
 Write-Host "  Dashboard: $DashboardDst ($((Get-ChildItem $DashboardDst -Recurse -File).Count) files)" -ForegroundColor Gray
@@ -234,20 +254,35 @@ Expand-Archive -Path $NodeZip -DestinationPath $NodeExtract
 Copy-Item -Force "$NodeExtract\node-v$NodeVersion-win-x64\node.exe" "$RuntimeDst\node.exe"
 Write-Host "  node.exe staged: $RuntimeDst\node.exe" -ForegroundColor Gray
 
-# ── Download Ollama installer ─────────────────────────────────────────────────
-Step "Downloading Ollama installer"
+# ── Download Ollama installer + WebView2 bootstrapper ────────────────────────
+Step "Downloading Ollama installer and WebView2 bootstrapper"
 $ToolsDst = Join-Path $OutDir "tools"
 New-Item -ItemType Directory -Force -Path $ToolsDst | Out-Null
 
+# Ollama
 $OllamaExe = Join-Path $ToolsDst "OllamaSetup.exe"
 $OllamaUrl = "https://github.com/ollama/ollama/releases/latest/download/OllamaSetup.exe"
 try {
     Write-Host "  Downloading OllamaSetup.exe ..." -ForegroundColor Gray
     Invoke-WebRequest -Uri $OllamaUrl -OutFile $OllamaExe -UseBasicParsing -TimeoutSec 120
-    Write-Host "  OllamaSetup.exe staged: $OllamaExe" -ForegroundColor Gray
+    Write-Host "  OllamaSetup.exe staged ($([math]::Round((Get-Item $OllamaExe).Length/1MB,1)) MB)" -ForegroundColor Gray
 } catch {
-    Write-Host "  WARNING: Could not download OllamaSetup.exe: $_" -ForegroundColor Yellow
-    Write-Host "  Place OllamaSetup.exe manually in: $ToolsDst" -ForegroundColor Yellow
+    Write-Host "  WARNING: Could not download OllamaSetup.exe — place it manually in: $ToolsDst" -ForegroundColor Yellow
+}
+
+# WebView2 evergreen bootstrapper (~2 MB) — bundled so install works offline
+# The bootstrapper fetches the full runtime from the internet during setup.
+# For a fully-offline installer, replace with the standalone installer (~150 MB):
+#   https://go.microsoft.com/fwlink/p/?LinkId=2124703  (bootstrapper, online)
+#   https://developer.microsoft.com/en-us/microsoft-edge/webview2/ (standalone)
+$WV2Exe = Join-Path $ToolsDst "MicrosoftEdgeWebview2Setup.exe"
+$WV2Url = "https://go.microsoft.com/fwlink/p/?LinkId=2124703"
+try {
+    Write-Host "  Downloading MicrosoftEdgeWebview2Setup.exe (bootstrapper) ..." -ForegroundColor Gray
+    Invoke-WebRequest -Uri $WV2Url -OutFile $WV2Exe -UseBasicParsing -TimeoutSec 60
+    Write-Host "  WebView2 bootstrapper staged ($([math]::Round((Get-Item $WV2Exe).Length/1KB,0)) KB)" -ForegroundColor Gray
+} catch {
+    Write-Host "  WARNING: Could not download WebView2 bootstrapper — place MicrosoftEdgeWebview2Setup.exe in: $ToolsDst" -ForegroundColor Yellow
 }
 
 # ── Summary ───────────────────────────────────────────────────────────────────

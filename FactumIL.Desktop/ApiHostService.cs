@@ -60,7 +60,10 @@ internal sealed class ApiHostService
         psi.EnvironmentVariables["PORT"]                = "3001";
         psi.EnvironmentVariables["NODE_ENV"]            = "production";
         psi.EnvironmentVariables["FACTUM_IL_DB_PATH"]   = DbPath;
-        psi.EnvironmentVariables["FACTUM_IL_ROOT"]      = AppRoot;
+        // FACTUM_IL_ROOT points at the "app\" subdirectory so that the API
+        // resolves migrations at {ROOT}/migrations = {app}\app\migrations,
+        // which is where the installer stages the SQL files.
+        psi.EnvironmentVariables["FACTUM_IL_ROOT"]      = Path.Combine(AppRoot, "app");
         psi.EnvironmentVariables["FACTUM_IL_DATA_PATH"] = userDataDir;
 
         // Forward installer-set env vars if present
