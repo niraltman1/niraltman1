@@ -28,7 +28,9 @@ internal sealed class ApiHostService
         Path.Combine(AppRoot, "app", "api", "dist", "start.js");
 
     private static string DbPath =>
-        Path.Combine(AppRoot, "data", "factum-il.db");
+        Path.Combine(
+            Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
+            "FactumIL", "factum-il.db");
 
     public void Start()
     {
@@ -39,6 +41,10 @@ internal sealed class ApiHostService
             Application.Current.Shutdown(1);
             return;
         }
+
+        var userDataDir = Path.GetDirectoryName(DbPath)!;
+        Directory.CreateDirectory(userDataDir);
+        Directory.CreateDirectory(Path.Combine(AppRoot, "logs"));
 
         var psi = new ProcessStartInfo
         {
@@ -51,10 +57,11 @@ internal sealed class ApiHostService
             RedirectStandardError  = true,
         };
 
-        psi.EnvironmentVariables["PORT"]             = "3001";
-        psi.EnvironmentVariables["NODE_ENV"]         = "production";
-        psi.EnvironmentVariables["FACTUM_IL_DB_PATH"] = DbPath;
-        psi.EnvironmentVariables["FACTUM_IL_ROOT"]    = AppRoot;
+        psi.EnvironmentVariables["PORT"]                = "3001";
+        psi.EnvironmentVariables["NODE_ENV"]            = "production";
+        psi.EnvironmentVariables["FACTUM_IL_DB_PATH"]   = DbPath;
+        psi.EnvironmentVariables["FACTUM_IL_ROOT"]      = AppRoot;
+        psi.EnvironmentVariables["FACTUM_IL_DATA_PATH"] = userDataDir;
 
         // Forward installer-set env vars if present
         foreach (var key in new[] { "OLLAMA_MODEL", "WHISPER_EXE", "FFMPEG_EXE",

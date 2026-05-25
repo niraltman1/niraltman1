@@ -13,9 +13,9 @@
     <SelfContained>true</SelfContained>
     <RuntimeIdentifier>win-x64</RuntimeIdentifier>
     <IncludeNativeLibrariesForSelfExtract>true</IncludeNativeLibrariesForSelfExtract>
-    <Version>13.0.0</Version>
-    <FileVersion>13.0.0.0</FileVersion>
-    <Product>Factum IL V13</Product>
+    <Version>1.0.0</Version>
+    <FileVersion>1.0.0.0</FileVersion>
+    <Product>Factum IL</Product>
     <Company>Altman Law Firm</Company>
     <Description>Factum IL — Israeli Law Office Operating System</Description>
     <Copyright>© 2024 Altman Law Firm. All rights reserved.</Copyright>
