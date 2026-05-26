@@ -234,14 +234,16 @@ export class DiagnosticsCollector {
       hebrewLabel: string,
     ): void => {
       if (entry === undefined) return;
+      // Use conditional spread for optional fields — exactOptionalPropertyTypes requires
+      // omission rather than assignment of undefined
       checks.push({
         name,
-        status:     entry.healthy ? 'ok' : 'critical',
-        message:    entry.healthy
+        status:  entry.healthy ? 'ok' : 'critical',
+        message: entry.healthy
           ? `${hebrewLabel}: תקין`
           : `${hebrewLabel}: תקלה — ${entry.detail ?? 'לא ידוע'}`,
-        details:    entry.detail !== undefined ? { detail: entry.detail } : undefined,
-        durationMs: entry.durationMs,
+        ...(entry.detail    !== undefined ? { details:    { detail: entry.detail } } : {}),
+        ...(entry.durationMs !== undefined ? { durationMs: entry.durationMs }       : {}),
       });
     };
 

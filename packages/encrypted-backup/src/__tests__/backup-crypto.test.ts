@@ -26,7 +26,7 @@ describe('encryptBuffer / decryptBuffer', () => {
 
     // Tamper with the encrypted data
     const tampered = Buffer.from(encrypted);
-    tampered[0] = tampered[0] ^ 0xff;
+    tampered[0] = (tampered[0] ?? 0) ^ 0xff;
 
     expect(() => decryptBuffer(tampered, TEST_KEY, iv, authTag)).toThrow();
   });

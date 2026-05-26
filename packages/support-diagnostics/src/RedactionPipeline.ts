@@ -39,8 +39,11 @@ const SENSITIVE_PATH_RE =
  *   תא-2024-042  ת"פ-2023-005  בג"ץ 6821/93  ע"א 5678/22
  *   עב-2024-001  תמש-2024-010  עת"מ-2023-088
  */
+// Note: \b word boundaries do not work with Hebrew Unicode characters.
+// We match the pattern directly — the surrounding non-Hebrew context provides
+// enough specificity to avoid false positives.
 const CASE_NUMBER_RE =
-  /\b(?:תא|ת"פ|בג"ץ|ע"א|עב|תמש|עת"מ)[-\s]\d{4}[-/]\d{2,5}\b/g;
+  /(?:תא|ת"פ|בג"ץ|ע"א|עב|תמש|עת"מ)[-\s]\d{4}[-/]\d{2,5}/g;
 
 /**
  * Hebrew personal names that typically follow legal markers.

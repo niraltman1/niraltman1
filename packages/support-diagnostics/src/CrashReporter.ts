@@ -35,15 +35,18 @@ export class CrashReporter {
   async recordCrash(
     partial: Omit<CrashReport, 'id' | 'occurredAt' | 'traceId'>,
   ): Promise<CrashReport> {
+    // Build the report, conditionally spreading stack to satisfy exactOptionalPropertyTypes
+    const redactedStack = partial.stack !== undefined
+      ? this.redaction.redactString(partial.stack)
+      : undefined;
+
     const report: CrashReport = {
       id:          randomUUID(),
       occurredAt:  new Date().toISOString(),
       traceId:     currentTraceId() ?? 'no-trace',
       ...partial,
       message:     this.redaction.redactString(partial.message),
-      stack:       partial.stack !== undefined
-                     ? this.redaction.redactString(partial.stack)
-                     : undefined,
+      ...(redactedStack !== undefined ? { stack: redactedStack } : {}),
       context:     this.redaction.redactObject(partial.context),
     };
 
@@ -117,11 +120,12 @@ export class CrashReporter {
     process.on('uncaughtException', (err: Error) => {
       void this.recordCrash({
         source,
-        errorType:  err.name,
-        message:    err.message,
-        stack:      err.stack,
-        context:    {},
-        recovered:  false,
+        errorType: err.name,
+        message:   err.message,
+        // err.stack may be undefined — use conditional spread for exactOptionalPropertyTypes
+        ...(err.stack !== undefined ? { stack: err.stack } : {}),
+        context:   {},
+        recovered: false,
       }).finally(() => {
         process.exit(1);
       });
@@ -133,7 +137,7 @@ export class CrashReporter {
         source,
         errorType: err.name,
         message:   err.message,
-        stack:     err.stack,
+        ...(err.stack !== undefined ? { stack: err.stack } : {}),
         context:   { unhandledRejection: true },
         recovered: false,
       });

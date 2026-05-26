@@ -73,7 +73,8 @@ export class EnvironmentSnapshot {
       required:        REQUIRED_MODEL,
       present:         ggufPresent,
       source:          ggufPresent ? 'local-gguf' : 'unknown',
-      ggufPath:        ggufPresent ? ggufPath : undefined,
+      // Conditionally include ggufPath — exactOptionalPropertyTypes requires omission rather than undefined
+      ...(ggufPresent ? { ggufPath: ggufPath } : {}),
       ollamaReachable: false, // populated later by DiagnosticsCollector
     };
   }
