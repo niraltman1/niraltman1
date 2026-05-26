@@ -2,9 +2,10 @@ import { writeFile, rename, unlink, mkdir } from 'node:fs/promises';
 import { join } from 'node:path';
 
 export interface ServerConfig {
-  port: number;
-  pid:  number;
-  ts:   string;
+  port:     number;
+  pid:      number;
+  ts:       string;
+  safeMode: boolean;
 }
 
 export function getServerConfigPath(): string {

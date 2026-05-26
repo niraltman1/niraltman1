@@ -32,7 +32,7 @@ internal sealed class ApiHostService
             Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
             "FactumIL", "factum-il.db");
 
-    public void Start()
+    public void Start(bool safeMode = false)
     {
         if (!File.Exists(ApiEntry))
         {
@@ -65,6 +65,10 @@ internal sealed class ApiHostService
         // which is where the installer stages the SQL files.
         psi.EnvironmentVariables["FACTUM_IL_ROOT"]      = Path.Combine(AppRoot, "app");
         psi.EnvironmentVariables["FACTUM_IL_DATA_PATH"] = userDataDir;
+
+        // In recovery (safe) mode all background workers are disabled.
+        if (safeMode)
+            psi.EnvironmentVariables["FACTUM_IL_SAFE_MODE"] = "1";
 
         // Forward installer-set env vars if present
         foreach (var key in new[] { "OLLAMA_MODEL", "WHISPER_EXE", "FFMPEG_EXE",

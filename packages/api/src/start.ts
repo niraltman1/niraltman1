@@ -125,15 +125,23 @@ wireMetricsStore(_db);
 const eventBus = createEventBus(new EventStore(_db));
 configureEventBus(eventBus);
 
+// Safe-mode: when FACTUM_IL_SAFE_MODE=1 all background workers are skipped.
+// Set by DiagnosticsService (C#) before spawning the API process in recovery mode.
+const SAFE_MODE = process.env['FACTUM_IL_SAFE_MODE'] === '1';
+
 const server = app.listen(PORT, () => {
-  void writeServerConfig({ port: PORT, pid: process.pid, ts: new Date().toISOString() });
-  console.log(`Factum IL API ready — http://localhost:${PORT}`);
-  startRagWorker(repos, eventBus);
-  startBackupScheduler(repos, DB_PATH);
-  startContentUpdateScheduler(repos);
-  startInsolvencyNudgeScheduler(repos);
-  startRetentionScheduler(repos);
-  startDeadlineTracker(repos);
+  void writeServerConfig({ port: PORT, pid: process.pid, ts: new Date().toISOString(), safeMode: SAFE_MODE });
+  console.log(`Factum IL API ready — http://localhost:${PORT}${SAFE_MODE ? ' [SAFE MODE]' : ''}`);
+  if (!SAFE_MODE) {
+    startRagWorker(repos, eventBus);
+    startBackupScheduler(repos, DB_PATH);
+    startContentUpdateScheduler(repos);
+    startInsolvencyNudgeScheduler(repos);
+    startRetentionScheduler(repos);
+    startDeadlineTracker(repos);
+  } else {
+    console.warn('[Factum IL] Safe mode active — background workers disabled');
+  }
 });
 
 function shutdown() {

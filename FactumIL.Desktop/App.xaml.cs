@@ -116,6 +116,13 @@ public partial class App : Application
                 // User chose "Exit" from the recovery window — already shut down.
                 return;
             }
+
+            // User chose to continue in recovery mode — restart API with background
+            // workers disabled so the app remains stable under degraded conditions.
+            _apiHost?.Stop();
+            await Task.Delay(500); // brief pause to let port 3001 be released
+            _apiHost?.Start(safeMode: true);
+            await WaitForApiSilentAsync();
         }
         else
         {
@@ -167,6 +174,29 @@ public partial class App : Application
 
         Application.Current.Dispatcher.Invoke(() => Application.Current.Shutdown(1));
         return false;
+    }
+
+    /// <summary>
+    /// Silent version of WaitForApiAsync — used after safe-mode restart when no splash
+    /// window is available.  Polls for up to 20 seconds with no UI feedback.
+    /// </summary>
+    private static async Task WaitForApiSilentAsync()
+    {
+        using var http     = new System.Net.Http.HttpClient { Timeout = TimeSpan.FromSeconds(2) };
+        var       deadline = DateTime.UtcNow.AddSeconds(20);
+
+        while (DateTime.UtcNow < deadline)
+        {
+            try
+            {
+                var res = await http.GetAsync("http://localhost:3001/api/health");
+                if (res.IsSuccessStatusCode) return;
+            }
+            catch { /* still starting */ }
+
+            await Task.Delay(500);
+        }
+        // If still not up after 20 s, continue anyway — MainWindow will show degraded state.
     }
 
     public void RestartApi() => _apiHost?.Restart();
