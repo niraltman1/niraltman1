@@ -18,7 +18,7 @@ interface AgentLock {
   agent_type: string;
   case_id:    string;
   started_at: string;
-  locked_at:  string;
+  trace_id:   string;
 }
 
 interface AgentsResponse {
@@ -223,9 +223,9 @@ export function RecoveryPage() {
                     <td style={COL_STYLE}>{lock.agent_type}</td>
                     <td style={{ ...COL_STYLE, fontFamily: 'monospace' }}>{lock.case_id}</td>
                     <td style={{ ...COL_STYLE, direction: 'ltr', textAlign: 'left' }}>
-                      {new Date(lock.locked_at).toLocaleTimeString('he-IL')}
+                      {new Date(lock.started_at).toLocaleTimeString('he-IL')}
                     </td>
-                    <td style={COL_STYLE}>{fmtAge(lock.locked_at)}</td>
+                    <td style={COL_STYLE}>{fmtAge(lock.started_at)}</td>
                   </tr>
                 );
               })}

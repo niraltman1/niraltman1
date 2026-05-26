@@ -54,6 +54,42 @@ import { configureEventBus } from './utils/activity-emitter.js';
 
 initLogger();
 
+// ── Early crash capture — registered before any async startup ─────────────
+// _db is set once DatabaseConnection is established below; until then
+// crash events are written to stderr only (DB not yet available).
+let _earlyDb: DatabaseConnection | null = null;
+
+function recordCrashEvent(origin: string, err: unknown): void {
+  const msg   = err instanceof Error ? err.message       : String(err);
+  const stack = err instanceof Error ? (err.stack ?? '') : '';
+  try {
+    _earlyDb?.prepare(`
+      INSERT INTO SystemEvents (event_id, occurred_at, event_type, source, severity, message, details)
+      VALUES (?, ?, 'crash', 'api', 'critical', ?, ?)
+    `).run(
+      crypto.randomUUID(),
+      new Date().toISOString(),
+      msg.slice(0, 500),
+      JSON.stringify({ origin, stack: stack.slice(0, 2_000) }),
+    );
+  } catch { /* DB may also be broken — best effort */ }
+}
+
+process.on('uncaughtException', (err) => {
+  process.stderr.write(`[Factum IL] uncaughtException: ${String(err)}\n`);
+  recordCrashEvent('uncaughtException', err);
+  _shutdown();
+  process.exit(1);
+});
+
+process.on('unhandledRejection', (reason) => {
+  process.stderr.write(`[Factum IL] unhandledRejection: ${String(reason)}\n`);
+  recordCrashEvent('unhandledRejection', reason);
+  // Non-fatal — log and continue
+});
+
+// ── Main startup ──────────────────────────────────────────────────────────
+
 const __dirname = dirname(fileURLToPath(import.meta.url));
 
 const REQUESTED_PORT = Number(process.env['PORT'] ?? 3001);
@@ -75,6 +111,7 @@ mkdirSync(dirname(DB_PATH), { recursive: true });
 
 export const configStore = new ConfigStore(DB_PATH);
 const db = new DatabaseConnection({ path: DB_PATH });
+_earlyDb = db; // crash handlers can now write to SystemEvents
 new MigrationRunner(db, MIGRATIONS_DIR).run();
 ensureAutoVacuum(db);
 
@@ -102,6 +139,17 @@ const repos: Repos = {
   pipelineLogs:   new PipelineLogsRepository(db),
 };
 
+// Release stale agent locks left over from a previous crash or restart.
+// Any agent that was status='running' when the process died can never
+// self-recover, so we mark them failed immediately on startup.
+try {
+  repos.db.prepare(`
+    UPDATE AgentRunRegistry
+    SET    status = 'failed', finished_at = ?
+    WHERE  status = 'running'
+  `).run(new Date().toISOString());
+} catch { /* Table may not exist before migration 049 — safe to ignore */ }
+
 const app = createApp(repos, DB_PATH);
 
 if (process.env['NODE_ENV'] === 'production') {
@@ -120,13 +168,16 @@ initRegistry();
 
 // Wire infrastructure spine — metrics persistence + domain event bus
 // repos.db (DatabaseConnection) satisfies the duck-typed DbHandle in both packages
-const _db = repos.db as unknown as { prepare: (sql: string) => { run: (...a: unknown[]) => void; get: (...a: unknown[]) => unknown; all: (...a: unknown[]) => unknown[] }; transaction: <T>(fn: () => T) => T };
-wireMetricsStore(_db);
-const eventBus = createEventBus(new EventStore(_db));
+const _dbHandle = repos.db as unknown as {
+  prepare: (sql: string) => { run: (...a: unknown[]) => void; get: (...a: unknown[]) => unknown; all: (...a: unknown[]) => unknown[] };
+  transaction: <T>(fn: () => T) => T;
+};
+wireMetricsStore(_dbHandle);
+const eventBus = createEventBus(new EventStore(_dbHandle));
 configureEventBus(eventBus);
 
 // Safe-mode: when FACTUM_IL_SAFE_MODE=1 all background workers are skipped.
-// Set by DiagnosticsService (C#) before spawning the API process in recovery mode.
+// Set by ApiHostService (C#) before spawning the API process in recovery mode.
 const SAFE_MODE = process.env['FACTUM_IL_SAFE_MODE'] === '1';
 
 const server = app.listen(PORT, () => {
@@ -144,39 +195,12 @@ const server = app.listen(PORT, () => {
   }
 });
 
-function shutdown() {
+function _shutdown() {
   void clearServerConfig();
   stopRagWorker(); stopBackupScheduler(); stopContentUpdateScheduler();
   stopInsolvencyNudgeScheduler(); stopRetentionScheduler(); stopDeadlineTracker();
-  server.close();
+  try { server.close(); } catch { /* server may not have started yet */ }
 }
 
-process.on('SIGTERM', () => { shutdown(); });
-process.on('SIGINT',  () => { shutdown(); process.exit(0); });
-
-function recordCrashEvent(origin: string, err: unknown): void {
-  const msg   = err instanceof Error ? err.message           : String(err);
-  const stack = err instanceof Error ? (err.stack ?? '')     : '';
-  try {
-    repos.db.prepare(`
-      INSERT INTO SystemEvents (event_id, occurred_at, event_type, source, severity, message, details)
-      VALUES (?, ?, 'crash', 'api', 'critical', ?, ?)
-    `).run(
-      crypto.randomUUID(),
-      new Date().toISOString(),
-      msg.slice(0, 500),
-      JSON.stringify({ origin, stack: stack.slice(0, 2000) }),
-    );
-  } catch { /* DB may also be broken — best effort */ }
-}
-
-process.on('uncaughtException', (err) => {
-  recordCrashEvent('uncaughtException', err);
-  shutdown();
-  process.exit(1);
-});
-
-process.on('unhandledRejection', (reason) => {
-  recordCrashEvent('unhandledRejection', reason);
-  // Non-fatal — log and continue
-});
+process.on('SIGTERM', () => { _shutdown(); });
+process.on('SIGINT',  () => { _shutdown(); process.exit(0); });

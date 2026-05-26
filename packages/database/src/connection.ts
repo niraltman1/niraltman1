@@ -36,7 +36,7 @@ export class DatabaseConnection {
     if (config.path !== ':memory:' && !(config.readonly ?? false)) {
       const dataPath = config.path.replace(/\.db$/, '_data.db');
       try {
-        this.db.exec(`ATTACH DATABASE '${dataPath}' AS data_store`);
+        this.db.exec(`ATTACH DATABASE '${dataPath.replace(/'/g, "''")}' AS data_store`);
       } catch (err) {
         logger.warn(`Failed to attach data_store at ${dataPath}: ${String(err)}`, {
           category: 'system',

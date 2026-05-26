@@ -1,5 +1,5 @@
 import { logger, utcNow } from '@factum-il/shared';
-import { copyFileSync, existsSync, mkdirSync } from 'node:fs';
+import { copyFileSync, existsSync, mkdirSync, statSync } from 'node:fs';
 import { join, dirname } from 'node:path';
 import type { DatabaseConnection } from './connection.js';
 
@@ -109,7 +109,6 @@ export class DatabaseHardening {
 
     copyFileSync(dbPath, backupPath);
 
-    const { statSync } = require('node:fs') as typeof import('node:fs');
     const sizeBytes = statSync(backupPath).size;
 
     logger.info(`Database backup created: ${backupPath} (${sizeBytes} bytes)`, {
