@@ -6,7 +6,8 @@ import { CircleNotchIcon, WarningCircleIcon, CheckCircleIcon } from '@phosphor-i
 // ─────────────────────────────────────────────────────────────────────────────
 
 interface BundleResult {
-  path: string;
+  bundlePath: string;
+  filename:   string;
 }
 
 type ExportState = 'idle' | 'loading' | 'success' | 'error';
@@ -69,13 +70,12 @@ export function SupportExportButton() {
         throw new Error(`HTTP ${res.status}`);
       }
 
-      // The API may return { success, data } wrapper or a direct object.
       const body = (await res.json()) as
         | { success: true; data: BundleResult }
-        | { path: string };
+        | BundleResult;
 
-      const path = 'success' in body ? body.data.path : body.path;
-      setResult({ path });
+      const result = 'success' in body ? body.data : body;
+      setResult({ bundlePath: result.bundlePath, filename: result.filename });
       setState('success');
     } catch {
       setState('error');
@@ -85,7 +85,7 @@ export function SupportExportButton() {
   async function handleCopy() {
     if (!result) return;
     try {
-      await navigator.clipboard.writeText(result.path);
+      await navigator.clipboard.writeText(result.bundlePath);
       setCopied(true);
       setTimeout(() => setCopied(false), 2000);
     } catch {
@@ -115,13 +115,15 @@ export function SupportExportButton() {
                         rounded-lg text-xs">
           <CheckCircleIcon size={14} className="text-green-400 shrink-0 mt-0.5" />
           <div className="flex-1 min-w-0 space-y-1">
-            <p className="text-green-300 font-medium">הקובץ יוצא בהצלחה</p>
+            <p className="text-green-300 font-medium">
+              {result.filename ?? 'חבילת תמיכה יוצאה בהצלחה'}
+            </p>
             <div className="flex items-center gap-2">
               <span
                 dir="ltr"
                 className="text-parchment/50 font-mono text-[10px] truncate flex-1"
               >
-                {result.path}
+                {result.bundlePath}
               </span>
               <button
                 onClick={() => void handleCopy()}

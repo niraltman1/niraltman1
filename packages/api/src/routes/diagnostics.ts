@@ -8,9 +8,10 @@
  */
 
 import { Router } from 'express';
-import { readdir, readFile, stat, unlink, mkdir, writeFile } from 'node:fs/promises';
+import { readdir, readFile, stat, unlink, mkdir, writeFile, rm } from 'node:fs/promises';
 import { join, dirname } from 'node:path';
-import { readFileSync, existsSync } from 'node:fs';
+import { readFileSync, existsSync, createWriteStream } from 'node:fs';
+import archiver from 'archiver';
 import { fileURLToPath } from 'node:url';
 import type { Repos } from '../db.js';
 import { asyncHandler } from '../utils/async-handler.js';
@@ -59,6 +60,26 @@ function isoTimestamp(): string {
 
 function generateBundleId(): string {
   return `bundle-${isoTimestamp()}-${Math.random().toString(36).slice(2, 8)}`;
+}
+
+/** Friendly date stamp for the ZIP filename: YYYYMMDD-HHMM */
+function zipDateStamp(): string {
+  const now = new Date();
+  const pad = (n: number) => String(n).padStart(2, '0');
+  return `${now.getUTCFullYear()}${pad(now.getUTCMonth() + 1)}${pad(now.getUTCDate())}-${pad(now.getUTCHours())}${pad(now.getUTCMinutes())}`;
+}
+
+/** Zips a single JSON file into a ZIP archive. */
+async function zipSingleFile(jsonPath: string, zipPath: string): Promise<void> {
+  return new Promise((resolve, reject) => {
+    const output  = createWriteStream(zipPath);
+    const archive = archiver('zip', { zlib: { level: 6 } });
+    output.on('close', resolve);
+    archive.on('error', reject);
+    archive.pipe(output);
+    archive.file(jsonPath, { name: 'bundle.json' });
+    void archive.finalize();
+  });
 }
 
 // ── Shared helpers ────────────────────────────────────────────────────────────
@@ -160,11 +181,11 @@ export function diagnosticsRouter(repos: Repos): Router {
         crashCount = files.filter((f) => f.startsWith('crash-') && f.endsWith('.json')).length;
       } catch { /* ignore */ }
 
-      // Count support bundles
+      // Count support bundles (ZIP + legacy JSON)
       let bundleCount = 0;
       try {
         const files = await readdir(getBundleDir()).catch(() => [] as string[]);
-        bundleCount = files.filter((f) => f.endsWith('.json')).length;
+        bundleCount = files.filter((f) => f.endsWith('.zip') || f.endsWith('.json')).length;
       } catch { /* ignore */ }
 
       // Recent error lines from log
@@ -245,9 +266,17 @@ export function diagnosticsRouter(repos: Repos): Router {
 
       await writeFile(bundlePath, JSON.stringify(bundle, null, 2), 'utf8');
 
+      // Compress into a user-friendly ZIP: factum-support-YYYYMMDD-HHMM.zip
+      const filename = `factum-support-${zipDateStamp()}.zip`;
+      const zipPath  = join(bundleDir, filename);
+      await zipSingleFile(bundlePath, zipPath);
+      // Remove the raw JSON — the ZIP is the canonical artefact
+      await rm(bundlePath, { force: true });
+
       res.status(201).json({
         bundleId,
-        path:        bundlePath,
+        bundlePath:  zipPath,
+        filename,
         generatedAt: bundle.generatedAt,
       });
     }),

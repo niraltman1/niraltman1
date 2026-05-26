@@ -153,3 +153,30 @@ function shutdown() {
 
 process.on('SIGTERM', () => { shutdown(); });
 process.on('SIGINT',  () => { shutdown(); process.exit(0); });
+
+function recordCrashEvent(origin: string, err: unknown): void {
+  const msg   = err instanceof Error ? err.message           : String(err);
+  const stack = err instanceof Error ? (err.stack ?? '')     : '';
+  try {
+    repos.db.prepare(`
+      INSERT INTO SystemEvents (event_id, occurred_at, event_type, source, severity, message, details)
+      VALUES (?, ?, 'crash', 'api', 'critical', ?, ?)
+    `).run(
+      crypto.randomUUID(),
+      new Date().toISOString(),
+      msg.slice(0, 500),
+      JSON.stringify({ origin, stack: stack.slice(0, 2000) }),
+    );
+  } catch { /* DB may also be broken — best effort */ }
+}
+
+process.on('uncaughtException', (err) => {
+  recordCrashEvent('uncaughtException', err);
+  shutdown();
+  process.exit(1);
+});
+
+process.on('unhandledRejection', (reason) => {
+  recordCrashEvent('unhandledRejection', reason);
+  // Non-fatal — log and continue
+});

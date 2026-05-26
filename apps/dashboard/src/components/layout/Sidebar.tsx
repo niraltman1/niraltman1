@@ -11,6 +11,7 @@ import {
   BugIcon,
   EnvelopeIcon,
   RobotIcon,
+  ShieldWarningIcon,
 } from '@phosphor-icons/react';
 import { useUIStore } from '@/store/index.js';
 import { BugReportModal } from '@/components/admin/BugReportModal.js';
@@ -71,6 +72,13 @@ function SettingsMenu({ collapsed }: { collapsed: boolean }) {
             >
               <HardDriveIcon size={16} weight="duotone" className="shrink-0" />
               <span>הגדרות גיבוי</span>
+            </button>
+            <button
+              className="sidebar-item w-full rounded-none text-sm"
+              onClick={() => { setOpen(false); navigate('/admin/recovery'); }}
+            >
+              <ShieldWarningIcon size={16} weight="duotone" className="shrink-0" />
+              <span>מצב שחזור</span>
             </button>
             <button
               className="sidebar-item w-full rounded-none text-sm border-t border-parchment/10"

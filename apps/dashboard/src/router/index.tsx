@@ -15,6 +15,7 @@ import { ActionQueue }     from '@/features/documents/ActionQueue.js';
 import { DiagnosticsPage }    from '@/features/admin/DiagnosticsPage.js';
 import { MissionControlPage } from '@/features/admin/MissionControlPage.js';
 import { BackupSettingsPage } from '@/features/admin/BackupSettingsPage.js';
+import { RecoveryPage }       from '@/features/admin/RecoveryPage.js';
 import { ActivityFeedPage }   from '@/features/activity/ActivityFeedPage.js';
 import { TasksPage }       from '@/features/tasks/TasksPage.js';
 import { TemplatesPage }      from '@/features/legal-engine/TemplatesPage.js';
@@ -65,6 +66,7 @@ export const router: RemixRouter = createBrowserRouter([
       { path: 'admin',                  element: <DiagnosticsPage />    },
       { path: 'admin/mission-control',  element: <MissionControlPage /> },
       { path: 'admin/backup-settings',  element: <BackupSettingsPage /> },
+      { path: 'admin/recovery',         element: <RecoveryPage />       },
       { path: '*',                      element: <NotFoundPage />       },
     ],
   },
