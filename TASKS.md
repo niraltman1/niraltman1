@@ -230,6 +230,66 @@ Next available: **053**
 
 Next available: **054**
 
+## Commercial Beta Readiness — In Progress (2026-05-26)
+
+### Completed this session
+
+**Self-Hosted Dependencies + Local GGUF (PR #9 — merged)**
+- `.github/workflows/stage-deps.yml` — manual workflow: downloads Node 22.13.1, Ollama 0.9.0, WebView2, law-il-E2B Q4_K_M GGUF (~1.3 GB) from HuggingFace → uploads all 4 to `v-deps-1.0.0` GitHub Release
+- `publish.ps1` (root + apps/desktop) — all download URLs now point to `v-deps-1.0.0` GitHub Release (no external deps during CI)
+- `installer.iss` — GGUF bundled to `{app}\models\law-il-E2B-Q4_K_M.gguf`
+- `OllamaService.cs` — `GetBundledGgufPath()` + `CreateFromLocalAsync()`: prefers local GGUF, falls back to Ollama Hub pull
+
+**New packages added:**
+- `packages/support-diagnostics` — full diagnostics collection, crash reporting, redaction pipeline, support bundle export (Claude-Code-readable NDJSON)
+- `packages/update-core` — architecture-only: VersionManifest parser, UpdateChannel abstraction, RollbackMetadata, UpdateStateStore
+- `packages/enterprise-hooks` — architecture-only capability registry: multi-user, centralized storage, admin console, enterprise backup — all disabled at beta tier
+- `packages/encrypted-backup` — AES-256-GCM backup implementation using Node.js built-in crypto; PBKDF2 key derivation; env-var key support; backup manifest signing
+
+**Desktop shell hardening:**
+- `FactumIL.Desktop/StartupValidator.cs` — validates DB, Node, API, Ollama, disk space at boot
+- `FactumIL.Desktop/DiagnosticsService.cs` — crash capture, startup diagnostics, support bundle request
+- `FactumIL.Desktop/RecoveryWindow.xaml` + `.cs` — Hebrew RTL recovery UI: Continue/Export Bundle/Open Logs/Exit
+
+**Dashboard additions:**
+- `apps/dashboard/src/components/admin/HealthStatusPanel.tsx` — live health status widget (30s refresh)
+- `apps/dashboard/src/components/admin/SupportExportButton.tsx` — support bundle export trigger
+- Updated `DiagnosticsPage.tsx` + `MissionControlPage.tsx`
+
+**API routes:**
+- `packages/api/src/routes/diagnostics.ts` — GET /status, POST /bundle, GET/DELETE /crashes
+
+**Reporting:**
+- `reports/commercial-beta-readiness-report.md` — full beta readiness assessment
+
+### What to do next
+
+1. **Run `stage-deps.yml`** manually from GitHub Actions → populates `v-deps-1.0.0` release with 4 assets
+2. **Merge PR #9** when CI passes
+3. **Push tag `v1.0.0-beta.1`** → triggers `build-installer.yml` → produces installer
+4. **Test on clean Windows machine** per deployment checklist in the readiness report
+5. **Code signing** — get Windows Authenticode cert for v1.0.1 (SmartScreen warning on unsigned EXE)
+6. **Auto-update** — implement using `packages/update-core` interfaces (Phase 10)
+
+## Migration Slots Used
+001–039: core schema, CRM, academic hub, FTS5, security, observability
+040: Metrics
+041: EventStore + EventHandlerLog + DeadLetterQueue
+042: Entities + EntityRelations (legal-ontology)
+043: CaseMemory + UserPreferences + AgentRunLog
+044: DocumentChunks + ChunkEmbeddings + fts_document_chunks
+045: AgentResults
+046: ProceduralChecklist + RiskAssessments
+047: DocumentVersions + Annotations
+048: DocumentSignatures
+049: WorkflowStates + WorkflowIdempotencyLog + AgentRunRegistry
+050: PipelineLogs
+051: VacuumSessions
+052: vec_chunks (SKIP_ON_ERROR)
+053: AgentExecutionEvents
+
+Next available: **054**
+
 ## CI Status
 All checks pass (2026-05-25):
 - `pnpm -r typecheck` ✓ (0 errors, 23 packages)

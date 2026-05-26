@@ -101,7 +101,8 @@ $PackageBuildOrder = @(
     'shared', 'database', 'legal-ontology', 'events', 'observability',
     'model-router', 'memory', 'retrieval', 'ai', 'ai-guardrails',
     'citation-engine', 'pipeline', 'evals', 'orchestrator', 'policy-engine',
-    'agent-core', 'api'
+    'agent-core', 'support-diagnostics', 'update-core',
+    'enterprise-hooks', 'encrypted-backup', 'api'
 )
 
 Push-Location $RepoRoot
@@ -164,7 +165,8 @@ $WorkspacePackages = @(
     'shared', 'database', 'legal-ontology', 'events', 'observability',
     'model-router', 'memory', 'retrieval', 'ai', 'ai-guardrails',
     'citation-engine', 'pipeline', 'evals', 'orchestrator', 'policy-engine',
-    'agent-core'
+    'agent-core', 'support-diagnostics', 'update-core',
+    'enterprise-hooks', 'encrypted-backup'
 )
 foreach ($pkg in $WorkspacePackages) {
     $SrcDist = Join-Path $RepoRoot "packages\$pkg\dist"

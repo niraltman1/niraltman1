@@ -4,6 +4,7 @@ import {
 } from '@phosphor-icons/react';
 import { useMissionControl } from '@/api/hooks.js';
 import type { MissionControlSnapshot } from '@/api/hooks.js';
+import { HealthStatusPanel } from '@/components/admin/HealthStatusPanel.js';
 
 function SectionCard({ title, icon, children }: {
   title: string;
@@ -200,6 +201,15 @@ export function MissionControlPage() {
             <HeartbeatIcon size={14} />
           </button>
         </div>
+      </div>
+
+      {/* ── Operational Health ─────────────────────────────────────────────── */}
+      <div className="space-y-2">
+        <h2 className="flex items-center gap-2 text-parchment/60 text-xs font-semibold uppercase tracking-widest">
+          <span className="text-gold"><HeartbeatIcon size={14} /></span>
+          בריאות התפעול
+        </h2>
+        <HealthStatusPanel compact={false} />
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">

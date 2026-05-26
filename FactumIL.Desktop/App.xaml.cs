@@ -4,12 +4,16 @@ namespace FactumIL.Desktop;
 
 public partial class App : Application
 {
-    private ApiHostService?  _apiHost;
-    private OllamaService?   _ollama;
+    private ApiHostService?    _apiHost;
+    private OllamaService?     _ollama;
+    private DiagnosticsService _diagnostics = new();
 
     protected override void OnStartup(StartupEventArgs e)
     {
         base.OnStartup(e);
+
+        // Install global crash handlers as early as possible.
+        DiagnosticsService.InstallGlobalHandlers(_diagnostics);
 
         // 1. Start Node.js API server hidden (non-blocking — process is spawned).
         _apiHost = new ApiHostService();
@@ -85,10 +89,42 @@ public partial class App : Application
             splash.SetOllamaStatus("AI לא מותקן");
         }
 
-        // Step d — Boot complete: close splash, open main window on the UI thread.
-        splash.Dispatcher.Invoke(() =>
+        // Step d — Validate system state before showing the main window.
+        splash.Dispatcher.Invoke(() => splash.SetApiStatus("מאמת מצב מערכת…"));
+        var validator       = new StartupValidator();
+        var validationResult = await validator.ValidateAsync();
+
+        // Record the startup diagnostic snapshot (non-blocking, best-effort).
+        _ = _diagnostics.RecordStartupDiagnosticAsync(validationResult);
+
+        // Step e — If unhealthy, show recovery window (modal) before proceeding.
+        if (!validationResult.IsHealthy)
         {
-            splash.Close();
+            bool shouldContinue = false;
+            splash.Dispatcher.Invoke(() =>
+            {
+                splash.Close();
+                var recovery = new RecoveryWindow(
+                    validationResult.Warnings,
+                    validationResult.Errors,
+                    _diagnostics);
+                shouldContinue = recovery.ShowDialog() == true;
+            });
+
+            if (!shouldContinue)
+            {
+                // User chose "Exit" from the recovery window — already shut down.
+                return;
+            }
+        }
+        else
+        {
+            splash.Dispatcher.Invoke(() => splash.Close());
+        }
+
+        // Step f — Boot complete: open main window on the UI thread.
+        Dispatcher.Invoke(() =>
+        {
             var main = new MainWindow();
             MainWindow = main;
             main.Show();

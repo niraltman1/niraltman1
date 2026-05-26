@@ -4,6 +4,7 @@ import {
   useCreateBackup, useRepairManifest, useReplayJob, useCheckIntegrity,
   useUpdateStatus, useTriggerContentUpdate, useSecurityStatus, useAiHealth,
   useStartVacuum, useVacuumStatus,
+  deleteJSON,
 } from '@/api/hooks.js';
 import type { UpdateLogRecord, VacuumSessionData } from '@/api/hooks.js';
 import {
@@ -11,7 +12,10 @@ import {
   CheckCircleIcon, WarningCircleIcon, CircleNotchIcon,
   ArrowCounterClockwiseIcon, ShieldCheckIcon, ClockCounterClockwiseIcon,
   LockIcon, ArrowsClockwiseIcon, BrainIcon, HardDrivesIcon,
+  BugIcon, FirstAidKitIcon, RobotIcon, TrashIcon,
 } from '@phosphor-icons/react';
+import { HealthStatusPanel } from '@/components/admin/HealthStatusPanel.js';
+import { SupportExportButton } from '@/components/admin/SupportExportButton.js';
 
 // ─────────────────────────────────────────────────────────────────────────────
 //  Worker health panel
@@ -545,6 +549,224 @@ function VacuumProtocolPanel() {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
+//  Recent Crashes panel
+// ─────────────────────────────────────────────────────────────────────────────
+
+interface CrashSummary {
+  id:         string;
+  timestamp:  string;
+  type:       string;
+  message:    string;
+  pid?:       number;
+  source?:    string;
+}
+
+function RecentCrashesPanel() {
+  const [crashes, setCrashes]   = useState<CrashSummary[] | null>(null);
+  const [loading, setLoading]   = useState(true);
+  const [error, setError]       = useState(false);
+  const [clearing, setClearing] = useState(false);
+  const [cleared, setCleared]   = useState(false);
+
+  async function fetchCrashes() {
+    setLoading(true);
+    setError(false);
+    try {
+      const res  = await fetch('/api/diagnostics/crashes');
+      const body = (await res.json()) as
+        | { success: true; data: CrashSummary[] }
+        | CrashSummary[];
+      const data = Array.isArray(body) ? body : (body as { success: true; data: CrashSummary[] }).data;
+      setCrashes(data);
+    } catch {
+      setError(true);
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  async function handleClear() {
+    setClearing(true);
+    try {
+      await deleteJSON('/api/diagnostics/crashes');
+      setCleared(true);
+      setCrashes([]);
+      setTimeout(() => setCleared(false), 3000);
+    } catch {
+      // silently ignore
+    } finally {
+      setClearing(false);
+    }
+  }
+
+  useEffect(() => {
+    void fetchCrashes();
+  }, []);
+
+  return (
+    <div className="space-y-3">
+      <div className="flex items-center justify-between">
+        <span className="text-sm text-parchment/60">תקלות שנקלטו על-ידי DiagnosticsService</span>
+        <button
+          onClick={() => void handleClear()}
+          disabled={clearing || !crashes?.length}
+          className="px-3 py-1.5 bg-red-900/20 hover:bg-red-900/30 text-red-400 text-xs
+                     rounded transition-colors disabled:opacity-40 flex items-center gap-1.5
+                     border border-red-700/30"
+        >
+          {clearing
+            ? <CircleNotchIcon size={12} className="animate-spin" />
+            : <TrashIcon size={12} />}
+          נקה תקלות
+        </button>
+      </div>
+
+      {cleared && (
+        <div className="flex items-center gap-2 text-green-400 text-xs px-3 py-2
+                        bg-green-900/20 rounded border border-green-700/30">
+          <CheckCircleIcon size={14} />
+          רשומות התקלות נמחקו
+        </div>
+      )}
+
+      {loading && <PanelSkeleton label="טוען תקלות אחרונות…" />}
+
+      {!loading && error && (
+        <div className="flex items-center gap-2 text-red-400 text-xs px-3 py-2
+                        bg-red-900/20 rounded border border-red-700/30">
+          <WarningCircleIcon size={14} />
+          לא ניתן לטעון נתוני תקלות
+        </div>
+      )}
+
+      {!loading && !error && crashes !== null && crashes.length === 0 && (
+        <div className="flex items-center gap-2 text-green-400/70 text-sm py-4 justify-center">
+          <CheckCircleIcon size={14} />
+          לא נרשמו תקלות — המערכת יציבה
+        </div>
+      )}
+
+      {!loading && !error && crashes !== null && crashes.length > 0 && (
+        <div className="space-y-1 max-h-64 overflow-y-auto">
+          {crashes.map((crash) => (
+            <div
+              key={crash.id}
+              className="flex items-start gap-3 px-3 py-2 border-b border-parchment/5
+                         last:border-0 text-xs"
+            >
+              <BugIcon size={12} className="text-red-400 shrink-0 mt-0.5" />
+              <div className="flex-1 min-w-0 space-y-0.5">
+                <div className="flex items-center gap-2">
+                  <span className="badge text-[10px] bg-red-900/30 text-red-300">
+                    {crash.type}
+                  </span>
+                  {crash.source && (
+                    <span className="text-parchment/30 text-[10px] font-mono truncate">
+                      {crash.source}
+                    </span>
+                  )}
+                </div>
+                <p className="text-parchment/60 truncate">{crash.message}</p>
+              </div>
+              <span className="text-parchment/30 font-mono text-[10px] shrink-0">
+                {new Date(crash.timestamp).toLocaleString('he-IL')}
+              </span>
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+//  Ollama Status panel (detailed)
+// ─────────────────────────────────────────────────────────────────────────────
+
+function OllamaStatusPanel() {
+  const { data, isLoading } = useAiHealth();
+
+  if (isLoading) return <PanelSkeleton label="טוען מצב Ollama…" />;
+
+  const MODEL_NAME = 'BrainboxAI/law-il-E2B:Q4_K_M';
+
+  return (
+    <div className="space-y-4" dir="rtl">
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 text-sm">
+
+        {/* Ollama reachability */}
+        <div className="bg-navy-900/30 border border-parchment/10 rounded-lg p-3 space-y-1">
+          <p className="text-parchment/40 text-xs">חיבור לשרת Ollama</p>
+          <div className="flex items-center gap-2">
+            <span className={`w-2 h-2 rounded-full shrink-0 ${
+              data?.ollamaReachable ? 'bg-green-400 animate-pulse' : 'bg-red-400'
+            }`} />
+            <span className={`font-medium ${
+              data?.ollamaReachable ? 'text-green-300' : 'text-red-300'
+            }`}>
+              {data?.ollamaReachable ? 'זמין' : 'לא זמין'}
+            </span>
+          </div>
+          <p className="text-parchment/30 text-[10px] font-mono" dir="ltr">
+            http://localhost:11434
+          </p>
+        </div>
+
+        {/* Model loaded */}
+        <div className="bg-navy-900/30 border border-parchment/10 rounded-lg p-3 space-y-1">
+          <p className="text-parchment/40 text-xs">מודל AI</p>
+          <div className="flex items-center gap-2">
+            <span className={`w-2 h-2 rounded-full shrink-0 ${
+              data?.isLegalBrain ? 'bg-gold' : 'bg-parchment/30'
+            }`} />
+            <span className={`font-medium text-xs ${
+              data?.isLegalBrain ? 'text-gold' : 'text-parchment/50'
+            }`}>
+              {data?.isLegalBrain ? 'Law-IL E2B טעון' : 'מודל לא מזוהה'}
+            </span>
+          </div>
+        </div>
+
+        {/* Tier */}
+        <div className="bg-navy-900/30 border border-parchment/10 rounded-lg p-3 space-y-1">
+          <p className="text-parchment/40 text-xs">דרגת חומרה</p>
+          <span className="text-parchment font-medium text-sm">
+            {data?.tier === 'high'     ? 'חומרה גבוהה'
+              : data?.tier === 'standard' ? 'סטנדרטי'
+              : data?.tier === 'low'      ? 'בסיסי'
+              : 'לא ידוע'}
+          </span>
+        </div>
+      </div>
+
+      {/* Model name row */}
+      <div className="flex items-center gap-3 px-3 py-2 bg-navy-900/20 border border-parchment/10
+                      rounded-lg text-xs">
+        <RobotIcon size={14} className="text-gold shrink-0" weight="duotone" />
+        <span className="text-parchment/50">שם המודל הנדרש:</span>
+        <span className="font-mono text-parchment/80 flex-1" dir="ltr">{MODEL_NAME}</span>
+        {data?.model && data.model !== MODEL_NAME && (
+          <span className="badge text-[10px] bg-red-900/30 text-red-300">
+            אי-התאמה
+          </span>
+        )}
+        {data?.isLegalBrain && (
+          <CheckCircleIcon size={14} className="text-green-400 shrink-0" />
+        )}
+      </div>
+
+      {!data?.ollamaReachable && (
+        <div className="flex items-center gap-2 text-yellow-400 text-xs px-3 py-2
+                        bg-yellow-900/20 rounded border border-yellow-700/30">
+          <WarningCircleIcon size={14} />
+          Ollama אינו פעיל — יש להפעיל את Ollama לפני הפעלת תכונות AI
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
 //  Section wrapper
 // ─────────────────────────────────────────────────────────────────────────────
 
@@ -577,6 +799,27 @@ export function DiagnosticsPage() {
           ניטור פועלים, מעקב קבצים, גיבויים וכלי תיקון
         </p>
       </div>
+
+      {/* System health — always shown at top */}
+      <HealthStatusPanel compact={false} />
+
+      <Section icon={<FirstAidKitIcon size={16} weight="duotone" />} title="פעולות תמיכה">
+        <div className="space-y-2">
+          <p className="text-parchment/40 text-xs mb-3">
+            ייצא חבילת תמיכה כדי לשלוח לצוות התמיכה לצורך ניתוח תקלות.
+            החבילה נשמרת מקומית ואינה נשלחת לשום שרת חיצוני.
+          </p>
+          <SupportExportButton />
+        </div>
+      </Section>
+
+      <Section icon={<RobotIcon size={16} weight="duotone" />} title="מצב Ollama — מנוע AI">
+        <OllamaStatusPanel />
+      </Section>
+
+      <Section icon={<BugIcon size={16} weight="duotone" />} title="תקלות אחרונות">
+        <RecentCrashesPanel />
+      </Section>
 
       <Section icon={<LockIcon size={16} weight="duotone" />} title="כספת AES-256">
         <SecurityStatusPanel />
