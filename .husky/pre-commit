@@ -1,0 +1,39 @@
+#!/bin/sh
+# Factum-IL pre-commit hook
+# Runs fast checks before every commit. Slow checks (full test suite) run in CI.
+
+echo "Factum-IL pre-commit checks..."
+
+# 1. Block commits with the old product name
+FORBIDDEN=$(git diff --cached --name-only -z | xargs -0 grep -l "Legal-OS\|LegalOS" 2>/dev/null | grep -v "\.git" | grep -v "TASKS\.md" | grep -v "CLAUDE\.md" | grep -v "\.husky/")
+if [ -n "$FORBIDDEN" ]; then
+  echo "ERROR: Old name 'Legal-OS' or 'LegalOS' found in staged files:"
+  echo "$FORBIDDEN"
+  echo "Replace with 'Factum-IL' before committing."
+  exit 1
+fi
+
+# 2. TypeScript check for changed packages (fast: only affected packages)
+CHANGED_PACKAGES=$(git diff --cached --name-only | grep "^packages/" | sed 's|packages/||' | cut -d'/' -f1 | sort -u)
+if [ -n "$CHANGED_PACKAGES" ]; then
+  echo "Type-checking changed packages: $CHANGED_PACKAGES"
+  for pkg in $CHANGED_PACKAGES; do
+    if [ -f "packages/$pkg/tsconfig.json" ]; then
+      pnpm --filter "@factum-il/$pkg" typecheck || {
+        echo "TypeScript errors in packages/$pkg — fix before committing"
+        exit 1
+      }
+    fi
+  done
+fi
+
+# 3. Warn about potential sensitive data in logs (attorney-client privilege)
+SENSITIVE=$(git diff --cached --name-only -z | xargs -0 grep -n "console\.log.*client\|console\.log.*תז\|console\.log.*case" 2>/dev/null)
+if [ -n "$SENSITIVE" ]; then
+  echo "WARNING: Possible sensitive data logging detected:"
+  echo "$SENSITIVE"
+  echo "Review these before committing (attorney-client privilege)."
+fi
+
+echo "Pre-commit checks passed"
+exit 0

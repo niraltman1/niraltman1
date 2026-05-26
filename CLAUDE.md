@@ -25,6 +25,12 @@ This project has **two GitHub repos**:
 
 ---
 
+## Development Reference
+
+See `DEVELOPMENT.md` for: quick-start commands, architecture diagram, coding conventions, audio pipeline details, academic hub routes.
+
+---
+
 ## Monorepo Package Map
 
 ```

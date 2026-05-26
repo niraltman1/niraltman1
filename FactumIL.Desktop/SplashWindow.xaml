@@ -1,0 +1,41 @@
+<Window x:Class="FactumIL.Desktop.SplashWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        Title="Factum IL" Height="320" Width="500"
+        WindowStyle="None" AllowsTransparency="True"
+        Background="Transparent"
+        WindowStartupLocation="CenterScreen"
+        Topmost="True">
+  <Border Background="#0E1629" CornerRadius="12"
+          BorderBrush="#C9A94F" BorderThickness="1">
+    <StackPanel VerticalAlignment="Center" HorizontalAlignment="Center" Margin="40">
+      <TextBlock Text="⚖ Factum IL" FontSize="32" FontFamily="Georgia"
+                 Foreground="#C9A94F" HorizontalAlignment="Center"/>
+      <TextBlock Text="Altman Law Firm · v1.0.0"
+                 FontSize="13" Foreground="#E8D9B5" Opacity="0.6"
+                 HorizontalAlignment="Center" Margin="0,6,0,24"/>
+      <!-- API progress bar -->
+      <TextBlock x:Name="ApiStatusText" Text="מפעיל שרת API…"
+                 FontSize="11" Foreground="#E8D9B5" Opacity="0.7"
+                 HorizontalAlignment="Center" Margin="0,0,0,4"
+                 FontFamily="Segoe UI"/>
+      <ProgressBar x:Name="ApiProgressBar" Height="4" Width="340"
+                   IsIndeterminate="True"
+                   Foreground="#C9A94F" Background="#1A2340"
+                   Margin="0,0,0,16"/>
+      <!-- Ollama progress bar -->
+      <TextBlock x:Name="OllamaStatusText" Text="בודק מנוע AI…"
+                 FontSize="11" Foreground="#E8D9B5" Opacity="0.5"
+                 HorizontalAlignment="Center" Margin="0,0,0,4"
+                 FontFamily="Segoe UI"/>
+      <ProgressBar x:Name="OllamaProgressBar" Height="4" Width="340"
+                   IsIndeterminate="True"
+                   Foreground="#4CAF50" Background="#1A2340"
+                   Minimum="0" Maximum="100"/>
+      <TextBlock x:Name="OllamaPercentText" Text=""
+                 FontSize="10" Foreground="#E8D9B5" Opacity="0.4"
+                 HorizontalAlignment="Center" Margin="0,4,0,0"
+                 FontFamily="Segoe UI"/>
+    </StackPanel>
+  </Border>
+</Window>

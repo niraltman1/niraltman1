@@ -1,0 +1,49 @@
+{
+  "name": "@factum-il/api",
+  "version": "1.0.0",
+  "type": "module",
+  "scripts": {
+    "build": "tsc",
+    "start": "node dist/start.js",
+    "dev": "tsx watch src/start.ts",
+    "test": "vitest run",
+    "test:utils": "node --import tsx/esm --test src/utils/effort-controller.node-test.ts src/utils/vacuum-protocol.node-test.ts src/modules/security/__tests__/field-cipher.node-test.ts ../shared/src/logging/sanitizer.node-test.ts",
+    "test:security": "vitest run src/utils/prompt-security.test.ts src/middleware/__tests__/log-sanitizer.test.ts"
+  },
+  "dependencies": {
+    "@factum-il/agent-core": "workspace:*",
+    "@factum-il/update-core": "workspace:*",
+    "@factum-il/ai": "workspace:*",
+    "@factum-il/ai-guardrails": "workspace:*",
+    "@factum-il/litigation-intelligence": "workspace:*",
+    "@factum-il/memory": "workspace:*",
+    "@factum-il/citation-engine": "workspace:*",
+    "@factum-il/database": "workspace:*",
+    "@factum-il/events": "workspace:*",
+    "@factum-il/model-router": "workspace:*",
+    "@factum-il/observability": "workspace:*",
+    "@factum-il/shared": "workspace:*",
+    "archiver": "^7.0.1",
+    "cors": "^2.8.5",
+    "docxtemplater": "^3.68.7",
+    "express": "^4.19.2",
+    "express-rate-limit": "^7.4.0",
+    "get-port": "^7.1.0",
+    "googleapis": "^171.4.0",
+    "helmet": "^7.1.0",
+    "pizzip": "^3.2.0",
+    "rotating-file-stream": "^3.2.6",
+    "xlsx": "^0.18.5",
+    "zod": "^3.23.0"
+  },
+  "devDependencies": {
+    "@types/archiver": "^6.0.3",
+    "@types/cors": "^2.8.17",
+    "@types/express": "^4.17.21",
+    "@types/supertest": "^6.0.2",
+    "supertest": "^7.0.0",
+    "tsx": "^4.7.0",
+    "typescript": "^5.5.0",
+    "vitest": "^3.0.0"
+  }
+}
