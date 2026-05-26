@@ -28,7 +28,8 @@ function createTestDb(): RawDb {
     CREATE TABLE WorkflowIdempotencyLog (
       id              INTEGER PRIMARY KEY AUTOINCREMENT,
       idempotency_key TEXT NOT NULL UNIQUE,
-      processed_at    TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ','now'))
+      processed_at    TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ','now')),
+      acquired_at     TEXT
     );
   `);
   return db;

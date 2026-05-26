@@ -173,7 +173,11 @@ export async function ingestTabularFile(opts: {
         await effort.throttle();
       }
     } else {
-      // Excel — XLSX loads the whole workbook; use streaming for large files.
+      // Guard against OOM: reject Excel files larger than 50 MB.
+      if (fileStat.size > 50 * 1024 * 1024) {
+        errors.push('הקובץ גדול מדי לייבוא (מקסימום 50 MB)');
+      } else {
+      // Excel — XLSX loads the whole workbook.
       const wb = XLSX.readFile(filePath, {
         type:   'file',
         dense:  true,
@@ -190,6 +194,7 @@ export async function ingestTabularFile(opts: {
           if (i % 100 === 0) await effort.throttle(); // throttle every 100 rows
         }
       }
+      } // end size-guard else
     }
   } catch (e) {
     errors.push(`שגיאת פענוח קובץ: ${String(e)}`);
@@ -234,14 +239,8 @@ export async function ingestTabularFile(opts: {
     errors.push(`שגיאת רישום מסמך: ${String(e)}`);
   }
 
-  // ── Cross-link extracted case numbers with existing PDF documents ─────────
-  const caseNumbers = [...new Set(rows.map((r) => r.caseNumber).filter(Boolean))] as string[];
-  for (const cn of caseNumbers) {
-    try {
-      // This is a best-effort search; the FTS5 engine can find related PDFs
-      // The actual relational linking happens in the DocumentInsights table
-    } catch { /* non-fatal */ }
-  }
+  // Cross-linking extracted case numbers to existing Documents happens in the
+  // DocumentInsights table during AI enrichment — nothing to do here yet.
 
   return {
     filePath,

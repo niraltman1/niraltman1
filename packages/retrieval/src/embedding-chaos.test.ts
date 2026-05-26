@@ -18,8 +18,13 @@ vi.mock('./embedder.js', () => ({
   },
 }));
 
+interface EmbedRowFull {
+  chunk_id: number; embedding: unknown;
+  document_id: number; chunk_index: number; chunk_text: string;
+}
+
 // Always throw on vec_chunks to exercise JS cosine fallback path
-function makeVecThrowingDb(embedRows: Array<{ chunk_id: number; embedding: unknown }>) {
+function makeVecThrowingDb(embedRows: EmbedRowFull[]) {
   return {
     prepare: (sql: string) => ({
       run: vi.fn(),
@@ -27,7 +32,6 @@ function makeVecThrowingDb(embedRows: Array<{ chunk_id: number; embedding: unkno
       all: vi.fn().mockImplementation(() => {
         if (sql.includes('vec_chunks') || sql.includes('vec_f32')) throw new Error('no such table');
         if (sql.includes('ChunkEmbeddings')) return embedRows;
-        if (sql.includes('DocumentChunks WHERE id')) return [];
         return [];
       }),
     }),
@@ -36,23 +40,25 @@ function makeVecThrowingDb(embedRows: Array<{ chunk_id: number; embedding: unkno
 
 // ─── Chaos B: embedding corruption resilience ─────────────────────────────────
 
+const emptyChunkFields = { document_id: 0, chunk_index: 0, chunk_text: '' };
+
 describe('Chaos B — null embedding', () => {
   it('JS fallback skips null embedding rows without crashing', async () => {
-    const db = makeVecThrowingDb([{ chunk_id: 1, embedding: null }]);
+    const db = makeVecThrowingDb([{ chunk_id: 1, embedding: null, ...emptyChunkFields }]);
     await expect(hybridSearch('query', db, { caseId: 1 })).resolves.toEqual([]);
   });
 });
 
 describe('Chaos B — malformed JSON embedding', () => {
   it('JS fallback skips invalid JSON rows without crashing', async () => {
-    const db = makeVecThrowingDb([{ chunk_id: 1, embedding: '{not-json' }]);
+    const db = makeVecThrowingDb([{ chunk_id: 1, embedding: '{not-json', ...emptyChunkFields }]);
     await expect(hybridSearch('query', db, { caseId: 1 })).resolves.toBeInstanceOf(Array);
   });
 });
 
 describe('Chaos B — empty vector array', () => {
   it('empty vector produces cosine score of 0 and is filtered by 0.3 threshold', async () => {
-    const db = makeVecThrowingDb([{ chunk_id: 1, embedding: '[]' }]);
+    const db = makeVecThrowingDb([{ chunk_id: 1, embedding: '[]', ...emptyChunkFields }]);
     const results = await hybridSearch('query', db, { caseId: 1 });
     expect(results.filter((r) => r.source === 'vector')).toHaveLength(0);
   });
@@ -62,22 +68,13 @@ describe('Chaos B — high-quality valid embedding', () => {
   it('valid embedding with high cosine similarity appears in results', async () => {
     // Parallel to query vector [0.5, 0.5, 0.5] → cosine = 1.0
     const goodEmbed = JSON.stringify([0.5, 0.5, 0.5]);
-    const chunkRow  = { id: 99, document_id: 10, chunk_index: 0, chunk_text: 'good chunk' };
-
-    const db = {
-      prepare: (sql: string) => ({
-        run: vi.fn(),
-        // DocumentChunks WHERE id uses .get() not .all()
-        get: vi.fn().mockImplementation(() =>
-          sql.includes('DocumentChunks WHERE id') ? chunkRow : undefined,
-        ),
-        all: vi.fn().mockImplementation(() => {
-          if (sql.includes('vec_chunks') || sql.includes('vec_f32')) throw new Error('no such table');
-          if (sql.includes('ChunkEmbeddings')) return [{ chunk_id: 99, embedding: goodEmbed }];
-          return [];
-        }),
-      }),
+    // The new JOIN query returns chunk fields inline — no separate DocumentChunks lookup.
+    const fullEmbedRow = {
+      chunk_id: 99, embedding: goodEmbed,
+      document_id: 10, chunk_index: 0, chunk_text: 'good chunk',
     };
+
+    const db = makeVecThrowingDb([fullEmbedRow]);
 
     const results = await hybridSearch('query', db, { caseId: 1 });
     expect(results.some((r) => r.documentId === 10)).toBe(true);

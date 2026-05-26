@@ -316,7 +316,8 @@ async function runCycle(repos: Repos, targetDocumentId?: number): Promise<void> 
   }
 }
 
-let _timer: ReturnType<typeof setInterval> | null = null;
+let _timer:    ReturnType<typeof setInterval> | null = null;
+let _eventBus: EventBus | null = null;
 
 export function startRagWorker(repos: Repos, eventBus?: EventBus): void {
   if (_timer) return;
@@ -330,11 +331,15 @@ export function startRagWorker(repos: Repos, eventBus?: EventBus): void {
     { category: 'ai' },
   );
 
-  // Event-driven trigger: process immediately when OCR completes
-  eventBus?.subscribe('OCRCompleted', 'rag-worker:enrich', async (event) => {
-    logger.info(`RAG: OCRCompleted event for doc=${event.documentId}`, { category: 'ai' });
-    await runCycle(repos, event.documentId);
-  });
+  // Event-driven trigger: process immediately when OCR completes.
+  // Store bus reference so stopRagWorker() can unsubscribe and prevent listener leaks.
+  if (eventBus) {
+    _eventBus = eventBus;
+    eventBus.subscribe('OCRCompleted', 'rag-worker:enrich', async (event) => {
+      logger.info(`RAG: OCRCompleted event for doc=${event.documentId}`, { category: 'ai' });
+      await runCycle(repos, event.documentId);
+    });
+  }
 
   // Catch-up sweep for documents that missed the event (reduced from 60s → 300s)
   void runCycle(repos);
@@ -346,6 +351,10 @@ export function stopRagWorker(): void {
   if (_timer) {
     clearInterval(_timer);
     _timer = null;
-    logger.info('RAG worker stopped', { category: 'ai' });
   }
+  if (_eventBus) {
+    _eventBus.unsubscribe('OCRCompleted', 'rag-worker:enrich');
+    _eventBus = null;
+  }
+  logger.info('RAG worker stopped', { category: 'ai' });
 }

@@ -78,7 +78,7 @@ export class Orchestrator {
   acquireLock(documentId: number, db: DbHandle): boolean {
     const key = `lock:${documentId}`;
     const result = db.prepare(
-      'INSERT OR IGNORE INTO WorkflowIdempotencyLog (idempotency_key) VALUES (?)'
+      "INSERT OR IGNORE INTO WorkflowIdempotencyLog (idempotency_key, acquired_at) VALUES (?, strftime('%Y-%m-%dT%H:%M:%fZ','now'))"
     ).run(key);
     return result.changes > 0;
   }

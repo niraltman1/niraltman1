@@ -47,6 +47,7 @@ import { startDeadlineTracker, stopDeadlineTracker } from './utils/deadline-trac
 import { initRegistry } from './utils/legal-registry-loader.js';
 import { seedDefaultAdmin } from './middleware/auth.js';
 import { initLogger } from './utils/logger.js';
+import { logger } from '@factum-il/shared';
 import { ConfigStore } from './utils/config-store.js';
 import { EventStore, createEventBus } from '@factum-il/events';
 import { wireMetricsStore } from '@factum-il/observability';
@@ -150,6 +151,20 @@ try {
   `).run(new Date().toISOString());
 } catch { /* Table may not exist before migration 049 — safe to ignore */ }
 
+// Clear WorkflowIdempotencyLog locks older than 2 hours — orphaned after a crash.
+try {
+  repos.db.prepare(
+    "DELETE FROM WorkflowIdempotencyLog WHERE acquired_at < datetime('now', '-2 hours')"
+  ).run();
+} catch { /* Table may not have acquired_at column before migration 055 */ }
+
+// Prune SystemEvents older than 90 days to prevent unbounded table growth.
+try {
+  repos.db.prepare(
+    "DELETE FROM SystemEvents WHERE occurred_at < datetime('now', '-90 days')"
+  ).run();
+} catch { /* Table may not exist before migration 054 */ }
+
 const app = createApp(repos, DB_PATH);
 
 if (process.env['NODE_ENV'] === 'production') {
@@ -163,7 +178,9 @@ if (process.env['NODE_ENV'] === 'production') {
   });
 }
 
-seedDefaultAdmin(repos);
+// Only seed admin if no users exist yet (avoids re-seeding on every restart).
+const _adminCount = (repos.db.prepare('SELECT COUNT(*) as n FROM system_users').get() as { n: number }).n;
+if (_adminCount === 0) seedDefaultAdmin(repos);
 initRegistry();
 
 // Wire infrastructure spine — metrics persistence + domain event bus
@@ -182,7 +199,7 @@ const SAFE_MODE = process.env['FACTUM_IL_SAFE_MODE'] === '1';
 
 const server = app.listen(PORT, () => {
   void writeServerConfig({ port: PORT, pid: process.pid, ts: new Date().toISOString(), safeMode: SAFE_MODE });
-  console.log(`Factum IL API ready — http://localhost:${PORT}${SAFE_MODE ? ' [SAFE MODE]' : ''}`);
+  logger.info(`Factum IL API ready — http://localhost:${PORT}${SAFE_MODE ? ' [SAFE MODE]' : ''}`);
   if (!SAFE_MODE) {
     startRagWorker(repos, eventBus);
     startBackupScheduler(repos, DB_PATH);
@@ -191,7 +208,7 @@ const server = app.listen(PORT, () => {
     startRetentionScheduler(repos);
     startDeadlineTracker(repos);
   } else {
-    console.warn('[Factum IL] Safe mode active — background workers disabled');
+    logger.warn('[Factum IL] Safe mode active — background workers disabled');
   }
 });
 

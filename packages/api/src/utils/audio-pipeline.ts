@@ -48,6 +48,18 @@ async function convertToWav(inputPath: string, outputPath: string): Promise<void
   ], { timeout: 60_000 });
 }
 
+async function withRetry<T>(fn: () => Promise<T>, maxAttempts: number, delayMs: number): Promise<T> {
+  for (let attempt = 0; attempt < maxAttempts; attempt++) {
+    try {
+      return await fn();
+    } catch (err) {
+      if (attempt === maxAttempts - 1) throw err;
+      await new Promise<void>((r) => setTimeout(r, delayMs * (attempt + 1)));
+    }
+  }
+  throw new Error('unreachable');
+}
+
 async function transcribeWav(wavPath: string): Promise<string> {
   const outBase = join(tmpdir(), `whisper_${Date.now()}`);
   try {
@@ -117,10 +129,10 @@ export async function processAudio(
 
     if (wavPath) {
       try {
-        transcript = await transcribeWav(wavPath);
+        transcript = await withRetry(() => transcribeWav(wavPath), 2, 2_000);
         console.log(`[Audio] Transcribed ${basename(filePath)}: ${transcript.length} chars`);
       } catch (e) {
-        console.warn(`[Audio] Whisper transcription failed:`, e);
+        console.warn(`[Audio] Whisper transcription failed after retry:`, e);
       }
     }
 

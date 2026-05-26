@@ -1,6 +1,7 @@
 import { logger, utcNow } from '@factum-il/shared';
-import { copyFileSync, existsSync, mkdirSync, statSync } from 'node:fs';
-import { join, dirname } from 'node:path';
+import { copyFileSync, existsSync, mkdirSync, statSync, unlinkSync } from 'node:fs';
+import { join } from 'node:path';
+import Database from 'better-sqlite3';
 import type { DatabaseConnection } from './connection.js';
 
 const AGENT = 'DataArchitect';
@@ -109,9 +110,26 @@ export class DatabaseHardening {
 
     copyFileSync(dbPath, backupPath);
 
+    // Verify backup integrity before reporting success.
+    try {
+      const verifyDb = new Database(backupPath, { readonly: true });
+      try {
+        const row = verifyDb.prepare('PRAGMA integrity_check').get() as { integrity_check: string };
+        if (row.integrity_check !== 'ok') {
+          unlinkSync(backupPath);
+          throw new Error(`Backup integrity check failed: ${row.integrity_check}`);
+        }
+      } finally {
+        verifyDb.close();
+      }
+    } catch (err) {
+      if (err instanceof Error && err.message.startsWith('Backup integrity')) throw err;
+      logger.warn(`Backup integrity verification skipped: ${String(err)}`, { category: 'system', agentSource: AGENT });
+    }
+
     const sizeBytes = statSync(backupPath).size;
 
-    logger.info(`Database backup created: ${backupPath} (${sizeBytes} bytes)`, {
+    logger.info(`Database backup created and verified: ${backupPath} (${sizeBytes} bytes)`, {
       category: 'system', agentSource: AGENT,
     });
 

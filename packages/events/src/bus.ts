@@ -22,6 +22,14 @@ export class EventBus {
     this.handlers.set(kind, existing);
   }
 
+  unsubscribe(kind: EventKind, handlerId: string): void {
+    const existing = this.handlers.get(kind);
+    if (!existing) return;
+    const filtered = existing.filter((h) => h.id !== handlerId);
+    if (filtered.length === 0) this.handlers.delete(kind);
+    else this.handlers.set(kind, filtered);
+  }
+
   async publish(kindAndPayload: PublishInput): Promise<void> {
     const traceId = kindAndPayload.traceId ?? randomUUID();
     const occurredAt = new Date().toISOString();

@@ -77,11 +77,11 @@ export function createApp(repos: Repos, dbPath?: string): express.Express {
     frameguard: { action: 'deny' },
   }));
 
-  // Restrict CORS to localhost origins only
+  // Restrict CORS to localhost origins only (5174 is Vite dev fallback — excluded in production)
   app.use(cors({
     origin: [
       'http://localhost:5173',
-      'http://localhost:5174',
+      ...(process.env['NODE_ENV'] !== 'production' ? ['http://localhost:5174'] : []),
       'http://localhost:3001',
       'http://127.0.0.1:5173',
       'http://127.0.0.1:3001',
@@ -101,6 +101,8 @@ export function createApp(repos: Repos, dbPath?: string): express.Express {
   app.use('/api/auth/', rateLimit({ windowMs: 60_000, max: 20, standardHeaders: true, legacyHeaders: false }));
   // Export endpoints: 30 req/min
   app.use('/api/docx/', rateLimit({ windowMs: 60_000, max: 30, standardHeaders: true, legacyHeaders: false }));
+  // Agent endpoints: strict limit prevents event-loop saturation from concurrent Ollama calls
+  app.use('/api/agents/', rateLimit({ windowMs: 60_000, max: 3, standardHeaders: true, legacyHeaders: false }));
 
   app.use(correlationId);
   app.use(observabilityMiddleware());

@@ -269,9 +269,12 @@ export function diagnosticsRouter(repos: Repos): Router {
       // Compress into a user-friendly ZIP: factum-support-YYYYMMDD-HHMM.zip
       const filename = `factum-support-${zipDateStamp()}.zip`;
       const zipPath  = join(bundleDir, filename);
-      await zipSingleFile(bundlePath, zipPath);
-      // Remove the raw JSON — the ZIP is the canonical artefact
-      await rm(bundlePath, { force: true });
+      try {
+        await zipSingleFile(bundlePath, zipPath);
+      } finally {
+        // Always remove the raw JSON regardless of ZIP outcome.
+        await rm(bundlePath, { force: true });
+      }
 
       res.status(201).json({
         bundleId,

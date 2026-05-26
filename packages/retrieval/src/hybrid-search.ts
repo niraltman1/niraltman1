@@ -22,6 +22,7 @@ interface ChunkRow {
 
 interface EmbeddingRow {
   chunk_id: number; embedding: string;
+  document_id: number; chunk_index: number; chunk_text: string;
 }
 
 // Row shape returned by the native sqlite-vec KNN query
@@ -131,29 +132,34 @@ export async function hybridSearch(
     }
 
     if (!usedNativePath) {
-      // JS cosine fallback: load all embeddings for the case and score in-process
+      // JS cosine fallback: JOIN DocumentChunks into the embeddings query to avoid N+1 reads.
       const embedRows = db.prepare(
-        `SELECT ce.chunk_id, ce.embedding FROM ChunkEmbeddings ce
-         JOIN DocumentChunks dc ON dc.id = ce.chunk_id
-         ${opts?.caseId !== undefined ? 'JOIN Documents d ON d.id = dc.document_id WHERE d.case_id = ?' : ''}`,
+        `SELECT ce.chunk_id, ce.embedding, dc.document_id, dc.chunk_index, dc.chunk_text
+           FROM ChunkEmbeddings ce
+           JOIN DocumentChunks dc ON dc.id = ce.chunk_id
+           ${opts?.caseId !== undefined ? 'JOIN Documents d ON d.id = dc.document_id WHERE d.case_id = ?' : ''}`,
       ).all(...(opts?.caseId !== undefined ? [opts.caseId] : [])) as EmbeddingRow[];
 
       for (const er of embedRows) {
-        // Skip null/empty embeddings gracefully (corrupted or not-yet-generated rows)
         if (!er.embedding) continue;
         let vec: number[];
         try {
           vec = JSON.parse(er.embedding) as number[];
         } catch {
-          continue; // skip malformed JSON — do not crash the search
+          continue;
         }
         if (!Array.isArray(vec) || vec.length === 0) continue;
         const score = cosineSimilarity(queryEmbedding, vec);
         if (score > 0.3) {
-          const chunkRow = db.prepare(
-            `SELECT id, document_id, chunk_index, chunk_text FROM DocumentChunks WHERE id = ?`,
-          ).get(er.chunk_id) as ChunkRow | undefined;
-          if (chunkRow) vectorResults.push({ row: chunkRow, score });
+          vectorResults.push({
+            row: {
+              id:          er.chunk_id,
+              document_id: er.document_id,
+              chunk_index: er.chunk_index,
+              chunk_text:  er.chunk_text,
+            },
+            score,
+          });
         }
       }
       vectorResults.sort((a, b) => b.score - a.score);

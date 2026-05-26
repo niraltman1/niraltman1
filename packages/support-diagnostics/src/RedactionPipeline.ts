@@ -17,14 +17,17 @@ let _instance: RedactionPipeline | null = null;
 // Pattern definitions
 // ---------------------------------------------------------------------------
 
-/** Matches 9-digit runs that look like Israeli ID numbers (ת.ז.) */
-const ISRAELI_ID_RE = /\b\d{9}\b/g;
+/** Candidate 9-digit runs — further filtered by Luhn mod-10 checksum below. */
+const NINE_DIGITS_RE = /\b\d{9}\b/g;
 
 /** Email addresses */
 const EMAIL_RE = /[a-zA-Z0-9._%+\-]+@[a-zA-Z0-9.\-]+\.[a-zA-Z]{2,}/g;
 
-/** Israeli mobile (05x) and landline (0x-xxxxxxx) phone numbers */
-const PHONE_RE = /\b0(?:5\d[-\s]?\d{7}|\d[-\s]?\d{7})\b/g;
+/** Israeli mobile (05x), landline (0x-xxxxxxx), and international (+972-xx-xxxxxxx). */
+const PHONE_RE = /\b0(?:5\d[-\s]?\d{7}|\d[-\s]?\d{7})\b|\+972[-\s]?\d{1,2}[-\s]?\d{7}/g;
+
+/** Israeli IBAN: IL + 2 check digits + 19 digits = 23 chars. */
+const IBAN_RE = /\bIL\d{21}\b/g;
 
 /**
  * File path segments that suggest personal/case data.
@@ -53,6 +56,22 @@ const HEBREW_NAME_AFTER_MARKER_RE =
   /(?:של|עו״ד|עורך\s*דין)\s+[א-ת]{2,15}(?:\s+[א-ת]{2,15})?/g;
 
 // ---------------------------------------------------------------------------
+// Luhn mod-10 checksum for Israeli ID numbers (ת.ז.)
+// Prevents over-redaction of non-ID 9-digit numbers (case numbers, dates, etc.)
+// ---------------------------------------------------------------------------
+
+function isValidIsraeliId(digits: string): boolean {
+  if (digits.length !== 9) return false;
+  let sum = 0;
+  for (let i = 0; i < 9; i++) {
+    let val = (digits.charCodeAt(i) - 48) * (i % 2 === 0 ? 1 : 2);
+    if (val > 9) val -= 9;
+    sum += val;
+  }
+  return sum % 10 === 0;
+}
+
+// ---------------------------------------------------------------------------
 // Implementation
 // ---------------------------------------------------------------------------
 
@@ -67,7 +86,10 @@ export class RedactionPipeline {
     let out = input;
     out = out.replace(EMAIL_RE, '[EMAIL_REDACTED]');
     out = out.replace(PHONE_RE, '[PHONE_REDACTED]');
-    out = out.replace(ISRAELI_ID_RE, '[ID_REDACTED]');
+    out = out.replace(IBAN_RE, '[IBAN_REDACTED]');
+    // Only redact 9-digit numbers that pass the Israeli ID checksum to avoid
+    // redacting case numbers, dates, and other numeric identifiers.
+    out = out.replace(NINE_DIGITS_RE, (match) => isValidIsraeliId(match) ? '[ID_REDACTED]' : match);
     out = out.replace(SENSITIVE_PATH_RE, '/[REDACTED_PATH]');
     out = out.replace(CASE_NUMBER_RE, '[CASE_NUMBER_REDACTED]');
     out = out.replace(HEBREW_NAME_AFTER_MARKER_RE, (match) => {

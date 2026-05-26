@@ -1,6 +1,9 @@
 const PII_PATTERNS: Array<[RegExp, string]> = [
   [/\b\d{9}\b/g, '[ID_NUMBER]'],
   [/\b05\d[-\s]?\d{7}\b/g, '[PHONE]'],
+  [/\b0[23489]-?\d{7}\b/g, '[PHONE]'],
+  [/\+972[-\s]?\d{1,2}[-\s]?\d{7}/g, '[PHONE]'],
+  [/\bIL\d{21}\b/g, '[IBAN]'],
   [/[a-zA-Z0-9._%+\-]+@[a-zA-Z0-9.\-]+\.[a-zA-Z]{2,}/g, '[EMAIL]'],
   [/"id_number"\s*:\s*"[^"]*"/g, '"id_number":"[REDACTED]"'],
   [/"phone"\s*:\s*"[^"]*"/g, '"phone":"[REDACTED]"'],

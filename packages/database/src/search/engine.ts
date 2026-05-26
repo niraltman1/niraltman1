@@ -203,12 +203,19 @@ export class SearchEngine {
     docIdFilter?: number[] | null,
   ): SearchHit[] {
     try {
-      const idClause = docIdFilter && docIdFilter.length > 0
-        ? `AND d.id IN (${docIdFilter.join(',')})`
+      // Guard against SQL injection via arithmetic interpolation: coerce to safe integer.
+      const safeDays = recentDays !== undefined && Number.isFinite(Number(recentDays)) && Number(recentDays) > 0
+        ? Math.floor(Number(recentDays))
+        : undefined;
+
+      const recencyBoost = safeDays
+        ? `+ (CASE WHEN d.created_at >= datetime('now', '-${safeDays} days') THEN 2.0 ELSE 0.0 END)`
         : '';
 
-      const recencyBoost = recentDays
-        ? `+ (CASE WHEN d.created_at >= datetime('now', '-${recentDays} days') THEN 2.0 ELSE 0.0 END)`
+      // Use parameterized placeholders — never interpolate ID arrays into SQL strings.
+      const idFilter = docIdFilter && docIdFilter.length > 0 ? docIdFilter : null;
+      const idClause = idFilter
+        ? `AND d.id IN (${idFilter.map(() => '?').join(',')})`
         : '';
 
       const rows = this.db.prepare(`
@@ -221,7 +228,7 @@ export class SearchEngine {
            ${idClause}
          ORDER BY adj_rank DESC
          LIMIT ?
-      `).all(ftsQuery, limit) as Record<string, unknown>[];
+      `).all(ftsQuery, ...(idFilter ?? []), limit) as Record<string, unknown>[];
 
       return rows.map((r) => ({
         entityType: 'document' as const,
