@@ -5,6 +5,18 @@ import { asyncHandler } from '../utils/async-handler.js';
 import { ok } from '../utils/response.js';
 import { validate } from '../middleware/validate.js';
 import { fetchContentBundle, applyContentBundle } from '../modules/updates/content-updater.js';
+import { VersionManifestParser, UpdateChannelManager } from '@factum-il/update-core';
+
+const CURRENT_VERSION = '1.0.0';
+
+const dataPath = process.env['FACTUM_IL_DATA_PATH']
+  ?? (process.env['LOCALAPPDATA'] ? `${process.env['LOCALAPPDATA']}/FactumIL` : '');
+
+const channelManager = new UpdateChannelManager(dataPath);
+
+const setChannelSchema = z.object({
+  channel: z.enum(['beta', 'stable', 'enterprise']),
+}).strict();
 
 const logUpdateSchema = z.object({
   channel: z.enum(['security', 'content']),
@@ -39,6 +51,61 @@ export function updatesRouter(repos: Repos): Router {
       body.error    ?? null,
     );
     ok(res, { logged: true });
+  }));
+
+  // GET /api/updates/app-check — checks for a newer installer via the channel manifest
+  router.get('/app-check', asyncHandler(async (_req, res) => {
+    const channel = await channelManager.getChannel();
+    const manifestUrl = UpdateChannelManager.getManifestUrl(channel);
+
+    try {
+      const controller = new AbortController();
+      const timer = setTimeout(() => controller.abort(), 5_000);
+      let manifest = null;
+      try {
+        const response = await fetch(manifestUrl, { signal: controller.signal });
+        if (response.ok) {
+          manifest = VersionManifestParser.parse(await response.json());
+        }
+      } finally {
+        clearTimeout(timer);
+      }
+
+      if (manifest === null) {
+        ok(res, { available: false, currentVersion: CURRENT_VERSION, channel, error: 'manifest unavailable' });
+        return;
+      }
+
+      const comparison = VersionManifestParser.compareVersions(CURRENT_VERSION, manifest.latestVersion);
+      const available  = comparison === -1;
+      const mandatory  = available && VersionManifestParser.isMandatoryUpdate(manifest, CURRENT_VERSION);
+
+      ok(res, {
+        available,
+        currentVersion:  CURRENT_VERSION,
+        latestVersion:   manifest.latestVersion,
+        channel,
+        mandatory,
+        releaseNotes:    available ? manifest.releaseNotes : null,
+        assetUrl:        available ? manifest.assetUrl     : null,
+        releaseDate:     available ? manifest.releaseDate  : null,
+      });
+    } catch {
+      ok(res, { available: false, currentVersion: CURRENT_VERSION, channel, error: 'check failed' });
+    }
+  }));
+
+  // POST /api/updates/channel — switch the update channel
+  router.post('/channel', validate(setChannelSchema), asyncHandler(async (req, res) => {
+    const { channel } = req.body as z.infer<typeof setChannelSchema>;
+    await channelManager.setChannel(channel);
+    ok(res, { channel });
+  }));
+
+  // GET /api/updates/channel — current update channel
+  router.get('/channel', asyncHandler(async (_req, res) => {
+    const channel = await channelManager.getChannel();
+    ok(res, { channel });
   }));
 
   router.post('/content/trigger', asyncHandler(async (_req, res) => {

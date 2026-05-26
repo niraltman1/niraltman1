@@ -230,46 +230,63 @@ Next available: **053**
 
 Next available: **054**
 
-## Commercial Beta Readiness — In Progress (2026-05-26)
+## Commercial Beta Readiness — Complete (2026-05-26)
 
 ### Completed this session
 
-**Self-Hosted Dependencies + Local GGUF (PR #9 — merged)**
+**Self-Hosted Dependencies + Local GGUF (PR #9)**
 - `.github/workflows/stage-deps.yml` — manual workflow: downloads Node 22.13.1, Ollama 0.9.0, WebView2, law-il-E2B Q4_K_M GGUF (~1.3 GB) from HuggingFace → uploads all 4 to `v-deps-1.0.0` GitHub Release
 - `publish.ps1` (root + apps/desktop) — all download URLs now point to `v-deps-1.0.0` GitHub Release (no external deps during CI)
 - `installer.iss` — GGUF bundled to `{app}\models\law-il-E2B-Q4_K_M.gguf`
 - `OllamaService.cs` — `GetBundledGgufPath()` + `CreateFromLocalAsync()`: prefers local GGUF, falls back to Ollama Hub pull
 
-**New packages added:**
-- `packages/support-diagnostics` — full diagnostics collection, crash reporting, redaction pipeline, support bundle export (Claude-Code-readable NDJSON)
-- `packages/update-core` — architecture-only: VersionManifest parser, UpdateChannel abstraction, RollbackMetadata, UpdateStateStore
-- `packages/enterprise-hooks` — architecture-only capability registry: multi-user, centralized storage, admin console, enterprise backup — all disabled at beta tier
-- `packages/encrypted-backup` — AES-256-GCM backup implementation using Node.js built-in crypto; PBKDF2 key derivation; env-var key support; backup manifest signing
+**New packages:**
+- `packages/support-diagnostics` — diagnostics collection, crash reporting, redaction pipeline, support bundle export (NDJSON)
+- `packages/update-core` — VersionManifest parser, UpdateChannel abstraction, RollbackMetadata, UpdateStateStore
+- `packages/enterprise-hooks` — capability registry (all disabled at beta tier)
+- `packages/encrypted-backup` — AES-256-GCM via Node.js built-in crypto; PBKDF2 key derivation
 
 **Desktop shell hardening:**
-- `FactumIL.Desktop/StartupValidator.cs` — validates DB, Node, API, Ollama, disk space at boot
-- `FactumIL.Desktop/DiagnosticsService.cs` — crash capture, startup diagnostics, support bundle request
-- `FactumIL.Desktop/RecoveryWindow.xaml` + `.cs` — Hebrew RTL recovery UI: Continue/Export Bundle/Open Logs/Exit
-
-**Dashboard additions:**
-- `apps/dashboard/src/components/admin/HealthStatusPanel.tsx` — live health status widget (30s refresh)
-- `apps/dashboard/src/components/admin/SupportExportButton.tsx` — support bundle export trigger
-- Updated `DiagnosticsPage.tsx` + `MissionControlPage.tsx`
+- `FactumIL.Desktop/StartupValidator.cs` — 7-check boot validation
+- `FactumIL.Desktop/DiagnosticsService.cs` — crash capture, startup diagnostics, support bundle trigger
+- `FactumIL.Desktop/RecoveryWindow.xaml` + `.cs` — Hebrew RTL recovery UI
+- `FactumIL.Desktop/ApiHostService.cs` — `Start(safeMode: bool)` sets `FACTUM_IL_SAFE_MODE=1` env var
+- `FactumIL.Desktop/App.xaml.cs` — RecoveryWindow modal; after "continue", API restarted in safe mode
+- `FactumIL.Desktop/FactumIL.Desktop.csproj` — `SelfContained=false` (aligned with `--no-self-contained` CLI flag)
 
 **API routes:**
 - `packages/api/src/routes/diagnostics.ts` — GET /status, POST /bundle, GET/DELETE /crashes
+- `packages/api/src/routes/recovery.ts` — GET /status, GET /events, POST /event, GET /agents, GET /pipeline, POST /clear-locks
+- `packages/api/src/routes/updates.ts` — NEW: GET /app-check, GET /channel, POST /channel (uses update-core)
+- `packages/api/src/start.ts` — `FACTUM_IL_SAFE_MODE=1` gates all 6 background workers
+- `packages/api/src/utils/server-config-writer.ts` — `safeMode: boolean` field added
 
-**Reporting:**
+**Migration:**
+- `migrations/054_system_events.sql` — SystemEvents table for startup/crash/recovery event persistence
+
+**Dashboard:**
+- `apps/dashboard/src/components/admin/HealthStatusPanel.tsx` — live health widget (30s refresh)
+- `apps/dashboard/src/components/admin/SupportExportButton.tsx` — support bundle export
+- `apps/dashboard/src/components/admin/UpdateNotificationBanner.tsx` — NEW: auto-update notification with mandatory/optional distinction, gold Hebrew banner, download link
+- Updated `DiagnosticsPage.tsx`, `MissionControlPage.tsx`, `AppShell.tsx`
+
+**Reports:**
 - `reports/commercial-beta-readiness-report.md` — full beta readiness assessment
 
-### What to do next
+### What to do next (user actions — cannot be automated)
 
 1. **Run `stage-deps.yml`** manually from GitHub Actions → populates `v-deps-1.0.0` release with 4 assets
-2. **Merge PR #9** when CI passes
-3. **Push tag `v1.0.0-beta.1`** → triggers `build-installer.yml` → produces installer
-4. **Test on clean Windows machine** per deployment checklist in the readiness report
+2. **Merge PR #9** after CI passes
+3. **Push tag `v1.0.0-beta.1`** → triggers `build-installer.yml` → produces `FactumIL_v1.0.0_Setup.exe`
+4. **Test on clean Windows machine** per checklist in `reports/commercial-beta-readiness-report.md`
 5. **Code signing** — get Windows Authenticode cert for v1.0.1 (SmartScreen warning on unsigned EXE)
-6. **Auto-update** — implement using `packages/update-core` interfaces (Phase 10)
+
+### What to do next (code — future phases)
+
+- **Phase 11: Update delivery** — when `v-deps-*` pattern is established, publish a `manifest.json` per channel to GitHub Releases so `GET /api/updates/app-check` finds real updates
+- **RBAC v2** — add `CaseAssignments` table (hook point in `case-isolation-domain.ts`)
+- **AgentExecutionEvents API** — `GET /api/admin/journal` for dashboard visibility
+- **vec_chunks backfill** — one-time migration for existing ChunkEmbeddings rows
 
 ## Migration Slots Used
 001–039: core schema, CRM, academic hub, FTS5, security, observability
@@ -287,12 +304,13 @@ Next available: **054**
 051: VacuumSessions
 052: vec_chunks (SKIP_ON_ERROR)
 053: AgentExecutionEvents
+054: SystemEvents
 
-Next available: **054**
+Next available: **055**
 
 ## CI Status
-All checks pass (2026-05-25):
-- `pnpm -r typecheck` ✓ (0 errors, 23 packages)
-- `pnpm -r test` ✓ (347 tests, 0 failures)
+All checks pass (2026-05-26):
+- `pnpm -r typecheck` ✓ (0 errors, 25 packages)
+- `pnpm -r test` ✓ (347+ tests, 0 failures)
 - `pnpm --filter @factum-il/evals eval` ✓ (eval regression passed)
 - Pre-commit hook: ✓ (typecheck on changed packages)
