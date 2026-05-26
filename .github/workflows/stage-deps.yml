@@ -1,0 +1,62 @@
+name: Stage Dependencies
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  stage:
+    name: Download and publish v-deps-1.0.0
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Download Node.js 22.13.1 (Windows x64)
+        run: |
+          curl -fsSL -o node-v22.13.1-win-x64.zip \
+            https://nodejs.org/dist/v22.13.1/node-v22.13.1-win-x64.zip
+          echo "node zip: $(du -sh node-v22.13.1-win-x64.zip | cut -f1)"
+
+      - name: Download Ollama installer (pinned v0.9.0)
+        run: |
+          curl -fsSL -o OllamaSetup.exe \
+            https://github.com/ollama/ollama/releases/download/v0.9.0/OllamaSetup.exe
+          echo "OllamaSetup: $(du -sh OllamaSetup.exe | cut -f1)"
+
+      - name: Download WebView2 bootstrapper
+        run: |
+          curl -fsSL -L -o MicrosoftEdgeWebview2Setup.exe \
+            "https://go.microsoft.com/fwlink/p/?LinkId=2124703"
+          echo "WebView2: $(du -sh MicrosoftEdgeWebview2Setup.exe | cut -f1)"
+
+      - name: Find and download GGUF (Q4_K_M) from HuggingFace
+        run: |
+          GGUF_FILE=$(curl -s "https://huggingface.co/api/models/BrainboxAI/law-il-E2B" \
+            | jq -r '.siblings[].rfilename | select(test("Q4_K_M"))')
+          echo "Detected GGUF filename: $GGUF_FILE"
+          curl -fsSL -o law-il-E2B-Q4_K_M.gguf \
+            "https://huggingface.co/BrainboxAI/law-il-E2B/resolve/main/${GGUF_FILE}"
+          echo "GGUF: $(du -sh law-il-E2B-Q4_K_M.gguf | cut -f1)"
+
+      - name: Create release v-deps-1.0.0 (if absent)
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release create v-deps-1.0.0 \
+            --repo niraltman1/niraltman1 \
+            --title "Dependencies v1.0.0" \
+            --notes "Pinned build deps: Node.js 22.13.1, Ollama 0.9.0, WebView2 bootstrapper, BrainboxAI/law-il-E2B Q4_K_M GGUF (~1.3 GB). Not a product release — used by build-installer.yml." \
+            || true
+
+      - name: Upload assets (clobber existing)
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release upload v-deps-1.0.0 \
+            --repo niraltman1/niraltman1 \
+            --clobber \
+            node-v22.13.1-win-x64.zip \
+            OllamaSetup.exe \
+            MicrosoftEdgeWebview2Setup.exe \
+            law-il-E2B-Q4_K_M.gguf

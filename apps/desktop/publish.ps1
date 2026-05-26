@@ -138,7 +138,7 @@ $NodeExtract = "$env:TEMP\node-v$NodeVersion-win-x64-extract"
 
 if (-not (Test-Path $NodeZip)) {
     Write-Host "  Downloading node-v$NodeVersion-win-x64.zip..." -ForegroundColor Gray
-    $NodeUrl = "https://nodejs.org/dist/v$NodeVersion/node-v$NodeVersion-win-x64.zip"
+    $NodeUrl = "https://github.com/niraltman1/niraltman1/releases/download/v-deps-1.0.0/node-v$NodeVersion-win-x64.zip"
     Invoke-WebRequest -Uri $NodeUrl -OutFile $NodeZip -UseBasicParsing
 } else {
     Write-Host "  Using cached $NodeZip" -ForegroundColor Gray
@@ -148,6 +148,25 @@ if (Test-Path $NodeExtract) { Remove-Item -Recurse -Force $NodeExtract }
 Expand-Archive -Path $NodeZip -DestinationPath $NodeExtract
 
 Copy-Item -Force "$NodeExtract\node-v$NodeVersion-win-x64\node.exe" "$OutDir\runtime\node.exe"
+
+# ── Download Ollama, WebView2, and AI model GGUF ──────────────────────────────
+Write-Host "[8.5/8] Downloading Ollama, WebView2, and AI model GGUF..." -ForegroundColor Cyan
+$DepsBase = "https://github.com/niraltman1/niraltman1/releases/download/v-deps-1.0.0"
+New-Item -ItemType Directory -Force -Path "$OutDir\tools" | Out-Null
+
+try {
+    Invoke-WebRequest -Uri "$DepsBase/OllamaSetup.exe" -OutFile "$OutDir\tools\OllamaSetup.exe" -UseBasicParsing -TimeoutSec 120
+} catch { Write-Host "  WARNING: Could not download OllamaSetup.exe" -ForegroundColor Yellow }
+
+try {
+    Invoke-WebRequest -Uri "$DepsBase/MicrosoftEdgeWebview2Setup.exe" -OutFile "$OutDir\tools\MicrosoftEdgeWebview2Setup.exe" -UseBasicParsing -TimeoutSec 60
+} catch { Write-Host "  WARNING: Could not download WebView2 bootstrapper" -ForegroundColor Yellow }
+
+New-Item -ItemType Directory -Force -Path "$OutDir\models" | Out-Null
+try {
+    Write-Host "  Downloading law-il-E2B-Q4_K_M.gguf (~1.3 GB) ..." -ForegroundColor Gray
+    Invoke-WebRequest -Uri "$DepsBase/law-il-E2B-Q4_K_M.gguf" -OutFile "$OutDir\models\law-il-E2B-Q4_K_M.gguf" -UseBasicParsing -TimeoutSec 1800
+} catch { Write-Host "  WARNING: Could not download GGUF — model will pull from Ollama Hub on first launch." -ForegroundColor Yellow }
 
 # ── Summary ───────────────────────────────────────────────────────────────────
 Write-Host ""

@@ -136,9 +136,17 @@ internal sealed class OllamaService
                 return;
             }
 
-            // Pull the model with streaming progress.
-            progress?.Report((0, "מוריד מודל AI (עשוי לקחת מספר דקות)…"));
-            await PullModelAsync(progress);
+            var localGguf = GetBundledGgufPath();
+            if (localGguf is not null)
+            {
+                progress?.Report((0, "טוען מודל AI מהדיסק…"));
+                await CreateFromLocalAsync(localGguf, progress);
+            }
+            else
+            {
+                progress?.Report((0, "מוריד מודל AI (עשוי לקחת מספר דקות)…"));
+                await PullModelAsync(progress);
+            }
             IsAvailable = true;
         }
         catch (Exception ex)
@@ -178,6 +186,45 @@ internal sealed class OllamaService
             return json.Contains(RequiredModel, StringComparison.OrdinalIgnoreCase);
         }
         catch { return false; }
+    }
+
+    // FACTUM_IL_ROOT = {app}\app; GGUF is installed to {app}\models\
+    private static string? GetBundledGgufPath()
+    {
+        var factumRoot = Environment.GetEnvironmentVariable("FACTUM_IL_ROOT");
+        if (string.IsNullOrEmpty(factumRoot)) return null;
+        var path = Path.GetFullPath(Path.Combine(factumRoot, "..", "models", "law-il-E2B-Q4_K_M.gguf"));
+        return File.Exists(path) ? path : null;
+    }
+
+    private static async Task CreateFromLocalAsync(string ggufPath, IProgress<(int Percent, string Status)>? progress)
+    {
+        var modelfile = $"FROM {ggufPath}";
+        var body      = JsonSerializer.Serialize(new { model = RequiredModel, modelfile, stream = true });
+        var content   = new StringContent(body, Encoding.UTF8, "application/json");
+
+        using var createClient = new HttpClient { Timeout = TimeSpan.FromMinutes(30) };
+        using var response     = await createClient.PostAsync("http://localhost:11434/api/create", content);
+        response.EnsureSuccessStatusCode();
+
+        await using var stream = await response.Content.ReadAsStreamAsync();
+        using var reader       = new System.IO.StreamReader(stream);
+
+        while (!reader.EndOfStream)
+        {
+            var line = await reader.ReadLineAsync();
+            if (string.IsNullOrWhiteSpace(line)) continue;
+            try
+            {
+                using var doc = JsonDocument.Parse(line);
+                var root      = doc.RootElement;
+                var status    = root.TryGetProperty("status", out var s) ? s.GetString() ?? "" : "";
+                progress?.Report((50, string.IsNullOrEmpty(status) ? "טוען מודל AI…" : status));
+            }
+            catch { /* skip malformed NDJSON */ }
+        }
+
+        progress?.Report((100, "מודל AI נטען בהצלחה"));
     }
 
     private static async Task PullModelAsync(IProgress<(int Percent, string Status)>? progress)

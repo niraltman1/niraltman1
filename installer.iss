@@ -108,6 +108,9 @@ Source: "FactumIL_Dist\tools\MicrosoftEdgeWebview2Setup.exe";     DestDir: "{app
 Source: "FactumIL_Dist\tools\whisper-fast.exe";                   DestDir: "{app}\tools"; Flags: ignoreversion skipifsourcedoesntexist
 Source: "FactumIL_Dist\tools\ffmpeg.exe";                         DestDir: "{app}\tools"; Flags: ignoreversion skipifsourcedoesntexist
 
+; ── AI model GGUF (bundled — no internet required on first launch) ────────────
+Source: "FactumIL_Dist\models\law-il-E2B-Q4_K_M.gguf"; DestDir: "{app}\models"; Flags: ignoreversion skipifsourcedoesntexist
+
 [Icons]
 ; Start Menu
 Name: "{group}\{#AppName}";      Filename: "{app}\{#AppExeName}"; IconFilename: "{app}\assets\logo\factum-il-icon.ico"; Tasks: startmenu

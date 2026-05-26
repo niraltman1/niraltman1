@@ -242,7 +242,7 @@ $NodeZip     = "$env:TEMP\node-v$NodeVersion-win-x64.zip"
 $NodeExtract = "$env:TEMP\node-v$NodeVersion-win-x64-extract"
 
 if (-not (Test-Path $NodeZip)) {
-    $NodeUrl = "https://nodejs.org/dist/v$NodeVersion/node-v$NodeVersion-win-x64.zip"
+    $NodeUrl = "https://github.com/niraltman1/niraltman1/releases/download/v-deps-1.0.0/node-v$NodeVersion-win-x64.zip"
     Write-Host "  Downloading $NodeUrl ..." -ForegroundColor Gray
     Invoke-WebRequest -Uri $NodeUrl -OutFile $NodeZip -UseBasicParsing
 } else {
@@ -254,35 +254,42 @@ Expand-Archive -Path $NodeZip -DestinationPath $NodeExtract
 Copy-Item -Force "$NodeExtract\node-v$NodeVersion-win-x64\node.exe" "$RuntimeDst\node.exe"
 Write-Host "  node.exe staged: $RuntimeDst\node.exe" -ForegroundColor Gray
 
-# ── Download Ollama installer + WebView2 bootstrapper ────────────────────────
-Step "Downloading Ollama installer and WebView2 bootstrapper"
-$ToolsDst = Join-Path $OutDir "tools"
+# ── Download Ollama, WebView2, and AI model GGUF ──────────────────────────────
+Step "Downloading Ollama, WebView2, and AI model GGUF"
+$ToolsDst   = Join-Path $OutDir "tools"
+$DepsBase   = "https://github.com/niraltman1/niraltman1/releases/download/v-deps-1.0.0"
 New-Item -ItemType Directory -Force -Path $ToolsDst | Out-Null
 
-# Ollama
+# Ollama (pinned via v-deps-1.0.0 release — not floating "latest")
 $OllamaExe = Join-Path $ToolsDst "OllamaSetup.exe"
-$OllamaUrl = "https://github.com/ollama/ollama/releases/latest/download/OllamaSetup.exe"
 try {
     Write-Host "  Downloading OllamaSetup.exe ..." -ForegroundColor Gray
-    Invoke-WebRequest -Uri $OllamaUrl -OutFile $OllamaExe -UseBasicParsing -TimeoutSec 120
+    Invoke-WebRequest -Uri "$DepsBase/OllamaSetup.exe" -OutFile $OllamaExe -UseBasicParsing -TimeoutSec 120
     Write-Host "  OllamaSetup.exe staged ($([math]::Round((Get-Item $OllamaExe).Length/1MB,1)) MB)" -ForegroundColor Gray
 } catch {
     Write-Host "  WARNING: Could not download OllamaSetup.exe — place it manually in: $ToolsDst" -ForegroundColor Yellow
 }
 
-# WebView2 evergreen bootstrapper (~2 MB) — bundled so install works offline
-# The bootstrapper fetches the full runtime from the internet during setup.
-# For a fully-offline installer, replace with the standalone installer (~150 MB):
-#   https://go.microsoft.com/fwlink/p/?LinkId=2124703  (bootstrapper, online)
-#   https://developer.microsoft.com/en-us/microsoft-edge/webview2/ (standalone)
+# WebView2 bootstrapper
 $WV2Exe = Join-Path $ToolsDst "MicrosoftEdgeWebview2Setup.exe"
-$WV2Url = "https://go.microsoft.com/fwlink/p/?LinkId=2124703"
 try {
-    Write-Host "  Downloading MicrosoftEdgeWebview2Setup.exe (bootstrapper) ..." -ForegroundColor Gray
-    Invoke-WebRequest -Uri $WV2Url -OutFile $WV2Exe -UseBasicParsing -TimeoutSec 60
+    Write-Host "  Downloading MicrosoftEdgeWebview2Setup.exe ..." -ForegroundColor Gray
+    Invoke-WebRequest -Uri "$DepsBase/MicrosoftEdgeWebview2Setup.exe" -OutFile $WV2Exe -UseBasicParsing -TimeoutSec 60
     Write-Host "  WebView2 bootstrapper staged ($([math]::Round((Get-Item $WV2Exe).Length/1KB,0)) KB)" -ForegroundColor Gray
 } catch {
     Write-Host "  WARNING: Could not download WebView2 bootstrapper — place MicrosoftEdgeWebview2Setup.exe in: $ToolsDst" -ForegroundColor Yellow
+}
+
+# AI model GGUF — bundled so first launch works without internet
+$GgufDst = Join-Path $OutDir "models"
+New-Item -ItemType Directory -Force -Path $GgufDst | Out-Null
+$GgufFile = Join-Path $GgufDst "law-il-E2B-Q4_K_M.gguf"
+try {
+    Write-Host "  Downloading law-il-E2B-Q4_K_M.gguf (~1.3 GB) ..." -ForegroundColor Gray
+    Invoke-WebRequest -Uri "$DepsBase/law-il-E2B-Q4_K_M.gguf" -OutFile $GgufFile -UseBasicParsing -TimeoutSec 1800
+    Write-Host "  GGUF staged ($([math]::Round((Get-Item $GgufFile).Length/1GB,2)) GB)" -ForegroundColor Gray
+} catch {
+    Write-Host "  WARNING: Could not download GGUF — model will be pulled from Ollama Hub on first launch." -ForegroundColor Yellow
 }
 
 # ── Summary ───────────────────────────────────────────────────────────────────
@@ -299,6 +306,7 @@ Write-Host "  backend\dist\start.js             $(if (Test-Path "$OutDir\backend
 Write-Host "  dashboard\index.html              $(if (Test-Path "$OutDir\dashboard\index.html") {'✓'} else {'MISSING'})" -ForegroundColor White
 Write-Host "  migrations\                        $((Get-ChildItem "$OutDir\migrations" -Filter *.sql -ErrorAction SilentlyContinue).Count) SQL files" -ForegroundColor White
 Write-Host "  tools\OllamaSetup.exe             $(if (Test-Path "$OutDir\tools\OllamaSetup.exe") {'✓'} else {'missing — add manually'})" -ForegroundColor White
+Write-Host "  models\law-il-E2B-Q4_K_M.gguf    $(if (Test-Path "$OutDir\models\law-il-E2B-Q4_K_M.gguf") {'✓'} else {'missing — will pull from Ollama Hub on first launch'})" -ForegroundColor White
 Write-Host ""
 Write-Host "  Next step:" -ForegroundColor Yellow
 Write-Host "    ISCC.exe installer.iss" -ForegroundColor Yellow
