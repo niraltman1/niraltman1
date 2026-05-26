@@ -189,6 +189,9 @@ importers:
       '@factum-il/shared':
         specifier: workspace:*
         version: link:../shared
+      '@factum-il/update-core':
+        specifier: workspace:*
+        version: link:../update-core
       archiver:
         specifier: ^7.0.1
         version: 7.0.1
