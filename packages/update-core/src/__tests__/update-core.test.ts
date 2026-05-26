@@ -1,11 +1,13 @@
-import { describe, it, expect, beforeEach, afterEach } from 'vitest';
-import { mkdtemp, rm } from 'node:fs/promises';
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
+import { mkdtemp, rm, readFile } from 'node:fs/promises';
+import { createHash } from 'node:crypto';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { VersionManifestParser } from '../VersionManifest.js';
 import { UpdateValidator } from '../UpdateValidator.js';
 import { UpdateChannelManager } from '../UpdateChannel.js';
 import { UpdateStateStore } from '../UpdateStateStore.js';
+import { UpdateDownloader } from '../UpdateDownloader.js';
 import type { VersionManifest, UpdateState } from '../types.js';
 
 // ---------------------------------------------------------------------------
@@ -343,5 +345,97 @@ describe('UpdateStateStore', () => {
     await store.write({ updateInProgress: true });
     const state = await store.read();
     expect(state.updateInProgress).toBe(true);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// UpdateDownloader
+// ---------------------------------------------------------------------------
+
+function makePayload(content: string): { bytes: Buffer; sha256: string } {
+  const bytes = Buffer.from(content, 'utf-8');
+  const sha256 = createHash('sha256').update(bytes).digest('hex');
+  return { bytes, sha256 };
+}
+
+function makeFetchMock(payload: Buffer, statusOk = true) {
+  return vi.fn().mockResolvedValue({
+    ok:     statusOk,
+    status: statusOk ? 200 : 404,
+    body:   statusOk ? makeReadableStream(payload) : null,
+    headers: new Headers({ 'content-length': String(payload.length) }),
+  });
+}
+
+function makeReadableStream(data: Buffer): ReadableStream<Uint8Array> {
+  return new ReadableStream({
+    start(controller) {
+      controller.enqueue(new Uint8Array(data));
+      controller.close();
+    },
+  });
+}
+
+describe('UpdateDownloader', () => {
+  let tmpDir: string;
+  let downloader: UpdateDownloader;
+
+  beforeEach(async () => {
+    tmpDir     = await mkdtemp(join(tmpdir(), 'factum-dl-test-'));
+    downloader = new UpdateDownloader(tmpDir);
+  });
+
+  afterEach(async () => {
+    vi.restoreAllMocks();
+    await rm(tmpDir, { recursive: true, force: true });
+  });
+
+  it('downloads file and calls onProgress with increasing percentages', async () => {
+    const { bytes, sha256 } = makePayload('fake installer binary content');
+    vi.stubGlobal('fetch', makeFetchMock(bytes));
+
+    const manifest = makeManifest({ sha256 });
+    const progEvents: number[] = [];
+
+    const result = await downloader.download(manifest, (p) => {
+      progEvents.push(p.percentComplete);
+    });
+
+    expect(result.verified).toBe(true);
+    expect(result.filePath).toContain('installer-2.0.0.exe');
+
+    // Progress must end at 100
+    const last = progEvents[progEvents.length - 1];
+    expect(last).toBe(100);
+  });
+
+  it('throws and deletes the file when SHA-256 does not match', async () => {
+    const { bytes } = makePayload('fake installer binary content');
+    vi.stubGlobal('fetch', makeFetchMock(bytes));
+
+    const manifest = makeManifest({ sha256: 'b'.repeat(64) }); // wrong hash
+
+    await expect(downloader.download(manifest)).rejects.toThrow(/sha-256 mismatch/i);
+  });
+
+  it('skips re-download if file already exists with correct hash', async () => {
+    const { bytes, sha256 } = makePayload('already downloaded content');
+    const fetchMock = makeFetchMock(bytes);
+    vi.stubGlobal('fetch', fetchMock);
+
+    const manifest = makeManifest({ sha256 });
+
+    // First download writes the file
+    await downloader.download(manifest);
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+
+    // Second call should skip fetch entirely
+    const result2 = await downloader.download(manifest);
+    expect(fetchMock).toHaveBeenCalledTimes(1); // still 1 — no re-download
+    expect(result2.verified).toBe(true);
+
+    // File contents should still be valid
+    const diskBytes = await readFile(result2.filePath);
+    expect(diskBytes.toString()).toBe('already downloaded content');
   });
 });
