@@ -63,5 +63,10 @@
   "design_commit": "f55b0e7",
   "attempts": [],
   "last_updated": "2026-05-27T08:00:00.000Z",
-  "resolved": true
+  "resolved": true,
+  "pr_merged": true,
+  "merge_sha": "55cb793cb0914b3a70dc701690fbcc68434c64a5",
+  "merge_timestamp": "2026-05-27T08:10:00.000Z",
+  "installer_status": "requires_windows",
+  "installer_note": "pnpm build:installer requires Windows + Inno Setup. Run publish.ps1 on a Windows build machine."
 }
