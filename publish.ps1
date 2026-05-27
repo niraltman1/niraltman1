@@ -213,7 +213,16 @@ foreach ($pkg in $WorkspacePackages) {
     if (-not (Test-Path $DstPkgDir)) { New-Item -ItemType Directory -Force -Path $DstPkgDir | Out-Null }
 
     New-Item -ItemType Directory -Force -Path "$DstPkgDir\dist" | Out-Null
-    Copy-Item -Recurse -Force "$SrcDist\*" "$DstPkgDir\dist"
+    for ($copyTry = 1; $copyTry -le 3; $copyTry++) {
+        try {
+            Copy-Item -Recurse -Force "$SrcDist\*" "$DstPkgDir\dist" -ErrorAction Stop
+            break
+        } catch {
+            if ($copyTry -eq 3) { throw }
+            Write-Host "  Retrying @factum-il/$pkg dist copy (attempt $copyTry/3, file lock) ..." -ForegroundColor Yellow
+            Start-Sleep -Milliseconds 800
+        }
+    }
 
     # Patch package.json to resolve to dist/index.js
     $pkgJsonPath = Join-Path $DstPkgDir "package.json"
