@@ -8,7 +8,7 @@ namespace FactumIL.Desktop;
 /// Captures diagnostic data from the desktop shell: startup snapshots, crash reports,
 /// and support bundle requests.  All methods are non-throwing.
 /// </summary>
-internal sealed class DiagnosticsService
+public sealed class DiagnosticsService
 {
     private static readonly string DiagDir = Path.Combine(
         Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
