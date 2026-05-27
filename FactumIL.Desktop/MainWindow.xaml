@@ -26,9 +26,8 @@
                     ContextMenu="{StaticResource TrayMenu}"
                     TrayMouseDoubleClick="TrayIcon_DoubleClick" />
 
-    <!-- WebView2 fills entire window -->
+    <!-- WebView2 fills entire window; source is set in code-behind after port discovery -->
     <wv2:WebView2 x:Name="WebView"
-                  Source="http://localhost:3001"
                   Margin="0" />
   </Grid>
 </Window>

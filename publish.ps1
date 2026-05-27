@@ -40,11 +40,19 @@ $RepoRoot    = $PSScriptRoot
 $DesktopDir  = Join-Path $RepoRoot "FactumIL.Desktop"
 $TotalSteps  = 10
 $Step        = 0
+$LogFile     = Join-Path $PSScriptRoot "Deployment-Log.txt"
+$BuildId     = [datetime]::UtcNow.ToString('yyyy-MM-ddTHH-mm-ssZ')
+
+function Log([string]$msg) {
+    Add-Content -Path $LogFile -Value "[$BuildId] $msg" -Encoding UTF8
+    Write-Host $msg
+}
 
 function Step([string]$msg) {
     $script:Step++
     Write-Host ""
     Write-Host "[$script:Step/$TotalSteps] $msg" -ForegroundColor Cyan
+    Log "[$script:Step/$TotalSteps] $msg"
 }
 
 function CheckExe([string]$name) {
@@ -61,6 +69,25 @@ CheckExe "node"
 Write-Host "  pnpm   : $(pnpm --version)"   -ForegroundColor Gray
 Write-Host "  dotnet : $(dotnet --version)" -ForegroundColor Gray
 Write-Host "  node   : $(node --version)"   -ForegroundColor Gray
+
+# Winget pre-flight checks (non-fatal)
+if (Get-Command winget -ErrorAction SilentlyContinue) {
+    if (winget list --id OpenJS.NodeJS.LTS 2>$null | Select-String "22\.") {
+        Log "  Node 22 LTS: confirmed via winget"
+    } else {
+        Log "  WARN: Node 22 LTS not confirmed - install: winget install OpenJS.NodeJS.LTS"
+    }
+    if (winget list --id JRSoftware.InnoSetup 2>$null | Select-String "InnoSetup") {
+        Log "  Inno Setup: confirmed via winget"
+    } else {
+        Log "  WARN: Inno Setup not found - install: winget install JRSoftware.InnoSetup"
+    }
+} else {
+    Log "  INFO: winget not available - skipping tool version checks"
+}
+$wv2Key = "HKLM:\SOFTWARE\WOW6432Node\Microsoft\EdgeUpdate\Clients\{F3017226-FE2A-4295-8BDF-00C3A9A7E4C5}"
+if (Test-Path $wv2Key) { Log "  WebView2 Runtime: present" }
+else { Log "  WARN: WebView2 Runtime not installed - installer will handle silent install" }
 
 # ── Clean output directory ────────────────────────────────────────────────────
 Step "Cleaning output directory"

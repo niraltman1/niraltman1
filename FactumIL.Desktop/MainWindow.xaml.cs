@@ -1,13 +1,23 @@
+using System.Threading.Tasks;
 using System.Windows;
 
 namespace FactumIL.Desktop;
 
 public partial class MainWindow : Window
 {
+    private int _apiPort = 3001;
+
     public MainWindow()
     {
         InitializeComponent();
         Closing += MainWindow_Closing;
+        _ = InitSourceAsync();
+    }
+
+    private async Task InitSourceAsync()
+    {
+        _apiPort = await ApiHostService.ReadPortAsync();
+        WebView.Source = new Uri($"http://localhost:{_apiPort}");
     }
 
     private void MainWindow_Closing(object? sender, System.ComponentModel.CancelEventArgs e)
@@ -25,11 +35,12 @@ public partial class MainWindow : Window
         Activate();
     }
 
-    private void TrayMenu_Restart(object sender, RoutedEventArgs e)
+    private async void TrayMenu_Restart(object sender, RoutedEventArgs e)
     {
         WebView.Source = new Uri("about:blank");
         ((App)Application.Current).RestartApi();
-        WebView.Source = new Uri("http://localhost:3001");
+        _apiPort = await ApiHostService.ReadPortAsync();
+        WebView.Source = new Uri($"http://localhost:{_apiPort}");
     }
 
     private void TrayMenu_Exit(object sender, RoutedEventArgs e)

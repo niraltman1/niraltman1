@@ -1,5 +1,8 @@
 using System.Diagnostics;
 using System.IO;
+using System.Text.Json;
+using System.Threading;
+using System.Threading.Tasks;
 using System.Windows;
 
 namespace FactumIL.Desktop;
@@ -14,6 +17,11 @@ internal sealed class ApiHostService
 
     private static string AppRoot =>
         Path.GetDirectoryName(Environment.ProcessPath ?? AppContext.BaseDirectory)!;
+
+    private static string ServerConfigPath =>
+        Path.Combine(
+            Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
+            "FactumIL", "runtime", "server_config.json");;
 
     private static string NodeExe
     {
@@ -57,7 +65,6 @@ internal sealed class ApiHostService
             RedirectStandardError  = true,
         };
 
-        psi.EnvironmentVariables["PORT"]                = "3001";
         psi.EnvironmentVariables["NODE_ENV"]            = "production";
         psi.EnvironmentVariables["FACTUM_IL_DB_PATH"]   = DbPath;
         // FACTUM_IL_ROOT points at the "app\" subdirectory so that the API
@@ -78,6 +85,9 @@ internal sealed class ApiHostService
             if (val is not null) psi.EnvironmentVariables[key] = val;
         }
 
+        // Delete stale server_config.json so ReadPortAsync won't see a port from a previous run
+        try { File.Delete(ServerConfigPath); } catch { }
+
         _process = new Process { StartInfo = psi };
         _process.OutputDataReceived += (_, e) => { if (e.Data is not null) LogLine(e.Data); };
         _process.ErrorDataReceived  += (_, e) => { if (e.Data is not null) LogLine("[ERR] " + e.Data); };
@@ -97,6 +107,30 @@ internal sealed class ApiHostService
     {
         Stop();
         Start();
+    }
+
+    /// <summary>
+    /// Polls server_config.json (written by Node after listen()) until the port is available.
+    /// Falls back to 3001 if the file never appears within the timeout.
+    /// </summary>
+    public static async Task<int> ReadPortAsync(CancellationToken ct = default)
+    {
+        var deadline = DateTime.UtcNow.AddSeconds(30);
+        while (DateTime.UtcNow < deadline && !ct.IsCancellationRequested)
+        {
+            if (File.Exists(ServerConfigPath))
+            {
+                try
+                {
+                    var json = File.ReadAllText(ServerConfigPath);
+                    using var doc = JsonDocument.Parse(json);
+                    return doc.RootElement.GetProperty("port").GetInt32();
+                }
+                catch { /* file may be mid-write — retry */ }
+            }
+            await Task.Delay(200, ct).ConfigureAwait(false);
+        }
+        return 3001; // fallback
     }
 
     private static void LogLine(string line)
