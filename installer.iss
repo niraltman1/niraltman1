@@ -5,7 +5,7 @@
 ;    1. .\publish.ps1                    (stages FactumIL_Dist\)
 ;    2. ISCC.exe installer.iss           (compiles the .exe)
 ;
-;  Output: dist-package\FactumIL_v1.0.0_Setup.exe
+;  Output: Factum-IL-Setup.exe  (repo root)
 ;
 ;  Installed layout at {app}:
 ;    FactumIL.Desktop.exe          ← WPF launcher (double-click to start)
@@ -46,8 +46,8 @@ DefaultDirName={autopf}\FactumIL
 DefaultGroupName={#AppName}
 AllowNoIcons=yes
 DisableDirPage=no
-OutputDir=dist-package
-OutputBaseFilename=FactumIL_v1.0.0_Setup
+OutputDir=.
+OutputBaseFilename=Factum-IL-Setup
 SetupIconFile=assets\logo\factum-il-icon.ico
 Compression=lzma2/ultra64
 SolidCompression=yes
