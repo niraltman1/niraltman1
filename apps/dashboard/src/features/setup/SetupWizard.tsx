@@ -104,7 +104,7 @@ function Step2System({
   onRefresh: () => void;
   onNext: () => void;
 }) {
-  const canProceed = !!status?.db.healthy && !!status.migrations.healthy;
+  const canProceed = !!(status?.db?.healthy) && !!(status?.migrations?.healthy);
 
   return (
     <div className="flex flex-col gap-5">
@@ -126,16 +126,16 @@ function Step2System({
             <WarningCircleIcon
               size={20}
               weight="duotone"
-              className={status.ollama.healthy ? 'text-green-400' : 'text-yellow-400'}
+              className={status.ollama?.healthy ? 'text-green-400' : 'text-yellow-400'}
             />
             <div className="flex-1">
               <div className="text-parchment text-sm font-medium">מנוע AI (Ollama)</div>
-              {status.ollama.detail && (
+              {status.ollama?.detail && (
                 <div className="text-parchment/50 text-xs mt-0.5">{status.ollama.detail}</div>
               )}
             </div>
-            <span className={`text-xs font-medium ${status.ollama.healthy ? 'text-green-400' : 'text-yellow-400'}`}>
-              {status.ollama.healthy ? 'תקין' : 'אזהרה'}
+            <span className={`text-xs font-medium ${status.ollama?.healthy ? 'text-green-400' : 'text-yellow-400'}`}>
+              {status.ollama?.healthy ? 'תקין' : 'אזהרה'}
             </span>
           </div>
         </div>

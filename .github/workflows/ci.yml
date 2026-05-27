@@ -29,8 +29,17 @@ jobs:
       - name: Typecheck
         run: pnpm -r typecheck
 
-      - name: Test
-        run: pnpm -r test
+      - name: Test (logic — all unit tests)
+        id: test-logic
+        run: pnpm test:logic
+
+      - name: Test (env — integration / route tests)
+        id: test-env
+        run: pnpm test:env
+
+      - name: Test (chaos — resilience scenarios)
+        id: test-chaos
+        run: pnpm test:chaos
 
   evals:
     name: Eval Regression

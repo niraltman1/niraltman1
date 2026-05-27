@@ -14,3 +14,11 @@ export { UpdateValidator }       from './UpdateValidator.js';
 export { UpdateStateStore }      from './UpdateStateStore.js';
 export { UpdateDownloader }      from './UpdateDownloader.js';
 export type { DownloadProgress } from './UpdateDownloader.js';
+
+export {
+  cleanOrphanedFiles,
+  killZombieInstallers,
+  checkDiskSpace,
+  waitForDbUnlock,
+} from './cleanup-utils.js';
+export type { DiskCheckResult } from './cleanup-utils.js';

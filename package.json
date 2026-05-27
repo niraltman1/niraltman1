@@ -17,6 +17,9 @@
     "build:all": "pnpm --filter @factum-il/api build && pnpm --filter dashboard build",
     "typecheck": "pnpm -r typecheck",
     "test": "pnpm -r test",
+    "test:logic": "pnpm -r test",
+    "test:chaos": "pnpm -r exec -- vitest run --reporter=verbose --testNamePattern='Chaos' --passWithNoTests",
+    "test:env": "pnpm --filter @factum-il/api vitest run -- src/routes/__tests__/setup.test.ts --reporter=verbose",
     "test:unit": "pnpm --filter dashboard vitest run",
     "lint": "pnpm -r lint",
     "ingest-registry": "node tools/ingest-legal-sources.mjs",
@@ -24,6 +27,7 @@
   },
   "devDependencies": {
     "@types/node": "^20.14.0",
+    "@vitest/coverage-v8": "^3.0.0",
     "concurrently": "^8.2.2",
     "typescript": "^5.5.0"
   },
