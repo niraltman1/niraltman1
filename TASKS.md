@@ -314,3 +314,30 @@ All checks pass (2026-05-26):
 - `pnpm -r test` ✓ (347+ tests, 0 failures)
 - `pnpm --filter @factum-il/evals eval` ✓ (eval regression passed)
 - Pre-commit hook: ✓ (typecheck on changed packages)
+
+## Production Build Pipeline Fixes (2026-05-27)
+
+### Completed this session
+
+**PR #19 — CS0051: StartupValidator accessibility (merged)**
+- `FactumIL.Desktop/StartupValidator.cs` — `internal sealed class` → `public sealed class`
+- Root cause: `DiagnosticsService.RecordStartupDiagnosticAsync` (public method, public class) took a parameter
+  of type `StartupValidator.ValidationResult`. The nested record was `public` but the enclosing class was
+  `internal`, making the nested type's effective accessibility `internal` → CS0051 at `dotnet publish`.
+- Allowed `pnpm build:installer` to advance past step 7 (dotnet publish) for the first time.
+
+**PR #20 — Copy-Item file lock retry in publish.ps1 (merged)**
+- `publish.ps1` workspace dist copy loop — bare `Copy-Item` replaced with 3-attempt retry (800 ms back-off)
+- Root cause: `@factum-il/shared/dist/diagnostics/index.d.ts` locked by VS Code TypeScript server or
+  Windows Defender during `Copy-Item -Recurse -Force`. With `$ErrorActionPreference = 'Stop'`, the first
+  locked file terminates `publish.ps1` non-zero → outer `pnpm build:installer` reports `ELIFECYCLE exit 1`.
+- The retry loop handles transient locks transparently; persistent locks still surface after 3 attempts.
+
+### What to do next
+
+- **Run `pnpm build:installer`** on Windows — both fixes are on `main`. Steps 7 and 8 should now pass.
+  If a new step fails, report the exact step number and error and a new fix branch will be created.
+- **If step 10 completes:** verify `FactumIL_v1.0.0_Setup.exe` exists in `FactumIL_Dist\` and install on
+  a clean Windows VM for end-to-end smoke test.
+- **Remaining planned work** (see build plan): Production Polish (installer metadata, port discovery, DB shield),
+  Coverage & Chaos Tests, Self-Healing CI Protocol, Build Environment Fixes (.nvmrc, START.cmd, build:installer script)
