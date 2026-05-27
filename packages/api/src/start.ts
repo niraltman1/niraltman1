@@ -9,7 +9,7 @@ if (_nodeMajor < 20) {
 }
 
 import { join, dirname } from 'node:path';
-import { mkdirSync } from 'node:fs';
+import { mkdirSync, existsSync, unlinkSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { writeServerConfig, clearServerConfig } from './utils/server-config-writer.js';
 import { ensureAutoVacuum } from './utils/auto-vacuum.js';
@@ -109,6 +109,15 @@ const MIGRATIONS_DIR = process.env['FACTUM_IL_ROOT']
   : join(__dirname, '..', '..', '..', 'migrations');
 
 mkdirSync(dirname(DB_PATH), { recursive: true });
+
+// Remove stale SQLite rollback-journal left by a crash (WAL files are safe — leave them)
+try {
+  const journalPath = DB_PATH + '-journal';
+  if (existsSync(journalPath)) {
+    unlinkSync(journalPath);
+    logger.warn('[startup] Removed stale .db-journal — previous session crashed mid-transaction');
+  }
+} catch { /* best effort — do not block startup */ }
 
 export const configStore = new ConfigStore(DB_PATH);
 const db = new DatabaseConnection({ path: DB_PATH });

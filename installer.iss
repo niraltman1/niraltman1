@@ -24,8 +24,9 @@
 
 #define AppName      "Factum IL"
 #define AppVersion   "1.0.0"
-#define AppPublisher "Altman Law Firm"
-#define AppURL       "https://altman-law.co.il"
+#define AppPublisher "Adv. Nir Altman"
+#define AppURL       "https://factum-il.com"
+#define AppCopyright "Copyright (C) 2026 Adv. Nir Altman. All rights reserved."
 #define AppExeName   "FactumIL.Desktop.exe"
 #define AppGUID      "{{7A3F1B2C-9D4E-4F8A-B6C5-1E2D3A4B5C6D}"
 
@@ -36,6 +37,11 @@ AppVersion={#AppVersion}
 AppVerName={#AppName} {#AppVersion}
 AppPublisher={#AppPublisher}
 AppPublisherURL={#AppURL}
+AppCopyright={#AppCopyright}
+VersionInfoProductName={#AppName}
+VersionInfoVersion={#AppVersion}
+VersionInfoCompany={#AppPublisher}
+VersionInfoCopyright={#AppCopyright}
 DefaultDirName={autopf}\FactumIL
 DefaultGroupName={#AppName}
 AllowNoIcons=yes

@@ -48,9 +48,10 @@ public partial class App : Application
         // Step a — Start Ollama (non-blocking; StartAsync handles "not installed" gracefully).
         await _ollama!.StartAsync();
 
-        // Step b — Wait for the Node.js API to be ready (up to 30 s).
+        // Step b — Discover actual port (Node may use 3002+ if 3001 is busy), then wait for API.
         splash.SetApiStatus("מפעיל שרת API…");
-        bool apiReady = await WaitForApiAsync(splash);
+        int apiPort = await ApiHostService.ReadPortAsync();
+        bool apiReady = await WaitForApiAsync(splash, apiPort);
 
         if (!apiReady)
         {
@@ -122,7 +123,8 @@ public partial class App : Application
             _apiHost?.Stop();
             await Task.Delay(500); // brief pause to let port 3001 be released
             _apiHost?.Start(safeMode: true);
-            await WaitForApiSilentAsync();
+            int recoveryPort = await ApiHostService.ReadPortAsync();
+            await WaitForApiSilentAsync(recoveryPort);
         }
         else
         {
@@ -139,13 +141,14 @@ public partial class App : Application
     }
 
     /// <summary>
-    /// Polls <c>http://localhost:3001/api/health</c> every 500 ms for up to 30 s.
+    /// Polls the API health endpoint every 500 ms for up to 30 s.
     /// Updates the splash status text while polling.
     /// Returns false (and shows an error MessageBox) on timeout.
     /// </summary>
-    private static async Task<bool> WaitForApiAsync(SplashWindow splash)
+    private static async Task<bool> WaitForApiAsync(SplashWindow splash, int port = 3001)
     {
         using var http     = new System.Net.Http.HttpClient { Timeout = TimeSpan.FromSeconds(2) };
+        var       url      = $"http://localhost:{port}/api/health";
         var       deadline = DateTime.UtcNow.AddSeconds(30);
         int       attempt  = 0;
 
@@ -157,7 +160,7 @@ public partial class App : Application
 
             try
             {
-                var res = await http.GetAsync("http://localhost:3001/api/health");
+                var res = await http.GetAsync(url);
                 if (res.IsSuccessStatusCode) return true;
             }
             catch { /* still starting */ }
@@ -180,16 +183,17 @@ public partial class App : Application
     /// Silent version of WaitForApiAsync — used after safe-mode restart when no splash
     /// window is available.  Polls for up to 20 seconds with no UI feedback.
     /// </summary>
-    private static async Task WaitForApiSilentAsync()
+    private static async Task WaitForApiSilentAsync(int port = 3001)
     {
         using var http     = new System.Net.Http.HttpClient { Timeout = TimeSpan.FromSeconds(2) };
+        var       url      = $"http://localhost:{port}/api/health";
         var       deadline = DateTime.UtcNow.AddSeconds(20);
 
         while (DateTime.UtcNow < deadline)
         {
             try
             {
-                var res = await http.GetAsync("http://localhost:3001/api/health");
+                var res = await http.GetAsync(url);
                 if (res.IsSuccessStatusCode) return;
             }
             catch { /* still starting */ }
