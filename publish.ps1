@@ -148,7 +148,7 @@ foreach ($pkg in $PackageBuildOrder) {
         continue
     }
     $pkgJson = Get-Content (Join-Path $pkgDir "package.json") | ConvertFrom-Json
-    if ($pkgJson.scripts.build) {
+    if ($pkgJson.PSObject.Properties['scripts'] -and $pkgJson.scripts.PSObject.Properties['build']) {
         Write-Host "  Building @factum-il/$pkg ..." -ForegroundColor Gray
         Push-Location $pkgDir
         pnpm build
