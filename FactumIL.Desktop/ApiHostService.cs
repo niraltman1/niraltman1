@@ -21,7 +21,7 @@ internal sealed class ApiHostService
     private static string ServerConfigPath =>
         Path.Combine(
             Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
-            "FactumIL", "runtime", "server_config.json");;
+            "FactumIL", "runtime", "server_config.json");
 
     private static string NodeExe
     {
