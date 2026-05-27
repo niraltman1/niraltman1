@@ -1,7 +1,7 @@
-#Requires -Version 5.1
+﻿#Requires -Version 5.1
 <#
 .SYNOPSIS
-    Factum IL v1.0.0 — Production Build & Stage Script
+    Factum IL v1.0.0  -  Production Build & Stage Script
     Builds all packages and stages FactumIL_Dist\ for Inno Setup packaging.
 
 .DESCRIPTION
@@ -79,7 +79,7 @@ Pop-Location
 Step "Typechecking all packages (pnpm -r typecheck)"
 Push-Location $RepoRoot
 pnpm -r typecheck
-if ($LASTEXITCODE -ne 0) { throw "TypeScript typecheck failed — fix errors before packaging" }
+if ($LASTEXITCODE -ne 0) { throw "TypeScript typecheck failed  -  fix errors before packaging" }
 Pop-Location
 
 # ── Optional: run tests ───────────────────────────────────────────────────────
@@ -87,7 +87,7 @@ if (-not $SkipTests) {
     Step "Running test suite (pnpm -r test)"
     Push-Location $RepoRoot
     pnpm -r test
-    if ($LASTEXITCODE -ne 0) { throw "Tests failed — fix failures before packaging" }
+    if ($LASTEXITCODE -ne 0) { throw "Tests failed  -  fix failures before packaging" }
     Pop-Location
 } else {
     Step "Skipping tests (-SkipTests flag set)"
@@ -146,7 +146,7 @@ if ($LASTEXITCODE -ne 0) { throw "dotnet publish failed" }
 Pop-Location
 Write-Host "  Shell staged: $ShellOut" -ForegroundColor Gray
 
-# ── Stage backend (pnpm deploy — isolated node_modules) ──────────────────────
+# ── Stage backend (pnpm deploy  -  isolated node_modules) ──────────────────────
 Step "Staging API backend (pnpm deploy --prod)"
 $BackendOut = Join-Path $OutDir "backend"
 Push-Location $RepoRoot
@@ -198,7 +198,7 @@ if ($IsWindows) {
     Write-Host "  Rebuilding native modules (better-sqlite3, sqlite-vec) for win-x64 ..." -ForegroundColor Gray
     Push-Location $BackendOut
     node node_modules\.bin\node-gyp-build 2>$null; $true   # best-effort, may not exist
-    # better-sqlite3 ships prebuilds — use their own rebuild tool.
+    # better-sqlite3 ships prebuilds  -  use their own rebuild tool.
     # This fetches better_sqlite3.node (Win32/x64) into
     # node_modules\better-sqlite3\build\Release\, which is then bundled by
     # the installer.iss "node_modules\*" recursesubdirs glob.
@@ -265,14 +265,14 @@ $ToolsDst   = Join-Path $OutDir "tools"
 $DepsBase   = "https://github.com/niraltman1/niraltman1/releases/download/v-deps-1.0.0"
 New-Item -ItemType Directory -Force -Path $ToolsDst | Out-Null
 
-# Ollama (pinned via v-deps-1.0.0 release — not floating "latest")
+# Ollama (pinned via v-deps-1.0.0 release  -  not floating "latest")
 $OllamaExe = Join-Path $ToolsDst "OllamaSetup.exe"
 try {
     Write-Host "  Downloading OllamaSetup.exe ..." -ForegroundColor Gray
     Invoke-WebRequest -Uri "$DepsBase/OllamaSetup.exe" -OutFile $OllamaExe -UseBasicParsing -TimeoutSec 120
     Write-Host "  OllamaSetup.exe staged ($([math]::Round((Get-Item $OllamaExe).Length/1MB,1)) MB)" -ForegroundColor Gray
 } catch {
-    Write-Host "  WARNING: Could not download OllamaSetup.exe — place it manually in: $ToolsDst" -ForegroundColor Yellow
+    Write-Host "  WARNING: Could not download OllamaSetup.exe  -  place it manually in: $ToolsDst" -ForegroundColor Yellow
 }
 
 # WebView2 bootstrapper
@@ -282,10 +282,10 @@ try {
     Invoke-WebRequest -Uri "$DepsBase/MicrosoftEdgeWebview2Setup.exe" -OutFile $WV2Exe -UseBasicParsing -TimeoutSec 60
     Write-Host "  WebView2 bootstrapper staged ($([math]::Round((Get-Item $WV2Exe).Length/1KB,0)) KB)" -ForegroundColor Gray
 } catch {
-    Write-Host "  WARNING: Could not download WebView2 bootstrapper — place MicrosoftEdgeWebview2Setup.exe in: $ToolsDst" -ForegroundColor Yellow
+    Write-Host "  WARNING: Could not download WebView2 bootstrapper  -  place MicrosoftEdgeWebview2Setup.exe in: $ToolsDst" -ForegroundColor Yellow
 }
 
-# AI model GGUF — bundled so first launch works without internet
+# AI model GGUF  -  bundled so first launch works without internet
 $GgufDst = Join-Path $OutDir "models"
 New-Item -ItemType Directory -Force -Path $GgufDst | Out-Null
 $GgufFile = Join-Path $GgufDst "law-il-E2B-Q4_K_M.gguf"
@@ -294,13 +294,13 @@ try {
     Invoke-WebRequest -Uri "$DepsBase/law-il-E2B-Q4_K_M.gguf" -OutFile $GgufFile -UseBasicParsing -TimeoutSec 1800
     Write-Host "  GGUF staged ($([math]::Round((Get-Item $GgufFile).Length/1GB,2)) GB)" -ForegroundColor Gray
 } catch {
-    Write-Host "  WARNING: Could not download GGUF — model will be pulled from Ollama Hub on first launch." -ForegroundColor Yellow
+    Write-Host "  WARNING: Could not download GGUF  -  model will be pulled from Ollama Hub on first launch." -ForegroundColor Yellow
 }
 
 # ── Summary ───────────────────────────────────────────────────────────────────
 Write-Host ""
 Write-Host "=" * 70 -ForegroundColor Green
-Write-Host " BUILD COMPLETE — Factum IL v1.0.0" -ForegroundColor Green
+Write-Host " BUILD COMPLETE  -  Factum IL v1.0.0" -ForegroundColor Green
 Write-Host "=" * 70 -ForegroundColor Green
 Write-Host ""
 Write-Host "  Staged to: $OutDir" -ForegroundColor White
@@ -310,8 +310,8 @@ Write-Host "  runtime\node.exe                  $(if (Test-Path "$OutDir\runtime
 Write-Host "  backend\dist\start.js             $(if (Test-Path "$OutDir\backend\dist\start.js") {'✓'} else {'MISSING'})" -ForegroundColor White
 Write-Host "  dashboard\index.html              $(if (Test-Path "$OutDir\dashboard\index.html") {'✓'} else {'MISSING'})" -ForegroundColor White
 Write-Host "  migrations\                        $((Get-ChildItem "$OutDir\migrations" -Filter *.sql -ErrorAction SilentlyContinue).Count) SQL files" -ForegroundColor White
-Write-Host "  tools\OllamaSetup.exe             $(if (Test-Path "$OutDir\tools\OllamaSetup.exe") {'✓'} else {'missing — add manually'})" -ForegroundColor White
-Write-Host "  models\law-il-E2B-Q4_K_M.gguf    $(if (Test-Path "$OutDir\models\law-il-E2B-Q4_K_M.gguf") {'✓'} else {'missing — will pull from Ollama Hub on first launch'})" -ForegroundColor White
+Write-Host "  tools\OllamaSetup.exe             $(if (Test-Path "$OutDir\tools\OllamaSetup.exe") {'✓'} else {'missing  -  add manually'})" -ForegroundColor White
+Write-Host "  models\law-il-E2B-Q4_K_M.gguf    $(if (Test-Path "$OutDir\models\law-il-E2B-Q4_K_M.gguf") {'✓'} else {'missing  -  will pull from Ollama Hub on first launch'})" -ForegroundColor White
 Write-Host ""
 Write-Host "  Next step:" -ForegroundColor Yellow
 Write-Host "    ISCC.exe installer.iss" -ForegroundColor Yellow
