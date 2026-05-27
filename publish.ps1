@@ -137,7 +137,7 @@ $PackageBuildOrder = @(
     'model-router', 'memory', 'retrieval', 'ai', 'ai-guardrails',
     'citation-engine', 'pipeline', 'evals', 'orchestrator', 'policy-engine',
     'agent-core', 'support-diagnostics', 'update-core',
-    'enterprise-hooks', 'encrypted-backup', 'api'
+    'litigation-intelligence', 'enterprise-hooks', 'encrypted-backup', 'api'
 )
 
 Push-Location $RepoRoot
@@ -181,77 +181,130 @@ if ($LASTEXITCODE -ne 0) { throw "dotnet publish failed" }
 Pop-Location
 Write-Host "  Shell staged: $ShellOut" -ForegroundColor Gray
 
-# ── Stage backend (pnpm deploy  -  isolated node_modules) ──────────────────────
-Step "Staging API backend (pnpm deploy --prod)"
+# ── Stage backend (artifact copy + pnpm install --prod, flat node_modules) ────
+Step "Staging API backend (artifact copy + pnpm install --prod --node-linker=hoisted)"
+
 $BackendOut = Join-Path $OutDir "backend"
-Push-Location $RepoRoot
-pnpm --filter @factum-il/api deploy --prod $BackendOut
-if ($LASTEXITCODE -ne 0) { throw "pnpm deploy failed" }
-Pop-Location
 
-# Copy compiled API dist/ (pnpm deploy excludes .gitignored dist/)
-$ApiDistSrc = Join-Path $RepoRoot "packages\api\dist"
-$ApiDistDst = Join-Path $BackendOut "dist"
-New-Item -ItemType Directory -Force -Path $ApiDistDst | Out-Null
-Copy-Item -Recurse -Force "$ApiDistSrc\*" $ApiDistDst
+# 8.0  Kill node.exe — releases VS Code TS-server locks on packages\*\dist\*.d.ts
+Write-Host "  Stopping node.exe processes (releasing file locks) ..." -ForegroundColor Gray
+Get-Process -Name "node" -ErrorAction SilentlyContinue | ForEach-Object {
+    try { $_.Kill(); $_.WaitForExit(3000) } catch {}
+}
+Start-Sleep -Milliseconds 300
 
-# Copy all @factum-il/* workspace packages' compiled output
+# 8.1  Single authoritative workspace package list
+#      litigation-intelligence ADDED — @factum-il/api depends on it (workspace:*)
 $WorkspacePackages = @(
     'shared', 'database', 'legal-ontology', 'events', 'observability',
     'model-router', 'memory', 'retrieval', 'ai', 'ai-guardrails',
     'citation-engine', 'pipeline', 'evals', 'orchestrator', 'policy-engine',
     'agent-core', 'support-diagnostics', 'update-core',
-    'enterprise-hooks', 'encrypted-backup'
+    'enterprise-hooks', 'encrypted-backup', 'litigation-intelligence'
 )
+
+# 8.2  Create backend/ and copy API dist/
+New-Item -ItemType Directory -Force -Path "$BackendOut\dist" | Out-Null
+Copy-Item -Recurse -Force "$RepoRoot\packages\api\dist\*" "$BackendOut\dist"
+Write-Host "  API dist/ staged." -ForegroundColor Gray
+
+# 8.3  Build merged package.json:
+#       API third-party deps (workspace:* stripped) + transitive third-party
+#       deps from all workspace packages (ensures better-sqlite3, sqlite-vec,
+#       etc. are installed by pnpm install even though they live in workspace pkgs)
+$ApiPkg     = Get-Content (Join-Path $RepoRoot "packages\api\package.json") | ConvertFrom-Json
+$MergedDeps = [ordered]@{}
+if ($ApiPkg.PSObject.Properties['dependencies']) {
+    foreach ($p in $ApiPkg.dependencies.PSObject.Properties) {
+        if ($p.Value -notlike "workspace:*") { $MergedDeps[$p.Name] = $p.Value }
+    }
+}
+foreach ($pkg in $WorkspacePackages) {
+    $pj = Join-Path $RepoRoot "packages\$pkg\package.json"
+    if (-not (Test-Path $pj)) { continue }
+    $pkgData = Get-Content $pj | ConvertFrom-Json
+    if (-not $pkgData.PSObject.Properties['dependencies']) { continue }
+    foreach ($p in $pkgData.dependencies.PSObject.Properties) {
+        if ($p.Value -like "workspace:*")  { continue }
+        if ($p.Name  -like "@factum-il/*") { continue }
+        if (-not $MergedDeps.Contains($p.Name)) { $MergedDeps[$p.Name] = $p.Value }
+    }
+}
+[PSCustomObject]@{
+    name         = "factum-il-backend-dist"
+    version      = "1.0.0"
+    private      = $true
+    type         = "module"
+    dependencies = [PSCustomObject]$MergedDeps
+} | ConvertTo-Json -Depth 10 | Set-Content "$BackendOut\package.json" -Encoding UTF8
+Write-Host "  Merged package.json written ($($MergedDeps.Count) third-party deps)." -ForegroundColor Gray
+
+# 8.4  .npmrc + pnpm-workspace.yaml — flat hoisted layout; isolated from repo workspace
+#      node-linker=hoisted: no deep .pnpm/ symlink tree (fixes Windows MAX_PATH issues)
+@"
+node-linker=hoisted
+shamefully-hoist=true
+"@ | Set-Content "$BackendOut\.npmrc" -Encoding UTF8
+@"
+packages: []
+"@ | Set-Content "$BackendOut\pnpm-workspace.yaml" -Encoding UTF8
+
+# 8.5  Install all third-party prod deps — flat layout, no lockfile, prefer local cache
+Push-Location $BackendOut
+pnpm install --prod --no-lockfile --node-linker=hoisted --prefer-offline
+if ($LASTEXITCODE -ne 0) { throw "pnpm install --prod failed in backend/" }
+Pop-Location
+Write-Host "  pnpm install --prod complete." -ForegroundColor Gray
+
+# 8.6  Plant workspace package dist/ + patched package.json
+#      No retry loops needed — node.exe was killed in 8.0
 foreach ($pkg in $WorkspacePackages) {
     $SrcDist = Join-Path $RepoRoot "packages\$pkg\dist"
     if (-not (Test-Path $SrcDist)) {
-        Write-Host "  SKIP workspace pkg dist: $pkg (no dist/)" -ForegroundColor Yellow
+        Write-Host "  SKIP: @factum-il/$pkg (no dist/ — not built?)" -ForegroundColor Yellow
         continue
     }
     $DstPkgDir = Join-Path $BackendOut "node_modules\@factum-il\$pkg"
-    if (-not (Test-Path $DstPkgDir)) { New-Item -ItemType Directory -Force -Path $DstPkgDir | Out-Null }
-
     New-Item -ItemType Directory -Force -Path "$DstPkgDir\dist" | Out-Null
-    for ($copyTry = 1; $copyTry -le 3; $copyTry++) {
-        try {
-            Copy-Item -Recurse -Force "$SrcDist\*" "$DstPkgDir\dist" -ErrorAction Stop
-            break
-        } catch {
-            if ($copyTry -eq 3) { throw }
-            Write-Host "  Retrying @factum-il/$pkg dist copy (attempt $copyTry/3, file lock) ..." -ForegroundColor Yellow
-            Start-Sleep -Milliseconds 800
-        }
-    }
+    Copy-Item -Recurse -Force "$SrcDist\*" "$DstPkgDir\dist" -ErrorAction Stop
 
-    # Patch package.json to resolve to dist/index.js
-    $pkgJsonPath = Join-Path $DstPkgDir "package.json"
-    if (Test-Path $pkgJsonPath) {
-        $pkgJson = Get-Content $pkgJsonPath | ConvertFrom-Json
+    $SrcPkgJson = Join-Path $RepoRoot "packages\$pkg\package.json"
+    if (Test-Path $SrcPkgJson) {
+        Copy-Item -Force $SrcPkgJson "$DstPkgDir\package.json" -ErrorAction Stop
+        $pkgJson = Get-Content "$DstPkgDir\package.json" | ConvertFrom-Json
         $pkgJson.main    = "./dist/index.js"
         $pkgJson.exports = [PSCustomObject]@{ "." = "./dist/index.js" }
-        $pkgJson | ConvertTo-Json -Depth 10 | Set-Content $pkgJsonPath -Encoding UTF8
+        # Strip workspace:* — meaningless outside the pnpm workspace
+        if ($pkgJson.PSObject.Properties['dependencies']) {
+            $cleanDeps = [ordered]@{}
+            foreach ($p in $pkgJson.dependencies.PSObject.Properties) {
+                if ($p.Value -notlike "workspace:*") { $cleanDeps[$p.Name] = $p.Value }
+            }
+            $pkgJson.dependencies = [PSCustomObject]$cleanDeps
+        }
+        $pkgJson | ConvertTo-Json -Depth 10 | Set-Content "$DstPkgDir\package.json" -Encoding UTF8
     }
+    Write-Host "    OK: @factum-il/$pkg" -ForegroundColor DarkGray
 }
+Write-Host "  Workspace packages staged." -ForegroundColor Gray
 
-# ── Rebuild native modules for Windows x64 ───────────────────────────────────
-# better-sqlite3 and sqlite-vec contain platform-specific .node binaries.
-# After pnpm deploy, force a Windows rebuild so the installer bundles the
-# correct Win32 binaries (critical when building on Windows; no-op on Linux).
+# 8.7  Rebuild native modules for Windows x64 (paths are now flat — no deep .pnpm tree)
+if ($null -eq $IsWindows) { $IsWindows = $true }   # guard: $IsWindows undefined in PS 5.1
 if ($IsWindows) {
-    Write-Host "  Rebuilding native modules (better-sqlite3, sqlite-vec) for win-x64 ..." -ForegroundColor Gray
+    Write-Host "  Rebuilding native modules for win-x64 ..." -ForegroundColor Gray
     Push-Location $BackendOut
-    node node_modules\.bin\node-gyp-build 2>$null; $true   # best-effort, may not exist
-    # better-sqlite3 ships prebuilds  -  use their own rebuild tool.
-    # This fetches better_sqlite3.node (Win32/x64) into
-    # node_modules\better-sqlite3\build\Release\, which is then bundled by
-    # the installer.iss "node_modules\*" recursesubdirs glob.
-    if (Test-Path "node_modules\better-sqlite3\package.json") {
+    if (Test-Path "node_modules\.bin\node-gyp-build") {
+        node node_modules\.bin\node-gyp-build 2>$null; $true
+    }
+    # better-sqlite3 ships prebuilds; this fetches better_sqlite3.node (Win32/x64)
+    # into node_modules\better-sqlite3\build\Release\, bundled by installer.iss glob.
+    if (Test-Path "node_modules\better-sqlite3\scripts\download-prebuilt.js") {
         node node_modules\better-sqlite3\scripts\download-prebuilt.js `
              --platform win32 --arch x64 2>$null; $true
     }
     Pop-Location
 }
+Write-Host "  Backend staged: $BackendOut" -ForegroundColor Gray
 
 # ── Stage dashboard + migrations ──────────────────────────────────────────────
 Step "Staging dashboard and migrations"
