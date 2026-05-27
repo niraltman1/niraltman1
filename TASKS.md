@@ -333,11 +333,25 @@ All checks pass (2026-05-26):
   locked file terminates `publish.ps1` non-zero → outer `pnpm build:installer` reports `ELIFECYCLE exit 1`.
 - The retry loop handles transient locks transparently; persistent locks still surface after 3 attempts.
 
+**PR #22 — Step 8 complete rewrite: artifact copy + flat pnpm install --prod (merged)**
+- Root causes: (1) VS Code TS-server held persistent file locks on `packages/shared/dist/*.d.ts`
+  — 3-retry loop was insufficient. (2) `pnpm deploy --prod` created deep `.pnpm/vite@8.0.13_…`
+  content-store paths exceeding Windows 260-char MAX_PATH → bin-shim WARN/failures.
+- Fix: kill `node.exe` first (releases locks), drop `pnpm deploy`, build a merged `package.json`
+  collecting all third-party deps from API + all workspace packages (captures `better-sqlite3`,
+  `sqlite-vec` etc. transitively), write `.npmrc` (`node-linker=hoisted`) + empty
+  `pnpm-workspace.yaml`, run `pnpm install --prod --no-lockfile --node-linker=hoisted --prefer-offline`
+  → flat `node_modules/` with no deep symlink tree.
+- Bonus fix: `litigation-intelligence` was missing from `$PackageBuildOrder` (step 6) and
+  `$WorkspacePackages` (step 8) despite being a direct `workspace:*` dep of `@factum-il/api`;
+  added to both. Added `"build": "tsc"` script to `packages/litigation-intelligence/package.json`.
+
 ### What to do next
 
-- **Run `pnpm build:installer`** on Windows — both fixes are on `main`. Steps 7 and 8 should now pass.
-  If a new step fails, report the exact step number and error and a new fix branch will be created.
-- **If step 10 completes:** verify `FactumIL_v1.0.0_Setup.exe` exists in `FactumIL_Dist\` and install on
-  a clean Windows VM for end-to-end smoke test.
-- **Remaining planned work** (see build plan): Production Polish (installer metadata, port discovery, DB shield),
-  Coverage & Chaos Tests, Self-Healing CI Protocol, Build Environment Fixes (.nvmrc, START.cmd, build:installer script)
+- **Run `git pull origin main && pnpm build:installer`** on Windows — PRs #19, #20, #22 all merged.
+  Steps 7 and 8 should now complete cleanly (no file locks, no deep-path errors).
+- **If step 8 passes but step 9/10 fails:** report the step number and error output.
+- **If all 10 steps complete:** verify `FactumIL_Dist\FactumIL_v1.0.0_Setup.exe` exists and install
+  on a clean Windows VM for end-to-end smoke test.
+- **Remaining planned work:** Production Polish (installer metadata, port discovery, DB shield),
+  Coverage & Chaos Tests, Build Environment Fixes (.nvmrc, START.cmd)
