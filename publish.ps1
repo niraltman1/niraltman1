@@ -198,7 +198,10 @@ if ($IsWindows) {
     Write-Host "  Rebuilding native modules (better-sqlite3, sqlite-vec) for win-x64 ..." -ForegroundColor Gray
     Push-Location $BackendOut
     node node_modules\.bin\node-gyp-build 2>$null; $true   # best-effort, may not exist
-    # better-sqlite3 ships prebuilds — use their own rebuild tool
+    # better-sqlite3 ships prebuilds — use their own rebuild tool.
+    # This fetches better_sqlite3.node (Win32/x64) into
+    # node_modules\better-sqlite3\build\Release\, which is then bundled by
+    # the installer.iss "node_modules\*" recursesubdirs glob.
     if (Test-Path "node_modules\better-sqlite3\package.json") {
         node node_modules\better-sqlite3\scripts\download-prebuilt.js `
              --platform win32 --arch x64 2>$null; $true

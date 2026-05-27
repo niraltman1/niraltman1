@@ -19,7 +19,8 @@
     "test": "pnpm -r test",
     "test:unit": "pnpm --filter dashboard vitest run",
     "lint": "pnpm -r lint",
-    "ingest-registry": "node tools/ingest-legal-sources.mjs"
+    "ingest-registry": "node tools/ingest-legal-sources.mjs",
+    "build:installer": "powershell -ExecutionPolicy Bypass -File publish.ps1"
   },
   "devDependencies": {
     "@types/node": "^20.14.0",
@@ -27,7 +28,7 @@
     "typescript": "^5.5.0"
   },
   "engines": {
-    "node": ">=20.0.0",
+    "node": ">=22.0.0 <23.0.0",
     "pnpm": ">=9.0.0"
   },
   "packageManager": "pnpm@9.4.0",
