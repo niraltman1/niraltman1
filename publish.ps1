@@ -289,7 +289,7 @@ foreach ($pkg in $WorkspacePackages) {
 Write-Host "  Workspace packages staged." -ForegroundColor Gray
 
 # 8.7  Rebuild native modules for Windows x64 (paths are now flat — no deep .pnpm tree)
-if ($null -eq $IsWindows) { $IsWindows = $true }   # guard: $IsWindows undefined in PS 5.1
+if (-not (Test-Path variable:IsWindows)) { $IsWindows = $true }  # guard: undefined in PS 5.1 strict mode
 if ($IsWindows) {
     Write-Host "  Rebuilding native modules for win-x64 ..." -ForegroundColor Gray
     Push-Location $BackendOut
