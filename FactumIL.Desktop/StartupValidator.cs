@@ -8,7 +8,7 @@ namespace FactumIL.Desktop;
 /// Validates system state before the main window is shown.
 /// All checks are non-throwing — failures surface as Errors or Warnings.
 /// </summary>
-internal sealed class StartupValidator
+public sealed class StartupValidator
 {
     public record ValidationResult(
         bool IsHealthy,
