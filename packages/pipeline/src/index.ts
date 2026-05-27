@@ -5,6 +5,8 @@ export { PipelineEngine } from './engine.js';
 export { PersistentQueue } from './persistent-queue.js';
 export { LockService } from './lock-service.js';
 export { OCRService } from './ocr-service.js';
+export { runOCRInWorker } from './ocr-runner.js';
+export type { OCRWorkerOptions } from './ocr-runner.js';
 export { ManifestTransactionEngine } from './transaction.js';
 export { WorkerSupervisor } from './supervisor.js';
 export { FileWatcher } from './file-watcher.js';

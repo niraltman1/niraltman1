@@ -26,10 +26,10 @@ const NAV_ITEMS = [
 ] as const;
 
 function SettingsMenu({ collapsed }: { collapsed: boolean }) {
-  const [open, setOpen]         = useState(false);
-  const [bugOpen, setBugOpen]   = useState(false);
-  const ref                     = useRef<HTMLDivElement>(null);
-  const navigate                = useNavigate();
+  const [open, setOpen]       = useState(false);
+  const [bugOpen, setBugOpen] = useState(false);
+  const ref                   = useRef<HTMLDivElement>(null);
+  const navigate              = useNavigate();
 
   useEffect(() => {
     function onClickOutside(e: MouseEvent) {
@@ -55,33 +55,26 @@ function SettingsMenu({ collapsed }: { collapsed: boolean }) {
 
         {open && (
           <div
-            className="absolute bottom-full mb-1 right-0 w-44 rounded-lg border border-parchment/10
-                       shadow-xl overflow-hidden z-50"
-            style={{ background: 'var(--bg-2)' }}
+            className="absolute bottom-full mb-1 right-0 w-44 rounded-lg overflow-hidden z-50 glass"
+            style={{ boxShadow: '0 20px 40px rgba(0,0,0,0.5)' }}
           >
+            {[
+              { label: 'אבחון מערכת',   icon: HardDriveIcon,    path: '/admin' },
+              { label: 'הגדרות גיבוי',  icon: HardDriveIcon,    path: '/admin/backup-settings' },
+              { label: 'מצב שחזור',     icon: ShieldWarningIcon, path: '/admin/recovery' },
+            ].map(({ label, icon: Icon, path }) => (
+              <button
+                key={path}
+                className="sidebar-item w-full rounded-none text-sm"
+                onClick={() => { setOpen(false); navigate(path); }}
+              >
+                <Icon size={16} weight="duotone" className="shrink-0" />
+                <span>{label}</span>
+              </button>
+            ))}
             <button
               className="sidebar-item w-full rounded-none text-sm"
-              onClick={() => { setOpen(false); navigate('/admin'); }}
-            >
-              <HardDriveIcon size={16} weight="duotone" className="shrink-0" />
-              <span>אבחון מערכת</span>
-            </button>
-            <button
-              className="sidebar-item w-full rounded-none text-sm"
-              onClick={() => { setOpen(false); navigate('/admin/backup-settings'); }}
-            >
-              <HardDriveIcon size={16} weight="duotone" className="shrink-0" />
-              <span>הגדרות גיבוי</span>
-            </button>
-            <button
-              className="sidebar-item w-full rounded-none text-sm"
-              onClick={() => { setOpen(false); navigate('/admin/recovery'); }}
-            >
-              <ShieldWarningIcon size={16} weight="duotone" className="shrink-0" />
-              <span>מצב שחזור</span>
-            </button>
-            <button
-              className="sidebar-item w-full rounded-none text-sm border-t border-parchment/10"
+              style={{ borderTop: '1px solid var(--hairline-2)' }}
               onClick={() => { setOpen(false); setBugOpen(true); }}
             >
               <BugIcon size={16} weight="duotone" className="shrink-0" />
@@ -102,36 +95,80 @@ export function Sidebar() {
 
   return (
     <aside
-      className={`
-        flex flex-col border-l border-parchment/10
-        transition-all duration-200
-        ${sidebarCollapsed ? 'w-14' : 'w-56'}
-      `}
+      className={`flex flex-col transition-all duration-200 ${sidebarCollapsed ? 'w-16' : 'w-60'}`}
       style={{
-        background: 'linear-gradient(180deg, var(--bg-1) 0%, var(--bg-1) 70%, #0E1A33 100%)',
-        boxShadow: 'inset -1px 0 0 rgba(220,227,236,0.04)',
+        background: 'rgba(15,15,15,0.55)',
+        backdropFilter: 'blur(20px) saturate(140%)',
+        WebkitBackdropFilter: 'blur(20px) saturate(140%)',
+        borderInlineEnd: '1px solid var(--hairline-2)',
+        height: '100%',
       }}
     >
-      {/* Logo / Header */}
-      <div className="flex items-center gap-3 px-4 py-5 border-b border-parchment/10">
-        <ScalesIcon
-          size={24}
-          weight="duotone"
-          className="shrink-0"
-          style={{ color: 'var(--brand-cyan)', filter: 'drop-shadow(0 0 5px rgba(91,224,212,0.5))' }}
-        />
+      {/* Brand mark */}
+      <div
+        className="flex items-center gap-3 px-4 py-[18px]"
+        style={{ borderBottom: '1px solid var(--hairline)' }}
+      >
+        {/* Gold "F" monogram */}
+        <div
+          className="shrink-0 grid place-items-center rounded-md"
+          style={{
+            width: 28, height: 28,
+            background: 'linear-gradient(135deg, #C5A059, #8C6F36)',
+            boxShadow: '0 0 0 1px rgba(197,160,89,0.35), 0 6px 16px -6px rgba(197,160,89,0.5)',
+            fontFamily: 'var(--f-serif)',
+            color: '#1A140A',
+            fontWeight: 700,
+            fontSize: 15,
+            fontStyle: 'italic',
+          }}
+        >
+          F
+        </div>
         {!sidebarCollapsed && (
-          <span
-            className="font-serif font-bold text-lg leading-none"
-            style={{ color: 'var(--brand-silver-warm)', letterSpacing: '0.01em' }}
-          >
-            Legal<span style={{ color: 'var(--brand-cyan)' }}>-</span>OS Beta
-          </span>
+          <div style={{ lineHeight: 1.1 }}>
+            <div
+              style={{
+                fontFamily: 'var(--f-serif)',
+                fontSize: 16,
+                color: 'var(--fg-1)',
+                fontWeight: 500,
+              }}
+            >
+              Factum<span style={{ color: 'var(--brand-gold)' }}>.</span>
+            </div>
+            <div
+              style={{
+                fontFamily: 'var(--f-mono)',
+                fontSize: 9,
+                color: 'var(--fg-3)',
+                letterSpacing: '0.16em',
+              }}
+            >
+              IL · v2.4.1
+            </div>
+          </div>
         )}
       </div>
 
+      {/* Eyebrow */}
+      {!sidebarCollapsed && (
+        <div
+          style={{
+            padding: '16px 20px 6px',
+            fontFamily: 'var(--f-mono)',
+            fontSize: 9,
+            letterSpacing: '0.18em',
+            color: 'var(--fg-3)',
+            textTransform: 'uppercase',
+          }}
+        >
+          WORKSPACE
+        </div>
+      )}
+
       {/* Navigation */}
-      <nav className="flex-1 overflow-y-auto py-3 px-2 space-y-0.5" aria-label="ניווט ראשי">
+      <nav className="flex-1 overflow-y-auto py-1 px-2 space-y-0.5" aria-label="ניווט ראשי">
         {NAV_ITEMS.map(({ to, label, Icon }) => (
           <NavLink
             key={to}
@@ -141,31 +178,44 @@ export function Sidebar() {
             }
             title={sidebarCollapsed ? label : undefined}
           >
-            <Icon size={18} weight="duotone" className="shrink-0" />
-            {!sidebarCollapsed && <span>{label}</span>}
+            <Icon size={16} weight="duotone" className="shrink-0" />
+            {!sidebarCollapsed && <span style={{ flex: 1 }}>{label}</span>}
           </NavLink>
         ))}
       </nav>
 
-      {/* Settings dropdown */}
+      {/* Settings */}
       <div className="px-2 pb-1">
         <SettingsMenu collapsed={sidebarCollapsed} />
       </div>
 
-      {/* Spotlight hint + AI badge */}
+      {/* Ollama status card */}
       {!sidebarCollapsed && (
-        <div className="px-3 py-3 border-t border-parchment/10 space-y-2">
-          <div className="flex items-center justify-between text-xs" style={{ color: 'var(--fg-3)' }}>
-            <span>חיפוש מהיר</span>
-            <div className="flex gap-1">
-              <kbd className="kbd">⌘</kbd>
-              <kbd className="kbd">K</kbd>
+        <div style={{ padding: '12px 16px 14px' }}>
+          <div
+            className="glass-2"
+            style={{ padding: 12, borderRadius: 8 }}
+          >
+            <div
+              style={{
+                fontFamily: 'var(--f-mono)',
+                fontSize: 9,
+                color: 'var(--fg-3)',
+                letterSpacing: '0.14em',
+              }}
+            >
+              LAW-IL E2B · מקומי
             </div>
-          </div>
-          <div className="ai-badge w-full justify-center">
-            <span style={{ fontFamily: 'var(--font-mono)', fontSize: 10, letterSpacing: '0.06em' }}>
-              law-il-E2B · מקומי
-            </span>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginTop: 6 }}>
+              <span
+                style={{
+                  width: 6, height: 6, borderRadius: 3,
+                  background: 'var(--ok)',
+                  boxShadow: '0 0 6px var(--ok)',
+                }}
+              />
+              <span style={{ fontSize: 11, color: 'var(--fg-2)' }}>מקומי · 47ms</span>
+            </div>
           </div>
         </div>
       )}
@@ -173,13 +223,24 @@ export function Sidebar() {
       {/* Collapse toggle */}
       <button
         onClick={toggleSidebar}
-        className="px-4 py-3 border-t border-parchment/10 flex items-center justify-center transition-colors"
-        style={{ color: 'var(--fg-3)' }}
-        onMouseEnter={(e) => { (e.currentTarget as HTMLElement).style.color = 'var(--brand-cyan)'; }}
-        onMouseLeave={(e) => { (e.currentTarget as HTMLElement).style.color = 'var(--fg-3)'; }}
+        style={{ borderTop: '1px solid var(--hairline)', padding: '12px 14px' }}
+        className="flex items-center justify-center transition-colors"
+        onMouseEnter={(e) => {
+          (e.currentTarget as HTMLElement).style.color = 'var(--brand-gold-2)';
+        }}
+        onMouseLeave={(e) => {
+          (e.currentTarget as HTMLElement).style.color = 'var(--fg-3)';
+        }}
         aria-label={sidebarCollapsed ? 'הרחב סרגל צד' : 'כווץ סרגל צד'}
       >
-        <span className="text-lg">{sidebarCollapsed ? '›' : '‹'}</span>
+        <ScalesIcon size={14} weight="duotone" style={{ color: 'var(--fg-4)', marginInlineEnd: sidebarCollapsed ? 0 : 8 }} />
+        {!sidebarCollapsed && (
+          <span style={{ fontFamily: 'var(--f-mono)', fontSize: 9, letterSpacing: '0.12em', color: 'var(--fg-4)' }}>
+            ⌘K · חיפוש
+          </span>
+        )}
+        <span style={{ flex: 1 }} />
+        <span style={{ fontSize: 16, color: 'var(--fg-3)' }}>{sidebarCollapsed ? '›' : '‹'}</span>
       </button>
     </aside>
   );

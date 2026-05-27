@@ -1,6 +1,7 @@
 import { createBrowserRouter, Navigate } from 'react-router-dom';
 import type { Router as RemixRouter } from '@remix-run/router';
 import { AppShell }        from '@/components/layout/AppShell.js';
+import { SetupWizard }     from '@/features/setup/SetupWizard.js';
 import { DashboardPage }   from '@/features/documents/DashboardPage.js';
 import { DocumentsPage }   from '@/features/documents/DocumentsPage.js';
 import { DocumentDetail }  from '@/features/documents/DocumentDetail.js';
@@ -33,6 +34,8 @@ import { PrecedentsPage }     from '@/features/precedents/PrecedentsPage.js';
 import { NotFoundPage }       from '@/components/common/NotFoundPage.js';
 
 export const router: RemixRouter = createBrowserRouter([
+  // Setup wizard lives outside AppShell — accessible before first login
+  { path: 'setup', element: <SetupWizard /> },
   {
     path:    '/',
     element: <AppShell />,

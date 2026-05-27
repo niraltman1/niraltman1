@@ -12,7 +12,9 @@ import { join, dirname } from 'node:path';
 const DEFAULT_ORG_DIR = 'C:\\2026 אדמיניסטרציה - משרד עורכי דין אלטמן';
 
 interface ConfigData {
-  orgDirectory: string;
+  orgDirectory:      string;
+  setupCompleted?:   boolean;
+  setupCompletedAt?: string; // ISO 8601
 }
 
 function readRegistryOrgDir(): string | null {
@@ -66,6 +68,16 @@ export class ConfigStore {
 
   setOrgDirectory(path: string): void {
     this.data.orgDirectory = path;
+    this.persist(this.data);
+  }
+
+  isSetupCompleted(): boolean {
+    return this.data.setupCompleted ?? false;
+  }
+
+  markSetupCompleted(): void {
+    this.data.setupCompleted   = true;
+    this.data.setupCompletedAt = new Date().toISOString();
     this.persist(this.data);
   }
 

@@ -1,11 +1,17 @@
 import { Router } from 'express';
+import { unlink } from 'node:fs/promises';
+import { join } from 'node:path';
+import { existsSync } from 'node:fs';
 import { z } from 'zod';
 import type { Repos } from '../db.js';
 import { asyncHandler } from '../utils/async-handler.js';
 import { ok } from '../utils/response.js';
 import { validate } from '../middleware/validate.js';
 import { fetchContentBundle, applyContentBundle } from '../modules/updates/content-updater.js';
-import { VersionManifestParser, UpdateChannelManager } from '@factum-il/update-core';
+import { startUpdateFlow } from '../modules/updates/update-orchestrator.js';
+import {
+  VersionManifestParser, UpdateChannelManager, UpdateStateStore,
+} from '@factum-il/update-core';
 
 const CURRENT_VERSION = '1.0.0';
 
@@ -13,6 +19,7 @@ const dataPath = process.env['FACTUM_IL_DATA_PATH']
   ?? (process.env['LOCALAPPDATA'] ? `${process.env['LOCALAPPDATA']}/FactumIL` : '');
 
 const channelManager = new UpdateChannelManager(dataPath);
+const stateStore     = new UpdateStateStore(dataPath);
 
 const setChannelSchema = z.object({
   channel: z.enum(['beta', 'stable', 'enterprise']),
@@ -121,6 +128,72 @@ export function updatesRouter(repos: Repos): Router {
     }
     const result = await applyContentBundle(repos, bundle);
     ok(res, { version: bundle.version, ...result });
+  }));
+
+  // POST /api/updates/start — download + install via SSE progress stream
+  router.post('/start', asyncHandler(async (_req, res) => {
+    const state = await stateStore.read();
+    if (!state.pendingManifest) {
+      res.status(400).json({ success: false, error: { code: 'NO_MANIFEST', message: 'אין עדכון ממתין' } });
+      return;
+    }
+
+    res.setHeader('Content-Type',  'text/event-stream');
+    res.setHeader('Cache-Control', 'no-cache');
+    res.setHeader('Connection',    'keep-alive');
+    res.flushHeaders();
+
+    function send(data: Record<string, unknown>): void {
+      res.write(`data: ${JSON.stringify(data)}\n\n`);
+    }
+
+    const dbPath = process.env['FACTUM_IL_DB_PATH'] ?? '';
+    const result = await startUpdateFlow(
+      state.pendingManifest,
+      stateStore,
+      dataPath,
+      dbPath,
+      {
+        onProgress(p) {
+          send({ type: 'progress', ...p });
+        },
+        onVerified(sha256) {
+          send({ type: 'verified', sha256 });
+        },
+        onLaunching() {
+          send({ type: 'launching', message: 'מפעיל מתקין...' });
+        },
+      },
+    );
+
+    if (!result.success) {
+      send({ type: 'error', error: result.error ?? 'Update failed' });
+    }
+
+    res.end();
+  }));
+
+  // GET /api/updates/progress — polling fallback for SSE
+  router.get('/progress', asyncHandler(async (_req, res) => {
+    const state = await stateStore.read();
+    ok(res, {
+      updateInProgress: state.updateInProgress,
+      pendingVersion:   state.pendingManifest?.latestVersion ?? null,
+      channel:          state.channel,
+    });
+  }));
+
+  // POST /api/updates/abort — cancel in-progress update and delete pending installer
+  router.post('/abort', asyncHandler(async (_req, res) => {
+    const state = await stateStore.read();
+    if (state.pendingManifest) {
+      const installerPath = join(dataPath, 'updates', `installer-${state.pendingManifest.latestVersion}.exe`);
+      if (existsSync(installerPath)) {
+        await unlink(installerPath).catch(() => undefined);
+      }
+    }
+    await stateStore.write({ updateInProgress: false });
+    ok(res, { aborted: true });
   }));
 
   return router;

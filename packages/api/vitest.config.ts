@@ -22,5 +22,11 @@ export default defineConfig({
         external: ['better-sqlite3', 'xlsx'],
       },
     },
+    coverage: {
+      provider: 'v8',
+      reporter: ['text'],
+      include:  ['src/**/*.ts'],
+      exclude:  ['src/**/*.test.ts'],
+    },
   },
 });
