@@ -134,8 +134,8 @@ Step "Building all TypeScript packages"
 
 $PackageBuildOrder = @(
     'shared', 'database', 'legal-ontology', 'events', 'observability',
-    'model-router', 'memory', 'retrieval', 'ai', 'ai-guardrails',
-    'citation-engine', 'pipeline', 'evals', 'orchestrator', 'policy-engine',
+    'model-router', 'policy-engine', 'memory', 'retrieval', 'ai', 'ai-guardrails',
+    'citation-engine', 'pipeline', 'evals', 'orchestrator',
     'agent-core', 'support-diagnostics', 'update-core',
     'litigation-intelligence', 'enterprise-hooks', 'encrypted-backup', 'api'
 )
