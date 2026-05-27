@@ -14,7 +14,8 @@
     "setup_tests": "done",
     "setup_wizard_tests": "done",
     "chaos_scenarios": "done",
-    "ci_update": "done"
+    "ci_update": "done",
+    "prestige_tech_design": "done"
   },
   "files_created": [
     "packages/update-core/src/cleanup-utils.ts",
@@ -58,8 +59,9 @@
     "SetupWizard.tsx:107 - status?.db.healthy throws on null, fixed to status?.db?.healthy",
     "SetupWizard.tsx:129 - status.ollama.healthy throws on null, fixed to status.ollama?.healthy"
   ],
-  "commit": "f587c95",
+  "commit": "f55b0e7",
+  "design_commit": "f55b0e7",
   "attempts": [],
-  "last_updated": "2026-05-27T07:30:00.000Z",
+  "last_updated": "2026-05-27T08:00:00.000Z",
   "resolved": true
 }
