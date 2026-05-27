@@ -28,13 +28,21 @@
 #>
 [CmdletBinding()]
 param(
-    [string] $OutDir      = (Join-Path $PSScriptRoot "FactumIL_Dist"),
+    [string] $OutDir      = "",
     [string] $NodeVersion = "22.13.1",
     [switch] $SkipTests
 )
 
 Set-StrictMode -Version Latest
 $ErrorActionPreference = 'Stop'
+
+# When invoked via pnpm/npm, $PSScriptRoot may be empty - resolve from invocation path
+if (-not $PSScriptRoot) {
+    $PSScriptRoot = Split-Path -Parent -Resolve $MyInvocation.MyCommand.Path
+}
+if (-not $OutDir) {
+    $OutDir = Join-Path $PSScriptRoot "FactumIL_Dist"
+}
 
 $RepoRoot    = $PSScriptRoot
 $DesktopDir  = Join-Path $RepoRoot "FactumIL.Desktop"
@@ -342,5 +350,5 @@ Write-Host "  models\law-il-E2B-Q4_K_M.gguf    $(if (Test-Path "$OutDir\models\l
 Write-Host ""
 Write-Host "  Next step:" -ForegroundColor Yellow
 Write-Host "    ISCC.exe installer.iss" -ForegroundColor Yellow
-Write-Host "    → dist-package\FactumIL_v1.0.0_Setup.exe" -ForegroundColor Yellow
+Write-Host "    → Factum-IL-Setup.exe  (repo root)" -ForegroundColor Yellow
 Write-Host ""
