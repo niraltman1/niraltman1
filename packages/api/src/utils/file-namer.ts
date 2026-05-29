@@ -1,5 +1,6 @@
-import { join, dirname } from 'path';
+import { join } from 'path';
 
+// eslint-disable-next-line no-control-regex
 const SAFE_RE = /[<>:"/\\|?*\x00-\x1f]/g;
 
 function sanitize(s: string, maxLen = 40): string {

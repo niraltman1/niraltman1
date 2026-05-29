@@ -14,7 +14,7 @@
  */
 
 import { rename, mkdir, copyFile, unlink, access } from 'node:fs/promises';
-import { dirname, basename, join } from 'node:path';
+import { dirname, join } from 'node:path';
 import type { ActionPlanEntry } from '@factum-il/shared';
 
 export interface ExecuteResult {

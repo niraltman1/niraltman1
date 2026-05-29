@@ -22,7 +22,7 @@ function readRegistryOrgDir(): string | null {
   try {
     // Dynamic import keeps non-Windows envs from crashing at import time.
     // We require() synchronously here because config-store is loaded at startup.
-    // eslint-disable-next-line @typescript-eslint/no-var-requires
+    // eslint-disable-next-line @typescript-eslint/no-require-imports
     const { execFileSync } = require('node:child_process') as typeof import('node:child_process');
     const out = execFileSync('reg', [
       'query', 'HKLM\\SOFTWARE\\Factum IL', '/v', 'OrgDirectory',

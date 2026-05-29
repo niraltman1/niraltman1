@@ -118,7 +118,7 @@ function fallbackMapColumns(headers: string[]): Record<string, CanonicalField | 
   return result;
 }
 
-const DATE_RE = /^(\d{1,2})[\/.-](\d{1,2})[\/.-](\d{4})$/;
+const DATE_RE = /^(\d{1,2})[/.-](\d{1,2})[/.-](\d{4})$/;
 function normalizeDate(v: string): string | null {
   const m = DATE_RE.exec(v);
   if (m) return `${m[3]!}-${m[2]!.padStart(2, '0')}-${m[1]!.padStart(2, '0')}`;

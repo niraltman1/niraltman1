@@ -13,29 +13,6 @@ interface EntityEntry {
   value:      string;
 }
 
-function buildEntityMap(
-  rows:    InsightRow[],
-  getter:  (r: InsightRow) => string | null,
-): Map<string, EntityEntry[]> {
-  const map = new Map<string, EntityEntry[]>();
-  for (const row of rows) {
-    const value = getter(row);
-    if (!value) continue;
-    const normalised = value.trim().toLowerCase();
-    // key = entity kind; we store all unique values per kind
-    const existing = map.get(normalised);
-    if (existing) {
-      // Only add if not already a duplicate from the same doc
-      if (!existing.some(e => e.documentId === row.document_id)) {
-        existing.push({ documentId: row.document_id, value });
-      }
-    } else {
-      map.set(normalised, [{ documentId: row.document_id, value }]);
-    }
-  }
-  return map;
-}
-
 export function detectContradictions(caseId: number, db: DbHandle): ContradictionFinding[] {
   const rows = db.prepare(
     `SELECT di.document_id, di.court_name, di.judge_name, di.offense_type, di.next_hearing

@@ -10,7 +10,7 @@
 import { Router } from 'express';
 import { readdir, readFile, stat, unlink, mkdir, writeFile, rm } from 'node:fs/promises';
 import { join, dirname } from 'node:path';
-import { readFileSync, existsSync, createWriteStream } from 'node:fs';
+import { readFileSync, createWriteStream } from 'node:fs';
 import archiver from 'archiver';
 import { fileURLToPath } from 'node:url';
 import type { Repos } from '../db.js';

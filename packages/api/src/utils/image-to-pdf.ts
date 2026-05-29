@@ -12,8 +12,8 @@
 
 import { execFile } from 'child_process';
 import { promisify } from 'util';
-import { access, mkdir, unlink } from 'fs/promises';
-import { extname, join, basename, dirname } from 'path';
+import { mkdir, unlink } from 'fs/promises';
+import { extname, join } from 'path';
 import { tmpdir }  from 'os';
 import { randomUUID } from 'crypto';
 

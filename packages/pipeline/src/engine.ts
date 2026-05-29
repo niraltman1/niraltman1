@@ -1,10 +1,8 @@
-import { createHash } from 'node:crypto';
 import {
   logger,
   validateTransition,
   generateUUID,
   utcNow,
-  CONFIDENCE_THRESHOLD,
 } from '@factum-il/shared';
 import type { ProcessingState, AgentName } from '@factum-il/shared';
 import type { DatabaseConnection } from '@factum-il/database';
@@ -93,7 +91,7 @@ export class PipelineEngine {
       }
 
       try {
-        const snapshotResult = this.manifest.createSnapshot(documentId, `PRE_${step.to}`);
+        this.manifest.createSnapshot(documentId, `PRE_${step.to}`);
         const start = Date.now();
         await step.stage();
         const durationMs = Date.now() - start;

@@ -1,4 +1,4 @@
-import { useRef, useState, useCallback } from 'react';
+import { useRef, useState, useCallback, useMemo } from 'react';
 import { useVirtualizer } from '@tanstack/react-virtual';
 import {
   ClipboardTextIcon, CheckIcon, XIcon, SealCheckIcon,
@@ -57,7 +57,7 @@ export function ActionPlanPage() {
   const sign     = useSignActionPlan();
   const execute  = useExecuteActionPlan();
 
-  const entries = (rows ?? []) as Record<string, unknown>[];
+  const entries = useMemo(() => (rows ?? []) as Record<string, unknown>[], [rows]);
 
   function showToast(msg: string) {
     setToastMsg(msg);

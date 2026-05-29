@@ -4,10 +4,9 @@ import type { Repos } from '../db.js';
 import { asyncHandler } from '../utils/async-handler.js';
 import { ok } from '../utils/response.js';
 import { validate } from '../middleware/validate.js';
-import { ValidationError, NotFoundError } from '../errors/api-error.js';
+import { NotFoundError } from '../errors/api-error.js';
 import { MediaPipeline } from '../utils/media-pipeline.js';
 import { isTesseractAvailable, isImageMagickAvailable } from '../utils/image-to-pdf.js';
-import { parsePagination } from '../utils/pagination.js';
 import { routeEntities } from '../utils/entity-router.js';
 
 const ingestSchema = z.object({
