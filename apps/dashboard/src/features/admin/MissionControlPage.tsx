@@ -236,6 +236,7 @@ export function MissionControlPage() {
         <HealthStatusPanel compact={false} />
       </div>
 
+
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         <SectionCard title="תור עבודות" icon={<HeartbeatIcon size={14} />}>
           <QueuePanel data={snap.queues} />
