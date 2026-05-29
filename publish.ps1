@@ -394,8 +394,8 @@ try {
     Write-Host "  WARNING: Could not download GGUF  -  model will be pulled from Ollama Hub on first launch." -ForegroundColor Yellow
 }
 
-# ── Inject UTF-8 BOMs into staged text files ─────────────────────────────────
-Step "Injecting UTF-8 BOMs into staged text files"
+# ── Inject UTF-8 BOMs into staged PowerShell scripts ─────────────────────────
+Step "Injecting UTF-8 BOMs into staged PowerShell scripts"
 $AddBomScript = Join-Path $RepoRoot "scripts\add-bom-to-dist.ts"
 if (Test-Path $AddBomScript) {
     Push-Location $RepoRoot

@@ -1,13 +1,28 @@
 #!/usr/bin/env tsx
 /**
- * Inject UTF-8 BOMs into staged distribution text files.
+ * Inject UTF-8 BOMs into staged PowerShell scripts.
  *
  * Usage: tsx scripts/add-bom-to-dist.ts [staging-dir]
  *   staging-dir defaults to <repo-root>/FactumIL_Dist
  *
- * Only injects BOMs into files in the staging directory — NEVER source files.
+ * POLICY — opt-in allowlist (NOT exclusion):
+ *   A BOM is added ONLY to file types on an explicit allowlist. Everything
+ *   else is left byte-for-byte untouched. This is deliberate: a UTF-8 BOM is
+ *   only beneficial for files that Windows tools open as text and decode by
+ *   guessing the codepage (PowerShell 5.1 mis-reads Hebrew as Windows-1252
+ *   without one). For every other staged file the BOM is at best pointless
+ *   and at worst breaks a parser:
+ *     - .json   → JSON.parse() throws on a leading BOM (e.g. Legal_Registry.json,
+ *                 .NET runtimeconfig.json / deps.json read by the host at startup)
+ *     - .sql    → tolerated by SQLite but changes the migration checksum; no benefit
+ *     - .js/.ts → Node/TS loaders; no human ever opens these
+ *     - .html/.css/manifests/config/runtime artifacts → consumed by parsers, never
+ *                 hand-edited
+ *   Keeping the allowlist tight gives deterministic behaviour and no hidden
+ *   runtime regressions.
+ *
+ * Only touches files inside the staging directory — NEVER source files.
  * Idempotent: skips files that already begin with 0xEF 0xBB 0xBF.
- * Skips .js/.mjs/.cjs to avoid breaking Node.js ESM module loading.
  *
  * Exit code 0 → all files processed successfully
  * Exit code 1 → one or more files failed
@@ -44,24 +59,13 @@ function fail(msg: string, detail?: string): void {
 }
 function warn(msg: string): void  { console.log(`${WARN}  ${msg}`); }
 
-// ── Extensions that need BOM for correct Windows encoding detection ───────────
-// Windows tools (Notepad, PowerShell 5.1, Inno Setup) default to Windows-1252
-// without a BOM marker; Hebrew characters become mojibake without it.
+// ── Allowlist — the ONLY file types that receive a BOM ────────────────────────
+// PowerShell 5.1 reads .ps1/.psm1/.psd1 as Windows-1252 unless a UTF-8 BOM is
+// present, which mangles the Hebrew string literals in our helper scripts.
+// PowerShell itself handles the BOM correctly. No other staged file type is on
+// this list — see the POLICY note in the file header for why.
 const BOM_EXTENSIONS = new Set([
-  '.ps1', '.psm1', '.psd1',   // PowerShell
-  '.sql',                      // SQL migrations (may contain Hebrew comments)
-  '.json',                     // Config files (Legal_Registry.json etc.)
-  '.txt', '.md',               // Documentation
-  '.iss',                      // Inno Setup scripts (contain Hebrew strings)
-  '.csv',                      // Data exports
-  '.log',                      // Log files
-]);
-
-// Extensions that MUST NOT receive a BOM — would break their runtime/parser.
-const BOM_EXCLUDED = new Set([
-  '.js', '.mjs', '.cjs',      // Node.js ESM/CJS loader rejects BOM
-  '.ts', '.tsx', '.mts',      // TypeScript compiler chokes on BOM
-  '.jsx',
+  '.ps1', '.psm1', '.psd1',   // PowerShell scripts / modules / data files
 ]);
 
 const BOM = Buffer.from([0xEF, 0xBB, 0xBF]);
@@ -87,11 +91,7 @@ function hasBom(filePath: string): boolean {
 function injectBom(filePath: string): void {
   const ext = extname(filePath).toLowerCase();
 
-  if (BOM_EXCLUDED.has(ext)) {
-    skipped++;
-    return;
-  }
-
+  // Opt-in allowlist: anything not explicitly listed is left untouched.
   if (!BOM_EXTENSIONS.has(ext)) {
     skipped++;
     return;
