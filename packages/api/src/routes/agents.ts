@@ -1,4 +1,4 @@
-import { Router } from 'express';
+import { Router, type Response } from 'express';
 import { asyncHandler } from '../utils/async-handler.js';
 import { requireAuth } from '../middleware/auth.js';
 import { ok } from '../utils/response.js';
@@ -187,6 +187,129 @@ export function agentsRouter(repos: Repos): Router {
       }
     }),
   );
+
+  return router;
+}
+
+// ── Streaming SSE variants ────────────────────────────────────────────────
+// These GET endpoints mirror the POST routes above but stream progress via SSE.
+// Clients connect via EventSource and receive: progress → result (or error).
+// Event format: event: <type>\ndata: <JSON>\n\n
+
+function sseHeaders(res: Response): void {
+  res.setHeader('Content-Type', 'text/event-stream');
+  res.setHeader('Cache-Control', 'no-cache');
+  res.setHeader('Connection', 'keep-alive');
+  res.setHeader('X-Accel-Buffering', 'no');
+  res.flushHeaders();
+}
+
+function sseSend(res: Response, event: string, data: unknown): void {
+  res.write(`event: ${event}\ndata: ${JSON.stringify(data)}\n\n`);
+}
+
+export function agentsStreamRouter(repos: Repos): Router {
+  const router = Router();
+
+  // GET /api/agents/summarize/stream?caseId=N
+  router.get('/summarize/stream', asyncHandler(async (req, res) => {
+    const caseId = parseInt(req.query['caseId'] as string, 10);
+    if (isNaN(caseId)) { res.status(400).json({ error: 'caseId required' }); return; }
+
+    sseHeaders(res);
+    sseSend(res, 'progress', { stage: 'validating', pct: 5, message: 'מאמת נתוני תיק…' });
+
+    try {
+      sseSend(res, 'progress', { stage: 'running', pct: 20, message: 'מריץ סוכן סיכום…' });
+      const output = await summarizeCase(repos, caseId);
+      sseSend(res, 'progress', { stage: 'done', pct: 100, message: 'הושלם' });
+      sseSend(res, 'result', { ...output, isStale: false });
+    } catch (err) {
+      sseSend(res, 'error', { message: String(err) });
+    }
+    res.end();
+  }));
+
+  // GET /api/agents/timeline/stream?caseId=N
+  router.get('/timeline/stream', asyncHandler(async (req, res) => {
+    const caseId = parseInt(req.query['caseId'] as string, 10);
+    if (isNaN(caseId)) { res.status(400).json({ error: 'caseId required' }); return; }
+
+    sseHeaders(res);
+    sseSend(res, 'progress', { stage: 'validating', pct: 5, message: 'מאמת נתוני תיק…' });
+
+    try {
+      sseSend(res, 'progress', { stage: 'running', pct: 20, message: 'מריץ סוכן ציר זמן…' });
+      const output = await buildTimeline(repos, caseId);
+      sseSend(res, 'progress', { stage: 'done', pct: 100, message: 'הושלם' });
+      sseSend(res, 'result', { ...output, isStale: false });
+    } catch (err) {
+      sseSend(res, 'error', { message: String(err) });
+    }
+    res.end();
+  }));
+
+  // GET /api/agents/research/stream?question=...&caseId=N
+  router.get('/research/stream', asyncHandler(async (req, res) => {
+    const question = req.query['question'];
+    if (typeof question !== 'string' || !question.trim()) {
+      res.status(400).json({ error: 'question required' }); return;
+    }
+    const caseIdRaw = req.query['caseId'];
+    const caseId = caseIdRaw !== undefined ? parseInt(caseIdRaw as string, 10) : NaN;
+    const resolvedCaseId = !isNaN(caseId) ? caseId : undefined;
+
+    sseHeaders(res);
+    sseSend(res, 'progress', { stage: 'validating', pct: 5, message: 'מאמת שאלה משפטית…' });
+
+    try {
+      sseSend(res, 'progress', { stage: 'running', pct: 20, message: 'מריץ סוכן מחקר…' });
+      const output = await researchLegalQuestion(repos, question.trim(), resolvedCaseId);
+      sseSend(res, 'progress', { stage: 'done', pct: 100, message: 'הושלם' });
+      sseSend(res, 'result', { ...output, isStale: false });
+    } catch (err) {
+      sseSend(res, 'error', { message: String(err) });
+    }
+    res.end();
+  }));
+
+  // GET /api/agents/contract-review/stream?documentId=N
+  router.get('/contract-review/stream', asyncHandler(async (req, res) => {
+    const documentId = parseInt(req.query['documentId'] as string, 10);
+    if (isNaN(documentId)) { res.status(400).json({ error: 'documentId required' }); return; }
+
+    sseHeaders(res);
+    sseSend(res, 'progress', { stage: 'validating', pct: 5, message: 'מאמת מסמך…' });
+
+    try {
+      sseSend(res, 'progress', { stage: 'running', pct: 20, message: 'מריץ סוכן סקירת חוזה…' });
+      const output = await reviewContract(repos, documentId);
+      sseSend(res, 'progress', { stage: 'done', pct: 100, message: 'הושלם' });
+      sseSend(res, 'result', { ...output, isStale: false, staleReason: null });
+    } catch (err) {
+      sseSend(res, 'error', { message: String(err) });
+    }
+    res.end();
+  }));
+
+  // GET /api/agents/discovery/stream?caseId=N
+  router.get('/discovery/stream', asyncHandler(async (req, res) => {
+    const caseId = parseInt(req.query['caseId'] as string, 10);
+    if (isNaN(caseId)) { res.status(400).json({ error: 'caseId required' }); return; }
+
+    sseHeaders(res);
+    sseSend(res, 'progress', { stage: 'validating', pct: 5, message: 'מאמת נתוני תיק…' });
+
+    try {
+      sseSend(res, 'progress', { stage: 'running', pct: 20, message: 'מריץ סוכן גילוי ראיות…' });
+      const output = await runDiscovery(repos, caseId);
+      sseSend(res, 'progress', { stage: 'done', pct: 100, message: 'הושלם' });
+      sseSend(res, 'result', { ...output, isStale: false });
+    } catch (err) {
+      sseSend(res, 'error', { message: String(err) });
+    }
+    res.end();
+  }));
 
   return router;
 }

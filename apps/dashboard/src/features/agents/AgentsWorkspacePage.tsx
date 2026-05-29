@@ -8,6 +8,7 @@ import {
   useCases,
   useAgentSummarize, useAgentTimeline, useAgentResearch,
   useAgentContractReview, useAgentDiscovery,
+  useAgentStream,
 } from '../../api/hooks.js';
 import type { AgentOutput } from '../../api/hooks.js';
 
@@ -27,6 +28,7 @@ export function AgentsWorkspacePage() {
   const [selectedDoc,  setSelectedDoc]  = useState<number | null>(null);
   const [question,     setQuestion]     = useState('');
   const [result,       setResult]       = useState<AgentOutput | null>(null);
+  const [streamMode,   setStreamMode]   = useState(false);
 
   const { data: casesData } = useCases(1, 200);
   const cases = casesData?.items ?? [];
@@ -37,12 +39,32 @@ export function AgentsWorkspacePage() {
   const contractReview = useAgentContractReview();
   const research       = useAgentResearch();
 
+  const { state: streamState, start: startStream, reset: resetStream } = useAgentStream();
+
   const activeAgentDef = AGENTS.find((a) => a.id === activeAgent)!;
   const isLoading =
     summarize.isPending || timeline.isPending || discovery.isPending ||
     contractReview.isPending || research.isPending;
 
   const handleRun = () => {
+    if (streamMode) {
+      if (activeAgent === 'summarize' && selectedCase !== null) {
+        startStream('summarize', { caseId: selectedCase });
+      } else if (activeAgent === 'timeline' && selectedCase !== null) {
+        startStream('timeline', { caseId: selectedCase });
+      } else if (activeAgent === 'discovery' && selectedCase !== null) {
+        startStream('discovery', { caseId: selectedCase });
+      } else if (activeAgent === 'contract-review' && selectedDoc !== null) {
+        startStream('contract-review', { documentId: selectedDoc });
+      } else if (activeAgent === 'research' && question.trim()) {
+        startStream('research', {
+          question: question.trim(),
+          ...(selectedCase !== null ? { caseId: selectedCase } : {}),
+        });
+      }
+      return;
+    }
+
     const onSuccess = (data: AgentOutput) => setResult(data);
     const onError   = () => { /* errors visible via mutation state */ };
 
@@ -68,6 +90,9 @@ export function AgentsWorkspacePage() {
     (activeAgent === 'discovery'       && selectedCase !== null) ||
     (activeAgent === 'contract-review' && selectedDoc  !== null) ||
     (activeAgent === 'research'        && question.trim().length > 0);
+
+  const effectiveResult = streamMode ? streamState.result : result;
+  const effectiveLoading = streamMode ? streamState.isStreaming : isLoading;
 
   return (
     <div className="flex flex-col gap-6 p-6" dir="rtl">
@@ -152,23 +177,44 @@ export function AgentsWorkspacePage() {
               </div>
             )}
 
-            <button
-              className="btn-primary w-full flex items-center justify-center gap-2"
-              disabled={!canRun || isLoading}
-              onClick={handleRun}
-            >
-              <RobotIcon size={16} weight="duotone" />
-              {isLoading ? 'מעבד...' : 'הפעל סוכן'}
-            </button>
+            <div className="flex items-center gap-2">
+              <button
+                className="btn-primary flex-1 flex items-center justify-center gap-2"
+                disabled={!canRun || effectiveLoading}
+                onClick={handleRun}
+              >
+                <RobotIcon size={16} weight="duotone" />
+                {effectiveLoading ? 'מעבד...' : 'הפעל סוכן'}
+              </button>
+              <button
+                onClick={() => { setStreamMode(m => !m); resetStream(); setResult(null); }}
+                className="px-2 py-1 text-xs rounded border border-parchment/20 text-parchment/50 hover:text-parchment/80"
+              >
+                {streamMode ? '📡 Streaming' : '⚡ Standard'}
+              </button>
+            </div>
+
+            {streamMode && streamState.isStreaming && (
+              <div className="space-y-1">
+                <p className="text-xs text-parchment/60">{streamState.progress?.message ?? 'מתחבר…'}</p>
+                <div className="h-1 bg-navy-100 rounded overflow-hidden">
+                  <div className="h-full bg-gold transition-all" style={{ width: `${streamState.progress?.pct ?? 0}%` }} />
+                </div>
+              </div>
+            )}
+
+            {streamMode && streamState.error && (
+              <p className="text-xs text-red-400">{streamState.error}</p>
+            )}
           </div>
         </div>
 
         {/* Right: Output */}
         <div>
-          {(isLoading || result) ? (
+          {(effectiveLoading || effectiveResult) ? (
             <AgentOutputPanel
-              output={result}
-              loading={isLoading}
+              output={effectiveResult}
+              loading={effectiveLoading}
               agentLabel={activeAgentDef.label}
             />
           ) : (

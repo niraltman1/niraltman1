@@ -44,7 +44,7 @@ import { caseLawRouter }     from './routes/case-law.js';
 import { citationsRouter }   from './routes/citations.js';
 import { erasureRouter }     from './routes/erasure.js';
 import { bugReportRouter }   from './routes/bug-report.js';
-import { agentsRouter }      from './routes/agents.js';
+import { agentsRouter, agentsStreamRouter } from './routes/agents.js';
 import { signaturesRouter }  from './routes/signatures.js';
 import { diagnosticsRouter } from './routes/diagnostics.js';
 import { recoveryRouter }    from './routes/recovery.js';
@@ -148,6 +148,7 @@ export function createApp(repos: Repos, dbPath?: string): express.Express {
   app.use('/api/erasure',      erasureRouter(repos));
   app.use('/api/bug-report',   bugReportRouter(repos));
   app.use('/api/agents',       agentsRouter(repos));
+  app.use('/api/agents',       agentsStreamRouter(repos));
   app.use('/api/signatures',   signaturesRouter(repos));
   app.use('/api/diagnostics',  diagnosticsRouter(repos));
   app.use('/api/recovery',     recoveryRouter(repos));

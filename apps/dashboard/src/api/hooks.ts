@@ -1,3 +1,4 @@
+import { useState, useRef, useCallback, useEffect } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { ApiClientError } from './client.js';
 import type { ApiResponse } from './client.js';
@@ -2129,4 +2130,66 @@ export function useGenerateMailReply() {
       emailId?:  string;
     }) => postJSON<{ draftBody: string }>('/api/mail/generate-reply', payload),
   });
+}
+
+// ── Agent SSE streaming hook ──────────────────────────────────────────────
+export interface AgentStreamProgress {
+  stage:   string;
+  pct:     number;
+  message: string;
+}
+
+export interface AgentStreamState {
+  progress:    AgentStreamProgress | null;
+  result:      AgentOutput | null;
+  error:       string | null;
+  isStreaming: boolean;
+}
+
+export function useAgentStream(): {
+  state: AgentStreamState;
+  start: (agentType: string, params: Record<string, string | number>) => void;
+  reset: () => void;
+} {
+  const [state, setState] = useState<AgentStreamState>({
+    progress: null, result: null, error: null, isStreaming: false,
+  });
+
+  const esRef = useRef<EventSource | null>(null);
+
+  const start = useCallback((agentType: string, params: Record<string, string | number>) => {
+    esRef.current?.close();
+    setState({ progress: null, result: null, error: null, isStreaming: true });
+
+    const qs = new URLSearchParams(
+      Object.entries(params).map(([k, v]) => [k, String(v)]),
+    ).toString();
+    const es = new EventSource(`/api/agents/${agentType}/stream?${qs}`);
+    esRef.current = es;
+
+    es.addEventListener('progress', (e) => {
+      setState(prev => ({ ...prev, progress: JSON.parse((e as MessageEvent).data) as AgentStreamProgress }));
+    });
+    es.addEventListener('result', (e) => {
+      setState(prev => ({ ...prev, result: JSON.parse((e as MessageEvent).data) as AgentOutput, isStreaming: false }));
+      es.close();
+    });
+    es.addEventListener('error', (e) => {
+      const msg = (e as MessageEvent).data
+        ? (JSON.parse((e as MessageEvent).data) as { message: string }).message
+        : 'חיבור נכשל';
+      setState(prev => ({ ...prev, error: msg, isStreaming: false }));
+      es.close();
+    });
+  }, []);
+
+  const reset = useCallback(() => {
+    esRef.current?.close();
+    setState({ progress: null, result: null, error: null, isStreaming: false });
+  }, []);
+
+  // Cleanup on unmount
+  useEffect(() => () => { esRef.current?.close(); }, []);
+
+  return { state, start, reset };
 }
