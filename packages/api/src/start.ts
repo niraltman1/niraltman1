@@ -125,6 +125,21 @@ _earlyDb = db; // crash handlers can now write to SystemEvents
 new MigrationRunner(db, MIGRATIONS_DIR).run();
 ensureAutoVacuum(db);
 
+// Non-blocking notice if vec_chunks backfill may be needed
+try {
+  const vecReady = db.prepare(`SELECT 1 FROM sqlite_master WHERE type='table' AND name='vec_chunks'`).get();
+  if (vecReady) {
+    const { missing } = db.prepare(`
+      SELECT COUNT(*) AS missing FROM ChunkEmbeddings ce
+      WHERE ce.embedding IS NOT NULL
+        AND NOT EXISTS (SELECT 1 FROM vec_chunks vc WHERE vc.rowid = ce.chunk_id)
+    `).get() as { missing: number };
+    if (missing > 0) {
+      logger.info(`[startup] ${missing} embedding(s) not in vec_chunks. Run: tsx scripts/backfill-vec-chunks.ts`);
+    }
+  }
+} catch { /* sqlite-vec not loaded — skip silently */ }
+
 const repos: Repos = {
   db,
   config: configStore,
