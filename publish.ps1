@@ -236,7 +236,6 @@ foreach ($pkg in $WorkspacePackages) {
     private      = $true
     type         = "module"
     dependencies = [PSCustomObject]$MergedDeps
-    pnpm         = [PSCustomObject]@{ onlyBuiltDependencies = @('better-sqlite3') }
 } | ConvertTo-Json -Depth 10 | Set-Content "$BackendOut\package.json" -Encoding UTF8
 Write-Host "  Merged package.json written ($($MergedDeps.Count) third-party deps)." -ForegroundColor Gray
 
