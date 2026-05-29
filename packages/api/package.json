@@ -8,7 +8,8 @@
     "dev": "tsx watch src/start.ts",
     "test": "vitest run",
     "test:utils": "node --import tsx/esm --test src/utils/effort-controller.node-test.ts src/utils/vacuum-protocol.node-test.ts src/modules/security/__tests__/field-cipher.node-test.ts ../shared/src/logging/sanitizer.node-test.ts",
-    "test:security": "vitest run src/utils/prompt-security.test.ts src/middleware/__tests__/log-sanitizer.test.ts"
+    "test:security": "vitest run src/utils/prompt-security.test.ts src/middleware/__tests__/log-sanitizer.test.ts",
+    "lint": "eslint src"
   },
   "dependencies": {
     "@factum-il/agent-core": "workspace:*",

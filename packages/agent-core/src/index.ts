@@ -19,3 +19,12 @@ export { createCaseDomain, AuthorizationError } from './case-isolation-domain.js
 export type { CaseIsolationDomain } from './case-isolation-domain.js';
 export { journalEvent } from './execution-journal.js';
 export type { JournalEventType } from './execution-journal.js';
+export {
+  getSystemMode,
+  setSystemMode,
+  getUserCaseRole,
+  assignCaseAccess,
+  revokeCaseAccess,
+  listCaseAssignments,
+} from './rbac-v2.js';
+export type { SystemMode } from './rbac-v2.js';

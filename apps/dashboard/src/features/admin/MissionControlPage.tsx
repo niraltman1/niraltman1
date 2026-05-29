@@ -1,6 +1,8 @@
+import { Link } from 'react-router-dom';
 import {
   DatabaseIcon, RobotIcon, HeartbeatIcon, CalendarIcon,
   WarningCircleIcon, CheckCircleIcon, CircleNotchIcon, LockIcon,
+  ClockCounterClockwiseIcon, ShieldCheckIcon,
 } from '@phosphor-icons/react';
 import { useMissionControl } from '@/api/hooks.js';
 import type { MissionControlSnapshot } from '@/api/hooks.js';
@@ -201,6 +203,28 @@ export function MissionControlPage() {
             <HeartbeatIcon size={14} />
           </button>
         </div>
+      </div>
+
+      {/* ── Admin quick-nav ───────────────────────────────────────────────── */}
+      <div className="flex flex-wrap gap-2">
+        <Link
+          to="/admin/journal"
+          className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs
+                     bg-navy-100 border border-parchment/10 text-parchment/60
+                     hover:border-gold/30 hover:text-parchment transition-colors"
+        >
+          <ClockCounterClockwiseIcon size={12} className="text-gold" />
+          יומן ביצוע
+        </Link>
+        <Link
+          to="/admin/rbac"
+          className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs
+                     bg-navy-100 border border-parchment/10 text-parchment/60
+                     hover:border-gold/30 hover:text-parchment transition-colors"
+        >
+          <ShieldCheckIcon size={12} className="text-gold" weight="duotone" />
+          ניהול גישה
+        </Link>
       </div>
 
       {/* ── Operational Health ─────────────────────────────────────────────── */}

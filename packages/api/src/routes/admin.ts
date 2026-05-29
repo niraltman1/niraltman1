@@ -5,8 +5,13 @@ import { ok } from '../utils/response.js';
 import { getStatus as getResourceStatus, setTurboMode } from '../utils/resource-controller.js';
 import { seedDemo } from '../utils/seed-demo.js';
 import { runVacuumProtocol } from '../utils/vacuum-protocol.js';
-import { ValidationError } from '../errors/api-error.js';
+import { ValidationError, NotFoundError } from '../errors/api-error.js';
 import type { RagHealingService } from '../utils/rag-healing.js';
+import { requireRole } from '../middleware/auth.js';
+import {
+  getSystemMode, setSystemMode,
+  assignCaseAccess, revokeCaseAccess, listCaseAssignments,
+} from '@factum-il/agent-core';
 
 export function adminRouter(repos: Repos, healingService: RagHealingService): Router {
   const router = Router();
@@ -253,6 +258,83 @@ export function adminRouter(repos: Repos, healingService: RagHealingService): Ro
       dryRun: false,
     });
     ok(res, report);
+  }));
+
+  // ── System Mode (RBAC v2) ─────────────────────────────────────────────────
+  router.get('/system-mode', requireRole('admin', repos), asyncHandler((_req, res) => {
+    const mode = getSystemMode(repos.db as unknown as Parameters<typeof getSystemMode>[0]);
+    ok(res, { mode });
+  }));
+
+  router.post('/system-mode', requireRole('admin', repos), asyncHandler((req, res) => {
+    const { mode } = req.body as { mode?: unknown };
+    if (mode !== 'single' && mode !== 'multi') {
+      throw new ValidationError('mode must be "single" or "multi"');
+    }
+    setSystemMode(mode, repos.db as unknown as Parameters<typeof setSystemMode>[1]);
+    ok(res, { mode });
+  }));
+
+  // ── Case Assignments (RBAC v2) ────────────────────────────────────────────
+  router.get('/case-assignments', requireRole('admin', repos), asyncHandler((req, res) => {
+    const caseId = req.query['caseId'] !== undefined ? Number(req.query['caseId']) : null;
+    if (caseId !== null && isNaN(caseId)) throw new ValidationError('caseId must be a number');
+
+    const rows = caseId !== null
+      ? listCaseAssignments(caseId, repos.db as unknown as Parameters<typeof listCaseAssignments>[1])
+      : (repos.db.prepare(
+          `SELECT ca.id, ca.case_id as caseId, ca.user_id as userId, su.username, ca.role,
+                  ca.assigned_at as assignedAt
+             FROM CaseAssignments ca
+             JOIN system_users su ON su.id = ca.user_id
+            WHERE ca.revoked_at IS NULL
+            ORDER BY ca.assigned_at DESC LIMIT 200`,
+        ).all() as unknown[]);
+    ok(res, { assignments: rows });
+  }));
+
+  router.post('/case-assignments', requireRole('admin', repos), asyncHandler((req, res) => {
+    const { caseId, userId, role } = req.body as Record<string, unknown>;
+    if (typeof caseId !== 'number' || typeof userId !== 'number' || typeof role !== 'string') {
+      throw new ValidationError('caseId (number), userId (number), role (string) required');
+    }
+    const me = (req as unknown as { userId?: number }).userId ?? 0;
+    assignCaseAccess(caseId, userId, role, me, repos.db as unknown as Parameters<typeof assignCaseAccess>[4]);
+    ok(res, { ok: true });
+  }));
+
+  router.delete('/case-assignments/:id', requireRole('admin', repos), asyncHandler((req, res) => {
+    const id = Number(req.params['id']);
+    if (isNaN(id)) throw new ValidationError('id must be a number');
+    const me = (req as unknown as { userId?: number }).userId ?? 0;
+    const row = repos.db.prepare(
+      `SELECT case_id, user_id FROM CaseAssignments WHERE id = ?`,
+    ).get(id) as { case_id: number; user_id: number } | undefined;
+    if (!row) throw new NotFoundError(`Assignment ${id}`);
+    revokeCaseAccess(row.case_id, row.user_id, me, repos.db as unknown as Parameters<typeof revokeCaseAccess>[3]);
+    ok(res, { ok: true });
+  }));
+
+  // ── Agent Execution Journal ───────────────────────────────────────────────
+  router.get('/journal', requireRole('admin', repos), asyncHandler((req, res) => {
+    const q         = req.query as Record<string, string>;
+    const caseId    = q['caseId']    !== undefined ? Number(q['caseId'])    : null;
+    const eventType = q['eventType'] ?? null;
+    const since     = q['since']     ?? null;
+    const limit     = Math.min(parseInt(q['limit'] ?? '50', 10), 500);
+
+    const rows = repos.db.prepare(
+      `SELECT id, execution_id as executionId, case_id as caseId, user_id as userId,
+              event_type as eventType, payload_json as payloadJson, created_at as createdAt
+         FROM AgentExecutionEvents
+        WHERE (? IS NULL OR case_id = ?)
+          AND (? IS NULL OR event_type = ?)
+          AND (? IS NULL OR created_at >= ?)
+        ORDER BY created_at DESC
+        LIMIT ?`,
+    ).all(caseId, caseId, eventType, eventType, since, since, limit) as unknown[];
+
+    ok(res, { events: rows, count: rows.length });
   }));
 
   return router;

@@ -29,6 +29,9 @@ jobs:
       - name: Typecheck
         run: pnpm -r typecheck
 
+      - name: Lint
+        run: pnpm -r lint
+
       - name: Test (logic — all unit tests)
         id: test-logic
         run: pnpm test:logic
