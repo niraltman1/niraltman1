@@ -242,11 +242,10 @@ Write-Host "  Merged package.json written ($($MergedDeps.Count) third-party deps
 # 8.4  .npmrc + pnpm-workspace.yaml — flat hoisted layout; isolated from repo workspace
 #      node-linker=hoisted: no deep .pnpm/ symlink tree (fixes Windows MAX_PATH issues)
 #
-#      pnpm-workspace.yaml carries two settings that only apply to this isolated install:
-#        onlyBuiltDependencies — pnpm 10+ reads this from pnpm-workspace.yaml (NOT package.json)
-#        overrides             — mirrors the root override; ensures ^11 is resolved in the
-#                                isolated install (no lockfile, no root workspace)
-#      better-sqlite3 v9 has no Node-22 prebuilt; ^11 does.
+#      pnpm-workspace.yaml overrides — mirrors the root override so ^11 is resolved in this
+#      isolated install (no lockfile, no root workspace). better-sqlite3 v9 has no Node-22
+#      prebuilt; ^11 does. (Build-script approval is handled in step 8.5 via --ignore-scripts
+#      + npm rebuild, because pnpm reads onlyBuiltDependencies from the workspace ROOT.)
 @"
 node-linker=hoisted
 shamefully-hoist=true
