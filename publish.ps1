@@ -241,9 +241,11 @@ Write-Host "  Merged package.json written ($($MergedDeps.Count) third-party deps
 
 # 8.4  .npmrc + pnpm-workspace.yaml — flat hoisted layout; isolated from repo workspace
 #      node-linker=hoisted: no deep .pnpm/ symlink tree (fixes Windows MAX_PATH issues)
+#      allow-build: pnpm 9+ requires explicit opt-in for native modules that run build scripts
 @"
 node-linker=hoisted
 shamefully-hoist=true
+allow-build=better-sqlite3
 "@ | Set-Content "$BackendOut\.npmrc" -Encoding UTF8
 @"
 packages: []
