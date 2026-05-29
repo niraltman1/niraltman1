@@ -236,26 +236,36 @@ foreach ($pkg in $WorkspacePackages) {
     private      = $true
     type         = "module"
     dependencies = [PSCustomObject]$MergedDeps
-    pnpm         = [PSCustomObject]@{ onlyBuiltDependencies = @('better-sqlite3') }
 } | ConvertTo-Json -Depth 10 | Set-Content "$BackendOut\package.json" -Encoding UTF8
 Write-Host "  Merged package.json written ($($MergedDeps.Count) third-party deps)." -ForegroundColor Gray
 
 # 8.4  .npmrc + pnpm-workspace.yaml — flat hoisted layout; isolated from repo workspace
 #      node-linker=hoisted: no deep .pnpm/ symlink tree (fixes Windows MAX_PATH issues)
-#      allow-build: pnpm 9+ requires explicit opt-in for native modules that run build scripts
+#
+#      pnpm-workspace.yaml carries two settings that only apply to this isolated install:
+#        onlyBuiltDependencies — pnpm 10+ reads this from pnpm-workspace.yaml (NOT package.json)
+#        overrides             — mirrors the root override; ensures ^11 is resolved in the
+#                                isolated install (no lockfile, no root workspace)
+#      better-sqlite3 v9 has no Node-22 prebuilt; ^11 does.
 @"
 node-linker=hoisted
 shamefully-hoist=true
-allow-build=better-sqlite3
 "@ | Set-Content "$BackendOut\.npmrc" -Encoding UTF8
 @"
 packages: []
+onlyBuiltDependencies:
+  - better-sqlite3
+overrides:
+  better-sqlite3: "^11.0.0"
 "@ | Set-Content "$BackendOut\pnpm-workspace.yaml" -Encoding UTF8
 
 # 8.5  Install all third-party prod deps — flat layout, no lockfile, prefer local cache
 Push-Location $BackendOut
 pnpm install --prod --no-lockfile --node-linker=hoisted --prefer-offline
 if ($LASTEXITCODE -ne 0) { throw "pnpm install --prod failed in backend/" }
+# Verify the native binding loads against the build host's Node (same major as bundled runtime)
+node -e "const D=require('better-sqlite3'); const db=new D(':memory:'); db.exec('CREATE TABLE _p(x)'); db.close(); console.log('  better-sqlite3 native binding OK (v'+require('./node_modules/better-sqlite3/package.json').version+')');"
+if ($LASTEXITCODE -ne 0) { throw "better-sqlite3 native binding failed — check pnpm build approval / Node ABI in $BackendOut" }
 Pop-Location
 Write-Host "  pnpm install --prod complete." -ForegroundColor Gray
 
