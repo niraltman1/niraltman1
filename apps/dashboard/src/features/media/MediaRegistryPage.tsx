@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import {
   FileImageIcon, FilePdfIcon, CheckCircleIcon, WarningCircleIcon,
-  CircleNotchIcon, SealCheckIcon, ClockIcon, UploadSimpleIcon,
+  CircleNotchIcon, ClockIcon, UploadSimpleIcon,
   ArrowCounterClockwiseIcon, ShieldCheckIcon,
 } from '@phosphor-icons/react';
 import {

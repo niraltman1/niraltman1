@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import {
-  GavelIcon, ArrowRightIcon, BrainIcon, CheckCircleIcon,
+  GavelIcon, ArrowRightIcon, CheckCircleIcon,
   CalendarBlankIcon, XIcon, MagnifyingGlassIcon,
 } from '@phosphor-icons/react';
 import {
@@ -42,7 +42,7 @@ export function NewCaseWizard({ defaultClientId, onClose, onCreated }: Props) {
   const [anchorDate,   setAnchorDate]   = useState(new Date().toISOString().slice(0, 10));
   const [tasksCreated, setTasksCreated] = useState<number | null>(null);
   const [clientSearch, setClientSearch] = useState('');
-  const [skipTemplate, setSkipTemplate] = useState(false);
+  const [skipTemplate] = useState(false);
 
   const [form, setForm] = useState({
     caseNumber:  '',
@@ -105,11 +105,6 @@ export function NewCaseWizard({ defaultClientId, onClose, onCreated }: Props) {
       setStep('done');
       onCreated?.(newCase.id);
     }
-  }
-
-  function handleLearningSaved() {
-    // template saved — re-trigger template check by toggling skipTemplate
-    setSkipTemplate(false);
   }
 
   return (

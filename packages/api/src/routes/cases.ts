@@ -151,7 +151,7 @@ export function casesRouter(repos: Repos): Router {
     await fs.mkdir(outDir, { recursive: true });
 
     const safeNum = String((cas as unknown as Record<string, unknown>)['caseNumber'] ?? `case-${id}`)
-      .replace(/[^\w֐-׿\-]/g, '_');
+      .replace(/[^\w֐-׿-]/g, '_');
     const filename = `${safeNum}-worksheet.docx`;
     const outPath  = path.join(outDir, filename);
 

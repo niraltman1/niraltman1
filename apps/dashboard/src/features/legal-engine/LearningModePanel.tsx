@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import {
-  BrainIcon, ArrowRightIcon, CheckCircleIcon, WarningCircleIcon,
+  BrainIcon, CheckCircleIcon, WarningCircleIcon,
   CircleNotchIcon,
 } from '@phosphor-icons/react';
 import { useLearnTemplate, useSaveTemplate, type MilestoneDraft, type GeneratedSkeleton } from '@/api/hooks.js';

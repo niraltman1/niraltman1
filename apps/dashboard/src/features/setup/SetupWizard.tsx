@@ -2,7 +2,7 @@ import { useState, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
   CheckCircleIcon, XCircleIcon, WarningCircleIcon, ArrowRightIcon,
-  DatabaseIcon, RobotIcon, FolderOpenIcon, RocketLaunchIcon, SpinnerIcon,
+  RobotIcon, FolderOpenIcon, RocketLaunchIcon, SpinnerIcon,
 } from '@phosphor-icons/react';
 
 // ─── API types ────────────────────────────────────────────────────────────────

@@ -165,7 +165,6 @@ export class PersistentQueue {
     if (!row) return;
 
     const newCount = row.retry_count + 1;
-    const now = utcNow();
 
     if (newCount >= row.max_retries) {
       this.db.prepare(`

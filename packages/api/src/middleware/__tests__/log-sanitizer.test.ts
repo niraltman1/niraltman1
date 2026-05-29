@@ -9,7 +9,7 @@ import { describe, it, expect } from 'vitest';
 const PII_PATTERNS: Array<[RegExp, string]> = [
   [/\b\d{9}\b/g, '[ID_NUMBER]'],
   [/\b05\d[-\s]?\d{7}\b/g, '[PHONE]'],
-  [/[a-zA-Z0-9._%+\-]+@[a-zA-Z0-9.\-]+\.[a-zA-Z]{2,}/g, '[EMAIL]'],
+  [/[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}/g, '[EMAIL]'],
   [/"id_number"\s*:\s*"[^"]*"/g, '"id_number":"[REDACTED]"'],
   [/"phone"\s*:\s*"[^"]*"/g, '"phone":"[REDACTED]"'],
   [/"password"\s*:\s*"[^"]*"/g, '"password":"[REDACTED]"'],

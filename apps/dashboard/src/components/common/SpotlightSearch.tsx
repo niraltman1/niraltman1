@@ -91,7 +91,7 @@ export function SpotlightSearch({ onClose }: Props) {
   const [cursor, setCursor] = useState(0);
 
   const { data: rawResults } = useSearch(spotlight.query);
-  const allHits = (rawResults ?? []) as Record<string, unknown>[];
+  const allHits = useMemo(() => (rawResults ?? []) as Record<string, unknown>[], [rawResults]);
 
   const hits = useMemo(() => {
     if (filter === 'all') return allHits;

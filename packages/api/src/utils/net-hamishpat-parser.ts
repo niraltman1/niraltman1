@@ -99,25 +99,6 @@ const CASE_TYPE_MAP: Record<string, string> = {
   traffic_criminal:       'traffic_criminal',
 };
 
-// ── Procedure code → procedure_type map ───────────────────────────────────────
-// Code 32 is STRICTLY 'civil_standard' (סדר דין רגיל). No fallback to 'civil'.
-const PROCEDURE_CODE_MAP: Record<string, string> = {
-  '1':  'civil',
-  '2':  'civil',
-  '10': 'criminal',
-  '11': 'criminal',
-  '20': 'traffic_administrative',
-  '21': 'traffic_criminal',
-  '30': 'civil',
-  '31': 'civil',
-  '32': 'civil_standard',   // סדר דין רגיל — strict, no exceptions
-  '33': 'civil',
-  '40': 'family',
-  '50': 'administrative',
-  '60': 'insolvency',
-  '70': 'labour',
-};
-
 const STATUS_MAP: Record<string, string> = {
   'פתוח':   'open',
   'סגור':   'closed',
@@ -132,7 +113,7 @@ const STATUS_MAP: Record<string, string> = {
 function normalizeDate(raw: string | null): string | null {
   if (!raw) return null;
   // DD/MM/YYYY → YYYY-MM-DD
-  const m = /^(\d{1,2})[\/.-](\d{1,2})[\/.-](\d{4})$/.exec(raw.trim());
+  const m = /^(\d{1,2})[/.-](\d{1,2})[/.-](\d{4})$/.exec(raw.trim());
   if (m) return `${m[3]!}-${m[2]!.padStart(2, '0')}-${m[1]!.padStart(2, '0')}`;
   // Already ISO
   if (/^\d{4}-\d{2}-\d{2}/.test(raw.trim())) return raw.trim().slice(0, 10);
@@ -172,7 +153,7 @@ async function readCSV(filePath: string): Promise<{ headers: string[]; rows: str
   if (lines.length < 2) return { headers: [], rows: [] };
 
   // Strip BOM if present
-  const firstLine = lines[0]!.replace(/^﻿/, '');
+  const firstLine = lines[0]!.replace(/^\uFEFF/, '');
   const headers = parseCSVLine(firstLine);
   const rows    = lines.slice(1).map(parseCSVLine);
 

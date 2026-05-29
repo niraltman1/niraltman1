@@ -46,7 +46,7 @@ if (-not $OutDir) {
 
 $RepoRoot    = $PSScriptRoot
 $DesktopDir  = Join-Path $RepoRoot "FactumIL.Desktop"
-$TotalSteps  = 10
+$TotalSteps  = 11
 $Step        = 0
 $LogFile     = Join-Path $PSScriptRoot "Deployment-Log.txt"
 $BuildId     = [datetime]::UtcNow.ToString('yyyy-MM-ddTHH-mm-ssZ')
@@ -392,6 +392,19 @@ try {
     Write-Host "  GGUF staged ($([math]::Round((Get-Item $GgufFile).Length/1GB,2)) GB)" -ForegroundColor Gray
 } catch {
     Write-Host "  WARNING: Could not download GGUF  -  model will be pulled from Ollama Hub on first launch." -ForegroundColor Yellow
+}
+
+# ── Inject UTF-8 BOMs into staged text files ─────────────────────────────────
+Step "Injecting UTF-8 BOMs into staged text files"
+$AddBomScript = Join-Path $RepoRoot "scripts\add-bom-to-dist.ts"
+if (Test-Path $AddBomScript) {
+    Push-Location $RepoRoot
+    node --experimental-strip-types "$AddBomScript" "$OutDir"
+    if ($LASTEXITCODE -ne 0) { throw "add-bom-to-dist.ts failed — check staged file encoding" }
+    Pop-Location
+    Write-Host "  BOM injection complete." -ForegroundColor Gray
+} else {
+    Write-Host "  SKIP: scripts\add-bom-to-dist.ts not found" -ForegroundColor Yellow
 }
 
 # ── Summary ───────────────────────────────────────────────────────────────────

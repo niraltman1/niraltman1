@@ -42,7 +42,7 @@ export function TrafficCasePanel({ caseId }: Props) {
   const [showCreate, setShowCreate]   = useState(false);
   const [newDate, setNewDate]         = useState('');
   const [licenseNum, setLicenseNum]   = useState('');
-  const [identityType, setIdentityType] = useState<'id_number'|'driving_license'|'passport'>('id_number');
+  const [, setIdentityType] = useState<'id_number'|'driving_license'|'passport'>('id_number');
 
   if (isLoading) {
     return <div className="text-parchment/40 text-xs py-2">טוען מסלול תעבורה…</div>;

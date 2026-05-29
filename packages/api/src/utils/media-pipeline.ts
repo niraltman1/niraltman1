@@ -17,7 +17,7 @@
  */
 
 import { extname, basename, dirname, join } from 'path';
-import { access, open as fsOpen } from 'fs/promises';
+import { access } from 'fs/promises';
 import { execFile } from 'node:child_process';
 import type { ProcessedFilesRepository, DocumentRepository, EvidenceRepository, ClientRepository, CaseRepository, PipelineLogsRepository, ContactsRepository } from '@factum-il/database';
 import { computeFileHash, getFileSize, mimeFromExtension, isImageExtension } from './file-hash.js';
@@ -95,24 +95,6 @@ function toLongPath(p: string): string {
 const FORBIDDEN_OS_CHARS_RE = /[\\/:*?"<>|]/g;
 export function sanitizeFolderName(name: string): string {
   return name.replace(FORBIDDEN_OS_CHARS_RE, '_').replace(/\s+/g, ' ').trim();
-}
-
-// ── PDF integrity / encryption pre-check ──────────────────────────────────
-async function isPdfSafe(filePath: string): Promise<{ valid: boolean; encrypted: boolean }> {
-  let fh: Awaited<ReturnType<typeof fsOpen>> | null = null;
-  try {
-    fh = await fsOpen(toLongPath(filePath), 'r');
-    const header = Buffer.alloc(1024);
-    const { bytesRead } = await fh.read(header, 0, 1024, 0);
-    const chunk = header.subarray(0, bytesRead).toString('latin1');
-    const valid = chunk.startsWith('%PDF');
-    const encrypted = valid && chunk.includes('/Encrypt');
-    return { valid, encrypted };
-  } catch {
-    return { valid: false, encrypted: false };
-  } finally {
-    await fh?.close().catch(() => undefined);
-  }
 }
 
 export interface IngestOptions {

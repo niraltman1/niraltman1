@@ -107,7 +107,7 @@ export class AIValidator {
     const combined = `${filename}\n${ocrText.slice(0, 3000)}`;
 
     // Israeli case number: e.g. 1234/23, 12345-01-23
-    const caseMatch = combined.match(/\b(\d{4,6}[\/\-]\d{2,4}(?:[\/\-]\d{2,4})?)\b/);
+    const caseMatch = combined.match(/\b(\d{4,6}[-/]\d{2,4}(?:[-/]\d{2,4})?)\b/);
     if (caseMatch) ground['case_number'] = caseMatch[1];
 
     // Israeli national ID (9 digits)
@@ -115,9 +115,9 @@ export class AIValidator {
     if (idMatch) ground['id_number'] = idMatch[1];
 
     // Document date: dd/mm/yyyy or dd.mm.yyyy
-    const dateMatch = combined.match(/\b(\d{1,2}[.\/]\d{1,2}[.\/]\d{4})\b/);
+    const dateMatch = combined.match(/\b(\d{1,2}[./]\d{1,2}[./]\d{4})\b/);
     if (dateMatch) {
-      const parts = dateMatch[1]!.split(/[.\/]/);
+      const parts = dateMatch[1]!.split(/[./]/);
       if (parts.length === 3) {
         ground['document_date'] = `${parts[2]!}-${parts[1]!.padStart(2,'0')}-${parts[0]!.padStart(2,'0')}`;
       }

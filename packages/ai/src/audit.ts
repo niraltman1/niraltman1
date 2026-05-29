@@ -1,5 +1,5 @@
 import { createHash } from 'node:crypto';
-import { logger, utcNow } from '@factum-il/shared';
+import { logger } from '@factum-il/shared';
 import type { DatabaseConnection } from '@factum-il/database';
 
 const AGENT = 'AIStrategist';

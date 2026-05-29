@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { getCaseCompleteness, seedProceduralChecklist } from './completeness.js';
+import { getCaseCompleteness } from './completeness.js';
 import { scoreCase } from './risk-scorer.js';
 
 // Minimal in-memory DB mock using arrays
@@ -11,7 +11,7 @@ function makeDb(
   return {
     prepare: (sql: string) => ({
       get: (..._args: unknown[]) => undefined,
-      all: (...args: unknown[]) => {
+      all: (..._args: unknown[]) => {
         if (sql.includes('ProceduralChecklist')) return checklistRows;
         if (sql.includes('Rules_Engine') || sql.includes('rule')) return ruleRows;
         if (sql.includes('court_hearings')) return hearingRows;

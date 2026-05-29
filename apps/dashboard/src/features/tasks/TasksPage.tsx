@@ -1,7 +1,7 @@
 import { useState, useCallback } from 'react';
 import {
   CheckSquareIcon, PlusIcon, ArrowsClockwiseIcon,
-  TrashIcon, ClockIcon, WarningIcon, CheckIcon,
+  ClockIcon, WarningIcon, CheckIcon,
 } from '@phosphor-icons/react';
 import { useTasks, useCreateTask, useUpdateTask, type TaskRecord } from '@/api/hooks.js';
 

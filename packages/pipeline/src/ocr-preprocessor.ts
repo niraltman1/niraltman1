@@ -1,7 +1,7 @@
 import { execFile } from 'node:child_process';
 import { promisify } from 'node:util';
 import { existsSync, statSync } from 'node:fs';
-import { join, dirname, basename, extname } from 'node:path';
+import { join, basename, extname } from 'node:path';
 
 const exec = promisify(execFile);
 
@@ -177,7 +177,7 @@ export class OCRPreprocessor {
         '-format', '%[fx:mean]|%[fx:w]|%[colorspace]',
         'info:',
       ]);
-      const [meanStr = '0', _w = '0', cs = ''] = stdout.trim().split('|');
+      const [meanStr = '0', , cs = ''] = stdout.trim().split('|');
       return {
         meanSignalStrength: 1 - parseFloat(meanStr),  // darker = more content
         estimatedDPI:       this.estimateDPI(imagePath),

@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 
 const MESSAGES = [
   'מאתחל את מנוע Factum IL...',
@@ -21,13 +21,13 @@ export function SplashScreen({ onReady }: { onReady: () => void }) {
   const onReadyRef              = useRef(onReady);
   onReadyRef.current            = onReady;
 
-  const tryTransition = () => {
+  const tryTransition = useCallback(() => {
     if (minMetRef.current && apiReadyRef.current && phase === 'connecting') {
       setMsgIndex(MESSAGES.length - 1);
       setPhase('fading');
       setTimeout(() => onReadyRef.current(), FADE_DURATION_MS);
     }
-  };
+  }, [phase]);
 
   // Minimum display timer
   useEffect(() => {
@@ -36,7 +36,7 @@ export function SplashScreen({ onReady }: { onReady: () => void }) {
       tryTransition();
     }, MIN_DISPLAY_MS);
     return () => clearTimeout(t);
-  }, []);
+  }, [tryTransition]);
 
   // Health poll
   useEffect(() => {
@@ -52,7 +52,7 @@ export function SplashScreen({ onReady }: { onReady: () => void }) {
       } catch { /* API not yet up */ }
     }, POLL_INTERVAL_MS);
     return () => clearInterval(id);
-  }, []);
+  }, [tryTransition]);
 
   // Message cycler (stops at last message when ready)
   useEffect(() => {
