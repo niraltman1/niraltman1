@@ -46,7 +46,7 @@ if (-not $OutDir) {
 
 $RepoRoot    = $PSScriptRoot
 $DesktopDir  = Join-Path $RepoRoot "FactumIL.Desktop"
-$TotalSteps  = 11
+$TotalSteps  = 12
 $Step        = 0
 $LogFile     = Join-Path $PSScriptRoot "Deployment-Log.txt"
 $BuildId     = [datetime]::UtcNow.ToString('yyyy-MM-ddTHH-mm-ssZ')

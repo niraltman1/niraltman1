@@ -22,8 +22,7 @@ import {
   statSync,
   writeFileSync,
 } from 'node:fs';
-import { extname, join, relative } from 'node:path';
-import { dirname } from 'node:path';
+import { dirname, extname, join, relative } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 const ROOT        = join(dirname(fileURLToPath(import.meta.url)), '..');
@@ -77,9 +76,12 @@ function hasBom(filePath: string): boolean {
   if (size < 3) return false;
   const head = Buffer.alloc(3);
   const fd   = openSync(filePath, 'r');
-  readSync(fd, head, 0, 3, 0);
-  closeSync(fd);
-  return head.equals(BOM);
+  try {
+    readSync(fd, head, 0, 3, 0);
+    return head.equals(BOM);
+  } finally {
+    closeSync(fd);
+  }
 }
 
 function injectBom(filePath: string): void {
@@ -115,7 +117,14 @@ function injectBom(filePath: string): void {
 }
 
 function walkDir(dir: string): void {
-  const entries = readdirSync(dir, { withFileTypes: true });
+  let entries;
+  try {
+    entries = readdirSync(dir, { withFileTypes: true });
+  } catch (err) {
+    fail(`unable to read directory — ${relative(stagingDir, dir)}`, String(err));
+    failures++;
+    return;
+  }
   for (const entry of entries) {
     const full = join(dir, entry.name);
     if (entry.isDirectory()) {
