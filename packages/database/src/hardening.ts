@@ -149,7 +149,7 @@ export class DatabaseHardening {
   ): void {
     try {
       this.db.prepare(`
-        INSERT INTO Metrics (metric_name, metric_value, unit, agent, document_id, tags_json)
+        INSERT INTO Metrics (name, value, unit, agent, document_id, tags)
         VALUES (?, ?, ?, ?, ?, ?)
       `).run(
         metricName,
@@ -168,10 +168,10 @@ export class DatabaseHardening {
   getMetrics(metricName: string, hours = 24): { avg: number; min: number; max: number; count: number } {
     const since = new Date(Date.now() - hours * 3_600_000).toISOString();
     const row = this.db.prepare(`
-      SELECT AVG(metric_value) as avg, MIN(metric_value) as min,
-             MAX(metric_value) as max, COUNT(*) as count
+      SELECT AVG(value) as avg, MIN(value) as min,
+             MAX(value) as max, COUNT(*) as count
         FROM Metrics
-       WHERE metric_name = ? AND recorded_at >= ?
+       WHERE name = ? AND recorded_at >= ?
     `).get(metricName, since) as { avg: number; min: number; max: number; count: number };
     return row;
   }
