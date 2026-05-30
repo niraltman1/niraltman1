@@ -79,7 +79,8 @@ internal sealed class ApiHostService
 
         // Forward installer-set env vars if present
         foreach (var key in new[] { "OLLAMA_MODEL", "WHISPER_EXE", "FFMPEG_EXE",
-                                    "BACKUP_ENCRYPT", "BACKUP_ENCRYPT_KEY", "AI_TIER" })
+                                    "BACKUP_ENCRYPT", "BACKUP_ENCRYPT_KEY", "AI_TIER",
+                                    "SQLITE_VEC_PATH", "OLLAMA_BASE_URL" })
         {
             var val = Environment.GetEnvironmentVariable(key, EnvironmentVariableTarget.Machine);
             if (val is not null) psi.EnvironmentVariables[key] = val;
