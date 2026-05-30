@@ -1,4 +1,4 @@
-﻿#Requires -Version 5.1
+#Requires -Version 5.1
 <#
 .SYNOPSIS
     Factum IL v1.0.0  -  Production Build & Stage Script
@@ -69,7 +69,7 @@ function CheckExe([string]$name) {
     }
 }
 
-# ── Prerequisite check ────────────────────────────────────────────────────────
+# ── Prerequisite check ─────────────────────────────────────────────
 Step "Verifying prerequisites"
 CheckExe "pnpm"
 CheckExe "dotnet"
@@ -97,27 +97,27 @@ $wv2Key = "HKLM:\SOFTWARE\WOW6432Node\Microsoft\EdgeUpdate\Clients\{F3017226-FE2
 if (Test-Path $wv2Key) { Log "  WebView2 Runtime: present" }
 else { Log "  WARN: WebView2 Runtime not installed - installer will handle silent install" }
 
-# ── Clean output directory ────────────────────────────────────────────────────
+# ── Clean output directory ────────────────────────────────────────────
 Step "Cleaning output directory"
 if (Test-Path $OutDir) { Remove-Item -Recurse -Force $OutDir }
 New-Item -ItemType Directory -Force -Path $OutDir | Out-Null
 Write-Host "  Cleaned: $OutDir" -ForegroundColor Gray
 
-# ── Install dependencies ──────────────────────────────────────────────────────
+# ── Install dependencies ──────────────────────────────────────────────
 Step "Installing dependencies (pnpm install --frozen-lockfile)"
 Push-Location $RepoRoot
 pnpm install --frozen-lockfile
 if ($LASTEXITCODE -ne 0) { throw "pnpm install failed" }
 Pop-Location
 
-# ── Typecheck all packages ────────────────────────────────────────────────────
+# ── Typecheck all packages ────────────────────────────────────────────
 Step "Typechecking all packages (pnpm -r typecheck)"
 Push-Location $RepoRoot
 pnpm -r typecheck
 if ($LASTEXITCODE -ne 0) { throw "TypeScript typecheck failed  -  fix errors before packaging" }
 Pop-Location
 
-# ── Optional: run tests ───────────────────────────────────────────────────────
+# ── Optional: run tests ───────────────────────────────────────────────
 if (-not $SkipTests) {
     Step "Running test suite (pnpm -r test)"
     Push-Location $RepoRoot
@@ -129,7 +129,7 @@ if (-not $SkipTests) {
     Write-Host "  WARNING: Skipping tests. Only use this for emergency rebuilds." -ForegroundColor Yellow
 }
 
-# ── Build all TypeScript packages (dependency order) ─────────────────────────
+# ── Build all TypeScript packages (dependency order) ───────────────────────
 Step "Building all TypeScript packages"
 
 $PackageBuildOrder = @(
@@ -165,7 +165,7 @@ pnpm --filter dashboard build
 if ($LASTEXITCODE -ne 0) { throw "Dashboard build failed" }
 Pop-Location
 
-# ── Publish WPF shell ─────────────────────────────────────────────────────────
+# ── Publish WPF shell ─────────────────────────────────────────────────────
 Step "Publishing WPF shell (dotnet publish, win-x64, no-self-contained)"
 $ShellOut = Join-Path $OutDir "shell"
 Push-Location $DesktopDir
@@ -207,6 +207,13 @@ $WorkspacePackages = @(
 New-Item -ItemType Directory -Force -Path "$BackendOut\dist" | Out-Null
 Copy-Item -Recurse -Force "$RepoRoot\packages\api\dist\*" "$BackendOut\dist"
 Write-Host "  API dist/ staged." -ForegroundColor Gray
+
+# 8.2.1 Copy generated/ (tsc does not emit non-TS files — version.json lives here)
+if (Test-Path "$RepoRoot\packages\api\src\generated") {
+    New-Item -ItemType Directory -Force -Path "$BackendOut\dist\generated" | Out-Null
+    Copy-Item -Recurse -Force "$RepoRoot\packages\api\src\generated\*" "$BackendOut\dist\generated"
+    Write-Host "  API dist/generated/ staged." -ForegroundColor Gray
+}
 
 # 8.3  Build merged package.json:
 #       API third-party deps (workspace:* stripped) + transitive third-party
@@ -351,7 +358,7 @@ foreach ($f in @("Config.ps1", "IdentifierParser.ps1")) {
     if (Test-Path $src) { Copy-Item $src $LibDst -Force }
 }
 
-# ── Download portable Node.js ─────────────────────────────────────────────────
+# ── Download portable Node.js ──────────────────────────────────────────────────
 Step "Downloading portable Node.js v$NodeVersion"
 $RuntimeDst = Join-Path $OutDir "runtime"
 New-Item -ItemType Directory -Force -Path $RuntimeDst | Out-Null
@@ -381,7 +388,7 @@ if (-not (Test-Path $NodeZip)) {
     Write-Host "  node.exe staged: $RuntimeDst\node.exe" -ForegroundColor Gray
 }
 
-# ── Download Ollama, WebView2, and AI model GGUF ──────────────────────────────
+# ── Download Ollama, WebView2, and AI model GGUF ──────────────────────────────────
 Step "Downloading Ollama, WebView2, and AI model GGUF"
 $ToolsDst   = Join-Path $OutDir "tools"
 New-Item -ItemType Directory -Force -Path $ToolsDst | Out-Null
@@ -418,7 +425,7 @@ try {
     Write-Host "  WARNING: Could not download GGUF  -  model will be pulled from Ollama Hub on first launch." -ForegroundColor Yellow
 }
 
-# ── Inject UTF-8 BOMs into staged PowerShell scripts ─────────────────────────
+# ── Inject UTF-8 BOMs into staged PowerShell scripts ───────────────────────────────
 Step "Injecting UTF-8 BOMs into staged PowerShell scripts"
 $AddBomScript = Join-Path $RepoRoot "scripts\add-bom-to-dist.ts"
 if (Test-Path $AddBomScript) {
