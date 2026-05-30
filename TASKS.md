@@ -355,3 +355,41 @@ All checks pass (2026-05-26):
   on a clean Windows VM for end-to-end smoke test.
 - **Remaining planned work:** Production Polish (installer metadata, port discovery, DB shield),
   Coverage & Chaos Tests, Build Environment Fixes (.nvmrc, START.cmd)
+
+## Build Pipeline Fixes — Round 2 (2026-05-30)
+
+### Completed this session
+
+**PR #29 — allow-build in .npmrc (reverted/superseded)**
+- ניסיון ראשון: `allow-build=better-sqlite3` ב-`.npmrc` — מפתח לא חוקי ב-pnpm, לא תיקן.
+
+**PR #30 — pnpm.onlyBuiltDependencies ב-package.json (reverted/superseded)**
+- ניסיון שני: `pnpm.onlyBuiltDependencies` ב-`package.json` — pnpm 11 התעלם עם WARN, לא תיקן.
+
+**PR #31 — onlyBuiltDependencies ב-backend pnpm-workspace.yaml (reverted/superseded)**
+- ניסיון שלישי: `onlyBuiltDependencies` ב-`pnpm-workspace.yaml` של ה-backend — pnpm קרא מ-ROOT workspace, לא מהתיקייה המבודדת.
+
+**PR #32 — `--ignore-scripts` + `npm rebuild better-sqlite3` + overrides (merged)**
+- פתרון סופי ל-`ERR_PNPM_IGNORED_BUILDS`:
+  - `pnpm install --prod --ignore-scripts` עוקף את חסימת pnpm לגמרי
+  - `npm rebuild better-sqlite3` מריץ את ה-native build עם Node שמותקן ב-מכונה
+  - `overrides: better-sqlite3: "^11.0.0"` ב-`pnpm-workspace.yaml` — מבטיח גרסה עם Node-22 prebuilt
+  - self-verification: `node -e "require('better-sqlite3')"` בסוף שלב 8
+
+**PR #33 — Add-Member -Force לתיקון exports בשלב 8.6 (merged)**
+- שגיאה: `Exception setting "exports"` — PowerShell לא יכול להצמיד property חדש ישירות ל-PSCustomObject
+- תיקון: `$pkgJson | Add-Member -NotePropertyName 'exports' ... -Force`
+
+**PR #34 — URLs רשמיים לשלבים 10-11 (merged)**
+- שגיאה: `Invoke-WebRequest : Not Found` — release `v-deps-1.0.0` לא קיים בריפו
+- תיקון: nodejs.org, ollama.com, go.microsoft.com, huggingface.co — כולם URLs רשמיים ציבוריים
+
+### What to do next
+
+- **הרץ על Windows:** `git pull origin main && .\publish.ps1`
+- **שלבים 1-9** — אמורים לעבור (תוקנו ב-PRs קודמים)
+- **שלב 10** — יוריד `node.exe` מ-nodejs.org (≈30 MB)
+- **שלב 11** — יוריד Ollama, WebView2, GGUF (~1.3 GB); הורדת GGUF ארוכה — המתן
+- **שלב 12** — `ISCC.exe installer.iss` → `Factum-IL-Setup.exe`
+- אם שלב 11 נכשל בגלל GGUF: לא שגיאה קריטית — המודל יורד מ-Ollama Hub בהפעלה ראשונה
+- אם כל 12 השלבים עברו: התקן על מכונת Windows נקייה ובדוק smoke test
