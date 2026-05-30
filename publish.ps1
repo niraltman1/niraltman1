@@ -441,7 +441,7 @@ Write-Host ""
 Write-Host "  shell\FactumIL.Desktop.exe        $(if (Test-Path "$OutDir\shell\FactumIL.Desktop.exe") {'✓'} else {'MISSING'})" -ForegroundColor White
 Write-Host "  runtime\node.exe                  $(if (Test-Path "$OutDir\runtime\node.exe") {'✓'} else {'MISSING'})" -ForegroundColor White
 Write-Host "  backend\dist\start.js             $(if (Test-Path "$OutDir\backend\dist\start.js") {'✓'} else {'MISSING'})" -ForegroundColor White
-Write-Host "  dashboard\index.html              $(if (Test-Path "$OutDir\dashboard\index.html") {'✓'} else {'MISSING'})" -ForegroundColor White
+Write-Host "  dashboard\dist\index.html         $(if (Test-Path "$OutDir\dashboard\dist\index.html") {'✓'} else {'MISSING'})" -ForegroundColor White
 Write-Host "  migrations\                        $((Get-ChildItem "$OutDir\migrations" -Filter *.sql -ErrorAction SilentlyContinue).Count) SQL files" -ForegroundColor White
 Write-Host "  tools\OllamaSetup.exe             $(if (Test-Path "$OutDir\tools\OllamaSetup.exe") {'✓'} else {'missing  -  add manually'})" -ForegroundColor White
 Write-Host "  models\law-il-E2B-Q4_K_M.gguf    $(if (Test-Path "$OutDir\models\law-il-E2B-Q4_K_M.gguf") {'✓'} else {'missing  -  will pull from Ollama Hub on first launch'})" -ForegroundColor White

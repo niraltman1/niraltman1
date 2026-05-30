@@ -4,7 +4,7 @@
     <TargetFramework>net8.0-windows</TargetFramework>
     <UseWPF>true</UseWPF>
     <ApplicationIcon>Resources\icon.ico</ApplicationIcon>
-    <AssemblyName>FactumIL</AssemblyName>
+    <AssemblyName>FactumIL.Desktop</AssemblyName>
     <RootNamespace>FactumIL.Desktop</RootNamespace>
     <Nullable>enable</Nullable>
     <ImplicitUsings>enable</ImplicitUsings>
