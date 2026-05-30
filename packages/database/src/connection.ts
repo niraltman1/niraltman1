@@ -1,5 +1,6 @@
 import Database from 'better-sqlite3';
 import type { Database as BetterSQLite3Database, Statement } from 'better-sqlite3';
+import { existsSync } from 'node:fs';
 import { logger } from '@factum-il/shared';
 
 export interface DatabaseConfig {
@@ -19,6 +20,21 @@ export class DatabaseConnection {
       readonly: config.readonly ?? false,
       fileMustExist: false,
     });
+
+    // Load sqlite-vec extension when SQLITE_VEC_PATH is set.
+    // Enables native KNN vector search (migration 052); falls back to JS cosine if absent.
+    const vecPath = process.env['SQLITE_VEC_PATH'];
+    if (vecPath && existsSync(vecPath)) {
+      try {
+        this.db.loadExtension(vecPath);
+        logger.info(`sqlite-vec loaded from ${vecPath}`, { category: 'system', agentSource: 'DataArchitect' });
+      } catch (err) {
+        logger.warn(`sqlite-vec load failed (${vecPath}): ${String(err)} — JS cosine fallback active`, {
+          category: 'system',
+          agentSource: 'DataArchitect',
+        });
+      }
+    }
 
     // Apply mandatory pragmas
     this.db.pragma('journal_mode = WAL');
