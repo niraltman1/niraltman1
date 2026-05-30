@@ -360,39 +360,46 @@ $NodeZip     = "$env:TEMP\node-v$NodeVersion-win-x64.zip"
 $NodeExtract = "$env:TEMP\node-v$NodeVersion-win-x64-extract"
 
 if (-not (Test-Path $NodeZip)) {
-    $NodeUrl = "https://github.com/niraltman1/niraltman1/releases/download/v-deps-1.0.0/node-v$NodeVersion-win-x64.zip"
+    $NodeUrl = "https://nodejs.org/dist/v$NodeVersion/node-v$NodeVersion-win-x64.zip"
     Write-Host "  Downloading $NodeUrl ..." -ForegroundColor Gray
-    Invoke-WebRequest -Uri $NodeUrl -OutFile $NodeZip -UseBasicParsing
+    try {
+        Invoke-WebRequest -Uri $NodeUrl -OutFile $NodeZip -UseBasicParsing
+    } catch {
+        Write-Host "  WARNING: Could not download Node.js — place node-v$NodeVersion-win-x64.zip in $env:TEMP manually." -ForegroundColor Yellow
+    }
 } else {
     Write-Host "  Using cached: $NodeZip" -ForegroundColor Gray
 }
 
-if (Test-Path $NodeExtract) { Remove-Item -Recurse -Force $NodeExtract }
-Expand-Archive -Path $NodeZip -DestinationPath $NodeExtract
-Copy-Item -Force "$NodeExtract\node-v$NodeVersion-win-x64\node.exe" "$RuntimeDst\node.exe"
-Write-Host "  node.exe staged: $RuntimeDst\node.exe" -ForegroundColor Gray
+if (-not (Test-Path $NodeZip)) {
+    Write-Host "  SKIP: node.exe not staged (zip missing). runtime\node.exe will be absent." -ForegroundColor Yellow
+} else {
+    if (Test-Path $NodeExtract) { Remove-Item -Recurse -Force $NodeExtract }
+    Expand-Archive -Path $NodeZip -DestinationPath $NodeExtract
+    Copy-Item -Force "$NodeExtract\node-v$NodeVersion-win-x64\node.exe" "$RuntimeDst\node.exe"
+    Write-Host "  node.exe staged: $RuntimeDst\node.exe" -ForegroundColor Gray
+}
 
 # ── Download Ollama, WebView2, and AI model GGUF ──────────────────────────────
 Step "Downloading Ollama, WebView2, and AI model GGUF"
 $ToolsDst   = Join-Path $OutDir "tools"
-$DepsBase   = "https://github.com/niraltman1/niraltman1/releases/download/v-deps-1.0.0"
 New-Item -ItemType Directory -Force -Path $ToolsDst | Out-Null
 
-# Ollama (pinned via v-deps-1.0.0 release  -  not floating "latest")
+# Ollama — download from official Ollama releases (always latest stable)
 $OllamaExe = Join-Path $ToolsDst "OllamaSetup.exe"
 try {
     Write-Host "  Downloading OllamaSetup.exe ..." -ForegroundColor Gray
-    Invoke-WebRequest -Uri "$DepsBase/OllamaSetup.exe" -OutFile $OllamaExe -UseBasicParsing -TimeoutSec 120
+    Invoke-WebRequest -Uri "https://ollama.com/download/OllamaSetup.exe" -OutFile $OllamaExe -UseBasicParsing -TimeoutSec 120
     Write-Host "  OllamaSetup.exe staged ($([math]::Round((Get-Item $OllamaExe).Length/1MB,1)) MB)" -ForegroundColor Gray
 } catch {
     Write-Host "  WARNING: Could not download OllamaSetup.exe  -  place it manually in: $ToolsDst" -ForegroundColor Yellow
 }
 
-# WebView2 bootstrapper
+# WebView2 bootstrapper — Microsoft evergreen bootstrapper (always current)
 $WV2Exe = Join-Path $ToolsDst "MicrosoftEdgeWebview2Setup.exe"
 try {
     Write-Host "  Downloading MicrosoftEdgeWebview2Setup.exe ..." -ForegroundColor Gray
-    Invoke-WebRequest -Uri "$DepsBase/MicrosoftEdgeWebview2Setup.exe" -OutFile $WV2Exe -UseBasicParsing -TimeoutSec 60
+    Invoke-WebRequest -Uri "https://go.microsoft.com/fwlink/p/?LinkId=2124703" -OutFile $WV2Exe -UseBasicParsing -TimeoutSec 60
     Write-Host "  WebView2 bootstrapper staged ($([math]::Round((Get-Item $WV2Exe).Length/1KB,0)) KB)" -ForegroundColor Gray
 } catch {
     Write-Host "  WARNING: Could not download WebView2 bootstrapper  -  place MicrosoftEdgeWebview2Setup.exe in: $ToolsDst" -ForegroundColor Yellow
@@ -404,7 +411,7 @@ New-Item -ItemType Directory -Force -Path $GgufDst | Out-Null
 $GgufFile = Join-Path $GgufDst "law-il-E2B-Q4_K_M.gguf"
 try {
     Write-Host "  Downloading law-il-E2B-Q4_K_M.gguf (~1.3 GB) ..." -ForegroundColor Gray
-    Invoke-WebRequest -Uri "$DepsBase/law-il-E2B-Q4_K_M.gguf" -OutFile $GgufFile -UseBasicParsing -TimeoutSec 1800
+    Invoke-WebRequest -Uri "https://huggingface.co/BrainboxAI/law-il-E2B-GGUF/resolve/main/law-il-E2B-Q4_K_M.gguf" -OutFile $GgufFile -UseBasicParsing -TimeoutSec 1800
     Write-Host "  GGUF staged ($([math]::Round((Get-Item $GgufFile).Length/1GB,2)) GB)" -ForegroundColor Gray
 } catch {
     Write-Host "  WARNING: Could not download GGUF  -  model will be pulled from Ollama Hub on first launch." -ForegroundColor Yellow
