@@ -113,6 +113,7 @@ Source: "FactumIL_Dist\tools\OllamaSetup.exe";                   DestDir: "{app}
 Source: "FactumIL_Dist\tools\MicrosoftEdgeWebview2Setup.exe";     DestDir: "{app}\tools"; Flags: ignoreversion skipifsourcedoesntexist
 Source: "FactumIL_Dist\tools\whisper-fast.exe";                   DestDir: "{app}\tools"; Flags: ignoreversion skipifsourcedoesntexist
 Source: "FactumIL_Dist\tools\ffmpeg.exe";                         DestDir: "{app}\tools"; Flags: ignoreversion skipifsourcedoesntexist
+Source: "FactumIL_Dist\tools\sqlite-vec.dll";                     DestDir: "{app}\tools"; Flags: ignoreversion skipifsourcedoesntexist
 
 ; ── AI model GGUF (bundled — no internet required on first launch) ────────────
 Source: "FactumIL_Dist\models\law-il-E2B-Q4_K_M.gguf"; DestDir: "{app}\models"; Flags: ignoreversion skipifsourcedoesntexist
@@ -146,6 +147,17 @@ Root: HKLM; Subkey: "SYSTEM\CurrentControlSet\Control\Session Manager\Environmen
 ; AI tier — standard by default (controls reasoning depth in model-router)
 Root: HKLM; Subkey: "SYSTEM\CurrentControlSet\Control\Session Manager\Environment"; \
   ValueType: string; ValueName: "AI_TIER"; ValueData: "standard"; \
+  Flags: preservestringtype uninsdeletevalue
+
+; sqlite-vec native extension — enables migration 052 and fast KNN vector search
+; Falls back to JS cosine similarity if the DLL is absent (skipifsourcedoesntexist on [Files])
+Root: HKLM; Subkey: "SYSTEM\CurrentControlSet\Control\Session Manager\Environment"; \
+  ValueType: expandsz; ValueName: "SQLITE_VEC_PATH"; ValueData: "{app}\tools\sqlite-vec.dll"; \
+  Flags: preservestringtype uninsdeletevalue
+
+; Ollama base URL — forwarded to Node process by ApiHostService
+Root: HKLM; Subkey: "SYSTEM\CurrentControlSet\Control\Session Manager\Environment"; \
+  ValueType: string; ValueName: "OLLAMA_BASE_URL"; ValueData: "http://127.0.0.1:11434"; \
   Flags: preservestringtype uninsdeletevalue
 
 ; Legal documents directory chosen by the user in the wizard
