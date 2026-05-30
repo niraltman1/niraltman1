@@ -393,3 +393,7 @@ All checks pass (2026-05-26):
 - **שלב 12** — `ISCC.exe installer.iss` → `Factum-IL-Setup.exe`
 - אם שלב 11 נכשל בגלל GGUF: לא שגיאה קריטית — המודל יורד מ-Ollama Hub בהפעלה ראשונה
 - אם כל 12 השלבים עברו: התקן על מכונת Windows נקייה ובדוק smoke test
+
+**PR #35 — תיקון שם exe ו-dashboard path בסיכום (merged)**
+- `FactumIL.Desktop.csproj`: `AssemblyName` FactumIL → FactumIL.Desktop כדי ש-`dotnet publish` ייצר `FactumIL.Desktop.exe` כפי שמצפה `installer.iss`
+- `publish.ps1` סיכום: `dashboard\index.html` → `dashboard\dist\index.html` (הסטייג'ינג מעתיק לתוך `dist\`)
