@@ -356,8 +356,9 @@ Step "Downloading portable Node.js v$NodeVersion"
 $RuntimeDst = Join-Path $OutDir "runtime"
 New-Item -ItemType Directory -Force -Path $RuntimeDst | Out-Null
 
-$NodeZip     = "$env:TEMP\node-v$NodeVersion-win-x64.zip"
-$NodeExtract = "$env:TEMP\node-v$NodeVersion-win-x64-extract"
+$TempDir     = (Get-Item -LiteralPath $env:TEMP).FullName
+$NodeZip     = "$TempDir\node-v$NodeVersion-win-x64.zip"
+$NodeExtract = "$TempDir\node-v$NodeVersion-win-x64-extract"
 
 if (-not (Test-Path $NodeZip)) {
     $NodeUrl = "https://nodejs.org/dist/v$NodeVersion/node-v$NodeVersion-win-x64.zip"
@@ -374,7 +375,7 @@ if (-not (Test-Path $NodeZip)) {
 if (-not (Test-Path $NodeZip)) {
     Write-Host "  SKIP: node.exe not staged (zip missing). runtime\node.exe will be absent." -ForegroundColor Yellow
 } else {
-    if (Test-Path $NodeExtract) { Remove-Item -Recurse -Force $NodeExtract }
+    if (Test-Path $NodeExtract) { Remove-Item -Recurse -Force $NodeExtract -ErrorAction SilentlyContinue }
     Expand-Archive -Path $NodeZip -DestinationPath $NodeExtract
     Copy-Item -Force "$NodeExtract\node-v$NodeVersion-win-x64\node.exe" "$RuntimeDst\node.exe"
     Write-Host "  node.exe staged: $RuntimeDst\node.exe" -ForegroundColor Gray
