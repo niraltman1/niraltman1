@@ -288,8 +288,8 @@ foreach ($pkg in $WorkspacePackages) {
     if (Test-Path $SrcPkgJson) {
         Copy-Item -Force $SrcPkgJson "$DstPkgDir\package.json" -ErrorAction Stop
         $pkgJson = Get-Content "$DstPkgDir\package.json" | ConvertFrom-Json
-        $pkgJson.main    = "./dist/index.js"
-        $pkgJson.exports = [PSCustomObject]@{ "." = "./dist/index.js" }
+        $pkgJson | Add-Member -NotePropertyName 'main'    -NotePropertyValue './dist/index.js' -Force
+        $pkgJson | Add-Member -NotePropertyName 'exports' -NotePropertyValue ([PSCustomObject]@{ '.' = './dist/index.js' }) -Force
         # Strip workspace:* — meaningless outside the pnpm workspace
         if ($pkgJson.PSObject.Properties['dependencies']) {
             $cleanDeps = [ordered]@{}
