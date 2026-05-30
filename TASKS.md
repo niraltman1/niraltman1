@@ -412,3 +412,9 @@ All checks pass (2026-05-26):
   - שלב 10: `node.exe` יועתק ל-`runtime\` ללא שגיאת נתיב
   - שלב 12: `ISCC.exe installer.iss` → `Factum-IL-Setup.exe`
 - לאחר בנייה מוצלחת: התקן על מכונת Windows נקייה ובצע smoke test
+
+**PR #37 — תיקון `faDirectory` ב-installer.iss [Code] section (2026-05-30)**
+- שגיאה: `Error on line 199 ... Unknown identifier 'faDirectory'. Compile aborted.`
+- גורם: שורה 199 כתובה בסגנון Delphi/SysUtils — `faDirectory` לא קיים ב-Inno Setup, ו-`FindFirst` שם מקבל `TFindRec` (לא דגל attributes) ומחזיר `Boolean`
+- תיקון: `FindFirst(DesktopDir + '\8.*', FindRec)` + `FindClose(FindRec)` — שימוש ב-Inno Setup API התקין
+- זהו שלב 12 (ISCC); 11 השלבים של publish.ps1 כבר עוברים במלואם
