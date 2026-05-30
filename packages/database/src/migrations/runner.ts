@@ -104,9 +104,28 @@ export class MigrationRunner {
       agentSource: 'DataArchitect',
     });
 
+    // SQLite forbids PRAGMA journal_mode changes inside a transaction.
+    // Run PRAGMA statements first, outside the transaction.
+    // Also strip explicit BEGIN/COMMIT/ROLLBACK — the runner owns the transaction.
+    const pragmaLines = sql
+      .split('\n')
+      .filter((l) => /^\s*PRAGMA\s+/i.test(l));
+    const nonPragmaSql = sql
+      .split('\n')
+      .filter((l) => !/^\s*PRAGMA\s+/i.test(l))
+      // Only strip explicit transaction-control lines (not trigger BEGIN/END).
+      // Require the TRANSACTION keyword (or DEFERRED/IMMEDIATE/EXCLUSIVE qualifier)
+      // so bare "BEGIN" used as a trigger-body delimiter is preserved.
+      .filter((l) => !/^\s*(BEGIN\s+(DEFERRED\s+|IMMEDIATE\s+|EXCLUSIVE\s+)?TRANSACTION|COMMIT(\s+TRANSACTION)?|ROLLBACK(\s+TRANSACTION)?)\s*;?\s*$/i.test(l))
+      .join('\n');
+
     try {
+      for (const pragma of pragmaLines) {
+        const stmt = pragma.trim().replace(/;$/, '');
+        if (stmt) this.db.exec(stmt);
+      }
       this.db.transaction(() => {
-        this.db.exec(sql);
+        if (nonPragmaSql.trim()) this.db.exec(nonPragmaSql);
         this.db
           .prepare(
             "INSERT OR REPLACE INTO _migrations (version, name, checksum) VALUES (?, ?, ?)",

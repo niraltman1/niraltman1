@@ -1,4 +1,4 @@
-#Requires -Version 5.1
+﻿#Requires -Version 5.1
 <#
 .SYNOPSIS
     Factum IL v1.0.0  -  Production Build & Stage Script
@@ -425,6 +425,30 @@ try {
     Write-Host "  WARNING: Could not download GGUF  -  model will be pulled from Ollama Hub on first launch." -ForegroundColor Yellow
 }
 
+# sqlite-vec  -  native KNN extension for SQLite (enables migration 052 + fast vector search)
+$VecVersion = "v0.1.7"
+$VecZip     = "$TempDir\sqlite-vec.zip"
+$VecDll     = "$ToolsDst\sqlite-vec.dll"
+if (-not (Test-Path $VecDll)) {
+    $VecUrl = "https://github.com/asg017/sqlite-vec/releases/download/$VecVersion/sqlite-vec-$VecVersion-loadable-windows-x86_64.zip"
+    try {
+        Write-Host "  Downloading sqlite-vec $VecVersion ..." -ForegroundColor Gray
+        Invoke-WebRequest -Uri $VecUrl -OutFile $VecZip -UseBasicParsing -TimeoutSec 60
+        Expand-Archive $VecZip -DestinationPath "$TempDir\sqlite-vec-extract" -Force
+        $ExtractedDll = Get-ChildItem "$TempDir\sqlite-vec-extract" -Recurse -Filter "vec0.dll" | Select-Object -First 1
+        if ($ExtractedDll) {
+            Copy-Item $ExtractedDll.FullName $VecDll
+            Write-Host "  sqlite-vec $VecVersion staged ($(([math]::Round((Get-Item $VecDll).Length/1KB,0))) KB)" -ForegroundColor Gray
+        } else {
+            Write-Host "  WARNING: vec0.dll not found in archive  -  KNN search will use JS fallback." -ForegroundColor Yellow
+        }
+    } catch {
+        Write-Host "  WARNING: Could not download sqlite-vec  -  KNN search will use JS fallback." -ForegroundColor Yellow
+    }
+} else {
+    Write-Host "  sqlite-vec already staged." -ForegroundColor Gray
+}
+
 # ── Inject UTF-8 BOMs into staged PowerShell scripts ───────────────────────────────
 Step "Injecting UTF-8 BOMs into staged PowerShell scripts"
 $AddBomScript = Join-Path $RepoRoot "scripts\add-bom-to-dist.ts"
@@ -452,6 +476,7 @@ Write-Host "  backend\dist\start.js             $(if (Test-Path "$OutDir\backend
 Write-Host "  dashboard\dist\index.html         $(if (Test-Path "$OutDir\dashboard\dist\index.html") {'✓'} else {'MISSING'})" -ForegroundColor White
 Write-Host "  migrations\                        $((Get-ChildItem "$OutDir\migrations" -Filter *.sql -ErrorAction SilentlyContinue).Count) SQL files" -ForegroundColor White
 Write-Host "  tools\OllamaSetup.exe             $(if (Test-Path "$OutDir\tools\OllamaSetup.exe") {'✓'} else {'missing  -  add manually'})" -ForegroundColor White
+Write-Host "  tools\sqlite-vec.dll              $(if (Test-Path "$OutDir\tools\sqlite-vec.dll") {'✓'} else {'missing  -  JS cosine fallback active'})" -ForegroundColor White
 Write-Host "  models\law-il-E2B-Q4_K_M.gguf    $(if (Test-Path "$OutDir\models\law-il-E2B-Q4_K_M.gguf") {'✓'} else {'missing  -  will pull from Ollama Hub on first launch'})" -ForegroundColor White
 Write-Host ""
 Write-Host "  Next step:" -ForegroundColor Yellow

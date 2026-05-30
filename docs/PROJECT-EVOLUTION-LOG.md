@@ -398,5 +398,181 @@ PowerShell 5.1 ב-Windows קורא סקריפטים ללא סימן BOM כאיל
 
 ---
 
-*מסמך זה נוצר ב-2026-05-29 על בסיס ניתוח פורנזי מלא של כל השינויים בקוד המקור.*
-*הוא ישוחרר לצוות ולבעלי העניין. אין בו נתוני לקוחות, פרטים אישיים, או מידע מסחרי רגיש.*
+## עדכון תשתית — ייצוב תהליך הבנייה: better-sqlite3 ו-BUILD.md
+
+### מה בוצע
+
+**ה"קיר" שחסם את הבנייה:** החבילה `better-sqlite3` — המודול שמדבר עם מסד הנתונים — דורשת הידור מקומי בכל מחשב. pnpm 9 החדש שינה את כללי המשחק והחסים הבנייה.
+
+נדרשו **ארבעה תיקונים רצופים** עד שהבנייה עברה לגמרי:
+
+1. **PR #29** — תיעוד + תיקון pnpm 9: נכתב `BUILD.md` (מדריך בנייה מלא). הוגדרה `better-sqlite3` כמודול "מותר לבנות" ב-`pnpm-workspace.yaml`.
+2. **PR #30** — גישה ישירה: שימוש בהגדרת `onlyBuiltDependencies` שמאפשרת לפרוייקט לקבוע בעצמו אילו מודולים מורשים להידור.
+3. **PR #31** — תיקון מלא: שימוש ב-`overrides` מדורג שמקפיא את גרסת `better-sqlite3` ל-v11 — הגרסה שפועלת מול Node.js 22.
+4. **PR #32 + #33** — עקיפת המגבלה: הרצת `npm rebuild` אחרי ה-pnpm install, ותיקון שמות קבצי package.json שנשברו בשלב האריזה.
+
+בנוסף תוקנו כתובות ההורדה לכלים: OllamaSetup, WebView2, Node.js — הוחלפו לכתובות הרשמיות שלא משתנות עם גרסאות.
+
+### מתי בוצע
+
+29 במאי 2026
+
+### למה זה בוצע
+
+ה-`build:installer` נעצר באמצע בכל ניסיון. `pnpm 9` שינה את ברירת המחדל ל"לא להריץ build scripts של מודולים חיצוניים" — מה שמנע מ-`better-sqlite3` לבנות את ה-DLL שלה. ללא DLL — אין מסד נתונים, ואין אפליקציה.
+
+### טכני
+
+`pnpm-workspace.yaml` עם `onlyBuiltDependencies: [better-sqlite3]` + `overrides: { better-sqlite3: "^11" }`. שלב `npm rebuild better-sqlite3` נוסף ב-`publish.ps1`. שמות `main`/`exports` בקבצי package.json מוגדרים ידנית ב-`publish.ps1` לפני אריזת `node_modules`.
+
+---
+
+## עדכון תשתית — תיקון ריצה ראשונה: קובץ הגדרות, מתקין, קידוד
+
+### מה בוצע
+
+לאחר שהבנייה עברה, ניסיון ריצה ראשון על Windows גילה שלוש בעיות עצמאיות שחסמו את ההפעלה:
+
+1. **PR #36 — נתיב "שם עברי":** Windows מקצר שמות משתמשים עבריים לנתיבים קצרים ("8.3 format"). `$env:TEMP` החזיר `C:\Users\021A~1\...` במקום `C:\Users\ניר\...`. `publish.ps1` ניסה למחוק תיקייה בנתיב הקצר שלא קיים — וקרס. **תיקון:** המרת `$env:TEMP` לנתיב מלא לפני כל פעולה.
+
+2. **PR #37 — שגיאת קומפיילר מתקין:** `installer.iss` השתמש בתחביר `FindFirst` של Delphi (שפת Windows ישנה) שאינו קיים ב-Inno Setup. **תיקון:** שכתוב הפונקציה עם `TFindRec` — ה-API הנכון של Inno Setup.
+
+3. **PR #38 — קריסת שרת בגלל קובץ JSON חסר:** `health.ts` קרא `version.json` ברגע טעינת המודול. TypeScript לא מעתיק קבצי JSON — רק קבצי `.ts`. הקובץ נעדר מה-`dist/`. **תיקון:** הוסף שלב ב-`publish.ps1` שמעתיק ידנית את `src/generated/*` ל-`dist/generated/`.
+
+בנוסף — **PR #39:** `publish.ps1` עצמו נשמר ללא סימן BOM, מה שגרם ל-PowerShell 5.1 לקרוא תווים עבריים כ-gibberish ולקרוס עם `ParseException`. **תיקון:** הוסף BOM לתחילת הקובץ.
+
+### מתי בוצע
+
+30 במאי 2026
+
+### למה זה בוצע
+
+כל אחת מהבעיות הייתה "שקטה" — המשתמש ראה קריסה בלי הסבר ברור. שם משתמש עברי הוא נסיבה ייחודית ל-Windows ישראלי. שלוש הבעיות יחד גרמו לכך שהאפליקציה לא עלתה כלל.
+
+### טכני
+
+`(Get-Item -LiteralPath $env:TEMP).FullName` לפתרון 8.3. שכתוב Pascal ב-`installer.iss` ל-`TFindRec`. צעד `8.2.1` ב-`publish.ps1` מעתיק `src/generated/` ידנית. BOM `0xEF 0xBB 0xBF` נוסף לתחילת `publish.ps1`.
+
+---
+
+## עדכון תשתית — תיקוני מסד נתונים וסביבה
+
+### מה בוצע
+
+בריצת `pnpm dev` בסביבת פיתוח חדשה, עלו שלוש שגיאות SQLite שחסמו כל הפעלה:
+
+**PR #40 — שלושה תיקוני migration runner:**
+
+1. **`PRAGMA journal_mode = WAL` בתוך transaction:** migration 001 מכיל פקודה לאתחול מסד הנתונים במצב WAL. ה-runner עטף כל migration ב-transaction — אבל SQLite אוסר שינוי journal mode מבפנים. **תיקון:** PRAGMA-ים מופרדים ורצים *לפני* ה-transaction.
+
+2. **`BEGIN TRANSACTION` מקונן:** 12+ migrations מכילים `BEGIN TRANSACTION; ... COMMIT;` משלהם בתוך קובץ ה-SQL. ה-runner כבר עוטף ב-transaction — שגיאת "nested transaction". **תיקון:** `BEGIN TRANSACTION` ו-`COMMIT TRANSACTION` מסוננים אוטומטית לפני הרצה (ה-`BEGIN` הרגיל של גוף טריגר נשמר).
+
+3. **טבלת `Metrics` כפולה:** migration 005 יצר `Metrics` עם שמות עמודות ישנים. migration 040 ניסה ליצור אותה מחדש עם שמות חדשים ללא `IF NOT EXISTS`. **תיקון:** הוסף `DROP TABLE IF EXISTS` ב-migration 040; עדכן `hardening.ts` לשמות החדשים.
+
+**PR #41 — טעינת sqlite-vec:**
+
+נוסף תמיכה בטעינת extension נטיבי לחיפוש וקטורי (`vec0.dll`). כאשר משתנה הסביבה `SQLITE_VEC_PATH` מוגדר, ה-extension נטען אוטומטית לפני הרצת migrations — מה שמאפשר את migration 052 (`vec_chunks`). ללא ה-extension — המערכת ממשיכה עם fallback JavaScript.
+
+### מתי בוצע
+
+30 במאי 2026
+
+### למה זה בוצע
+
+מסד הנתונים לא עלה כלל עם מסד ריק — כל ניסיון ראשון קרס. הבעיות היו "בלתי נראות" כי הן לא מופיעות כשהמסד כבר מאוכלס. כל מפתח שפותח את הפרויקט לראשונה נתקל בהן.
+
+### טכני
+
+`runner.ts`: סינון PRAGMA לפני transaction; regex המחייב `BEGIN TRANSACTION` (לא bare `BEGIN`); `DROP TABLE IF EXISTS` + שינוי שמות עמודות ב-migration 040. `connection.ts`: `db.loadExtension(vecPath)` כשמוגדר `SQLITE_VEC_PATH`.
+
+---
+
+## עדכון תשתית — sqlite-vec ו-Ollama URL בחבילת ההפצה
+
+### מה בוצע
+
+**PR #42** — שלושה שינויים שמכינים את החבילה המותקנת להפעלה מלאה ללא הגדרה ידנית:
+
+1. **`publish.ps1`:** הוסף שלב הורדת `vec0.dll` מ-sqlite-vec GitHub Releases. ה-DLL נשמר ב-`tools\` ליד `OllamaSetup.exe`. אם ההורדה נכשלת (אין אינטרנט) — אזהרה בלבד, הבנייה ממשיכה.
+
+2. **`installer.iss`:** מוסיף `sqlite-vec.dll` לחבילה, ורושם שני ערכי registry חדשים בזמן ההתקנה:
+   - `SQLITE_VEC_PATH` — מצביע ל-DLL שהותקן
+   - `OLLAMA_BASE_URL` — כתובת ברירת מחדל לשרת Ollama המקומי
+
+3. **`ApiHostService.cs`:** הוסיף את שני המשתנים לרשימת ה-env vars שמועברים אוטומטית מה-registry לתהליך Node.js.
+
+**תוצאה:** אחרי התקנה מחדש — migration 052 (חיפוש וקטורי) עובר אוטומטית, ו-`RagHealingService` מתחבר ל-Ollama בכתובת הנכונה — ללא צורך בשום הגדרה ידנית.
+
+### מתי בוצע
+
+30 במאי 2026
+
+### למה זה בוצע
+
+המשתמש שאל: "האם ניתן לתקן את הכל בקבצי התוכנה לאחר התקנה?" — התשובה היא כן. הגדרה ידנית של `SQLITE_VEC_PATH` היא מחסום לאימוץ. תיקון בקבצי המקור (installer + build script) מבטיח שכל משתמש מקבל חוויה מוכנה.
+
+### טכני
+
+`publish.ps1` שלב 9.3: `Invoke-WebRequest` + `Expand-Archive` + `Get-ChildItem -Recurse -Filter vec0.dll`. `installer.iss` `[Files]` + 2 רשומות `[Registry]` עם `preservestringtype uninsdeletevalue`. `ApiHostService.cs`: רשימת env vars הורחבה ב-2 מפתחות.
+
+---
+
+## ביקורת מקיפה — יכולות תיקון ועדכון לאחר התקנה
+
+### מה בוצע
+
+**ביקורת (Audit) מלאה** של כל מרכיבי המערכת, במטרה לענות על שאלה מרכזית:
+
+> **האם ניתן לתקן באגים, בעיות אבטחה, שגיאות נתונים ובעיות קונפיגורציה לאחר שהתוכנה כבר מותקנת אצל לקוח — ללא התקנה מחדש?**
+
+**תוצאה: ניתן חלקית.**
+
+המערכת תוכננה לתיקון in-place של נתונים וקונפיגורציה — אך תיקוני קוד מחייבים הרצת installer מחדש. לא קיים מנגנון עדכון-עצמי אוטומטי בהפעלה.
+
+**ממצאים עיקריים:**
+
+| מרכיב | עדכן אחרי התקנה? | ראיה |
+|-------|-----------------|------|
+| Node.js API routes (JS dist) | ✅ כן | `installer.iss:89` — `ignoreversion` |
+| React frontend (SPA סטטי) | ✅ כן | `installer.iss:96` — `ignoreversion` |
+| OLLAMA_BASE_URL | ✅ שינוי registry + restart | `ApiHostService.cs:82` |
+| SQLITE_VEC_PATH | ✅ שינוי registry + restart | `ApiHostService.cs:81` |
+| סיסמת אדמין | ✅ registry או `/api/auth/change-password` | `admin.ts` |
+| FTS5 index | ✅ `POST /api/admin/repair/fts` | `admin.ts:158` |
+| נתוני SQLite | ✅ endpoints לתיקון זמינים | `admin.ts:43-185` |
+| CURRENT_VERSION (מעקב גרסה) | ❌ **חסום** — קוד קשיח | `routes/updates.ts:16` |
+| עדכון אוטומטי בהפעלה | ❌ לא מחובר | `start.ts` |
+| חתימת קוד (Authenticode) | ❌ לא קיימת | `publish.ps1`, `installer.iss` |
+| Rollback אוטומטי | ❌ ידני בלבד | `update-core` — types בלבד |
+
+**בעיה קריטית שתוקנה (PR #43):**
+
+`CURRENT_VERSION` היה מקודד כ-`'1.0.0'` ב-`routes/updates.ts`. ה-installer לא הגדיר `FACTUM_IL_VERSION` ב-registry, כך שבדיקת העדכונים מול manifest חיצוני הייתה עיוורת לגרסה האמיתית.
+
+**תיקון בשני קבצים:**
+1. `packages/api/src/routes/updates.ts:16` — שינוי ל: `process.env['FACTUM_IL_VERSION'] ?? '1.0.0'`
+2. `installer.iss` — הוסיף registry entry: `FACTUM_IL_VERSION = {#AppVersion}` נרשם בזמן התקנה
+
+**נקודות חוזק שנמצאו:**
+- 6 endpoints לתיקון עצמי ב-`/api/admin/repair/` — ללא restart
+- גיבויים מוצפנים (AES-256-GCM) אוטומטיים כל שעה
+- Safe mode (`FACTUM_IL_SAFE_MODE=1`) מכבה את כל ה-workers ב-registry
+- נתוני משתמש **לא נמחקים** בהסרת התקנה — `%LOCALAPPDATA%\FactumIL\` נשמר
+- ניקוי PII אוטומטי בכל ה-logs — `packages/shared/src/logging/sanitizer.ts`
+
+### מתי בוצע
+
+30 במאי 2026
+
+### למה זה בוצע
+
+לאחר שורה של תיקונים (PRs #29–#42) שייצבה את pipeline הבנייה וההתקנה, ביצענו ביקורת מקיפה כדי להבין מה ניתן לתקן בשטח ומה מחייב installer חדש — ולתקן את החסמים הקריטיים שנמצאו.
+
+### טכני
+
+ביקורת כיסתה: `packages/update-core/`, `packages/api/src/routes/updates.ts`, `packages/api/src/routes/admin.ts`, `packages/api/src/routes/recovery.ts`, `installer.iss`, `FactumIL.Desktop/ApiHostService.cs`, `packages/database/src/connection.ts`, `packages/api/src/start.ts`. תיקון: 2 קבצים שונו — ראה PR #43.
+
+---
+
+*עדכון אחרון: 30 במאי 2026*
+

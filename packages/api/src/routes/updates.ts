@@ -13,7 +13,7 @@ import {
   VersionManifestParser, UpdateChannelManager, UpdateStateStore,
 } from '@factum-il/update-core';
 
-const CURRENT_VERSION = '1.0.0';
+const CURRENT_VERSION = process.env['FACTUM_IL_VERSION'] ?? '1.0.0';
 
 const dataPath = process.env['FACTUM_IL_DATA_PATH']
   ?? (process.env['LOCALAPPDATA'] ? `${process.env['LOCALAPPDATA']}/FactumIL` : '');

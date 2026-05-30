@@ -1,4 +1,6 @@
 -- Migration 040: observability metrics store
+-- Drop legacy Metrics schema from migration 005 (columns renamed: metric_name→name, metric_value→value, tags_json→tags)
+DROP TABLE IF EXISTS Metrics;
 CREATE TABLE Metrics (
   id          INTEGER PRIMARY KEY AUTOINCREMENT,
   name        TEXT NOT NULL,
