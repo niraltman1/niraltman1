@@ -189,6 +189,7 @@ var
   SubKeys: TArrayOfString;
   I: Integer;
   DesktopDir: String;
+  FindRec: TFindRec;
 begin
   Result := False;
 
@@ -196,8 +197,12 @@ begin
   DesktopDir := ExpandConstant('{pf}') + '\dotnet\shared\Microsoft.WindowsDesktop.App';
   if DirExists(DesktopDir) then
   begin
-    if FindFirst(DesktopDir + '\8.*', faDirectory) <> 0 then
-    begin Result := True; Exit; end;
+    if FindFirst(DesktopDir + '\8.*', FindRec) then
+    begin
+      FindClose(FindRec);
+      Result := True;
+      Exit;
+    end;
   end;
 
   // 2. Registry (MSI installer path)

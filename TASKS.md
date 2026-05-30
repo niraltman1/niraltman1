@@ -397,3 +397,24 @@ All checks pass (2026-05-26):
 **PR #35 — תיקון שם exe ו-dashboard path בסיכום (merged)**
 - `FactumIL.Desktop.csproj`: `AssemblyName` FactumIL → FactumIL.Desktop כדי ש-`dotnet publish` ייצר `FactumIL.Desktop.exe` כפי שמצפה `installer.iss`
 - `publish.ps1` סיכום: `dashboard\index.html` → `dashboard\dist\index.html` (הסטייג'ינג מעתיק לתוך `dist\`)
+
+**PR #36 — תיקון נתיב 8.3 ב-`$env:TEMP` שלב 10 (merged 2026-05-30)**
+- שגיאה: `Remove-Item : An object at the specified path C:\Users\021A~1 does not exist.`
+- גורם: שם משתמש עברי (`ניר`) גורם ל-Windows להחזיר נתיב 8.3 קצר מ-`$env:TEMP`
+- תיקון: `$TempDir = (Get-Item -LiteralPath $env:TEMP).FullName` ממיר לנתיב ארוך מלא
+- תיקון נוסף: `-ErrorAction SilentlyContinue` על `Remove-Item` למניעת קריסה על תיקייה שיורית
+
+### What to do next
+
+- **הרץ על Windows:** `git pull origin main && .\publish.ps1`
+- כל 12 השלבים אמורים לעבור עכשיו:
+  - שלב 8: `better-sqlite3` יותקן ויאומת (`--ignore-scripts` + `npm rebuild`)
+  - שלב 10: `node.exe` יועתק ל-`runtime\` ללא שגיאת נתיב
+  - שלב 12: `ISCC.exe installer.iss` → `Factum-IL-Setup.exe`
+- לאחר בנייה מוצלחת: התקן על מכונת Windows נקייה ובצע smoke test
+
+**PR #37 — תיקון `faDirectory` ב-installer.iss [Code] section (2026-05-30)**
+- שגיאה: `Error on line 199 ... Unknown identifier 'faDirectory'. Compile aborted.`
+- גורם: שורה 199 כתובה בסגנון Delphi/SysUtils — `faDirectory` לא קיים ב-Inno Setup, ו-`FindFirst` שם מקבל `TFindRec` (לא דגל attributes) ומחזיר `Boolean`
+- תיקון: `FindFirst(DesktopDir + '\8.*', FindRec)` + `FindClose(FindRec)` — שימוש ב-Inno Setup API התקין
+- זהו שלב 12 (ISCC); 11 השלבים של publish.ps1 כבר עוברים במלואם
