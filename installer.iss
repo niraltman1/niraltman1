@@ -160,6 +160,11 @@ Root: HKLM; Subkey: "SYSTEM\CurrentControlSet\Control\Session Manager\Environmen
   ValueType: string; ValueName: "OLLAMA_BASE_URL"; ValueData: "http://127.0.0.1:11434"; \
   Flags: preservestringtype uninsdeletevalue
 
+; Installed version — read by /api/updates/check to compare against remote manifest
+Root: HKLM; Subkey: "SYSTEM\CurrentControlSet\Control\Session Manager\Environment"; \
+  ValueType: string; ValueName: "FACTUM_IL_VERSION"; ValueData: "{#AppVersion}"; \
+  Flags: preservestringtype uninsdeletevalue
+
 ; Legal documents directory chosen by the user in the wizard
 Root: HKLM; Subkey: "SOFTWARE\Factum IL"; ValueType: string; ValueName: "OrgDirectory"; \
   ValueData: "{code:GetOrgDir}"; Flags: uninsdeletevalue

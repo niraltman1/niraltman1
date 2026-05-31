@@ -517,5 +517,62 @@ PowerShell 5.1 ב-Windows קורא סקריפטים ללא סימן BOM כאיל
 
 ---
 
+## ביקורת מקיפה — יכולות תיקון ועדכון לאחר התקנה
+
+### מה בוצע
+
+**ביקורת (Audit) מלאה** של כל מרכיבי המערכת, במטרה לענות על שאלה מרכזית:
+
+> **האם ניתן לתקן באגים, בעיות אבטחה, שגיאות נתונים ובעיות קונפיגורציה לאחר שהתוכנה כבר מותקנת אצל לקוח — ללא התקנה מחדש?**
+
+**תוצאה: ניתן חלקית.**
+
+המערכת תוכננה לתיקון in-place של נתונים וקונפיגורציה — אך תיקוני קוד מחייבים הרצת installer מחדש. לא קיים מנגנון עדכון-עצמי אוטומטי בהפעלה.
+
+**ממצאים עיקריים:**
+
+| מרכיב | עדכן אחרי התקנה? | ראיה |
+|-------|-----------------|------|
+| Node.js API routes (JS dist) | ✅ כן | `installer.iss:89` — `ignoreversion` |
+| React frontend (SPA סטטי) | ✅ כן | `installer.iss:96` — `ignoreversion` |
+| OLLAMA_BASE_URL | ✅ שינוי registry + restart | `ApiHostService.cs:82` |
+| SQLITE_VEC_PATH | ✅ שינוי registry + restart | `ApiHostService.cs:81` |
+| סיסמת אדמין | ✅ registry או `/api/auth/change-password` | `admin.ts` |
+| FTS5 index | ✅ `POST /api/admin/repair/fts` | `admin.ts:158` |
+| נתוני SQLite | ✅ endpoints לתיקון זמינים | `admin.ts:43-185` |
+| CURRENT_VERSION (מעקב גרסה) | ❌ **חסום** — קוד קשיח | `routes/updates.ts:16` |
+| עדכון אוטומטי בהפעלה | ❌ לא מחובר | `start.ts` |
+| חתימת קוד (Authenticode) | ❌ לא קיימת | `publish.ps1`, `installer.iss` |
+| Rollback אוטומטי | ❌ ידני בלבד | `update-core` — types בלבד |
+
+**בעיה קריטית שתוקנה (PR #43):**
+
+`CURRENT_VERSION` היה מקודד כ-`'1.0.0'` ב-`routes/updates.ts`. ה-installer לא הגדיר `FACTUM_IL_VERSION` ב-registry, כך שבדיקת העדכונים מול manifest חיצוני הייתה עיוורת לגרסה האמיתית.
+
+**תיקון בשני קבצים:**
+1. `packages/api/src/routes/updates.ts:16` — שינוי ל: `process.env['FACTUM_IL_VERSION'] ?? '1.0.0'`
+2. `installer.iss` — הוסיף registry entry: `FACTUM_IL_VERSION = {#AppVersion}` נרשם בזמן התקנה
+
+**נקודות חוזק שנמצאו:**
+- 6 endpoints לתיקון עצמי ב-`/api/admin/repair/` — ללא restart
+- גיבויים מוצפנים (AES-256-GCM) אוטומטיים כל שעה
+- Safe mode (`FACTUM_IL_SAFE_MODE=1`) מכבה את כל ה-workers ב-registry
+- נתוני משתמש **לא נמחקים** בהסרת התקנה — `%LOCALAPPDATA%\FactumIL\` נשמר
+- ניקוי PII אוטומטי בכל ה-logs — `packages/shared/src/logging/sanitizer.ts`
+
+### מתי בוצע
+
+30 במאי 2026
+
+### למה זה בוצע
+
+לאחר שורה של תיקונים (PRs #29–#42) שייצבה את pipeline הבנייה וההתקנה, ביצענו ביקורת מקיפה כדי להבין מה ניתן לתקן בשטח ומה מחייב installer חדש — ולתקן את החסמים הקריטיים שנמצאו.
+
+### טכני
+
+ביקורת כיסתה: `packages/update-core/`, `packages/api/src/routes/updates.ts`, `packages/api/src/routes/admin.ts`, `packages/api/src/routes/recovery.ts`, `installer.iss`, `FactumIL.Desktop/ApiHostService.cs`, `packages/database/src/connection.ts`, `packages/api/src/start.ts`. תיקון: 2 קבצים שונו — ראה PR #43.
+
+---
+
 *עדכון אחרון: 30 במאי 2026*
 
