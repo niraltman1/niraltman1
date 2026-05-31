@@ -58,6 +58,18 @@ async function runNudgeCycle(repos: Repos): Promise<void> {
 
     await notificationService.send(row.whatsapp_phone!, lines.join('\n'));
     logger.info(`Nudge sent for case ${row.case_number} (${gaps.length} missing fields)`, { category: 'system' });
+
+    // Surface the same gap alert in the in-app inbox (§4.1.3). One row per filing;
+    // dedup_key keeps daily cycles idempotent.
+    repos.notifications.upsert({
+      kind:     'form5_gap',
+      severity: 'warning',
+      titleHe:  `טופס 5 חסר ${gaps.length} שדות — תיק ${row.case_number}`,
+      bodyHe:   gaps.map((g) => g.label_he).join(' · '),
+      linkType: 'case',
+      linkId:   String(row.case_id),
+      dedupKey: `form5_gap:filing:${row.filing_id}`,
+    });
   }
 }
 

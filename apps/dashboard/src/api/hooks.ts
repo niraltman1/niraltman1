@@ -29,6 +29,7 @@ export const QUERY_KEYS = {
   workerHealth:     ['admin', 'workers']         as const,
   watcherEvents:    ['admin', 'watcher']         as const,
   backupSnapshots:  ['admin', 'backups']         as const,
+  notifications:    ['notifications']             as const,
 } as const;
 
 // ─────────────────────────────────────────────
@@ -2192,4 +2193,54 @@ export function useAgentStream(): {
   useEffect(() => () => { esRef.current?.close(); }, []);
 
   return { state, start, reset };
+}
+
+// ─────────────────────────────────────────────
+//  Notifications (§4.1.3 — in-app alert inbox)
+// ─────────────────────────────────────────────
+
+export interface NotificationItem {
+  id:        number;
+  kind:      string;
+  severity:  'info' | 'warning' | 'critical';
+  titleHe:   string;
+  bodyHe:    string | null;
+  linkType:  string | null;
+  linkId:    string | null;
+  readAt:    string | null;
+  createdAt: string;
+}
+
+export interface NotificationsResponse {
+  items:  NotificationItem[];
+  unread: number;
+}
+
+export function useNotifications(limit = 50) {
+  return useQuery({
+    queryKey: [...QUERY_KEYS.notifications, limit],
+    queryFn:  () => fetchJSON<NotificationsResponse>(`/api/notifications?limit=${limit}`),
+    refetchInterval: 60_000,
+    retry: false,
+  });
+}
+
+export function useMarkNotificationRead() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (id: number) => postJSON(`/api/notifications/${id}/read`),
+    onSuccess: () => {
+      void qc.invalidateQueries({ queryKey: QUERY_KEYS.notifications });
+    },
+  });
+}
+
+export function useMarkAllNotificationsRead() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: () => postJSON('/api/notifications/read-all'),
+    onSuccess: () => {
+      void qc.invalidateQueries({ queryKey: QUERY_KEYS.notifications });
+    },
+  });
 }

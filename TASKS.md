@@ -443,6 +443,32 @@ All checks pass (2026-05-26):
    אימות per-field דורש שינוי סכמה (נדחה).
 
 ### What to do next
-- לבחור פריט אחד מהארבעה למימוש בפועל (המלצה: תיבת ההתראות §4.1.3 — ROI גבוה, מעגן את
-  "שום דבר לא נופל בין הכיסאות"), ולעבוד לפי התוכנית התואמת.
-- כל תוכנית כוללת: קבצים לשינוי, reuse, סיכונים, ואימות. אין עדיין שינוי קוד-מוצר — תכנון בלבד.
+- כל תוכנית כוללת: קבצים לשינוי, reuse, סיכונים, ואימות.
+
+## תיבת התראות (§4.1.3) — מומשה (2026-05-31)
+
+מומש הפריט הראשון מתוך תוכניות Phase-0 — אינבוקס התראות מלא (backend → UI):
+
+**Backend:**
+- `migrations/058_notifications.sql` — טבלת `Notifications` (additive, `dedup_key` UNIQUE לאידמפוטנטיות).
+- `packages/database/src/queries/notifications.ts` — `NotificationsRepository`
+  (`upsert` עם `ON CONFLICT DO NOTHING`, `listRecent`, `unreadCount`, `markRead`, `markAllRead`)
+  + ייצוא ב-`index.ts`. בדיקות: `notifications.test.ts` (5 עוברות).
+- `Repos` (`db.ts`) + בנייה ב-`start.ts`.
+- `packages/api/src/routes/notifications.ts` — `GET /api/notifications`, `POST /:id/read`,
+  `POST /read-all`; רשום ב-`app.ts`. עוקב אחר תבנית local-first (ללא requireAuth, כמו queue/tasks).
+- גנרטורים מתמידים שורות ליד הקריאות הקיימות (WhatsApp/log נשמרו כמו שהם):
+  `deadline-tracker-scheduler.ts` (task_due + statute_deadline, נשמר גם ללא טלפון) ו-
+  `insolvency-nudge-scheduler.ts` (form5_gap).
+
+**Frontend:**
+- `apps/dashboard/src/api/hooks.ts` — `useNotifications` (polling 60s), `useMarkNotificationRead`,
+  `useMarkAllNotificationsRead` + `QUERY_KEYS.notifications`.
+- `components/notifications/NotificationBell.tsx` + `NotificationPanel.tsx` — פעמון עם באדג'
+  unread, popover עם deep-links, סמן-כנקרא / סמן-הכל. נטען ב-`AppShell` (top bar חדש).
+
+**אימות:** database (30 בדיקות), api app.test (14), dashboard typecheck + production build — כולם ירוקים.
+
+### What to do next (Phase-0 שנותר)
+- §4.2.1 אימות תובנות AI · §4.2.4 SSE שלבי-סוכן · §4.6.1+§4.6.4 Quick-Add + פקודות — לפי התוכניות.
+- שיפור עתידי להתראות: auto-resolve של התראות ישנות (deadline שעבר / משימה שנסגרה); מסך העדפות התראות.

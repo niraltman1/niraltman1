@@ -36,3 +36,11 @@ export { DocumentVersionRepository } from './queries/document-versions.js';
 export type { DocumentVersion, DocumentVersionCreateInput } from './queries/document-versions.js';
 export { AnnotationRepository } from './queries/annotations.js';
 export type { Annotation, AnnotationCreateInput } from './queries/annotations.js';
+export { NotificationsRepository } from './queries/notifications.js';
+export type {
+  NotificationRow,
+  NotificationKind,
+  NotificationSeverity,
+  NotificationLinkType,
+  UpsertNotificationInput,
+} from './queries/notifications.js';

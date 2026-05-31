@@ -50,6 +50,7 @@ import { diagnosticsRouter } from './routes/diagnostics.js';
 import { recoveryRouter }    from './routes/recovery.js';
 import { tabularRouter }     from './routes/tabular.js';
 import { setupRouter }       from './routes/setup.js';
+import { notificationsRouter } from './routes/notifications.js';
 import { recordActivity }    from './utils/resource-controller.js';
 import { RagHealingService } from './utils/rag-healing.js';
 
@@ -154,6 +155,7 @@ export function createApp(repos: Repos, dbPath?: string): express.Express {
   app.use('/api/recovery',     recoveryRouter(repos));
   app.use('/api/tabular',      tabularRouter(repos));
   app.use('/api/setup',        setupRouter(repos, dbPath ?? ''));
+  app.use('/api/notifications', notificationsRouter(repos));
 
   // Track activity for Day/Night resource controller
   app.use((_req, _res, next) => { recordActivity(); next(); });

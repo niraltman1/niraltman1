@@ -35,6 +35,7 @@ import {
   GmailRepository,
   VacuumRepository,
   PipelineLogsRepository,
+  NotificationsRepository,
 } from '@factum-il/database';
 import { createApp } from './app.js';
 import type { Repos } from './db.js';
@@ -162,6 +163,7 @@ const repos: Repos = {
   gmail:          new GmailRepository(db),
   vacuum:         new VacuumRepository(db),
   pipelineLogs:   new PipelineLogsRepository(db),
+  notifications:  new NotificationsRepository(db),
 };
 
 // Release stale agent locks left over from a previous crash or restart.
