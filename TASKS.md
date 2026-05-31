@@ -418,3 +418,31 @@ All checks pass (2026-05-26):
 - גורם: שורה 199 כתובה בסגנון Delphi/SysUtils — `faDirectory` לא קיים ב-Inno Setup, ו-`FindFirst` שם מקבל `TFindRec` (לא דגל attributes) ומחזיר `Boolean`
 - תיקון: `FindFirst(DesktopDir + '\8.*', FindRec)` + `FindClose(FindRec)` — שימוש ב-Inno Setup API התקין
 - זהו שלב 12 (ISCC); 11 השלבים של publish.ps1 כבר עוברים במלואם
+
+---
+
+## UX Modernization — Phase 0 planning (2026-05-31)
+
+נכתבו תוכניות עבודה מעוגנות-קוד לכל ארבעת פריטי Phase-0 שנותרו ברואדמאפ
+(`docs/UX-MODERNIZATION-ROADMAP.md` §5 Phase 0), בנוסף לתוכנית הניווט הקיימת
+(`docs/IA-NAV-IMPLEMENTATION-PLAN.md`, §4.7.6).
+
+מסמכים חדשים תחת `docs/`:
+- `NOTIFICATIONS-INBOX-IMPLEMENTATION-PLAN.md` — §4.1.3 (תיבת התראות)
+- `INSIGHT-VERIFICATION-IMPLEMENTATION-PLAN.md` — §4.2.1 (אימות תובנות AI)
+- `AGENT-SSE-IMPLEMENTATION-PLAN.md` — §4.2.4 (זרימת שלבי-סוכן)
+- `QUICK-ADD-PALETTE-IMPLEMENTATION-PLAN.md` — §4.6.1 + §4.6.4 (יצירה מהירה + פקודות Cmd+K)
+
+**שני תיקונים לרואדמאפ שעלו מעיגון בקוד (חשוב לפני מימוש):**
+1. §4.1.3 מסומן `[backend ready]`, אך אין טבלת `Notifications` ואין read-API —
+   `notification-service.ts` הוא רק stub ל-WhatsApp. צריך migration 058 + גנרטור שמתמיד שורות.
+2. §4.2.4 טוען ש"כל 5 הסוכנים חושפים /stream" — לא מדויק. קיים רק endpoint גנרי לטוקנים
+   (`/api/ai/stream`). המימוש המומלץ: לפלוט אירועי-שלב לטבלת `AgentExecutionEvents`
+   (mig 053, קיימת) ולהזרים אותם ב-SSE per-execution.
+   הערה נוספת — §4.2.1: `findInsights` מחזיר שורה אחת לכל מסמך, לכן MVP הוא אימות ברמת-רשומה;
+   אימות per-field דורש שינוי סכמה (נדחה).
+
+### What to do next
+- לבחור פריט אחד מהארבעה למימוש בפועל (המלצה: תיבת ההתראות §4.1.3 — ROI גבוה, מעגן את
+  "שום דבר לא נופל בין הכיסאות"), ולעבוד לפי התוכנית התואמת.
+- כל תוכנית כוללת: קבצים לשינוי, reuse, סיכונים, ואימות. אין עדיין שינוי קוד-מוצר — תכנון בלבד.
