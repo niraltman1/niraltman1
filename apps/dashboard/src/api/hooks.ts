@@ -2243,7 +2243,7 @@ export interface NotificationsResponse {
 
 export interface CalendarEvent {
   id:         string;
-  kind:       'hearing' | 'statute_deadline' | 'task';
+  kind:       'hearing' | 'statute_deadline' | 'task' | 'document';
   date:       string;
   time:       string | null;
   title:      string;
@@ -2251,8 +2251,18 @@ export interface CalendarEvent {
   caseNumber: string | null;
   courtName:  string | null;
   judge:      string | null;
-  linkType:   'case' | 'route';
+  linkType:   'case' | 'document' | 'route';
   linkId:     string;
+}
+
+export function useCaseTimeline(caseId: number | null) {
+  return useQuery({
+    queryKey: ['cases', caseId, 'timeline'],
+    queryFn:  () => fetchJSON<CalendarEvent[]>(`/api/cases/${caseId}/timeline`),
+    enabled:  caseId !== null && caseId > 0,
+    staleTime: 30_000,
+    retry: false,
+  });
 }
 
 export interface DeadlineRisk extends CalendarEvent {

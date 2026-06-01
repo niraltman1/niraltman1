@@ -1,6 +1,6 @@
 import { useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { CaretRightIcon, CaretLeftIcon, GavelIcon, WarningCircleIcon, CheckSquareIcon } from '@phosphor-icons/react';
+import { CaretRightIcon, CaretLeftIcon, GavelIcon, WarningCircleIcon, CheckSquareIcon, FileTextIcon } from '@phosphor-icons/react';
 import { useCalendarEvents, type CalendarEvent } from '@/api/hooks.js';
 
 const WEEKDAYS = ['א׳', 'ב׳', 'ג׳', 'ד׳', 'ה׳', 'ו׳', 'ש׳'];
@@ -13,6 +13,7 @@ const KIND_STYLE: Record<CalendarEvent['kind'], { bg: string; fg: string; Icon: 
   hearing:          { bg: 'rgba(56,189,248,0.16)',  fg: '#7dd3fc', Icon: GavelIcon,        label: 'דיון' },
   statute_deadline: { bg: 'rgba(248,113,113,0.16)', fg: '#fca5a5', Icon: WarningCircleIcon, label: 'התיישנות' },
   task:             { bg: 'rgba(212,175,55,0.16)',  fg: '#e7c66b', Icon: CheckSquareIcon,   label: 'משימה' },
+  document:         { bg: 'rgba(163,163,163,0.16)', fg: '#a3a3a3', Icon: FileTextIcon,      label: 'מסמך' },
 };
 
 function ymd(d: Date): string {

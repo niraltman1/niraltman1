@@ -143,6 +143,14 @@ export function casesRouter(repos: Repos): Router {
     ok(res, insights);
   }));
 
+  // Deterministic factual timeline for a matter (M3 — Interactive Timeline).
+  router.get('/:id/timeline', asyncHandler((req, res) => {
+    const id = Number(req.params['id']);
+    if (!Number.isFinite(id)) throw new ValidationError('invalid id');
+    if (!cases.findById(id)) throw new NotFoundError('Case');
+    ok(res, calendar.caseTimeline(id));
+  }));
+
   // Per-matter risk assessment (§4.4.3 / Risk Dashboard) — composes existing
   // signals only; no AI. See utils/risk-summary.ts for the pure aggregation.
   router.get('/:id/risk', asyncHandler((req, res) => {

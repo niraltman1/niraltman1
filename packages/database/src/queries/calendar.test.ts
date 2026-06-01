@@ -102,4 +102,33 @@ describe('CalendarRepository.eventsInRange (§4.1.1)', () => {
       expect(ids).not.toContain('statute:1'); // 05-20 beyond horizon
     });
   });
+
+  describe('caseTimeline (M3)', () => {
+    beforeEach(() => {
+      db.exec(`CREATE TABLE IF NOT EXISTS Documents (
+        id INTEGER PRIMARY KEY AUTOINCREMENT, filename TEXT, case_id INTEGER, document_date TEXT
+      )`);
+      db.prepare("INSERT INTO Documents (id, filename, case_id, document_date) VALUES (100, 'חוזה.pdf', 1, '2026-05-10')").run();
+      db.prepare("INSERT INTO Documents (id, filename, case_id, document_date) VALUES (101, 'ללא תאריך.pdf', 1, NULL)").run();
+    });
+
+    it('unions hearings, statute, tasks, and dated documents for the case, sorted by date', () => {
+      const tl = repo.caseTimeline(1);
+      const ids = tl.map((e) => e.id);
+      expect(ids).toContain('hearing:10');   // 2026-05-15
+      expect(ids).toContain('statute:1');    // 2026-05-20
+      expect(ids).toContain('task:20');      // 2026-05-18
+      expect(ids).toContain('document:100'); // 2026-05-10
+      expect(ids).not.toContain('document:101'); // no document_date → excluded
+      const dates = tl.map((e) => e.date);
+      expect(dates).toEqual([...dates].sort());
+      expect(tl[0]!.id).toBe('document:100'); // earliest
+    });
+
+    it('links documents to the reader and other events to the case', () => {
+      const tl = repo.caseTimeline(1);
+      expect(tl.find((e) => e.id === 'document:100')!.linkType).toBe('document');
+      expect(tl.find((e) => e.id === 'hearing:10')!.linkType).toBe('case');
+    });
+  });
 });

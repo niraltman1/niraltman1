@@ -6,7 +6,7 @@ import type { DatabaseConnection } from '../connection.js';
  * Read-only; the underlying tables own the data. All dates are ISO (YYYY-MM-DD[...]).
  */
 
-export type CalendarEventKind = 'hearing' | 'statute_deadline' | 'task';
+export type CalendarEventKind = 'hearing' | 'statute_deadline' | 'task' | 'document';
 
 export type DeadlineRiskLevel = 'overdue' | 'critical' | 'soon' | 'upcoming';
 
@@ -20,7 +20,7 @@ export interface CalendarEvent {
   readonly caseNumber: string | null;
   readonly courtName:  string | null;
   readonly judge:      string | null;
-  readonly linkType:   'case' | 'route';
+  readonly linkType:   'case' | 'document' | 'route';
   readonly linkId:     string;
 }
 
@@ -215,5 +215,67 @@ export class CalendarRepository {
 
     out.sort((a, b) => (a.date !== b.date ? (a.date < b.date ? -1 : 1) : (a.time ?? '').localeCompare(b.time ?? '')));
     return out;
+  }
+
+  /**
+   * Deterministic factual chronology for a single matter (M3 — Interactive Timeline).
+   * Unions hearings, the case statute deadline, tasks, and dated documents — no AI.
+   * Sorted chronologically; documents link to the reader, the rest to the case/task.
+   */
+  caseTimeline(caseId: number): CalendarEvent[] {
+    const events: CalendarEvent[] = [];
+
+    const hearings = this.db.prepare(`
+      SELECT id, case_number, hearing_date, hearing_time, courtroom, judge_name, hearing_type, raw_summary
+        FROM court_hearings WHERE case_id = ?
+    `).all(caseId) as Record<string, unknown>[];
+    for (const r of hearings) {
+      events.push({
+        id: `hearing:${r['id'] as number}`, kind: 'hearing', date: dayOf(r['hearing_date'] as string),
+        time: (r['hearing_time'] as string | null) ?? null,
+        title: (r['hearing_type'] as string | null) ?? (r['raw_summary'] as string | null) ?? 'דיון',
+        caseId, caseNumber: (r['case_number'] as string | null) ?? null,
+        courtName: (r['courtroom'] as string | null) ?? null, judge: (r['judge_name'] as string | null) ?? null,
+        linkType: 'case', linkId: String(caseId),
+      });
+    }
+
+    const c = this.db.prepare('SELECT case_number, statute_deadline FROM Cases WHERE id = ?')
+      .get(caseId) as { case_number?: string; statute_deadline?: string } | undefined;
+    if (c?.statute_deadline) {
+      events.push({
+        id: `statute:${caseId}`, kind: 'statute_deadline', date: dayOf(c.statute_deadline), time: null,
+        title: `התיישנות — תיק ${c.case_number ?? ''}`.trim(),
+        caseId, caseNumber: c.case_number ?? null, courtName: null, judge: null,
+        linkType: 'case', linkId: String(caseId),
+      });
+    }
+
+    const tasks = this.db.prepare(
+      "SELECT id, title, due_date FROM Tasks WHERE case_id = ? AND due_date IS NOT NULL",
+    ).all(caseId) as Record<string, unknown>[];
+    for (const r of tasks) {
+      events.push({
+        id: `task:${r['id'] as number}`, kind: 'task', date: dayOf(r['due_date'] as string), time: null,
+        title: (r['title'] as string | null) ?? 'משימה',
+        caseId, caseNumber: c?.case_number ?? null, courtName: null, judge: null,
+        linkType: 'case', linkId: String(caseId),
+      });
+    }
+
+    const docs = this.db.prepare(
+      "SELECT id, filename, document_date FROM Documents WHERE case_id = ? AND document_date IS NOT NULL",
+    ).all(caseId) as Record<string, unknown>[];
+    for (const r of docs) {
+      events.push({
+        id: `document:${r['id'] as number}`, kind: 'document', date: dayOf(r['document_date'] as string), time: null,
+        title: (r['filename'] as string | null) ?? 'מסמך',
+        caseId, caseNumber: c?.case_number ?? null, courtName: null, judge: null,
+        linkType: 'document', linkId: String(r['id'] as number),
+      });
+    }
+
+    events.sort((a, b) => (a.date !== b.date ? (a.date < b.date ? -1 : 1) : a.id.localeCompare(b.id)));
+    return events;
   }
 }

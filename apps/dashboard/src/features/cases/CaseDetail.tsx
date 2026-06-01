@@ -9,6 +9,7 @@ import { useCase, useCaseContacts, useDocuments, useCaseInsights, useCaseActivit
 import type { CaseContactRecord, CaseInsightRecord, ActivityEventRow, AgentOutput } from '@/api/hooks.js';
 import { AgentOutputPanel } from '@/components/common/AgentOutputPanel.js';
 import { CaseRiskPanel } from './CaseRiskPanel.js';
+import { CaseTimeline } from './CaseTimeline.js';
 
 const STATUS_LABELS: Record<string, string> = {
   open:      'פתוח',
@@ -31,7 +32,7 @@ const STATUS_CLS: Record<string, string> = {
   archived:  'badge badge-neutral',
 };
 
-type Tab = 'documents' | 'contacts' | 'insights' | 'activity';
+type Tab = 'documents' | 'timeline' | 'contacts' | 'insights' | 'activity';
 
 export function CaseDetail() {
   const { id } = useParams<{ id: string }>();
@@ -141,6 +142,7 @@ export function CaseDetail() {
       <div className="flex gap-1 border-b border-parchment/10">
         {([
           { key: 'documents' as Tab, label: 'מסמכים', Icon: FileTextIcon },
+          { key: 'timeline'  as Tab, label: 'ציר זמן', Icon: CalendarIcon },
           { key: 'contacts'  as Tab, label: 'אנשי קשר', Icon: UsersIcon },
           { key: 'insights'  as Tab, label: 'תובנות AI', Icon: RobotIcon },
           { key: 'activity'  as Tab, label: 'פעילות',    Icon: PulseIcon },
@@ -183,6 +185,8 @@ export function CaseDetail() {
           ))}
         </ul>
       )}
+
+      {tab === 'timeline' && <CaseTimeline caseId={caseId} />}
 
       {tab === 'contacts' && (
         <ul className="space-y-2">
