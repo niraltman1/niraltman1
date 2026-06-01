@@ -2237,6 +2237,34 @@ export interface NotificationsResponse {
   unread: number;
 }
 
+// ─────────────────────────────────────────────
+//  Calendar & Docketing (§4.1.1)
+// ─────────────────────────────────────────────
+
+export interface CalendarEvent {
+  id:         string;
+  kind:       'hearing' | 'statute_deadline' | 'task';
+  date:       string;
+  time:       string | null;
+  title:      string;
+  caseId:     number | null;
+  caseNumber: string | null;
+  courtName:  string | null;
+  judge:      string | null;
+  linkType:   'case' | 'route';
+  linkId:     string;
+}
+
+export function useCalendarEvents(from: string, to: string) {
+  return useQuery({
+    queryKey: ['calendar', from, to],
+    queryFn:  () => fetchJSON<CalendarEvent[]>(`/api/calendar/events?from=${from}&to=${to}`),
+    enabled:  Boolean(from && to),
+    staleTime: 30_000,
+    retry: false,
+  });
+}
+
 export function useNotifications(limit = 50) {
   return useQuery({
     queryKey: [...QUERY_KEYS.notifications, limit],

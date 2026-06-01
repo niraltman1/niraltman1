@@ -1,5 +1,5 @@
 import {
-  SquaresFourIcon, GaugeIcon, CheckSquareIcon, PulseIcon,
+  SquaresFourIcon, GaugeIcon, CheckSquareIcon, PulseIcon, CalendarIcon,
   BriefcaseIcon, FolderIcon, UsersIcon, AddressBookIcon, CarIcon,
   FilesIcon, FileTextIcon, TrayIcon, CheckCircleIcon, BroomIcon, ImageIcon, VaultIcon,
   ScalesIcon, StackIcon, NoteIcon, GavelIcon,
@@ -37,6 +37,7 @@ export const NAV_GROUPS: NavGroup[] = [
     id: 'work', label: 'עבודה שוטפת', Icon: SquaresFourIcon, defaultOpen: true,
     items: [
       { to: '/dashboard', label: 'לוח בקרה', Icon: GaugeIcon },
+      { to: '/calendar',  label: 'יומן',     Icon: CalendarIcon },
       { to: '/tasks',     label: 'משימות',   Icon: CheckSquareIcon },
       { to: '/activity',  label: 'פעילות',   Icon: PulseIcon },
     ],

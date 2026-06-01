@@ -20,6 +20,7 @@ import type {
   VacuumRepository,
   PipelineLogsRepository,
   NotificationsRepository,
+  CalendarRepository,
 } from '@factum-il/database';
 import type { ConfigStore } from './utils/config-store.js';
 
@@ -46,4 +47,5 @@ export interface Repos {
   vacuum:         VacuumRepository;
   pipelineLogs:   PipelineLogsRepository;
   notifications:  NotificationsRepository;
+  calendar:       CalendarRepository;
 }

@@ -522,8 +522,20 @@ All checks pass (2026-05-26):
   ההנמקה לא נבנה בכוונה — המודל מחזיר JSON בלבד (אין סמני-שלב לפרסר), ושינוי זה מסכן את
   הפלט המכויל ודורש Ollama חי לאימות.
 
-### What to do next — Phase 1 (§5 ברואדמאפ)
-Phase 0 הושלם במלואו (כולל שיפורים). הבא בתור — פערים משפטיים מסדר ראשון:
-- §4.1.1 לוח שנה / דוקטינג (court_hearings קיים בסכמה) — *מונע סיכון malpractice*.
-- §4.1.2 קורא/מציג מסמכים בתוך האפליקציה.
+## Phase 1 — לוח שנה / דוקטינג (§4.1.1) — מומש (2026-06-01)
+
+הפריט הראשון והבכיר ב-Phase 1 (מונע סיכון malpractice). אומת ש-CI ירוק על `f49a7f7` לפני.
+
+- `packages/database/src/queries/calendar.ts` — `CalendarRepository.eventsInRange(from,to)`
+  מאחד שלושה מקורות: `court_hearings`, מועדי התיישנות (`Cases.statute_deadline`, status=open),
+  ומשימות פעילות (`Tasks.due_date`, pending/in_progress). מנרמל ל-`CalendarEvent`. 5 בדיקות.
+- `Repos` + `start.ts` + `GET /api/calendar/events?from=&to=` (`routes/calendar.ts`, ולידציית תאריך).
+- `useCalendarEvents` hook; עמוד `features/calendar/CalendarPage.tsx` — רשת חודשית RTL,
+  תצוגת אג׳נדה, ריל "מועדים קרובים (30 יום)", צ׳יפים צבועים לפי סוג (דיון/התיישנות/משימה),
+  קליק→ניווט לתיק. route `/calendar` + פריט ניווט "יומן" בקבוצת "עבודה שוטפת".
+
+### What to do next — המשך Phase 1
+- §4.1.2 קורא/מציג מסמכים בתוך האפליקציה (PDF/תמונה + שכבת OCR).
+- §4.4.3 מוניטור מועדים/SLA + §4.7.1 חשיפת מנוע-הכללים (משלימים את היומן).
 - §4.2.2 תור סקירה + לולאת תיקון (כולל bulk-approve שנדחה מ-§4.2.1).
+- שיפור יומן עתידי: תצוגות שבוע/יום, מילסטונים מ-CaseProcedures, ייצוא אג׳נדה להדפסה.
