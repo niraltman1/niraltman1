@@ -2269,6 +2269,29 @@ export function useDeadlinesAtRisk(horizon = 90) {
   });
 }
 
+// ── Per-matter Risk Dashboard (Milestone 1) ────────────────────────────────────
+export type RiskBand = 'low' | 'medium' | 'high';
+
+export interface RiskAssessment {
+  caseId:              number;
+  procedural:          RiskBand;
+  evidence:            RiskBand;
+  deadline:            RiskBand;
+  missingDocuments:    number;
+  unverifiedInsights:  number;
+  unresolvedCitations: number;
+}
+
+export function useCaseRisk(caseId: number | null) {
+  return useQuery({
+    queryKey: ['cases', caseId, 'risk'],
+    queryFn:  () => fetchJSON<RiskAssessment>(`/api/cases/${caseId}/risk`),
+    enabled:  caseId !== null && caseId > 0,
+    staleTime: 30_000,
+    retry: false,
+  });
+}
+
 export function useCalendarEvents(from: string, to: string) {
   return useQuery({
     queryKey: ['calendar', from, to],

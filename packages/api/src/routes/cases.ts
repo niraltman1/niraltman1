@@ -9,6 +9,8 @@ import { parsePagination } from '../utils/pagination.js';
 import { validate } from '../middleware/validate.js';
 import { createCaseSchema } from '../validation/cases.js';
 import { NotFoundError, ValidationError } from '../errors/api-error.js';
+import { analyzeEvidenceGaps, getCaseCompleteness } from '@factum-il/litigation-intelligence';
+import { assessCaseRisk } from '../utils/risk-summary.js';
 
 // Builds a minimal valid .docx (OOXML ZIP) using pizzip without needing a template file.
 async function writeMinimalDocx(outPath: string, cas: Record<string, unknown>): Promise<void> {
@@ -69,7 +71,7 @@ const linkContactSchema = z.object({
 
 export function casesRouter(repos: Repos): Router {
   const router = Router();
-  const { cases, contacts, db } = repos;
+  const { cases, contacts, calendar, db } = repos;
 
   router.get('/', asyncHandler((req, res) => {
     const query = req.query as Record<string, unknown>;
@@ -139,6 +141,42 @@ export function casesRouter(repos: Repos): Router {
        ORDER BY di.confidence DESC
     `).all(id) as unknown[];
     ok(res, insights);
+  }));
+
+  // Per-matter risk assessment (§4.4.3 / Risk Dashboard) — composes existing
+  // signals only; no AI. See utils/risk-summary.ts for the pure aggregation.
+  router.get('/:id/risk', asyncHandler((req, res) => {
+    const id = Number(req.params['id']);
+    if (!Number.isFinite(id)) throw new ValidationError('invalid id');
+    if (!cases.findById(id)) throw new NotFoundError('Case');
+
+    const completeness = getCaseCompleteness(id, db as never);
+    const gaps         = analyzeEvidenceGaps(id, db as never);
+    const today        = new Date().toISOString().slice(0, 10);
+    const deadlineRisks = calendar.deadlinesAtRisk(today, 90)
+      .filter((d) => d.caseId === id)
+      .map((d) => d.risk);
+
+    const unverifiedInsights = (db.prepare(`
+      SELECT COUNT(*) AS n
+        FROM DocumentInsights di
+        JOIN Documents d ON d.id = di.document_id
+       WHERE d.case_id = ? AND di.verification_state = 'unverified'
+    `).get(id) as { n: number }).n;
+
+    const unresolvedCitations = (db.prepare(
+      "SELECT COUNT(*) AS n FROM citation_registry WHERE case_id = ? AND status = 'unresolved'",
+    ).get(id) as { n: number }).n;
+
+    ok(res, assessCaseRisk({
+      caseId:                id,
+      hasChecklist:          completeness.totalSteps > 0,
+      completenessScore:     completeness.score,
+      evidenceGapPriorities: gaps.map((g) => g.priority),
+      deadlineRisks,
+      unverifiedInsights,
+      unresolvedCitations,
+    }));
   }));
 
   router.post('/:id/worksheet/export', asyncHandler(async (req, res) => {

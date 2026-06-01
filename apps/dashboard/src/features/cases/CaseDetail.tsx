@@ -8,6 +8,7 @@ import {
 import { useCase, useCaseContacts, useDocuments, useCaseInsights, useCaseActivity, useAgentSummarize, useAgentTimeline, useAgentDiscovery } from '@/api/hooks.js';
 import type { CaseContactRecord, CaseInsightRecord, ActivityEventRow, AgentOutput } from '@/api/hooks.js';
 import { AgentOutputPanel } from '@/components/common/AgentOutputPanel.js';
+import { CaseRiskPanel } from './CaseRiskPanel.js';
 
 const STATUS_LABELS: Record<string, string> = {
   open:      'פתוח',
@@ -132,6 +133,9 @@ export function CaseDetail() {
           )}
         </div>
       </div>
+
+      {/* Risk dashboard (always-visible context) */}
+      <CaseRiskPanel caseId={caseId} />
 
       {/* Tabs */}
       <div className="flex gap-1 border-b border-parchment/10">
