@@ -220,8 +220,7 @@ export function agentsStreamRouter(repos: Repos): Router {
     sseSend(res, 'progress', { stage: 'validating', pct: 5, message: 'מאמת נתוני תיק…' });
 
     try {
-      sseSend(res, 'progress', { stage: 'running', pct: 20, message: 'מריץ סוכן סיכום…' });
-      const output = await summarizeCase(repos, caseId);
+      const output = await summarizeCase(repos, caseId, (p) => sseSend(res, 'progress', p));
       sseSend(res, 'progress', { stage: 'done', pct: 100, message: 'הושלם' });
       sseSend(res, 'result', { ...output, isStale: false });
     } catch (err) {
@@ -239,8 +238,7 @@ export function agentsStreamRouter(repos: Repos): Router {
     sseSend(res, 'progress', { stage: 'validating', pct: 5, message: 'מאמת נתוני תיק…' });
 
     try {
-      sseSend(res, 'progress', { stage: 'running', pct: 20, message: 'מריץ סוכן ציר זמן…' });
-      const output = await buildTimeline(repos, caseId);
+      const output = await buildTimeline(repos, caseId, (p) => sseSend(res, 'progress', p));
       sseSend(res, 'progress', { stage: 'done', pct: 100, message: 'הושלם' });
       sseSend(res, 'result', { ...output, isStale: false });
     } catch (err) {
@@ -263,8 +261,7 @@ export function agentsStreamRouter(repos: Repos): Router {
     sseSend(res, 'progress', { stage: 'validating', pct: 5, message: 'מאמת שאלה משפטית…' });
 
     try {
-      sseSend(res, 'progress', { stage: 'running', pct: 20, message: 'מריץ סוכן מחקר…' });
-      const output = await researchLegalQuestion(repos, question.trim(), resolvedCaseId);
+      const output = await researchLegalQuestion(repos, question.trim(), resolvedCaseId, (p) => sseSend(res, 'progress', p));
       sseSend(res, 'progress', { stage: 'done', pct: 100, message: 'הושלם' });
       sseSend(res, 'result', { ...output, isStale: false });
     } catch (err) {
@@ -282,8 +279,7 @@ export function agentsStreamRouter(repos: Repos): Router {
     sseSend(res, 'progress', { stage: 'validating', pct: 5, message: 'מאמת מסמך…' });
 
     try {
-      sseSend(res, 'progress', { stage: 'running', pct: 20, message: 'מריץ סוכן סקירת חוזה…' });
-      const output = await reviewContract(repos, documentId);
+      const output = await reviewContract(repos, documentId, (p) => sseSend(res, 'progress', p));
       sseSend(res, 'progress', { stage: 'done', pct: 100, message: 'הושלם' });
       sseSend(res, 'result', { ...output, isStale: false, staleReason: null });
     } catch (err) {
@@ -301,8 +297,7 @@ export function agentsStreamRouter(repos: Repos): Router {
     sseSend(res, 'progress', { stage: 'validating', pct: 5, message: 'מאמת נתוני תיק…' });
 
     try {
-      sseSend(res, 'progress', { stage: 'running', pct: 20, message: 'מריץ סוכן גילוי ראיות…' });
-      const output = await runDiscovery(repos, caseId);
+      const output = await runDiscovery(repos, caseId, (p) => sseSend(res, 'progress', p));
       sseSend(res, 'progress', { stage: 'done', pct: 100, message: 'הושלם' });
       sseSend(res, 'result', { ...output, isStale: false });
     } catch (err) {

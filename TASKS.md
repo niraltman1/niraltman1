@@ -507,10 +507,23 @@ All checks pass (2026-05-26):
   נשמרו: סמל המותג, כרטיס Ollama, כפתור הכיווץ. ה-router לא שונה.
 - בדיקות: `__tests__/Sidebar.test.tsx` (5). dashboard: 23 בדיקות, typecheck + build ירוקים.
 
-### What to do next (Phase-0 הושלם)
-כל פריטי Phase-0 טופלו: §4.1.3 ✅, §4.2.1 ✅ (היה קיים), §4.2.4 ✅ ליבה (היה קיים),
-§4.6.1/§4.6.4 ✅, §4.7.6 ✅. שיפורים נדחים:
-- §4.2.1: עריכה inline + אימות per-field (דורש שינוי סכמה) + bulk-approve.
-- §4.2.4: granularity של 5 שלבים (token-streaming מ-Ollama; דורש Ollama לאימות).
-- התראות: auto-resolve של התראות ישנות; מסך העדפות התראות.
-- המשך ל-Phase 1 (פרק §5): לוח שנה/דוקטינג (§4.1.1), קורא מסמכים (§4.1.2).
+## שיפורים נדחים של Phase 0 — טופלו (2026-06-01)
+
+לאחר אימות CI ירוק על `6b1669e`, טופלו השיפורים הנדחים:
+- **§4.2.1 עריכה inline** — `PATCH /api/documents/insights/:id` + `updateInsightFields`
+  (6 בדיקות) + מצב עריכה ב-`DocumentDetail`. (per-field confidence + bulk-approve הושארו
+  נדחים בכוונה: המודל פולט confidence יחיד → UI per-field יזייף מספרים; bulk צריך את מסך
+  הסקירה §4.2.2 ב-Phase 1.)
+- **התראות auto-resolve + העדפות** — migration 059 (`resolved_at`), reconcile בסקדיולרים
+  (משימה checked/cancelled, תיק לא-open, filing שעזב Pre_Filing), והשתקת סוגים client-side
+  בפאנל. (notifications: 7 בדיקות.)
+- **§4.2.4 התקדמות שלבי-ריצה** — `onProgress` ב-`runAgent` (gathering→context→analyzing→
+  validating) דרך 5 ה-wrappers וה-`/stream`. (agent-progress: 3 בדיקות.) ה-rail של 5 שלבי-
+  ההנמקה לא נבנה בכוונה — המודל מחזיר JSON בלבד (אין סמני-שלב לפרסר), ושינוי זה מסכן את
+  הפלט המכויל ודורש Ollama חי לאימות.
+
+### What to do next — Phase 1 (§5 ברואדמאפ)
+Phase 0 הושלם במלואו (כולל שיפורים). הבא בתור — פערים משפטיים מסדר ראשון:
+- §4.1.1 לוח שנה / דוקטינג (court_hearings קיים בסכמה) — *מונע סיכון malpractice*.
+- §4.1.2 קורא/מציג מסמכים בתוך האפליקציה.
+- §4.2.2 תור סקירה + לולאת תיקון (כולל bulk-approve שנדחה מ-§4.2.1).

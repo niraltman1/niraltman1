@@ -6,6 +6,21 @@
 > **Constraint posture:** strictly local-first. SSE streams from local Ollama / local SQLite
 > only. No new external calls; graceful degradation if Ollama is down (CLAUDE.md rule #4).
 
+> ## ✅ UPDATE (2026-06-01): real execution-phase progress shipped
+> `runAgent` now accepts an optional `onProgress` callback and reports its **real, observable
+> execution phases** — `gathering` (tools) → `context` (prompt) → `analyzing` (law-il-E2B) →
+> `validating` — threaded through all 5 agent wrappers and emitted by the `/stream` endpoints
+> as `progress` events (existing `{stage,pct,message}` shape; no UI change). Unit-tested in
+> `agent-core/src/agent-progress.test.ts` (3 tests, Ollama-down path).
+>
+> **The per-reasoning-step (5-step) rail is intentionally NOT built.** The model is prompted
+> to *return JSON only* (`prompt-builder.ts`: "החזר JSON בלבד") — the 5 steps
+> (הקשר→סיווג→רשויות→סיכון→מסקנה) are *internal* reasoning, not section headers in the output,
+> so there are no markers to parse from the token stream. Emitting them would require changing
+> the tuned legal-output contract **and** a live Ollama to verify — high risk to a
+> domain-specific model, low confidence without runtime. The honest phase progress above
+> replaces the old static 5%→20% bar without fabricating reasoning steps.
+
 > ## ⚠️ STATUS (audit 2026-05-31): SSE plumbing already exists; only step granularity remains
 > Contrary to both the roadmap and the first draft of this plan, **per-agent `/stream` SSE
 > endpoints already exist** — `agentsStreamRouter` in `packages/api/src/routes/agents.ts`

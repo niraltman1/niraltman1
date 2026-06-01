@@ -21,11 +21,14 @@ function extractConfidence(raw: string): number {
 export async function runAgent(input: AgentInput): Promise<AgentOutput> {
   const traceId    = input.traceId ?? randomUUID();
   const startTime  = Date.now();
+  const report     = input.onProgress ?? (() => { /* no-op */ });
 
   // Step 1: execute all tools in parallel
+  report({ stage: 'gathering', pct: 15, message: 'אוסף נתוני תיק…' });
   const toolResults = await runTools(input.tools);
 
   // Step 2: build prompt from gathered data
+  report({ stage: 'context', pct: 35, message: 'בונה הקשר משפטי…' });
   const userPrompt = buildPrompt(input.task, toolResults, input.context);
 
   // Step 3: call law-il-E2B
@@ -35,8 +38,11 @@ export async function runAgent(input: AgentInput): Promise<AgentOutput> {
     timeoutMs: DEFAULT_TIMEOUT_MS,
   };
 
+  report({ stage: 'analyzing', pct: 55, message: 'מנתח עם law-il-E2B…' });
   const rawResponse = await callOllama(userPrompt, config, SYSTEM_PROMPT);
   const ollamaAvailable = rawResponse !== null;
+
+  report({ stage: 'validating', pct: 85, message: 'בודק ביטחון ותקינות…' });
 
   const result     = rawResponse ?? 'לא ניתן להשלים את הפעולה — Ollama אינו זמין כרגע';
   const confidence = ollamaAvailable ? extractConfidence(result) : 0;

@@ -1,10 +1,14 @@
 import { runAgent } from '@factum-il/agent-core';
 import type { Repos } from '../../db.js';
-import type { AgentOutput } from '@factum-il/agent-core';
+import type { AgentOutput, AgentProgress } from '@factum-il/agent-core';
 import { makeCaseTool, makeCaseHearingsTool, makeCaseTasksTool, makeCaseDocumentsTool } from './db-tools.js';
 import { persistAgentResult } from './persist-result.js';
 
-export async function buildTimeline(repos: Repos, caseId: number): Promise<AgentOutput> {
+export async function buildTimeline(
+  repos: Repos,
+  caseId: number,
+  onProgress?: (p: AgentProgress) => void,
+): Promise<AgentOutput> {
   const output = await runAgent({
     agentName: 'timeline-builder',
     task: `צור ציר זמן כרונולוגי של התיק בפורמט JSON:
@@ -23,6 +27,7 @@ export async function buildTimeline(repos: Repos, caseId: number): Promise<Agent
       makeCaseDocumentsTool(repos, caseId),
     ],
     caseId,
+    ...(onProgress ? { onProgress } : {}),
   });
 
   try {
