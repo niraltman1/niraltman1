@@ -88,7 +88,6 @@ export function DocumentReader() {
             <iframe src={fileUrl} title={filename} className="w-full" style={{ height: '78vh', border: 'none', background: '#fff' }} />
           ) : isImage ? (
             <div className="overflow-auto p-4 flex items-start justify-center" style={{ height: '78vh' }}>
-              {/* eslint-disable-next-line jsx-a11y/alt-text */}
               <img src={fileUrl} alt={filename} style={{ transform: `scale(${zoom})`, transformOrigin: 'top center', maxWidth: '100%' }} />
             </div>
           ) : (
