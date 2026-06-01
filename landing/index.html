@@ -1,0 +1,699 @@
+<!DOCTYPE html>
+<html lang="he" dir="rtl" id="html-root">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Factum-IL | מערכת הבינה המלאכותית לעורכי דין בישראל</title>
+<meta name="description" content="Factum-IL – AI legal workspace for Israeli lawyers. Local, secure, Hebrew-first.">
+<link href="https://fonts.googleapis.com/css2?family=Assistant:wght@300;400;600;700;800&family=Heebo:wght@400;500;700;900&display=swap" rel="stylesheet">
+<style>
+:root{
+  --bg:#060913;--surface:#0D1425;--surface2:#131C32;
+  --gold:#E2C47A;--gold-dim:rgba(226,196,122,0.12);--gold-line:rgba(226,196,122,0.22);
+  --text:#F8FAFC;--muted:#94A3B8;--border:rgba(255,255,255,0.07);--danger:#EF4444;
+}
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+html{scroll-behavior:smooth}
+body{font-family:'Assistant',sans-serif;background:var(--bg);color:var(--text);line-height:1.65;overflow-x:hidden}
+h1,h2,h3,h4{font-family:'Heebo',sans-serif}
+::-webkit-scrollbar{width:4px}::-webkit-scrollbar-track{background:var(--bg)}::-webkit-scrollbar-thumb{background:var(--gold);border-radius:2px}
+
+/* ── LANG ── */
+.lang-toggle{display:flex;background:rgba(255,255,255,0.06);border:1px solid var(--border);border-radius:5px;overflow:hidden;flex-shrink:0}
+.lang-btn{padding:7px 16px;font-family:'Heebo',sans-serif;font-size:12px;font-weight:700;letter-spacing:1px;color:var(--muted);background:none;border:none;cursor:pointer;transition:all .2s}
+.lang-btn.active{background:var(--gold);color:var(--bg)}
+.lang-btn:not(.active):hover{color:var(--text);background:rgba(255,255,255,.04)}
+.he{display:block}.en{display:none}
+html[lang="en"] .he{display:none}
+html[lang="en"] .en{display:block}
+span.he{display:inline}span.en{display:none}
+html[lang="en"] span.he{display:none}
+html[lang="en"] span.en{display:inline}
+html[dir="ltr"] .faq-a{border-right:none;border-left:2px solid var(--gold-line);padding-right:0;padding-left:16px}
+html[dir="ltr"] .faq-btn,.faq-q{text-align:right}
+html[dir="ltr"] .faq-btn{text-align:left}
+html[dir="ltr"] .faq-q{text-align:left}
+html[dir="ltr"] .bento-box::before{right:auto;left:0}
+html[dir="ltr"] .ui-sidebar{border-left:none;border-right:1px solid var(--border)}
+html[dir="ltr"] .founder-quote{border-right:none;border-left:3px solid var(--gold-line);padding-right:0;padding-left:24px}
+
+/* ── HEADER ── */
+header{position:fixed;top:0;right:0;left:0;z-index:200;height:68px;display:flex;justify-content:space-between;align-items:center;padding:0 5%;background:rgba(6,9,19,0.9);backdrop-filter:blur(18px);border-bottom:1px solid var(--border)}
+.header-right{display:flex;align-items:center;gap:16px}
+.logo-wrap{display:flex;align-items:center;gap:10px;text-decoration:none}
+.logo-name{font-family:'Heebo',sans-serif;font-size:20px;font-weight:900;letter-spacing:1px;color:var(--text)}
+.logo-name em{font-style:normal;color:var(--gold)}
+.header-cta{background:var(--gold);color:var(--bg);padding:9px 22px;border-radius:4px;font-family:'Heebo',sans-serif;font-weight:700;font-size:14px;text-decoration:none;transition:all .2s;white-space:nowrap}
+.header-cta:hover{filter:brightness(1.1);transform:translateY(-1px);box-shadow:0 6px 20px rgba(226,196,122,0.25)}
+
+/* ── HERO ── */
+.hero{position:relative;overflow:hidden;min-height:100vh;display:flex;flex-direction:column;justify-content:flex-end;padding-top:68px;background:linear-gradient(135deg,#060913 0%,#0D1425 50%,#060913 100%)}
+.hero-inner{position:relative;z-index:2;max-width:1360px;margin:0 auto;width:100%;padding:80px 5% 90px;display:grid;grid-template-columns:1fr 1fr;gap:60px;align-items:flex-end}
+.hero-eyebrow{display:inline-flex;align-items:center;gap:8px;background:var(--gold-dim);border:1px solid var(--gold-line);padding:6px 14px;border-radius:20px;margin-bottom:24px;font-size:12px;font-weight:700;letter-spacing:2px;color:var(--gold);text-transform:uppercase}
+.eyebrow-dot{width:6px;height:6px;background:var(--gold);border-radius:50%;animation:pls 2s infinite}
+@keyframes pls{0%,100%{opacity:1;transform:scale(1)}50%{opacity:.35;transform:scale(1.4)}}
+h1.hero-h1{font-size:clamp(38px,4.5vw,62px);font-weight:900;line-height:1.07;margin-bottom:22px;animation:fadeUp .9s ease .1s both}
+h1.hero-h1 em{font-style:normal;color:var(--gold)}
+.hero-sub{font-size:17px;color:rgba(255,255,255,.72);margin-bottom:36px;max-width:500px;line-height:1.8;animation:fadeUp .9s ease .25s both}
+.hero-btns{display:flex;gap:14px;flex-wrap:wrap;animation:fadeUp .9s ease .4s both}
+.btn-gold{background:var(--gold);color:var(--bg);padding:14px 30px;border-radius:5px;font-family:'Heebo',sans-serif;font-weight:700;font-size:15px;text-decoration:none;transition:all .2s;display:inline-block}
+.btn-gold:hover{filter:brightness(1.1);transform:translateY(-2px);box-shadow:0 10px 30px rgba(226,196,122,.3)}
+.btn-outline{background:rgba(255,255,255,.08);border:1px solid rgba(255,255,255,.25);color:var(--text);padding:14px 28px;border-radius:5px;font-family:'Heebo',sans-serif;font-weight:700;font-size:15px;text-decoration:none;transition:all .2s;display:inline-block;backdrop-filter:blur(4px)}
+.btn-outline:hover{border-color:var(--gold);color:var(--gold)}
+
+/* Pricing Card */
+.hero-aside{display:flex;flex-direction:column;align-items:flex-start;gap:20px;animation:fadeIn 1.1s ease .5s both}
+.price-card{background:rgba(13,20,37,.88);backdrop-filter:blur(20px);border:1px solid var(--gold-line);border-radius:10px;padding:32px 36px;width:100%;max-width:360px;position:relative;overflow:hidden}
+.price-card::before{content:'';position:absolute;top:0;right:10%;left:10%;height:1px;background:linear-gradient(90deg,transparent,var(--gold),transparent)}
+.price-badge{display:inline-flex;align-items:center;gap:7px;background:rgba(239,68,68,.1);border:1px solid rgba(239,68,68,.2);color:var(--danger);padding:5px 14px;border-radius:20px;font-size:11px;font-weight:700;letter-spacing:1px;margin-bottom:20px;font-family:'Heebo',sans-serif}
+.pulse-sm{width:6px;height:6px;background:var(--danger);border-radius:50%;animation:pulse 2s infinite}
+.price-label{font-size:12px;color:var(--muted);letter-spacing:1px;font-weight:600;margin-bottom:10px;font-family:'Heebo',sans-serif;text-transform:uppercase}
+.price-main{font-family:'Heebo',sans-serif;font-size:52px;font-weight:900;color:var(--text);line-height:1;margin-bottom:6px}
+.price-main em{font-style:normal;color:var(--gold);font-size:28px}
+.price-period{font-size:13px;color:var(--muted);margin-bottom:24px}
+.price-period s{opacity:.5}
+.price-features{display:flex;flex-direction:column;gap:10px;margin-bottom:28px}
+.price-feat{display:flex;align-items:center;gap:10px;font-size:14px;color:rgba(255,255,255,.75)}
+.price-check{width:18px;height:18px;background:var(--gold-dim);border:1px solid var(--gold-line);border-radius:3px;display:flex;align-items:center;justify-content:center;font-size:10px;color:var(--gold);flex-shrink:0}
+.price-cta{width:100%;background:var(--gold);color:var(--bg);padding:14px;border-radius:5px;font-family:'Heebo',sans-serif;font-weight:700;font-size:15px;text-decoration:none;text-align:center;display:block;transition:all .2s}
+.price-cta:hover{filter:brightness(1.1);box-shadow:0 8px 25px rgba(226,196,122,.3)}
+.price-note{font-size:11px;color:var(--muted);text-align:center;margin-top:12px}
+
+/* ── TRUST BAR ── */
+.trust-bar{background:rgba(255,255,255,.015);border-top:1px solid var(--border);border-bottom:1px solid var(--border);padding:14px 5%}
+.trust-inner{max-width:1200px;margin:0 auto;display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:16px}
+.trust-item{display:flex;align-items:center;gap:8px;font-size:13px;font-weight:600;color:var(--muted)}
+.trust-sep{width:1px;height:14px;background:var(--border)}
+
+/* ── PAIN ── */
+.pain-section{padding:110px 5%;background:linear-gradient(to bottom,var(--bg),var(--surface))}
+.container{max-width:1200px;margin:0 auto}
+.sec-kicker{font-family:'Heebo',sans-serif;font-size:11px;font-weight:700;letter-spacing:2.5px;text-transform:uppercase;color:var(--gold);margin-bottom:14px;display:flex;align-items:center;gap:10px}
+.sec-kicker::before{content:'';width:20px;height:1px;background:var(--gold);flex-shrink:0}
+.sec-title{font-size:clamp(28px,3.2vw,42px);font-weight:900;line-height:1.15;margin-bottom:16px}
+.sec-title em{font-style:normal;color:var(--gold)}
+.sec-sub{font-size:16px;color:var(--muted);max-width:540px;line-height:1.8;margin-bottom:60px}
+.pain-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:1px;background:var(--border)}
+.pain-card{background:var(--surface);padding:44px 36px;position:relative;overflow:hidden;transition:background .3s,transform .25s;cursor:default}
+.pain-card::after{content:'';position:absolute;top:0;right:0;left:0;height:2px;background:linear-gradient(90deg,transparent,var(--gold),transparent);opacity:0;transition:opacity .3s}
+.pain-card:hover{background:var(--surface2);transform:translateY(-3px)}
+.pain-card:hover::after{opacity:1}
+.pain-num{font-family:'Heebo',sans-serif;font-size:48px;font-weight:900;color:rgba(226,196,122,.06);line-height:1;margin-bottom:16px;transition:color .3s}
+.pain-card:hover .pain-num{color:rgba(226,196,122,.15)}
+.pain-icon-wrap{font-size:26px;margin-bottom:14px}
+.pain-title{font-family:'Heebo',sans-serif;font-size:20px;font-weight:700;margin-bottom:12px}
+.pain-body{font-size:15px;color:var(--muted);line-height:1.8}
+
+/* ── BENTO ── */
+.features-section{padding:110px 5%;background:var(--surface)}
+.bento{display:grid;grid-template-columns:repeat(4,1fr);gap:2px;background:var(--border);max-width:1200px;margin:0 auto}
+.bento-box{background:var(--bg);padding:36px 32px;transition:background .3s;position:relative;overflow:hidden}
+.bento-box::before{content:'';position:absolute;top:0;right:0;width:0;height:2px;background:var(--gold);transition:width .4s ease}
+.bento-box:hover::before{width:100%}
+.bento-box:hover{background:var(--surface2)}
+.bento-box h3{font-size:20px;font-weight:700;color:var(--gold);margin-bottom:14px;line-height:1.3}
+.bento-box p{font-size:14px;color:var(--muted);line-height:1.8}
+.span2{grid-column:span 2}.span1{grid-column:span 1}
+.bento-featured{background:linear-gradient(135deg,#0D1425,#060913);border-top:1px solid rgba(226,196,122,.25)!important}
+.bento-featured h3{color:var(--text)}.bento-featured p{color:rgba(255,255,255,.7)}
+
+/* ── FOUNDER SECTION ── */
+.founder-section{padding:110px 5%;background:var(--bg)}
+.founder-inner{max-width:900px;margin:0 auto}
+.founder-card{background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:60px;position:relative;overflow:hidden}
+.founder-card::before{content:'';position:absolute;top:0;right:0;left:0;height:2px;background:linear-gradient(90deg,transparent,var(--gold) 40%,var(--gold) 60%,transparent)}
+.founder-eyebrow{font-family:'Heebo',sans-serif;font-size:11px;font-weight:700;letter-spacing:2.5px;text-transform:uppercase;color:var(--gold);margin-bottom:20px;display:flex;align-items:center;gap:10px}
+.founder-eyebrow::before{content:'';width:20px;height:1px;background:var(--gold)}
+.founder-headline{font-family:'Heebo',sans-serif;font-size:clamp(24px,2.8vw,34px);font-weight:900;line-height:1.2;color:var(--text);margin-bottom:36px}
+.founder-headline em{font-style:normal;color:var(--gold)}
+.founder-quote{font-size:16px;font-weight:400;line-height:1.9;color:rgba(255,255,255,.75);border-right:3px solid var(--gold-line);padding-right:24px;margin-bottom:40px}
+.founder-quote strong{color:var(--gold);font-weight:700}
+.founder-meta{display:flex;align-items:center;gap:20px;padding-top:28px;border-top:1px solid var(--border)}
+.founder-name{font-family:'Heebo',sans-serif;font-size:18px;font-weight:900;color:var(--text)}
+.founder-role{font-size:13px;color:var(--muted);margin-top:3px}
+
+/* ── BETA ── */
+.beta-section{padding:120px 5%;background:var(--surface);text-align:center}
+.beta-inner{max-width:760px;margin:0 auto}
+.status-badge{display:inline-flex;align-items:center;gap:8px;background:rgba(239,68,68,.08);color:var(--danger);padding:7px 18px;border-radius:20px;font-weight:700;font-size:12px;margin-bottom:28px;border:1px solid rgba(239,68,68,.18);font-family:'Heebo',sans-serif}
+@keyframes pulse{0%{box-shadow:0 0 0 0 rgba(239,68,68,.4)}70%{box-shadow:0 0 0 10px rgba(239,68,68,0)}100%{box-shadow:0 0 0 0 rgba(239,68,68,0)}}
+.pulse-dot{width:7px;height:7px;background:var(--danger);border-radius:50%;animation:pulse 2s infinite}
+.beta-title{font-size:clamp(30px,4vw,50px);font-weight:900;line-height:1.12;margin-bottom:20px}
+.beta-title em{font-style:normal;color:var(--gold)}
+.beta-sub{font-size:17px;color:var(--muted);line-height:1.75;margin-bottom:48px}
+.beta-sub strong{color:var(--text)}
+.form-wrap{background:var(--bg);border:1px solid var(--border);border-radius:10px;overflow:hidden;position:relative}
+.form-wrap::before{content:'';position:absolute;top:0;right:10%;left:10%;height:1px;background:linear-gradient(90deg,transparent,var(--gold),transparent);z-index:2}
+.form-wrap iframe{width:100%;height:700px;border:none;display:block}
+
+/* ── FAQ ── */
+.faq-section{padding:110px 5%;background:var(--bg)}
+.faq-inner{max-width:1200px;margin:0 auto;display:grid;grid-template-columns:320px 1fr;gap:80px;align-items:start}
+.faq-aside-logo{display:flex;align-items:center;gap:12px;padding:16px 18px;background:var(--surface);border:1px solid var(--border);border-radius:6px;margin-top:28px}
+.faq-logo-name{font-family:'Heebo',sans-serif;font-size:14px;font-weight:900;color:var(--text)}
+.faq-logo-name em{font-style:normal;color:var(--gold)}
+.faq-logo-sub{font-size:11px;color:var(--muted);margin-top:2px}
+.faq-item{border-bottom:1px solid var(--border)}
+.faq-btn{width:100%;background:none;border:none;padding:22px 0;display:flex;justify-content:space-between;align-items:center;gap:20px;cursor:pointer;text-align:right}
+html[dir="ltr"] .faq-btn{text-align:left}
+.faq-q{font-family:'Heebo',sans-serif;font-size:15px;font-weight:600;color:var(--text);line-height:1.4;transition:color .2s;text-align:right}
+html[dir="ltr"] .faq-q{text-align:left}
+.faq-icon{width:26px;height:26px;flex-shrink:0;border:1px solid var(--border);display:flex;align-items:center;justify-content:center;font-size:17px;color:var(--muted);border-radius:4px;transition:all .25s}
+.faq-item.open .faq-icon{background:var(--gold);border-color:var(--gold);color:var(--bg);transform:rotate(45deg)}
+.faq-item.open .faq-q{color:var(--gold)}
+.faq-answer{max-height:0;overflow:hidden;transition:max-height .4s ease}
+.faq-item.open .faq-answer{max-height:280px}
+.faq-a{font-size:14px;color:var(--muted);line-height:1.85;padding-bottom:22px;border-right:2px solid var(--gold-line);padding-right:16px}
+
+/* ── FOOTER ── */
+footer{background:var(--surface2);padding:48px 5%;border-top:1px solid var(--border)}
+.footer-top{max-width:1200px;margin:0 auto 32px;display:flex;justify-content:space-between;align-items:flex-start;flex-wrap:wrap;gap:36px}
+.footer-brand{display:flex;align-items:center;gap:12px}
+.footer-brand-name{font-family:'Heebo',sans-serif;font-size:17px;font-weight:900;color:var(--text)}
+.footer-brand-name em{font-style:normal;color:var(--gold)}
+.footer-brand-tag{font-size:11px;color:var(--muted);margin-top:3px}
+.footer-cols{display:flex;gap:48px}
+.footer-col-title{font-family:'Heebo',sans-serif;font-size:11px;font-weight:700;letter-spacing:2px;text-transform:uppercase;color:var(--gold);margin-bottom:14px}
+.footer-col-item{font-size:13px;color:var(--muted);line-height:2.2}
+.footer-bottom{max-width:1200px;margin:0 auto;padding-top:22px;border-top:1px solid var(--border);display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:12px}
+.footer-copy{font-size:12px;color:rgba(255,255,255,.2)}
+.footer-disc{font-size:11px;color:rgba(255,255,255,.15)}
+
+/* ── REVEAL ── */
+.reveal{opacity:0;transform:translateY(22px);transition:opacity .65s ease,transform .65s ease}
+.reveal.d1{transition-delay:.1s}.reveal.d2{transition-delay:.2s}.reveal.d3{transition-delay:.3s}
+.reveal.visible{opacity:1;transform:none}
+@keyframes fadeUp{from{opacity:0;transform:translateY(22px)}to{opacity:1;transform:translateY(0)}}
+@keyframes fadeIn{from{opacity:0}to{opacity:1}}
+
+/* ── RESPONSIVE ── */
+@media(max-width:960px){
+  header{padding:0 20px}
+  .hero-inner{grid-template-columns:1fr;padding:80px 20px 80px;gap:40px;align-items:flex-start}
+  .hero-aside{align-items:stretch}
+  .price-card{max-width:100%}
+  .trust-bar{padding:14px 20px}
+  .trust-sep{display:none}.trust-inner{gap:12px}
+  .pain-section,.features-section,.founder-section,.beta-section,.faq-section{padding:80px 20px}
+  .pain-grid{grid-template-columns:1fr;gap:1px}
+  .bento{grid-template-columns:1fr}
+  .span2,.span1{grid-column:span 1}
+  .founder-card{padding:36px 28px}
+  .faq-inner{grid-template-columns:1fr;gap:40px}
+  footer{padding:40px 20px}
+  .footer-top,.footer-bottom{flex-direction:column}
+  .footer-cols{flex-direction:column;gap:24px}
+}
+</style>
+</head>
+<body>
+
+<!-- HEADER -->
+<header>
+  <a href="#" class="logo-wrap">
+    <span class="logo-name">Factum<em>-IL</em></span>
+  </a>
+  <div class="header-right">
+    <div class="lang-toggle">
+      <button class="lang-btn active" onclick="setLang('he')" id="btn-he">עב</button>
+      <button class="lang-btn" onclick="setLang('en')" id="btn-en">EN</button>
+    </div>
+    <a href="#beta" class="header-cta">
+      <span class="he">הרשמה לבטא V13</span>
+      <span class="en">Join Beta V13</span>
+    </a>
+  </div>
+</header>
+
+<!-- HERO -->
+<section class="hero">
+  <div class="hero-inner">
+    <div class="hero-content">
+      <div class="hero-eyebrow">
+        <span class="eyebrow-dot"></span>
+        <span class="he">בטא פתוחה — 47 מקומות נותרו</span>
+        <span class="en">Open Beta — 47 spots remaining</span>
+      </div>
+      <h1 class="hero-h1">
+        <span class="he">עו"ד ישראלי<br>עם <em>AI</em> שמבין<br>את החוק שלכם</span>
+        <span class="en">Israeli Lawyers<br>with <em>AI</em> that knows<br>your law</span>
+      </h1>
+      <p class="hero-sub">
+        <span class="he">Factum-IL הוא סביבת העבודה המשפטית הראשונה עם AI מקומי, מאובטח ועברי-ראשון — שלא שולח מסמכי לקוחות לשום שרת חיצוני.</span>
+        <span class="en">Factum-IL is the first legal workspace with local, secure, Hebrew-first AI — that never sends client documents to any external server.</span>
+      </p>
+      <div class="hero-btns">
+        <a href="#beta" class="btn-gold">
+          <span class="he">קבל גישה לבטא</span>
+          <span class="en">Get Beta Access</span>
+        </a>
+        <a href="#features" class="btn-outline">
+          <span class="he">ראה איך זה עובד</span>
+          <span class="en">See how it works</span>
+        </a>
+      </div>
+    </div>
+
+    <div class="hero-aside">
+      <div class="price-card">
+        <div class="price-badge">
+          <span class="pulse-sm"></span>
+          <span class="he">מחיר השקה — 23 ימים נותרו</span>
+          <span class="en">Launch price — 23 days left</span>
+        </div>
+        <div class="price-label">
+          <span class="he">מחיר בטא</span>
+          <span class="en">Beta price</span>
+        </div>
+        <div class="price-main">₪<em>0</em></div>
+        <div class="price-period">
+          <span class="he"><s>₪290/חודש</s> — חינם לחלוטין בבטא</span>
+          <span class="en"><s>₪290/mo</s> — completely free in beta</span>
+        </div>
+        <div class="price-features">
+          <div class="price-feat"><div class="price-check">✓</div>
+            <span class="he">AI מקומי — הנתונים לא יוצאים מהמחשב</span>
+            <span class="en">Local AI — data never leaves your machine</span>
+          </div>
+          <div class="price-feat"><div class="price-check">✓</div>
+            <span class="he">מודל Law-IL E2B — אימון על משפט ישראלי</span>
+            <span class="en">Law-IL E2B model — trained on Israeli law</span>
+          </div>
+          <div class="price-feat"><div class="price-check">✓</div>
+            <span class="he">OCR + ניתוח מסמכים בעברית</span>
+            <span class="en">OCR + Hebrew document analysis</span>
+          </div>
+          <div class="price-feat"><div class="price-check">✓</div>
+            <span class="he">ניהול תיקים, מועדים, ולוחות זמנים</span>
+            <span class="en">Case management, deadlines, timelines</span>
+          </div>
+          <div class="price-feat"><div class="price-check">✓</div>
+            <span class="he">תמיכה ישירה ממפתחי המוצר</span>
+            <span class="en">Direct support from product developers</span>
+          </div>
+        </div>
+        <a href="#beta" class="price-cta">
+          <span class="he">הירשם עכשיו — בחינם</span>
+          <span class="en">Sign up now — free</span>
+        </a>
+        <div class="price-note">
+          <span class="he">אין צורך בכרטיס אשראי. Windows 10/11 בלבד.</span>
+          <span class="en">No credit card required. Windows 10/11 only.</span>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- TRUST BAR -->
+<div class="trust-bar">
+  <div class="trust-inner">
+    <div class="trust-item">🔒 <span class="he">כל הנתונים על המחשב שלך</span><span class="en">All data on your machine</span></div>
+    <div class="trust-sep"></div>
+    <div class="trust-item">⚖️ <span class="he">מותאם לפרוצדורה הישראלית</span><span class="en">Adapted to Israeli procedure</span></div>
+    <div class="trust-sep"></div>
+    <div class="trust-item">🇮🇱 <span class="he">עברית ראשית — RTL מלא</span><span class="en">Hebrew-first — full RTL</span></div>
+    <div class="trust-sep"></div>
+    <div class="trust-item">🤖 <span class="he">AI מקומי — Ollama + Law-IL E2B</span><span class="en">Local AI — Ollama + Law-IL E2B</span></div>
+    <div class="trust-sep"></div>
+    <div class="trust-item">📋 <span class="he">ללא שיתוף עם שרתים חיצוניים</span><span class="en">No external server sharing</span></div>
+  </div>
+</div>
+
+<!-- PAIN SECTION -->
+<section class="pain-section" id="pain">
+  <div class="container">
+    <div class="sec-kicker he">הבעיה שפתרנו</div>
+    <div class="sec-kicker en">The problem we solved</div>
+    <h2 class="sec-title reveal">
+      <span class="he">עורכי דין ישראלים מאבדים <em>שעות</em><br>כל שבוע על עבודה שAI יכול לעשות</span>
+      <span class="en">Israeli lawyers lose <em>hours</em><br>every week on work AI can handle</span>
+    </h2>
+    <p class="sec-sub reveal d1">
+      <span class="he">כלי AI גנריים לא מבינים פרוצדורה ישראלית, לא קוראים עברית משפטית נכון, ושולחים מידע רגיש לשרתים בחו"ל.</span>
+      <span class="en">Generic AI tools don't understand Israeli procedure, can't read legal Hebrew correctly, and send sensitive data to overseas servers.</span>
+    </p>
+    <div class="pain-grid">
+      <div class="pain-card reveal">
+        <div class="pain-num">01</div>
+        <div class="pain-icon-wrap">📄</div>
+        <div class="pain-title">
+          <span class="he">ניתוח מסמכים ידני</span>
+          <span class="en">Manual document analysis</span>
+        </div>
+        <p class="pain-body">
+          <span class="he">קריאת מאות עמודים, חיפוש סעיפים רלוונטיים, זיהוי תאריכים ומועדים — כל זה לוקח שעות שאפשר לחסוך.</span>
+          <span class="en">Reading hundreds of pages, finding relevant clauses, identifying dates and deadlines — all of this takes hours that could be saved.</span>
+        </p>
+      </div>
+      <div class="pain-card reveal d1">
+        <div class="pain-num">02</div>
+        <div class="pain-icon-wrap">⚠️</div>
+        <div class="pain-title">
+          <span class="he">פחד מדליפת מידע</span>
+          <span class="en">Fear of data leakage</span>
+        </div>
+        <p class="pain-body">
+          <span class="he">ChatGPT ו-Claude שולחים את המסמכים לשרתים בחו"ל. בסביבה ישראלית זה עלול להפר חיסיון עו"ד-לקוח.</span>
+          <span class="en">ChatGPT and Claude send documents to overseas servers. In the Israeli context this may violate attorney-client privilege.</span>
+        </p>
+      </div>
+      <div class="pain-card reveal d2">
+        <div class="pain-num">03</div>
+        <div class="pain-icon-wrap">🔢</div>
+        <div class="pain-title">
+          <span class="he">AI שלא מבין את החוק הישראלי</span>
+          <span class="en">AI that doesn't understand Israeli law</span>
+        </div>
+        <p class="pain-body">
+          <span class="he">מודלים גנריים לא מכירים את מבנה בתי המשפט, פרוצדורת ת"א, ע"א, בג"ץ — ומייצרים תשובות לא מדויקות.</span>
+          <span class="en">Generic models don't know court structures, TA, EA, HCJ procedures — and generate inaccurate responses.</span>
+        </p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- FEATURES SECTION -->
+<section class="features-section" id="features">
+  <div class="container">
+    <div class="sec-kicker he">הפתרון</div>
+    <div class="sec-kicker en">The solution</div>
+    <h2 class="sec-title reveal">
+      <span class="he">סביבת עבודה משפטית מלאה — <em>מקומית ומאובטחת</em></span>
+      <span class="en">Complete legal workspace — <em>local and secure</em></span>
+    </h2>
+    <p class="sec-sub reveal d1">
+      <span class="he">Factum-IL מריץ הכל על המחשב שלכם. אין ענן, אין שיתוף נתונים, אין תשלום לשרת חיצוני.</span>
+      <span class="en">Factum-IL runs everything on your computer. No cloud, no data sharing, no external server fees.</span>
+    </p>
+  </div>
+  <div class="bento">
+    <div class="bento-box span2 bento-featured reveal">
+      <h3>
+        <span class="he">🤖 AI משפטי ישראלי — Law-IL E2B</span>
+        <span class="en">🤖 Israeli Legal AI — Law-IL E2B</span>
+      </h3>
+      <p>
+        <span class="he">המודל היחיד שאומן על פסקי דין ישראלים, חקיקה, ותקנות. מבין עברית משפטית, מבנה פרוצדורלי ישראלי, ומוסמכות בתי משפט (שלום, מחוזי, עליון, עבודה, משפחה). רץ לגמרי לוקאלי דרך Ollama.</span>
+        <span class="en">The only model trained on Israeli court rulings, legislation, and regulations. Understands legal Hebrew, Israeli procedural structure, and court jurisdictions (Magistrate, District, Supreme, Labor, Family). Runs fully locally via Ollama.</span>
+      </p>
+    </div>
+    <div class="bento-box span1 reveal d1">
+      <h3>
+        <span class="he">📁 ניהול תיקים</span>
+        <span class="en">📁 Case Management</span>
+      </h3>
+      <p>
+        <span class="he">ניהול תיקים, מסמכים, דיונים ומשימות במקום אחד. ציר זמן אינטראקטיבי לכל תיק.</span>
+        <span class="en">Manage cases, documents, hearings and tasks in one place. Interactive timeline per case.</span>
+      </p>
+    </div>
+    <div class="bento-box span1 reveal d2">
+      <h3>
+        <span class="he">📅 מוניטור מועדים</span>
+        <span class="en">📅 Deadline Monitor</span>
+      </h3>
+      <p>
+        <span class="he">זיהוי אוטומטי של מועדים מהמסמכים. התראות לפני הגשת כתבי טענות, ערעורים, ועוד.</span>
+        <span class="en">Automatic deadline detection from documents. Alerts before filing pleadings, appeals, and more.</span>
+      </p>
+    </div>
+    <div class="bento-box span1 reveal">
+      <h3>
+        <span class="he">🔍 OCR + ניתוח מסמכים</span>
+        <span class="en">🔍 OCR + Document Analysis</span>
+      </h3>
+      <p>
+        <span class="he">קריאת מסמכים סרוקים בעברית. זיהוי ת"ז, מספרי תיק, תאריכים, צדדים — אוטומטית.</span>
+        <span class="en">Read scanned Hebrew documents. Auto-detect ID numbers, case numbers, dates, parties.</span>
+      </p>
+    </div>
+    <div class="bento-box span1 reveal d1">
+      <h3>
+        <span class="he">⚖️ מנוע חוקים</span>
+        <span class="en">⚖️ Rules Engine</span>
+      </h3>
+      <p>
+        <span class="he">20 כללים פרוצדורליים ישראלים מובנים. חישוב מועדים לפי הפרוצדורה האזרחית, הפלילית ועבודה.</span>
+        <span class="en">20 built-in Israeli procedural rules. Deadline calculation per civil, criminal, and labor procedure.</span>
+      </p>
+    </div>
+    <div class="bento-box span1 reveal d2">
+      <h3>
+        <span class="he">🔗 אסמכתאות חכמות</span>
+        <span class="en">🔗 Smart Citations</span>
+      </h3>
+      <p>
+        <span class="he">זיהוי ומעקב אסמכתאות פסיקה. ניתוח תדירות שימוש ורלוונטיות לתיק הנוכחי.</span>
+        <span class="en">Citation detection and tracking. Usage frequency and relevance analysis for the current case.</span>
+      </p>
+    </div>
+    <div class="bento-box span1 reveal">
+      <h3>
+        <span class="he">🔒 פרטיות מוחלטת</span>
+        <span class="en">🔒 Complete Privacy</span>
+      </h3>
+      <p>
+        <span class="he">אפס שליחת נתונים החוצה. SQLite מקומי. Ollama מקומי. Windows בלבד — ללא ענן.</span>
+        <span class="en">Zero data sent externally. Local SQLite. Local Ollama. Windows only — no cloud.</span>
+      </p>
+    </div>
+    <div class="bento-box span1 reveal d1">
+      <h3>
+        <span class="he">📊 לוח ריסק</span>
+        <span class="en">📊 Risk Dashboard</span>
+      </h3>
+      <p>
+        <span class="he">ציון סיכון פרוצדורלי לכל תיק. זיהוי ראיות חסרות, תובנות לא מאומתות, ואסמכתאות פתוחות.</span>
+        <span class="en">Procedural risk score per case. Identify missing evidence, unverified insights, and open citations.</span>
+      </p>
+    </div>
+  </div>
+</section>
+
+<!-- FOUNDER SECTION -->
+<section class="founder-section" id="founder">
+  <div class="founder-inner">
+    <div class="founder-card reveal">
+      <div class="founder-eyebrow">
+        <span class="he">מהמייסד</span>
+        <span class="en">From the founder</span>
+      </div>
+      <h2 class="founder-headline">
+        <span class="he">בנינו את <em>Factum-IL</em> כי הכלים הקיימים לא עובדים עבורנו</span>
+        <span class="en">We built <em>Factum-IL</em> because existing tools don't work for us</span>
+      </h2>
+      <blockquote class="founder-quote">
+        <span class="he">כעורך דין ישראלי, ניסיתי כל כלי AI קיים. כולם כשלו באותן נקודות: לא מבינים פרוצדורה ישראלית, לא קוראים עברית משפטית נכון, ומחייבים אותי לשלוח <strong>מסמכי לקוחות רגישים</strong> לשרתים בחו"ל. Factum-IL נבנה כדי לפתור בדיוק את הבעיות האלה — מקומי, מאובטח, ועברי-ראשון.</span>
+        <span class="en">As an Israeli lawyer, I tried every AI tool available. They all failed at the same points: they don't understand Israeli procedure, can't read legal Hebrew correctly, and require me to send <strong>sensitive client documents</strong> to overseas servers. Factum-IL was built to solve exactly these problems — local, secure, and Hebrew-first.</span>
+      </blockquote>
+      <div class="founder-meta">
+        <div class="founder-info">
+          <div class="founder-name">
+            <span class="he">ניר אלטמן, עו"ד</span>
+            <span class="en">Nir Altman, Adv.</span>
+          </div>
+          <div class="founder-role">
+            <span class="he">מייסד ומפתח ראשי, Factum-IL</span>
+            <span class="en">Founder & Lead Developer, Factum-IL</span>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- BETA SECTION -->
+<section class="beta-section" id="beta">
+  <div class="beta-inner">
+    <div class="status-badge">
+      <span class="pulse-dot"></span>
+      <span class="he">בטא V13 פתוחה — 47 מקומות נותרו</span>
+      <span class="en">Beta V13 open — 47 spots remaining</span>
+    </div>
+    <h2 class="beta-title reveal">
+      <span class="he">הצטרפו לבטא — <em>בחינם</em></span>
+      <span class="en">Join the beta — <em>free</em></span>
+    </h2>
+    <p class="beta-sub reveal d1">
+      <span class="he">מקומות מוגבלים לעורכי דין ישראלים שרוצים לעצב את העתיד של כלי AI משפטיים. <strong>ללא כרטיס אשראי. ללא התחייבות.</strong></span>
+      <span class="en">Limited spots for Israeli lawyers who want to shape the future of legal AI tools. <strong>No credit card. No commitment.</strong></span>
+    </p>
+    <div class="form-wrap reveal d2">
+      <iframe src="https://docs.google.com/forms/d/e/1FAIpQLSf_placeholder/viewform?embedded=true" title="Beta registration form">
+        <span class="he">טוען טופס...</span>
+        <span class="en">Loading form...</span>
+      </iframe>
+    </div>
+  </div>
+</section>
+
+<!-- FAQ SECTION -->
+<section class="faq-section" id="faq">
+  <div class="faq-inner">
+    <div>
+      <div class="sec-kicker he">שאלות נפוצות</div>
+      <div class="sec-kicker en">FAQ</div>
+      <h2 class="sec-title reveal">
+        <span class="he">תשובות<br>לשאלות<br>שלכם</span>
+        <span class="en">Answers<br>to your<br>questions</span>
+      </h2>
+      <div class="faq-aside-logo reveal d1">
+        <div>
+          <div class="faq-logo-name">Factum<em>-IL</em></div>
+          <div class="faq-logo-sub">
+            <span class="he">AI משפטי ישראלי</span>
+            <span class="en">Israeli Legal AI</span>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="faq-list reveal">
+      <div class="faq-item">
+        <button class="faq-btn" onclick="toggleFaq(this)">
+          <span class="faq-q he">האם המסמכים שלי נשמרים בענן?</span>
+          <span class="faq-q en">Are my documents stored in the cloud?</span>
+          <span class="faq-icon">+</span>
+        </button>
+        <div class="faq-answer">
+          <p class="faq-a">
+            <span class="he">לא. Factum-IL רץ לגמרי על המחשב שלכם. כל המסמכים, הניתוחים, ותוצרי ה-AI נשמרים רק מקומית — SQLite על הדיסק שלכם. אין שרת חיצוני, אין ענן, אין שיתוף נתונים.</span>
+            <span class="en">No. Factum-IL runs entirely on your computer. All documents, analyses, and AI outputs are stored only locally — SQLite on your disk. No external server, no cloud, no data sharing.</span>
+          </p>
+        </div>
+      </div>
+      <div class="faq-item">
+        <button class="faq-btn" onclick="toggleFaq(this)">
+          <span class="faq-q he">על איזה חומרה זה עובד?</span>
+          <span class="faq-q en">What hardware does it require?</span>
+          <span class="faq-icon">+</span>
+        </button>
+        <div class="faq-answer">
+          <p class="faq-a">
+            <span class="he">Windows 10/11, 16GB RAM מינימום (32GB מומלץ), כרטיס גרפי NVIDIA עם 8GB VRAM לביצועים מיטביים (או CPU בלבד — איטי יותר). Ollama מותקן אוטומטית.</span>
+            <span class="en">Windows 10/11, minimum 16GB RAM (32GB recommended), NVIDIA GPU with 8GB VRAM for best performance (or CPU-only — slower). Ollama installs automatically.</span>
+          </p>
+        </div>
+      </div>
+      <div class="faq-item">
+        <button class="faq-btn" onclick="toggleFaq(this)">
+          <span class="faq-q he">למה רק Windows?</span>
+          <span class="faq-q en">Why Windows only?</span>
+          <span class="faq-icon">+</span>
+        </button>
+        <div class="faq-answer">
+          <p class="faq-a">
+            <span class="he">האפליקציה בנויה על Electron + WebView2, שהוא ספציפי ל-Windows. הממשק ה-Web פועל בכל דפדפן, אך הגרסה המלאה עם AI מקומי מחייבת Windows.</span>
+            <span class="en">The app is built on Electron + WebView2, which is Windows-specific. The web interface works in any browser, but the full version with local AI requires Windows.</span>
+          </p>
+        </div>
+      </div>
+      <div class="faq-item">
+        <button class="faq-btn" onclick="toggleFaq(this)">
+          <span class="faq-q he">כמה עולה לאחר הבטא?</span>
+          <span class="faq-q en">What will it cost after beta?</span>
+          <span class="faq-icon">+</span>
+        </button>
+        <div class="faq-answer">
+          <p class="faq-a">
+            <span class="he">המחיר המוצע לאחר הבטא הוא ₪290/חודש. משתמשי בטא יקבלו תמחור מיוחד לתקופה מוגבלת. אין התחייבות בבטא.</span>
+            <span class="en">The proposed post-beta price is ₪290/month. Beta users will receive special pricing for a limited period. No commitment during beta.</span>
+          </p>
+        </div>
+      </div>
+      <div class="faq-item">
+        <button class="faq-btn" onclick="toggleFaq(this)">
+          <span class="faq-q he">האם זה מתאים לכל עורכי הדין?</span>
+          <span class="faq-q en">Is it suitable for all lawyers?</span>
+          <span class="faq-icon">+</span>
+        </button>
+        <div class="faq-answer">
+          <p class="faq-a">
+            <span class="he">Factum-IL מתאים לעורכי דין ישראלים בכל תחומי המשפט. הוא מיועד בעיקר למשרדים בינוניים וגדולים, ולעצמאים שמחפשים יתרון תחרותי. תחומי מיקוד: אזרחי, פלילי, עבודה, משפחה.</span>
+            <span class="en">Factum-IL is suitable for Israeli lawyers in all legal fields. It is mainly aimed at medium and large firms, and independents seeking a competitive advantage. Focus areas: civil, criminal, labor, family.</span>
+          </p>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- FOOTER -->
+<footer>
+  <div class="footer-top">
+    <div>
+      <div class="footer-brand">
+        <div>
+          <div class="footer-brand-name">Factum<em>-IL</em></div>
+          <div class="footer-brand-tag">
+            <span class="he">AI משפטי ישראלי — מקומי ומאובטח</span>
+            <span class="en">Israeli Legal AI — local and secure</span>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="footer-cols">
+      <div>
+        <div class="footer-col-title">
+          <span class="he">מוצר</span>
+          <span class="en">Product</span>
+        </div>
+        <div class="footer-col-item he">תכונות</div>
+        <div class="footer-col-item en">Features</div>
+        <div class="footer-col-item he">מחירים</div>
+        <div class="footer-col-item en">Pricing</div>
+        <div class="footer-col-item he">בטא V13</div>
+        <div class="footer-col-item en">Beta V13</div>
+      </div>
+      <div>
+        <div class="footer-col-title">
+          <span class="he">משפטי</span>
+          <span class="en">Legal</span>
+        </div>
+        <div class="footer-col-item he">פרטיות</div>
+        <div class="footer-col-item en">Privacy</div>
+        <div class="footer-col-item he">תנאי שימוש</div>
+        <div class="footer-col-item en">Terms</div>
+      </div>
+      <div>
+        <div class="footer-col-title">
+          <span class="he">צור קשר</span>
+          <span class="en">Contact</span>
+        </div>
+        <div class="footer-col-item">altman.adv@gmail.com</div>
+      </div>
+    </div>
+  </div>
+  <div class="footer-bottom">
+    <div class="footer-copy">© 2025 Factum-IL. <span class="he">כל הזכויות שמורות.</span><span class="en">All rights reserved.</span></div>
+    <div class="footer-disc">
+      <span class="he">Factum-IL אינו מספק ייעוץ משפטי. השימוש במוצר אינו יוצר יחסי עו"ד-לקוח.</span>
+      <span class="en">Factum-IL does not provide legal advice. Use of this product does not create an attorney-client relationship.</span>
+    </div>
+  </div>
+</footer>
+
+<script>
+function setLang(lang) {
+  const html = document.getElementById('html-root');
+  html.setAttribute('lang', lang);
+  html.setAttribute('dir', lang === 'he' ? 'rtl' : 'ltr');
+  document.getElementById('btn-he').classList.toggle('active', lang === 'he');
+  document.getElementById('btn-en').classList.toggle('active', lang === 'en');
+}
+
+function toggleFaq(btn) {
+  const item = btn.closest('.faq-item');
+  const isOpen = item.classList.contains('open');
+  document.querySelectorAll('.faq-item.open').forEach(i => i.classList.remove('open'));
+  if (!isOpen) item.classList.add('open');
+}
+
+const observer = new IntersectionObserver((entries) => {
+  entries.forEach(e => { if (e.isIntersecting) e.target.classList.add('visible'); });
+}, { threshold: 0.1 });
+document.querySelectorAll('.reveal').forEach(el => observer.observe(el));
+</script>
+</body>
+</html>
