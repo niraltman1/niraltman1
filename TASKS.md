@@ -469,6 +469,30 @@ All checks pass (2026-05-26):
 
 **אימות:** database (30 בדיקות), api app.test (14), dashboard typecheck + production build — כולם ירוקים.
 
-### What to do next (Phase-0 שנותר)
-- §4.2.1 אימות תובנות AI · §4.2.4 SSE שלבי-סוכן · §4.6.1+§4.6.4 Quick-Add + פקודות — לפי התוכניות.
-- שיפור עתידי להתראות: auto-resolve של התראות ישנות (deadline שעבר / משימה שנסגרה); מסך העדפות התראות.
+## ביקורת Phase-0 + Quick-Add/פקודות (§4.6.1+§4.6.4) — מומש (2026-05-31)
+
+**ממצא ביקורת חשוב:** בעת המעבר לפריטים הבאים התגלה שהקוד מקדים את הרואדמאפ —
+שני פריטי Phase-0 כבר ממומשים בליבתם, בניגוד למה שהרואדמאפ והתוכניות הניחו:
+- **§4.2.1 (אימות תובנות):** כבר קיים ב-`DocumentDetail.tsx` — `useDocumentInsights` +
+  `useVerifyInsight`, תצוגת שדות, פס-ביטחון, תג `verification_state`, וכפתורי אשר/דחה.
+  נותר (נדחה): עריכה inline לפני אישור, אימות per-field (דורש שינוי סכמה), "אשר הכל מעל 85%".
+- **§4.2.4 (SSE סוכנים):** כבר קיים — `agentsStreamRouter` עם 5 endpoints `/stream` +
+  `useAgentStream` (EventSource). ה-progress גס (5%→20%→100%). נותר (נדחה): granularity של
+  5 השלבים — דורש token-streaming מ-Ollama וקשה לאמת ללא Ollama רץ.
+- הבאנרים עודכנו בראש שני מסמכי-התוכנית בהתאם.
+
+**מומש §4.6.1+§4.6.4 (Quick-Add + פקודות בלוח-הפקודות):**
+- `apps/dashboard/src/commands/command-registry.ts` — `COMMANDS` (צור תיק/לקוח/משימה) +
+  `matchCommands` (תמיכה בקידומת `>`, התאמה לפי תווית/keywords). **7 בדיקות יחידה.**
+- `SpotlightSearch.tsx` — מקטע "פקודות" משולב בניווט-המקלדת (selectables מאוחד: פקודות→תוצאות),
+  dispatcher `activate`, `CommandRow`. הפקודות מנווטות עם `?new=1`.
+- `useSpotlight.ts` — קיצור גלובלי **"n" / "+"** ל-Quick-Add (מושתק בתוך שדות קלט).
+- `CasesPage` / `ClientsPage` / `TasksPage` — קוראים `?new=1` ופותחים את **הטופס הקיים**
+  (reuse מלא, ללא טפסים חדשים וללא העברת state גלובלי).
+- time-entry הושמט בכוונה עד §4.1.5 (חיוב). dashboard typecheck + build ירוקים.
+
+### What to do next (Phase-0 שנותר — אופציונלי/נדחה)
+- §4.2.1: עריכה inline + אימות per-field (דורש שינוי סכמה) + bulk-approve.
+- §4.2.4: granularity של 5 שלבים (token-streaming מ-Ollama; דורש Ollama לאימות).
+- §4.7.6 ניווט/IA: התוכנית קיימת (`IA-NAV-IMPLEMENTATION-PLAN.md`) — טרם מומשה.
+- שיפור עתידי להתראות: auto-resolve של התראות ישנות; מסך העדפות התראות.

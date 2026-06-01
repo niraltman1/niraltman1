@@ -6,6 +6,19 @@
 > **Constraint posture:** strictly local-first. SSE streams from local Ollama / local SQLite
 > only. No new external calls; graceful degradation if Ollama is down (CLAUDE.md rule #4).
 
+> ## ⚠️ STATUS (audit 2026-05-31): SSE plumbing already exists; only step granularity remains
+> Contrary to both the roadmap and the first draft of this plan, **per-agent `/stream` SSE
+> endpoints already exist** — `agentsStreamRouter` in `packages/api/src/routes/agents.ts`
+> exposes `/summarize/stream`, `/timeline/stream`, `/research/stream`, `/contract-review/stream`,
+> `/discovery/stream`, and the dashboard already consumes them via `useAgentStream` (EventSource)
+> in `apps/dashboard/src/api/hooks.ts`. They emit **coarse** progress
+> (`validating 5%` → `running 20%` → `done 100%` → `result`) around a single opaque
+> `await <agentFn>()`. **The only remaining gap is fine-grained 5-step progress** (Context →
+> Classification → Authorities → Risk → Conclusion). Because `runAgent` makes one blocking
+> Ollama call (the 5 steps happen *inside* the model generation), true step progress requires
+> token-streaming `callOllama` and parsing step markers — and is **hard to verify without a
+> running Ollama**. Deferred for that reason; the section below remains the design of record.
+
 ---
 
 ## 1. Context & problem

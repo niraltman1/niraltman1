@@ -1,5 +1,5 @@
-import { useState } from 'react';
-import { Link } from 'react-router-dom';
+import { useState, useEffect } from 'react';
+import { Link, useSearchParams } from 'react-router-dom';
 import { UsersIcon, MagnifyingGlassIcon, UserPlusIcon } from '@phosphor-icons/react';
 import { useClients } from '@/api/hooks.js';
 import { ClientForm } from './ClientForm.js';
@@ -12,6 +12,16 @@ export function ClientsPage() {
   const [page, setPage]         = useState(1);
   const [search, setSearch]     = useState('');
   const [showForm, setShowForm] = useState(false);
+
+  // Quick-Add deep link (§4.6.1): /clients?new=1 opens the create form.
+  const [searchParams, setSearchParams] = useSearchParams();
+  useEffect(() => {
+    if (searchParams.get('new') === '1') {
+      setShowForm(true);
+      searchParams.delete('new');
+      setSearchParams(searchParams, { replace: true });
+    }
+  }, [searchParams, setSearchParams]);
 
   const { data, isLoading, isError } = useClients(page, 50);
   const items = (data?.items ?? []) as Record<string, unknown>[];

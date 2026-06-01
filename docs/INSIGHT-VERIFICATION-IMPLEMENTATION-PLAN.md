@@ -5,6 +5,15 @@
 > **Constraint posture:** strictly local-first. No new AI calls (extraction already ran);
 > this is a verification surface over existing data. Verified data is the defensible artifact.
 
+> ## ⚠️ STATUS (audit 2026-05-31): the MVP already exists in code
+> The row-level approve/reject UI described below as "MVP" is **already implemented** in
+> `apps/dashboard/src/features/documents/DocumentDetail.tsx`: it imports `useDocumentInsights`
+> + `useVerifyInsight`, renders the extracted fields (case#/court/judge/offense/next hearing),
+> a confidence bar, a `verification_state` badge, and ✔ אשר / ✗ דחה buttons calling
+> `POST /documents/insights/:id/verify`. The roadmap's claim that "there is no approve/reject
+> UI" is **outdated**. Remaining (deferred) work: inline **edit** of values before approving,
+> field-level confidence/verify (needs schema change), and "אשר הכל מעל 85%" bulk approve.
+
 ---
 
 ## 1. Context & problem

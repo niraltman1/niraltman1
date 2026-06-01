@@ -7,6 +7,15 @@
 > **Constraint posture:** strictly local-first. Reuses existing create mutations; no new
 > network/AI calls. RTL/Hebrew throughout.
 
+> ## ✅ STATUS (2026-05-31): implemented
+> Shipped: `apps/dashboard/src/commands/command-registry.ts` (create-case / create-client /
+> create-task, with `matchCommands` + 7 unit tests), a **Commands** section integrated into
+> `SpotlightSearch` (keyboard-navigable alongside results, `>` prefix supported), a global
+> **"n" / "+"** Quick-Add shortcut in `useSpotlight` (suppressed while typing in a field), and
+> `?new=1` deep-link handling on the Cases / Clients / Tasks pages that opens each page's
+> **existing** create form (no new forms, no global modal-state refactor). Time-entry create is
+> intentionally omitted until §4.1.5 Billing exists. Dashboard typecheck + build green.
+
 ---
 
 ## 1. Context & problem
