@@ -129,6 +129,23 @@ header {
 .form-wrapper { margin-top: 40px; background: var(--bg-surface); border: 1px solid var(--border-color); border-radius: 12px; overflow: hidden; }
 .form-wrapper iframe { width: 100%; height: 700px; border: none; display: block; }
 
+/* ── FAQ ── */
+.faq-section { padding: 100px 5%; background: var(--bg-surface); }
+.faq-list { max-width: 800px; margin: 0 auto; }
+.faq-item { border-bottom: 1px solid var(--border-color); }
+.faq-btn {
+  width: 100%; background: none; border: none; padding: 24px 0;
+  display: flex; justify-content: space-between; align-items: center;
+  cursor: pointer; text-align: right; gap: 20px;
+}
+.faq-q { font-family: 'Heebo', sans-serif; font-size: 17px; font-weight: 600; color: var(--text-primary); line-height: 1.4; transition: color .2s; }
+.faq-icon { width: 28px; height: 28px; flex-shrink: 0; border: 1px solid var(--border-color); display: flex; align-items: center; justify-content: center; font-size: 18px; color: var(--text-secondary); border-radius: 4px; transition: all .25s; }
+.faq-item.open .faq-icon { background: var(--accent); border-color: var(--accent); color: var(--bg-main); transform: rotate(45deg); }
+.faq-item.open .faq-q { color: var(--accent); }
+.faq-answer { max-height: 0; overflow: hidden; transition: max-height .4s ease; }
+.faq-item.open .faq-answer { max-height: 300px; }
+.faq-a { font-size: 15px; color: var(--text-secondary); line-height: 1.85; padding-bottom: 24px; border-right: 2px solid rgba(226,196,122,0.22); padding-right: 16px; }
+
 /* ── FOOTER ── */
 footer { background: var(--bg-surface); padding: 40px 5%; border-top: 1px solid var(--border-color); text-align: center; color: var(--text-secondary); font-size: 14px; }
 .footer-details { margin-top: 16px; font-size: 13px; opacity: 0.7; }
@@ -151,7 +168,12 @@ footer { background: var(--bg-surface); padding: 40px 5%; border-top: 1px solid 
 
 <header>
   <a href="#" class="logo">Factum<span>IL</span></a>
-  <a href="#beta" class="header-cta">הרשמה לבטא V13</a>
+  <nav style="display:flex;gap:24px;align-items:center;">
+    <a href="#features" style="color:var(--text-secondary);text-decoration:none;font-size:14px;font-weight:600;transition:.2s;" onmouseover="this.style.color='var(--accent)'" onmouseout="this.style.color='var(--text-secondary)'">יכולות</a>
+    <a href="#founder" style="color:var(--text-secondary);text-decoration:none;font-size:14px;font-weight:600;transition:.2s;" onmouseover="this.style.color='var(--accent)'" onmouseout="this.style.color='var(--text-secondary)'">אודות</a>
+    <a href="#faq" style="color:var(--text-secondary);text-decoration:none;font-size:14px;font-weight:600;transition:.2s;" onmouseover="this.style.color='var(--accent)'" onmouseout="this.style.color='var(--text-secondary)'">שאלות ותשובות</a>
+    <a href="#beta" class="header-cta">הרשמה לבטא V13</a>
+  </nav>
 </header>
 
 <section class="hero">
@@ -246,7 +268,7 @@ footer { background: var(--bg-surface); padding: 40px 5%; border-top: 1px solid 
 </section>
 
 <!-- FOUNDER SECTION -->
-<section class="founder-section">
+<section class="founder-section" id="founder">
   <div class="founder-container">
     <h2 class="founder-title-main">איך מנהלים מאות תיקים ופרויקטי חקיקה בלי <span>"צבא" של מתמחים?</span></h2>
     <div class="founder-quote">
@@ -258,6 +280,76 @@ footer { background: var(--bg-surface); padding: 40px 5%; border-top: 1px solid 
     <div class="founder-meta">
       <div class="founder-name">עו"ד ניר אלטמן</div>
       <div class="founder-title">מנהל משרד עורכי דין, סניגור וליטיגטור, מייסד ומפתח Factum-IL.</div>
+    </div>
+  </div>
+</section>
+
+<!-- FAQ SECTION -->
+<section class="faq-section" id="faq">
+  <div class="container">
+    <h2 class="section-title">שאלות <span>ותשובות</span></h2>
+    <div class="faq-list">
+
+      <div class="faq-item">
+        <button class="faq-btn" onclick="toggleFaq(this)">
+          <span class="faq-q">האם המסמכים שלי נשלחים לענן?</span>
+          <span class="faq-icon">+</span>
+        </button>
+        <div class="faq-answer">
+          <p class="faq-a">לא. Factum-IL רץ לגמרי על המחשב שלך. כל המסמכים, הניתוחים ותוצרי ה-AI נשמרים רק מקומית. אין שרת חיצוני, אין ענן, אין שיתוף נתונים — החיסיון נשאר מוחלט.</p>
+        </div>
+      </div>
+
+      <div class="faq-item">
+        <button class="faq-btn" onclick="toggleFaq(this)">
+          <span class="faq-q">על איזה חומרה זה עובד?</span>
+          <span class="faq-icon">+</span>
+        </button>
+        <div class="faq-answer">
+          <p class="faq-a">Windows 10/11, מינימום 16GB RAM (מומלץ 32GB). כרטיס גרפי NVIDIA עם 8GB VRAM נותן את הביצועים הטובים ביותר, אך המערכת עובדת גם על CPU בלבד — מעט יותר לאט. Ollama מותקן אוטומטית עם ההתקנה.</p>
+        </div>
+      </div>
+
+      <div class="faq-item">
+        <button class="faq-btn" onclick="toggleFaq(this)">
+          <span class="faq-q">האם זה מתאים לעורכי דין פרטיים (לא רק משרדים גדולים)?</span>
+          <span class="faq-icon">+</span>
+        </button>
+        <div class="faq-answer">
+          <p class="faq-a">בהחלט — המערכת נבנתה בדיוק עבור עורכי דין שעובדים לבד או בצוות קטן ואין להם "צבא" של מתמחים. היא מחליפה בפועל את צוות העזר הטכני ומאפשרת לאדם אחד לנהל מאות תיקים.</p>
+        </div>
+      </div>
+
+      <div class="faq-item">
+        <button class="faq-btn" onclick="toggleFaq(this)">
+          <span class="faq-q">מה כלול בגרסת הבטא ומה עולה?</span>
+          <span class="faq-icon">+</span>
+        </button>
+        <div class="faq-answer">
+          <p class="faq-a">גרסת הבטא V13 עולה ₪99 לחודש ומעניקה גישה מלאה לכל היכולות. משתתפי הבטא מקבלים השפעה ישירה על פיתוח הפיצ'רים העתידיים ותמיכה צמודה מהמפתחים. אין התחייבות ואין כרטיס אשראי בשלב ההרשמה.</p>
+        </div>
+      </div>
+
+      <div class="faq-item">
+        <button class="faq-btn" onclick="toggleFaq(this)">
+          <span class="faq-q">למה רק Windows?</span>
+          <span class="faq-icon">+</span>
+        </button>
+        <div class="faq-answer">
+          <p class="faq-a">האפליקציה בנויה על Electron + WebView2 שהוא ייעודי ל-Windows. רוב משרדי עורכי הדין בישראל עובדים על Windows, וזה גם מאפשר אינטגרציה עמוקה עם Office ומערכות ניהול קיימות. תמיכה ב-Mac נמצאת במפת הדרכים.</p>
+        </div>
+      </div>
+
+      <div class="faq-item">
+        <button class="faq-btn" onclick="toggleFaq(this)">
+          <span class="faq-q">איך המערכת "יודעת" משפט ישראלי?</span>
+          <span class="faq-icon">+</span>
+        </button>
+        <div class="faq-answer">
+          <p class="faq-a">המערכת משתמשת במודל Law-IL E2B — מודל שאומן ספציפית על פסקי דין ישראלים, חקיקה ותקנות. הוא מבין את המבנה הפרוצדורלי של בתי המשפט בישראל (שלום, מחוזי, עליון, עבודה, משפחה) ואת כללי האזכור האחיד.</p>
+        </div>
+      </div>
+
     </div>
   </div>
 </section>
@@ -288,5 +380,13 @@ footer { background: var(--bg-surface); padding: 40px 5%; border-top: 1px solid 
   </div>
 </footer>
 
+<script>
+function toggleFaq(btn) {
+  const item = btn.closest('.faq-item');
+  const isOpen = item.classList.contains('open');
+  document.querySelectorAll('.faq-item.open').forEach(i => i.classList.remove('open'));
+  if (!isOpen) item.classList.add('open');
+}
+</script>
 </body>
 </html>
