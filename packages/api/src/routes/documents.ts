@@ -81,5 +81,52 @@ export function documentsRouter(repos: Repos): Router {
     ok(res, { id: insightId, verification_state: state });
   }));
 
+  // Inline-edit the human-editable extracted fields of an insight (§4.2.1).
+  router.patch('/insights/:id', asyncHandler((req, res) => {
+    const insightId = Number(req.params['id']);
+    if (!Number.isFinite(insightId)) throw new ValidationError('invalid id');
+
+    const insight = documents.findInsightById(insightId);
+    if (!insight) throw new NotFoundError('Insight');
+
+    const body = (req.body ?? {}) as Record<string, unknown>;
+    const EDITABLE = ['caseNumber', 'courtName', 'judgeName', 'offenseType', 'nextHearing'] as const;
+    const fields: Record<string, string | null> = {};
+    for (const key of EDITABLE) {
+      if (body[key] === undefined) continue;
+      const v = body[key];
+      if (v !== null && typeof v !== 'string') {
+        throw new ValidationError(`${key} must be a string or null`);
+      }
+      if (typeof v === 'string' && v.length > 500) {
+        throw new ValidationError(`${key} exceeds 500 characters`);
+      }
+      fields[key] = v as string | null;
+    }
+    if (Object.keys(fields).length === 0) {
+      throw new ValidationError('no editable fields provided');
+    }
+
+    documents.updateInsightFields(insightId, fields);
+
+    const actorId = (req as unknown as { userId?: number }).userId;
+    logAuditEvent(db, {
+      eventType:    'update',
+      ...(actorId !== undefined ? { actorId } : {}),
+      resourceType: 'document_insight',
+      resourceId:   String(insightId),
+      actionDetail: { edited: Object.keys(fields), documentId: insight['document_id'] },
+      severity:     'info',
+    });
+    emitActivity(repos, {
+      kind:       'verification_completed',
+      documentId: insight['document_id'] as number,
+      message:    'Insight fields edited',
+      details:    { insightId, edited: Object.keys(fields) },
+    });
+
+    ok(res, documents.findInsightById(insightId) ?? {});
+  }));
+
   return router;
 }

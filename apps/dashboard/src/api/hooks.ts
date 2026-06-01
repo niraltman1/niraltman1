@@ -1990,6 +1990,27 @@ export function useVerifyInsight() {
   });
 }
 
+export interface InsightEditFields {
+  caseNumber?:  string | null;
+  courtName?:   string | null;
+  judgeName?:   string | null;
+  offenseType?: string | null;
+  nextHearing?: string | null;
+}
+
+/** Inline-edit the extracted fields of an insight before approving (§4.2.1). */
+export function useEditInsight() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: ({ insightId, fields }: { insightId: number; fields: InsightEditFields }) =>
+      patchJSON<Record<string, unknown>>(`/api/documents/insights/${insightId}`, fields),
+    onSuccess: () => {
+      void qc.invalidateQueries({ queryKey: ['documents'] });
+      void qc.invalidateQueries({ queryKey: ['activity'] });
+    },
+  });
+}
+
 // ─────────────────────────────────────────────
 //  Health
 // ─────────────────────────────────────────────

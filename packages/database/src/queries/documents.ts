@@ -118,6 +118,49 @@ export class DocumentRepository {
     ).get(documentId) as Record<string, unknown> | undefined) ?? null;
   }
 
+  findInsightById(insightId: number): Record<string, unknown> | null {
+    return (this.db.prepare(
+      'SELECT * FROM DocumentInsights WHERE id = ?',
+    ).get(insightId) as Record<string, unknown> | undefined) ?? null;
+  }
+
+  /**
+   * Updates the human-editable extracted fields of an insight (§4.2.1 inline edit).
+   * Only the whitelisted fields are touched; `undefined` fields are left as-is.
+   * Returns the number of rows changed (0 if the insight does not exist).
+   */
+  updateInsightFields(
+    insightId: number,
+    fields: {
+      caseNumber?:  string | null;
+      courtName?:   string | null;
+      judgeName?:   string | null;
+      offenseType?: string | null;
+      nextHearing?: string | null;
+    },
+  ): number {
+    const sets: string[] = [];
+    const params: Record<string, unknown> = { id: insightId };
+    const map: Record<string, string> = {
+      caseNumber:  'case_number',
+      courtName:   'court_name',
+      judgeName:   'judge_name',
+      offenseType: 'offense_type',
+      nextHearing: 'next_hearing',
+    };
+    for (const [key, column] of Object.entries(map)) {
+      const value = (fields as Record<string, unknown>)[key];
+      if (value !== undefined) {
+        sets.push(`${column} = @${key}`);
+        params[key] = value;
+      }
+    }
+    if (sets.length === 0) return 0;
+    return (this.db.prepare(
+      `UPDATE DocumentInsights SET ${sets.join(', ')} WHERE id = @id`,
+    ).run(params) as { changes: number }).changes;
+  }
+
   private mapRow(row: Record<string, unknown>): Document {
     return {
       id:              row['id'] as number,

@@ -3,10 +3,10 @@ import { useParams, Link } from 'react-router-dom';
 import {
   FileTextIcon, ArrowRightIcon, CheckCircleIcon,
   WarningCircleIcon, RobotIcon, CalendarIcon, SquaresFourIcon,
-  ThumbsUpIcon, ThumbsDownIcon, ShieldCheckIcon,
+  ThumbsUpIcon, ThumbsDownIcon, ShieldCheckIcon, PencilSimpleIcon,
 } from '@phosphor-icons/react';
-import { useDocument, useDocumentInsights, useVerifyInsight, useAgentContractReview } from '@/api/hooks.js';
-import type { AgentOutput } from '@/api/hooks.js';
+import { useDocument, useDocumentInsights, useVerifyInsight, useEditInsight, useAgentContractReview } from '@/api/hooks.js';
+import type { AgentOutput, InsightEditFields } from '@/api/hooks.js';
 import { DocumentSigningPanel } from './DocumentSigningPanel.js';
 import { AgentOutputPanel } from '@/components/common/AgentOutputPanel.js';
 
@@ -43,6 +43,9 @@ export function DocumentDetail() {
   const { data: doc, isLoading, isError } = useDocument(docId);
   const { data: insights } = useDocumentInsights(docId > 0 ? docId : null);
   const verifyInsight    = useVerifyInsight();
+  const editInsight      = useEditInsight();
+  const [editing, setEditing] = useState(false);
+  const [editForm, setEditForm] = useState<InsightEditFields>({});
   const contractReviewAgent = useAgentContractReview();
   const [contractOutput, setContractOutput] = useState<AgentOutput | null>(null);
 
@@ -208,7 +211,47 @@ export function DocumentDetail() {
           </div>
         )}
 
-        {insights && (insights.case_number || insights.court_name || insights.judge_name || insights.offense_type || insights.next_hearing) ? (
+        {editing ? (
+          <div className="space-y-2" dir="rtl">
+            {([
+              ['caseNumber',  'מספר תיק'],
+              ['courtName',   'בית משפט'],
+              ['judgeName',   'שופט/ת'],
+              ['offenseType', 'עבירה'],
+              ['nextHearing', 'דיון הבא'],
+            ] as const).map(([key, label]) => (
+              <label key={key} className="flex items-center gap-2 text-sm">
+                <span className="text-parchment/40 w-20 shrink-0">{label}</span>
+                <input
+                  className="flex-1 bg-navy border border-parchment/15 rounded px-2 py-1 text-parchment text-sm focus:border-gold/40 outline-none"
+                  value={(editForm[key] ?? '') as string}
+                  onChange={(e) => setEditForm((f) => ({ ...f, [key]: e.target.value }))}
+                />
+              </label>
+            ))}
+            <div className="flex gap-2 pt-1">
+              <button
+                disabled={editInsight.isPending}
+                onClick={() => {
+                  if (insights?.id == null) return;
+                  editInsight.mutate(
+                    { insightId: insights.id, fields: editForm },
+                    { onSuccess: () => setEditing(false) },
+                  );
+                }}
+                className="flex items-center gap-1.5 px-3 py-1.5 text-xs text-gold border border-gold/30 rounded-lg hover:bg-gold/10 transition-colors disabled:opacity-40"
+              >
+                {editInsight.isPending ? 'שומר…' : 'שמור'}
+              </button>
+              <button
+                onClick={() => setEditing(false)}
+                className="flex items-center gap-1.5 px-3 py-1.5 text-xs text-parchment/50 border border-parchment/15 rounded-lg hover:bg-parchment/5 transition-colors"
+              >
+                ביטול
+              </button>
+            </div>
+          </div>
+        ) : insights && (insights.case_number || insights.court_name || insights.judge_name || insights.offense_type || insights.next_hearing) ? (
           <dl className="grid grid-cols-2 gap-x-4 gap-y-2 text-sm" dir="rtl">
             {insights.case_number   && <><dt className="text-parchment/40">מספר תיק</dt><dd className="text-parchment font-mono">{insights.case_number}</dd></>}
             {insights.court_name    && <><dt className="text-parchment/40">בית משפט</dt><dd className="text-parchment">{insights.court_name}</dd></>}
@@ -225,8 +268,8 @@ export function DocumentDetail() {
           </div>
         )}
 
-        {/* Verify actions */}
-        {insights?.id != null && insights.verification_state !== 'approved' && insights.verification_state !== 'rejected' && (
+        {/* Verify + edit actions */}
+        {!editing && insights?.id != null && insights.verification_state !== 'approved' && insights.verification_state !== 'rejected' && (
           <div className="flex gap-2 pt-2 border-t border-parchment/10">
             <button
               disabled={verifyInsight.isPending}
@@ -243,6 +286,22 @@ export function DocumentDetail() {
             >
               <ThumbsDownIcon size={12} />
               דחה
+            </button>
+            <button
+              onClick={() => {
+                setEditForm({
+                  caseNumber:  (insights.case_number  as string | null) ?? '',
+                  courtName:   (insights.court_name   as string | null) ?? '',
+                  judgeName:   (insights.judge_name   as string | null) ?? '',
+                  offenseType: (insights.offense_type as string | null) ?? '',
+                  nextHearing: (insights.next_hearing as string | null) ?? '',
+                });
+                setEditing(true);
+              }}
+              className="flex items-center gap-1.5 px-3 py-1.5 text-xs text-parchment/60 border border-parchment/15 rounded-lg hover:bg-parchment/5 transition-colors"
+            >
+              <PencilSimpleIcon size={12} />
+              ערוך
             </button>
           </div>
         )}
