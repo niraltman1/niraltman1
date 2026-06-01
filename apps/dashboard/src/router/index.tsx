@@ -15,6 +15,7 @@ import { SearchPage }      from '@/features/search/SearchPage.js';
 import { QueueMonitor }    from '@/features/queue/QueueMonitor.js';
 import { ActionQueue }     from '@/features/documents/ActionQueue.js';
 import { CalendarPage }    from '@/features/calendar/CalendarPage.js';
+import { DeadlineMonitorPage } from '@/features/calendar/DeadlineMonitorPage.js';
 import { DiagnosticsPage }    from '@/features/admin/DiagnosticsPage.js';
 import { MissionControlPage } from '@/features/admin/MissionControlPage.js';
 import { BackupSettingsPage } from '@/features/admin/BackupSettingsPage.js';
@@ -59,6 +60,7 @@ export const router: RemixRouter = createBrowserRouter([
       { path: 'action-queue',      element: <ActionQueue />     },
       { path: 'tasks',             element: <TasksPage />       },
       { path: 'calendar',          element: <CalendarPage />    },
+      { path: 'deadlines',         element: <DeadlineMonitorPage /> },
       { path: 'templates',         element: <TemplatesPage />        },
       { path: 'media',             element: <MediaRegistryPage />    },
       { path: 'traffic',           element: <TrafficAlertsPage />   },

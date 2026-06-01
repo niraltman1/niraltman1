@@ -23,5 +23,13 @@ export function calendarRouter(repos: Repos): Router {
     ok(res, calendar.eventsInRange(from, to));
   }));
 
+  // GET /api/calendar/deadlines?horizon=90  → liability radar (§4.4.3)
+  router.get('/deadlines', asyncHandler((req, res) => {
+    const raw = Number(req.query['horizon']);
+    const horizon = Number.isFinite(raw) ? Math.min(Math.max(raw, 1), 365) : 90;
+    const today = new Date().toISOString().slice(0, 10);
+    ok(res, calendar.deadlinesAtRisk(today, horizon));
+  }));
+
   return router;
 }

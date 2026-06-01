@@ -73,4 +73,33 @@ describe('CalendarRepository.eventsInRange (§4.1.1)', () => {
     expect(hearing.linkType).toBe('case');
     expect(hearing.linkId).toBe('1');
   });
+
+  describe('deadlinesAtRisk (§4.4.3)', () => {
+    it('includes overdue open-case statute deadlines (no lower bound)', () => {
+      // today far after the 2026-05-20 statute deadline → overdue
+      const risks = repo.deadlinesAtRisk('2026-06-01', 90);
+      const statute = risks.find((r) => r.id === 'statute:1');
+      expect(statute).toBeDefined();
+      expect(statute!.daysUntil).toBeLessThan(0);
+      expect(statute!.risk).toBe('overdue');
+    });
+
+    it('classifies risk bands by daysUntil', () => {
+      const risks = repo.deadlinesAtRisk('2026-05-16', 90); // hearing 05-15 overdue, statute 05-20 in 4d
+      const byId = new Map(risks.map((r) => [r.id, r]));
+      expect(byId.get('statute:1')!.risk).toBe('soon');     // 4 days → soon
+      expect(byId.get('task:20')!.risk).toBe('critical');   // 05-18, 2 days → critical
+    });
+
+    it('excludes closed cases and past hearings beyond today', () => {
+      const ids = repo.deadlinesAtRisk('2026-05-16', 90).map((r) => r.id);
+      expect(ids).not.toContain('statute:2'); // closed
+      expect(ids).not.toContain('hearing:10'); // hearing 05-15 is before today 05-16
+    });
+
+    it('respects the horizon upper bound', () => {
+      const ids = repo.deadlinesAtRisk('2026-05-01', 5).map((r) => r.id); // window 05-01..05-06
+      expect(ids).not.toContain('statute:1'); // 05-20 beyond horizon
+    });
+  });
 });

@@ -2255,6 +2255,20 @@ export interface CalendarEvent {
   linkId:     string;
 }
 
+export interface DeadlineRisk extends CalendarEvent {
+  daysUntil: number;
+  risk:      'overdue' | 'critical' | 'soon' | 'upcoming';
+}
+
+export function useDeadlinesAtRisk(horizon = 90) {
+  return useQuery({
+    queryKey: ['calendar', 'deadlines', horizon],
+    queryFn:  () => fetchJSON<DeadlineRisk[]>(`/api/calendar/deadlines?horizon=${horizon}`),
+    refetchInterval: 60_000,
+    retry: false,
+  });
+}
+
 export function useCalendarEvents(from: string, to: string) {
   return useQuery({
     queryKey: ['calendar', from, to],
