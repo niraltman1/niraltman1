@@ -2288,6 +2288,48 @@ export function useCaseCitations(caseId: number | null) {
   });
 }
 
+// ── Entity-Centric Navigation (M6) ──────────────────────────────────────────────
+export type EntityType = 'judges' | 'courts';
+
+export interface EntitySummary {
+  canonical:     string;
+  displayName:   string;
+  hearingCount:  number;
+  documentCount: number;
+  caseCount:     number;
+}
+export interface EntityReferenceItem {
+  name:       string;
+  kind:       'hearing' | 'document';
+  caseId:     number | null;
+  caseNumber: string | null;
+  refId:      number;
+  date:       string | null;
+  title:      string | null;
+}
+export interface EntityDetailData extends EntitySummary {
+  references: EntityReferenceItem[];
+}
+
+export function useEntities(type: EntityType) {
+  return useQuery({
+    queryKey: ['entities', type],
+    queryFn:  () => fetchJSON<EntitySummary[]>(`/api/entities/${type}`),
+    staleTime: 60_000,
+    retry: false,
+  });
+}
+
+export function useEntityDetail(type: EntityType, name: string | null) {
+  return useQuery({
+    queryKey: ['entities', type, name],
+    queryFn:  () => fetchJSON<EntityDetailData>(`/api/entities/${type}/${encodeURIComponent(name ?? '')}`),
+    enabled:  Boolean(name),
+    staleTime: 60_000,
+    retry: false,
+  });
+}
+
 export interface DeadlineRisk extends CalendarEvent {
   daysUntil: number;
   risk:      'overdue' | 'critical' | 'soon' | 'upcoming';

@@ -69,6 +69,7 @@ export const NAV_GROUPS: NavGroup[] = [
       { to: '/templates',  label: 'תבניות הליך',   Icon: StackIcon },
       { to: '/stens',      label: 'טפסים (Stens)', Icon: NoteIcon },
       { to: '/precedents', label: 'תקדימים',       Icon: GavelIcon },
+      { to: '/entities',   label: 'ישויות',         Icon: AddressBookIcon },
     ],
   },
   {

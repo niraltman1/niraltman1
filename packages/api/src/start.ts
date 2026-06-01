@@ -38,6 +38,7 @@ import {
   NotificationsRepository,
   CalendarRepository,
   CitationsRepository,
+  EntitiesRepository,
 } from '@factum-il/database';
 import { createApp } from './app.js';
 import type { Repos } from './db.js';
@@ -168,6 +169,7 @@ const repos: Repos = {
   notifications:  new NotificationsRepository(db),
   calendar:       new CalendarRepository(db),
   citations:      new CitationsRepository(db),
+  entities:       new EntitiesRepository(db),
 };
 
 // Release stale agent locks left over from a previous crash or restart.

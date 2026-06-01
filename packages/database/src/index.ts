@@ -40,6 +40,8 @@ export { CalendarRepository } from './queries/calendar.js';
 export type { CalendarEvent, CalendarEventKind, DeadlineRisk, DeadlineRiskLevel } from './queries/calendar.js';
 export { CitationsRepository } from './queries/citations.js';
 export type { CitationGroup, CitationLocation } from './queries/citations.js';
+export { EntitiesRepository } from './queries/entities.js';
+export type { EntityReference } from './queries/entities.js';
 export { NotificationsRepository } from './queries/notifications.js';
 export type {
   NotificationRow,

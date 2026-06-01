@@ -22,6 +22,7 @@ import type {
   NotificationsRepository,
   CalendarRepository,
   CitationsRepository,
+  EntitiesRepository,
 } from '@factum-il/database';
 import type { ConfigStore } from './utils/config-store.js';
 
@@ -50,4 +51,5 @@ export interface Repos {
   notifications:  NotificationsRepository;
   calendar:       CalendarRepository;
   citations:      CitationsRepository;
+  entities:       EntitiesRepository;
 }
