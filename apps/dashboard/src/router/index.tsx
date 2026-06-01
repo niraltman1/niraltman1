@@ -13,6 +13,7 @@ import { CaseDetail }      from '@/features/cases/CaseDetail.js';
 import { HearingPrepPage } from '@/features/cases/HearingPrepPage.js';
 import { EntitiesPage }    from '@/features/entities/EntitiesPage.js';
 import { EntityDetailPage } from '@/features/entities/EntityDetailPage.js';
+import { SmartCollectionsPage } from '@/features/documents/SmartCollectionsPage.js';
 import { ActionPlanPage }  from '@/features/action-plan/ActionPlanPage.js';
 import { SearchPage }      from '@/features/search/SearchPage.js';
 import { QueueMonitor }    from '@/features/queue/QueueMonitor.js';
@@ -62,6 +63,7 @@ export const router: RemixRouter = createBrowserRouter([
       { path: 'search',            element: <SearchPage />      },
       { path: 'queue',             element: <QueueMonitor />    },
       { path: 'action-queue',      element: <ActionQueue />     },
+      { path: 'collections',       element: <SmartCollectionsPage /> },
       { path: 'tasks',             element: <TasksPage />       },
       { path: 'calendar',          element: <CalendarPage />    },
       { path: 'deadlines',         element: <DeadlineMonitorPage /> },

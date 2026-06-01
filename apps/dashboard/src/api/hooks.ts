@@ -2330,6 +2330,32 @@ export function useEntityDetail(type: EntityType, name: string | null) {
   });
 }
 
+// ── Smart Collections (M7) ──────────────────────────────────────────────────────
+export interface SmartCollectionMeta { key: string; label: string; count: number; }
+export interface SmartCollectionItem {
+  id: number; filename: string; processingState: string | null;
+  documentType: string | null; caseId: number | null; createdAt: string | null;
+}
+
+export function useCollections() {
+  return useQuery({
+    queryKey: ['collections'],
+    queryFn:  () => fetchJSON<SmartCollectionMeta[]>('/api/collections'),
+    refetchInterval: 60_000,
+    retry: false,
+  });
+}
+
+export function useCollectionItems(key: string | null) {
+  return useQuery({
+    queryKey: ['collections', key],
+    queryFn:  () => fetchJSON<SmartCollectionItem[]>(`/api/collections/${key}`),
+    enabled:  Boolean(key),
+    staleTime: 30_000,
+    retry: false,
+  });
+}
+
 export interface DeadlineRisk extends CalendarEvent {
   daysUntil: number;
   risk:      'overdue' | 'critical' | 'soon' | 'upcoming';

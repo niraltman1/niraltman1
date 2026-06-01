@@ -56,6 +56,7 @@ export const NAV_GROUPS: NavGroup[] = [
     id: 'documents', label: 'מסמכים וראיות', Icon: FilesIcon, defaultOpen: true,
     items: [
       { to: '/documents',    label: 'כל המסמכים',  Icon: FileTextIcon },
+      { to: '/collections',  label: 'אוספים חכמים', Icon: StackIcon },
       { to: '/queue',        label: 'תור קליטה',   Icon: TrayIcon },
       { to: '/action-queue', label: 'תור אישורים', Icon: CheckCircleIcon },
       { to: '/action-plan',  label: 'תוכנית פעולה', Icon: BroomIcon },
