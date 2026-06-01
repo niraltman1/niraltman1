@@ -21,6 +21,7 @@ import type {
   PipelineLogsRepository,
   NotificationsRepository,
   CalendarRepository,
+  CitationsRepository,
 } from '@factum-il/database';
 import type { ConfigStore } from './utils/config-store.js';
 
@@ -48,4 +49,5 @@ export interface Repos {
   pipelineLogs:   PipelineLogsRepository;
   notifications:  NotificationsRepository;
   calendar:       CalendarRepository;
+  citations:      CitationsRepository;
 }

@@ -71,7 +71,7 @@ const linkContactSchema = z.object({
 
 export function casesRouter(repos: Repos): Router {
   const router = Router();
-  const { cases, contacts, calendar, db } = repos;
+  const { cases, contacts, calendar, citations, db } = repos;
 
   router.get('/', asyncHandler((req, res) => {
     const query = req.query as Record<string, unknown>;
@@ -141,6 +141,14 @@ export function casesRouter(repos: Repos): Router {
        ORDER BY di.confidence DESC
     `).all(id) as unknown[];
     ok(res, insights);
+  }));
+
+  // Citation intelligence for a matter (M4) — frequency, locations, prior firm use.
+  router.get('/:id/citations', asyncHandler((req, res) => {
+    const id = Number(req.params['id']);
+    if (!Number.isFinite(id)) throw new ValidationError('invalid id');
+    if (!cases.findById(id)) throw new NotFoundError('Case');
+    ok(res, citations.caseCitationIntelligence(id));
   }));
 
   // Deterministic factual timeline for a matter (M3 — Interactive Timeline).

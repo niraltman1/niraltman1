@@ -10,6 +10,7 @@ import type { CaseContactRecord, CaseInsightRecord, ActivityEventRow, AgentOutpu
 import { AgentOutputPanel } from '@/components/common/AgentOutputPanel.js';
 import { CaseRiskPanel } from './CaseRiskPanel.js';
 import { CaseTimeline } from './CaseTimeline.js';
+import { CaseCitations } from './CaseCitations.js';
 
 const STATUS_LABELS: Record<string, string> = {
   open:      'פתוח',
@@ -32,7 +33,7 @@ const STATUS_CLS: Record<string, string> = {
   archived:  'badge badge-neutral',
 };
 
-type Tab = 'documents' | 'timeline' | 'contacts' | 'insights' | 'activity';
+type Tab = 'documents' | 'timeline' | 'contacts' | 'insights' | 'citations' | 'activity';
 
 export function CaseDetail() {
   const { id } = useParams<{ id: string }>();
@@ -145,6 +146,7 @@ export function CaseDetail() {
           { key: 'timeline'  as Tab, label: 'ציר זמן', Icon: CalendarIcon },
           { key: 'contacts'  as Tab, label: 'אנשי קשר', Icon: UsersIcon },
           { key: 'insights'  as Tab, label: 'תובנות AI', Icon: RobotIcon },
+          { key: 'citations' as Tab, label: 'אסמכתאות', Icon: GavelIcon },
           { key: 'activity'  as Tab, label: 'פעילות',    Icon: PulseIcon },
         ] as const).map(({ key, label, Icon }) => (
           <button
@@ -187,6 +189,8 @@ export function CaseDetail() {
       )}
 
       {tab === 'timeline' && <CaseTimeline caseId={caseId} />}
+
+      {tab === 'citations' && <CaseCitations caseId={caseId} />}
 
       {tab === 'contacts' && (
         <ul className="space-y-2">

@@ -2265,6 +2265,29 @@ export function useCaseTimeline(caseId: number | null) {
   });
 }
 
+// ── Citation Intelligence (M4) ──────────────────────────────────────────────────
+export interface CitationLocation { documentId: number | null; snippet: string | null; }
+export interface CitationGroup {
+  key:               string;
+  citation:          string;
+  citationType:      string | null;
+  status:            string;
+  resolvedCaseLawId: number | null;
+  frequency:         number;
+  firmUsage:         number;
+  locations:         CitationLocation[];
+}
+
+export function useCaseCitations(caseId: number | null) {
+  return useQuery({
+    queryKey: ['cases', caseId, 'citations'],
+    queryFn:  () => fetchJSON<CitationGroup[]>(`/api/cases/${caseId}/citations`),
+    enabled:  caseId !== null && caseId > 0,
+    staleTime: 30_000,
+    retry: false,
+  });
+}
+
 export interface DeadlineRisk extends CalendarEvent {
   daysUntil: number;
   risk:      'overdue' | 'critical' | 'soon' | 'upcoming';
