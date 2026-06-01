@@ -106,11 +106,20 @@ export function CaseDetail() {
             </div>
             <p className="text-parchment/40 text-sm font-mono">{caseNumber}</p>
           </div>
-          {procedureType && (
-            <span className="badge badge-neutral text-xs">
-              {PROC_LABELS[procedureType] ?? procedureType}
-            </span>
-          )}
+          <div className="flex items-center gap-2">
+            {procedureType && (
+              <span className="badge badge-neutral text-xs">
+                {PROC_LABELS[procedureType] ?? procedureType}
+              </span>
+            )}
+            <Link
+              to={`/cases/${caseId}/hearing-prep`}
+              className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs text-gold border border-gold/30 rounded-lg hover:bg-gold/10 transition-colors"
+            >
+              <GavelIcon size={12} />
+              הכנה לדיון
+            </Link>
+          </div>
         </div>
 
         {/* Meta row */}
