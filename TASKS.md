@@ -546,9 +546,29 @@ All checks pass (2026-05-26):
   אחר → הודעה + הורדה. טוגל "טקסט OCR" (2 עמודות), הורדה, קישור לתובנות AI.
 - כפתור "קרא מסמך" נוסף ל-`DocumentDetail`.
 
-### What to do next — המשך Phase 1
-- §4.1.2 הרחבות (נדחו): שכבת-הערות אינטראקטיבית (`AnnotationRepository` קיים), ספירת
-  עמודים/חיפוש-ב-PDF (דורש pdfjs), מיזוג קורא+תובנות+חתימה למסך אחד.
-- §4.4.3 מוניטור מועדים/SLA + §4.7.1 חשיפת מנוע-הכללים (משלימים את היומן).
-- §4.2.2 תור סקירה + לולאת תיקון (כולל bulk-approve שנדחה מ-§4.2.1).
-- שיפור יומן: תצוגות שבוע/יום, מילסטונים מ-CaseProcedures, ייצוא אג׳נדה להדפסה.
+## Legal Workspace Directive — Step 0 + M1 + M2 (2026-06-01)
+
+עבודה לפי תוכנית `act-as-a-senior-steady-stardust` (אופרציונליזציה של "Legal Workspace UX
+Directive"). כל שלב נדחף אחרי אימות CI ירוק של קודמו.
+
+- **Step 0 — מוניטור מועדים/SLA (§4.4.3)** [commit 09f9440] — `deadlinesAtRisk` (calendar.ts,
+  9 בדיקות), `GET /api/calendar/deadlines`, `DeadlineMonitorPage`, route `/deadlines`, נאב
+  "ראדאר מועדים". (תיקון ה-lint שחסם: הוסר import לא בשימוש.)
+- **M1 — Risk Dashboard לכל תיק** [commit bb1dc0c] — `utils/risk-summary.ts` (טהור, 6 בדיקות):
+  בנדים פרוצדורלי/ראיות/מועדים + מונים (ראיות חסרות, תובנות לא-מאומתות, אסמכתאות פתוחות).
+  `GET /api/cases/:id/risk` (reuse litigation-intelligence + deadlinesAtRisk + counts).
+  `useCaseRisk` + `CaseRiskPanel` מוטמע ב-`CaseDetail` מעל הטאבים. ללא AI חדש.
+- **M2 — "הצג מקור" לתובנות (Principle 2)** [commit 8c7fca9] — `highlight.ts` (splitHighlight,
+  7 בדיקות); `DocumentReader` קורא `?page=&highlight=` (PDF `#page=N` נייטיב, פתיחת OCR אוטומטית
+  + `<mark>` + גלילה למקור); `InsightValue` ב-`DocumentDetail` עם קישור "מקור" לכל שדה.
+
+### What to do next — Milestones מהסקיצה (לפי התוכנית, מתכנסים ל-Legal Workbench)
+- **M3 Interactive Timeline** (טאב ב-CaseDetail): timeline-builder + calendar union → כרונולוגיה
+  לחיצה (אירוע→מסמך/דיון/משימה). reuse timeline-builder, CalendarRepository, AgentResults.
+- **M4 Citation Intelligence**: תדירות/מיקומי אסמכתאות מ-`citation_registry`. 
+- **M5 Hearing Preparation Workspace** (P1): מסך הרכבה (summary+docs+deadlines+timeline+precedents+risk).
+- **M6 Entity-Centric Navigation** (P1, יסודי): אכלוס `Entities`/`EntityRelations` (mig 042, לא
+  בשימוש) דרך legal-ontology + `/api/entities` + שמות שופט/ביהמ"ש לחיצים.
+- **M7 Smart Collections** (P2) → ואז התכנסות ל-**Legal Workbench** (3 פאנלים).
+- נדחים: highlight ברמת-פיקסל (דורש hOCR), Annotations API (טבלה קיימת ללא routes),
+  §4.1.2 הרחבות (pdfjs), §4.7.1 (טבלת Rules_Engine — אין CREATE TABLE; לאמת לפני בנייה).
