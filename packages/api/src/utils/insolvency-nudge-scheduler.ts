@@ -58,6 +58,33 @@ async function runNudgeCycle(repos: Repos): Promise<void> {
 
     await notificationService.send(row.whatsapp_phone!, lines.join('\n'));
     logger.info(`Nudge sent for case ${row.case_number} (${gaps.length} missing fields)`, { category: 'system' });
+
+    // Surface the same gap alert in the in-app inbox (§4.1.3). One row per filing;
+    // dedup_key keeps daily cycles idempotent.
+    repos.notifications.upsert({
+      kind:     'form5_gap',
+      severity: 'warning',
+      titleHe:  `טופס 5 חסר ${gaps.length} שדות — תיק ${row.case_number}`,
+      bodyHe:   gaps.map((g) => g.label_he).join(' · '),
+      linkType: 'case',
+      linkId:   String(row.case_id),
+      dedupKey: `form5_gap:filing:${row.filing_id}`,
+    });
+  }
+
+  // Reconcile: resolve form-5 notifications once the filing left Pre_Filing or
+  // has no remaining gaps, so the inbox does not nag about completed filings.
+  for (const n of repos.notifications.listUnresolvedByKind('form5_gap')) {
+    const filingId = Number(n.dedupKey.split(':')[2]);
+    if (!Number.isFinite(filingId)) continue;
+    const filing = repos.db.prepare('SELECT phase FROM insolvency_filings WHERE id = ?')
+      .get(filingId) as { phase?: string } | undefined;
+    const remaining = repos.db.prepare(
+      "SELECT COUNT(*) AS n FROM insolvency_checklist_items WHERE filing_id = ? AND status != 'complete'",
+    ).get(filingId) as { n: number };
+    if (!filing || filing.phase !== 'Pre_Filing' || remaining.n === 0) {
+      repos.notifications.resolve(n.id);
+    }
   }
 }
 

@@ -11,6 +11,7 @@ interface TaskRow {
   id:            number;
   title:         string;
   due_date:      string;
+  case_id:       number | null;
   case_number:   string | null;
   whatsapp_phone: string | null;
 }
@@ -28,7 +29,7 @@ async function runCycle(repos: Repos): Promise<void> {
   // Tasks due within TASK_WARN_DAYS
   const tasks = repos.db.prepare(`
     SELECT t.id, t.title, t.due_date,
-           c.case_number,
+           c.id AS case_id, c.case_number,
            cl.whatsapp_phone
       FROM Tasks t
       LEFT JOIN Cases   c  ON c.id  = t.case_id
@@ -50,6 +51,16 @@ async function runCycle(repos: Repos): Promise<void> {
     if (row.whatsapp_phone) {
       await notificationService.send(row.whatsapp_phone, msg);
     }
+    // Persist to the in-app inbox regardless of whether a phone exists (§4.1.3).
+    repos.notifications.upsert({
+      kind:     'task_due',
+      severity: 'warning',
+      titleHe:  `משימה "${row.title}" — מועד אחרון בעוד ${daysLeft} ימים`,
+      bodyHe:   row.case_number ? `תיק ${row.case_number} · ${row.due_date}` : row.due_date,
+      linkType: row.case_id != null ? 'case' : 'route',
+      linkId:   row.case_id != null ? String(row.case_id) : '/tasks',
+      dedupKey: `task_due:task:${row.id}:${row.due_date}`,
+    });
   }
 
   // Cases with statute_deadline within CASE_WARN_DAYS
@@ -73,10 +84,50 @@ async function runCycle(repos: Repos): Promise<void> {
     if (row.whatsapp_phone) {
       await notificationService.send(row.whatsapp_phone, msg);
     }
+    // Persist to the in-app inbox regardless of whether a phone exists (§4.1.3).
+    repos.notifications.upsert({
+      kind:     'statute_deadline',
+      severity: 'critical',
+      titleHe:  `אזהרת התיישנות — תיק ${row.case_number} בעוד ${daysLeft} ימים`,
+      bodyHe:   `תאריך התיישנות: ${row.statute_deadline}`,
+      linkType: 'case',
+      linkId:   String(row.id),
+      dedupKey: `statute_deadline:case:${row.id}:${row.statute_deadline}`,
+    });
   }
 
   if (tasks.length + cases.length > 0) {
     logger.info(`[deadline-tracker] Cycle complete — ${tasks.length} task(s), ${cases.length} case deadline(s) alerted`, { category: 'system' });
+  }
+
+  reconcileNotifications(repos);
+}
+
+/**
+ * Resolves inbox notifications whose underlying condition is no longer actionable
+ * (task checked/cancelled or gone; case no longer open). Keeps the inbox honest.
+ */
+function reconcileNotifications(repos: Repos): void {
+  const idFromKey = (key: string): number => Number(key.split(':')[2]);
+
+  for (const n of repos.notifications.listUnresolvedByKind('task_due')) {
+    const taskId = idFromKey(n.dedupKey);
+    if (!Number.isFinite(taskId)) continue;
+    const row = repos.db.prepare('SELECT status FROM Tasks WHERE id = ?')
+      .get(taskId) as { status?: string } | undefined;
+    if (!row || row.status === 'checked' || row.status === 'cancelled') {
+      repos.notifications.resolve(n.id);
+    }
+  }
+
+  for (const n of repos.notifications.listUnresolvedByKind('statute_deadline')) {
+    const caseId = idFromKey(n.dedupKey);
+    if (!Number.isFinite(caseId)) continue;
+    const row = repos.db.prepare('SELECT status FROM Cases WHERE id = ?')
+      .get(caseId) as { status?: string } | undefined;
+    if (!row || (row.status != null && row.status !== 'open')) {
+      repos.notifications.resolve(n.id);
+    }
   }
 }
 

@@ -5,14 +5,21 @@ import { SetupWizard }     from '@/features/setup/SetupWizard.js';
 import { DashboardPage }   from '@/features/documents/DashboardPage.js';
 import { DocumentsPage }   from '@/features/documents/DocumentsPage.js';
 import { DocumentDetail }  from '@/features/documents/DocumentDetail.js';
+import { DocumentReader }  from '@/features/documents/DocumentReader.js';
 import { ClientsPage }     from '@/features/clients/ClientsPage.js';
 import { ClientCard }      from '@/features/clients/ClientCard.js';
 import { CasesPage }       from '@/features/cases/CasesPage.js';
 import { CaseDetail }      from '@/features/cases/CaseDetail.js';
+import { HearingPrepPage } from '@/features/cases/HearingPrepPage.js';
+import { EntitiesPage }    from '@/features/entities/EntitiesPage.js';
+import { EntityDetailPage } from '@/features/entities/EntityDetailPage.js';
+import { SmartCollectionsPage } from '@/features/documents/SmartCollectionsPage.js';
 import { ActionPlanPage }  from '@/features/action-plan/ActionPlanPage.js';
 import { SearchPage }      from '@/features/search/SearchPage.js';
 import { QueueMonitor }    from '@/features/queue/QueueMonitor.js';
 import { ActionQueue }     from '@/features/documents/ActionQueue.js';
+import { CalendarPage }    from '@/features/calendar/CalendarPage.js';
+import { DeadlineMonitorPage } from '@/features/calendar/DeadlineMonitorPage.js';
 import { DiagnosticsPage }    from '@/features/admin/DiagnosticsPage.js';
 import { MissionControlPage } from '@/features/admin/MissionControlPage.js';
 import { BackupSettingsPage } from '@/features/admin/BackupSettingsPage.js';
@@ -46,15 +53,20 @@ export const router: RemixRouter = createBrowserRouter([
       { path: 'dashboard',         element: <DashboardPage />   },
       { path: 'documents',         element: <DocumentsPage />   },
       { path: 'documents/:id',     element: <DocumentDetail />  },
+      { path: 'documents/:id/read', element: <DocumentReader /> },
       { path: 'clients',           element: <ClientsPage />     },
       { path: 'clients/:id',       element: <ClientCard />      },
       { path: 'cases',             element: <CasesPage />       },
       { path: 'cases/:id',         element: <CaseDetail />      },
+      { path: 'cases/:id/hearing-prep', element: <HearingPrepPage /> },
       { path: 'action-plan',       element: <ActionPlanPage />  },
       { path: 'search',            element: <SearchPage />      },
       { path: 'queue',             element: <QueueMonitor />    },
       { path: 'action-queue',      element: <ActionQueue />     },
+      { path: 'collections',       element: <SmartCollectionsPage /> },
       { path: 'tasks',             element: <TasksPage />       },
+      { path: 'calendar',          element: <CalendarPage />    },
+      { path: 'deadlines',         element: <DeadlineMonitorPage /> },
       { path: 'templates',         element: <TemplatesPage />        },
       { path: 'media',             element: <MediaRegistryPage />    },
       { path: 'traffic',           element: <TrafficAlertsPage />   },
@@ -66,6 +78,8 @@ export const router: RemixRouter = createBrowserRouter([
       { path: 'agents',             element: <AgentsWorkspacePage />  },
       { path: 'contacts',          element: <ContactsPage />         },
       { path: 'precedents',        element: <PrecedentsPage />       },
+      { path: 'entities',          element: <EntitiesPage />         },
+      { path: 'entities/:type/:name', element: <EntityDetailPage />  },
       { path: 'canvas/:id',        element: <CanvasPage />           },
       { path: 'activity',               element: <ActivityFeedPage />   },
       { path: 'admin',                  element: <DiagnosticsPage />    },

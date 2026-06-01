@@ -8,6 +8,9 @@ import {
 import { useCase, useCaseContacts, useDocuments, useCaseInsights, useCaseActivity, useAgentSummarize, useAgentTimeline, useAgentDiscovery } from '@/api/hooks.js';
 import type { CaseContactRecord, CaseInsightRecord, ActivityEventRow, AgentOutput } from '@/api/hooks.js';
 import { AgentOutputPanel } from '@/components/common/AgentOutputPanel.js';
+import { CaseRiskPanel } from './CaseRiskPanel.js';
+import { CaseTimeline } from './CaseTimeline.js';
+import { CaseCitations } from './CaseCitations.js';
 
 const STATUS_LABELS: Record<string, string> = {
   open:      'פתוח',
@@ -30,7 +33,7 @@ const STATUS_CLS: Record<string, string> = {
   archived:  'badge badge-neutral',
 };
 
-type Tab = 'documents' | 'contacts' | 'insights' | 'activity';
+type Tab = 'documents' | 'timeline' | 'contacts' | 'insights' | 'citations' | 'activity';
 
 export function CaseDetail() {
   const { id } = useParams<{ id: string }>();
@@ -103,11 +106,20 @@ export function CaseDetail() {
             </div>
             <p className="text-parchment/40 text-sm font-mono">{caseNumber}</p>
           </div>
-          {procedureType && (
-            <span className="badge badge-neutral text-xs">
-              {PROC_LABELS[procedureType] ?? procedureType}
-            </span>
-          )}
+          <div className="flex items-center gap-2">
+            {procedureType && (
+              <span className="badge badge-neutral text-xs">
+                {PROC_LABELS[procedureType] ?? procedureType}
+              </span>
+            )}
+            <Link
+              to={`/cases/${caseId}/hearing-prep`}
+              className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs text-gold border border-gold/30 rounded-lg hover:bg-gold/10 transition-colors"
+            >
+              <GavelIcon size={12} />
+              הכנה לדיון
+            </Link>
+          </div>
         </div>
 
         {/* Meta row */}
@@ -133,12 +145,17 @@ export function CaseDetail() {
         </div>
       </div>
 
+      {/* Risk dashboard (always-visible context) */}
+      <CaseRiskPanel caseId={caseId} />
+
       {/* Tabs */}
       <div className="flex gap-1 border-b border-parchment/10">
         {([
           { key: 'documents' as Tab, label: 'מסמכים', Icon: FileTextIcon },
+          { key: 'timeline'  as Tab, label: 'ציר זמן', Icon: CalendarIcon },
           { key: 'contacts'  as Tab, label: 'אנשי קשר', Icon: UsersIcon },
           { key: 'insights'  as Tab, label: 'תובנות AI', Icon: RobotIcon },
+          { key: 'citations' as Tab, label: 'אסמכתאות', Icon: GavelIcon },
           { key: 'activity'  as Tab, label: 'פעילות',    Icon: PulseIcon },
         ] as const).map(({ key, label, Icon }) => (
           <button
@@ -179,6 +196,10 @@ export function CaseDetail() {
           ))}
         </ul>
       )}
+
+      {tab === 'timeline' && <CaseTimeline caseId={caseId} />}
+
+      {tab === 'citations' && <CaseCitations caseId={caseId} />}
 
       {tab === 'contacts' && (
         <ul className="space-y-2">

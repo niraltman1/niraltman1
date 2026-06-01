@@ -12,6 +12,13 @@ export interface ToolResult {
   error?:     string;
 }
 
+/** Real, observable execution phases of a single agent run (§4.2.4 progress). */
+export interface AgentProgress {
+  stage:   string;  // machine id: gathering | context | analyzing | validating
+  pct:     number;  // 0–100
+  message: string;  // Hebrew label for the UI
+}
+
 export interface AgentInput {
   agentName:    string;
   task:         string;        // Hebrew task description
@@ -20,6 +27,7 @@ export interface AgentInput {
   caseId?:      number;
   documentId?:  number;
   traceId?:     string;        // if omitted, generated internally
+  onProgress?:  (p: AgentProgress) => void; // optional per-phase progress callback
 }
 
 export interface AgentOutput {

@@ -1,5 +1,5 @@
-import { useState } from 'react';
-import { Link } from 'react-router-dom';
+import { useState, useEffect } from 'react';
+import { Link, useSearchParams } from 'react-router-dom';
 import {
   MagnifyingGlassIcon,
   PlusIcon,
@@ -246,6 +246,16 @@ export function CasesPage() {
   const [activeFilter, setFilter] = useState(0);
   const [selectedCase, setSelected] = useState<Record<string, unknown> | null>(null);
   const [showForm, setShowForm] = useState(false);
+
+  // Quick-Add deep link (§4.6.1): /cases?new=1 opens the create form.
+  const [searchParams, setSearchParams] = useSearchParams();
+  useEffect(() => {
+    if (searchParams.get('new') === '1') {
+      setShowForm(true);
+      searchParams.delete('new');
+      setSearchParams(searchParams, { replace: true });
+    }
+  }, [searchParams, setSearchParams]);
 
   const { data, isLoading, isError } = useCases(page, 50);
   const items = (data?.items ?? []) as Record<string, unknown>[];

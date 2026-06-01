@@ -1,11 +1,15 @@
 import { runAgent } from '@factum-il/agent-core';
 import { assembleContext } from '@factum-il/memory';
 import type { Repos } from '../../db.js';
-import type { AgentOutput } from '@factum-il/agent-core';
+import type { AgentOutput, AgentProgress } from '@factum-il/agent-core';
 import { makeCaseTool, makeCaseDocumentsTool, makeCaseTasksTool } from './db-tools.js';
 import { persistAgentResult } from './persist-result.js';
 
-export async function summarizeCase(repos: Repos, caseId: number): Promise<AgentOutput> {
+export async function summarizeCase(
+  repos: Repos,
+  caseId: number,
+  onProgress?: (p: AgentProgress) => void,
+): Promise<AgentOutput> {
   // Load prior case memory for context
   const assembled = assembleContext(caseId, 'system', repos.db as never);
 
@@ -28,6 +32,7 @@ export async function summarizeCase(repos: Repos, caseId: number): Promise<Agent
       makeCaseTasksTool(repos, caseId),
     ],
     caseId,
+    ...(onProgress ? { onProgress } : {}),
   });
 
   // Persist to AgentResults table (non-blocking — don't throw if migration not applied yet)

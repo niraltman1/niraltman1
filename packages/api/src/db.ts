@@ -19,6 +19,11 @@ import type {
   GmailRepository,
   VacuumRepository,
   PipelineLogsRepository,
+  NotificationsRepository,
+  CalendarRepository,
+  CitationsRepository,
+  EntitiesRepository,
+  SmartCollectionsRepository,
 } from '@factum-il/database';
 import type { ConfigStore } from './utils/config-store.js';
 
@@ -44,4 +49,9 @@ export interface Repos {
   gmail:          GmailRepository;
   vacuum:         VacuumRepository;
   pipelineLogs:   PipelineLogsRepository;
+  notifications:  NotificationsRepository;
+  calendar:       CalendarRepository;
+  citations:      CitationsRepository;
+  entities:       EntitiesRepository;
+  smartCollections: SmartCollectionsRepository;
 }

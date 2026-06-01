@@ -5,6 +5,7 @@ import { useSpotlightShortcut } from '@/hooks/useSpotlight.js';
 import { useUIStore } from '@/store/index.js';
 import { ReviewRequiredBanner } from '@/components/admin/ReviewRequiredBanner.js';
 import { UpdateNotificationBanner } from '@/components/admin/UpdateNotificationBanner.js';
+import { NotificationBell } from '@/components/notifications/NotificationBell.js';
 
 export function AppShell() {
   useSpotlightShortcut();
@@ -15,6 +16,13 @@ export function AppShell() {
       <Sidebar />
 
       <main className="flex-1 overflow-auto flex flex-col min-w-0">
+        {/* Slim top bar — notification inbox bell (§4.1.3) */}
+        <header
+          className="flex items-center px-4 shrink-0"
+          style={{ height: 44, borderBottom: '1px solid var(--hairline)' }}
+        >
+          <NotificationBell />
+        </header>
         <UpdateNotificationBanner />
         <ReviewRequiredBanner />
         <div className="flex-1 p-6">

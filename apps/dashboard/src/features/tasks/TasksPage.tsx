@@ -1,4 +1,5 @@
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useEffect } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import {
   CheckSquareIcon, PlusIcon, ArrowsClockwiseIcon,
   ClockIcon, WarningIcon, CheckIcon,
@@ -238,6 +239,17 @@ function TaskRow({ task }: TaskRowProps) {
 export function TasksPage() {
   const [statusFilter, setStatusFilter] = useState<string | undefined>(undefined);
   const [showForm, setShowForm]         = useState(false);
+
+  // Quick-Add deep link (§4.6.1): /tasks?new=1 opens the create form.
+  const [searchParams, setSearchParams] = useSearchParams();
+  useEffect(() => {
+    if (searchParams.get('new') === '1') {
+      setShowForm(true);
+      searchParams.delete('new');
+      setSearchParams(searchParams, { replace: true });
+    }
+  }, [searchParams, setSearchParams]);
+
   const taskFilters = statusFilter !== undefined ? { status: statusFilter } : {};
   const { data, isLoading, isError, refetch } = useTasks(taskFilters);
   const tasks   = data?.items ?? [];

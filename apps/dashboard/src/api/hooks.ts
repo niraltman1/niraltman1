@@ -29,6 +29,7 @@ export const QUERY_KEYS = {
   workerHealth:     ['admin', 'workers']         as const,
   watcherEvents:    ['admin', 'watcher']         as const,
   backupSnapshots:  ['admin', 'backups']         as const,
+  notifications:    ['notifications']             as const,
 } as const;
 
 // ─────────────────────────────────────────────
@@ -1989,6 +1990,27 @@ export function useVerifyInsight() {
   });
 }
 
+export interface InsightEditFields {
+  caseNumber?:  string | null;
+  courtName?:   string | null;
+  judgeName?:   string | null;
+  offenseType?: string | null;
+  nextHearing?: string | null;
+}
+
+/** Inline-edit the extracted fields of an insight before approving (§4.2.1). */
+export function useEditInsight() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: ({ insightId, fields }: { insightId: number; fields: InsightEditFields }) =>
+      patchJSON<Record<string, unknown>>(`/api/documents/insights/${insightId}`, fields),
+    onSuccess: () => {
+      void qc.invalidateQueries({ queryKey: ['documents'] });
+      void qc.invalidateQueries({ queryKey: ['activity'] });
+    },
+  });
+}
+
 // ─────────────────────────────────────────────
 //  Health
 // ─────────────────────────────────────────────
@@ -2192,4 +2214,220 @@ export function useAgentStream(): {
   useEffect(() => () => { esRef.current?.close(); }, []);
 
   return { state, start, reset };
+}
+
+// ─────────────────────────────────────────────
+//  Notifications (§4.1.3 — in-app alert inbox)
+// ─────────────────────────────────────────────
+
+export interface NotificationItem {
+  id:        number;
+  kind:      string;
+  severity:  'info' | 'warning' | 'critical';
+  titleHe:   string;
+  bodyHe:    string | null;
+  linkType:  string | null;
+  linkId:    string | null;
+  readAt:    string | null;
+  createdAt: string;
+}
+
+export interface NotificationsResponse {
+  items:  NotificationItem[];
+  unread: number;
+}
+
+// ─────────────────────────────────────────────
+//  Calendar & Docketing (§4.1.1)
+// ─────────────────────────────────────────────
+
+export interface CalendarEvent {
+  id:         string;
+  kind:       'hearing' | 'statute_deadline' | 'task' | 'document';
+  date:       string;
+  time:       string | null;
+  title:      string;
+  caseId:     number | null;
+  caseNumber: string | null;
+  courtName:  string | null;
+  judge:      string | null;
+  linkType:   'case' | 'document' | 'route';
+  linkId:     string;
+}
+
+export function useCaseTimeline(caseId: number | null) {
+  return useQuery({
+    queryKey: ['cases', caseId, 'timeline'],
+    queryFn:  () => fetchJSON<CalendarEvent[]>(`/api/cases/${caseId}/timeline`),
+    enabled:  caseId !== null && caseId > 0,
+    staleTime: 30_000,
+    retry: false,
+  });
+}
+
+// ── Citation Intelligence (M4) ──────────────────────────────────────────────────
+export interface CitationLocation { documentId: number | null; snippet: string | null; }
+export interface CitationGroup {
+  key:               string;
+  citation:          string;
+  citationType:      string | null;
+  status:            string;
+  resolvedCaseLawId: number | null;
+  frequency:         number;
+  firmUsage:         number;
+  locations:         CitationLocation[];
+}
+
+export function useCaseCitations(caseId: number | null) {
+  return useQuery({
+    queryKey: ['cases', caseId, 'citations'],
+    queryFn:  () => fetchJSON<CitationGroup[]>(`/api/cases/${caseId}/citations`),
+    enabled:  caseId !== null && caseId > 0,
+    staleTime: 30_000,
+    retry: false,
+  });
+}
+
+// ── Entity-Centric Navigation (M6) ──────────────────────────────────────────────
+export type EntityType = 'judges' | 'courts';
+
+export interface EntitySummary {
+  canonical:     string;
+  displayName:   string;
+  hearingCount:  number;
+  documentCount: number;
+  caseCount:     number;
+}
+export interface EntityReferenceItem {
+  name:       string;
+  kind:       'hearing' | 'document';
+  caseId:     number | null;
+  caseNumber: string | null;
+  refId:      number;
+  date:       string | null;
+  title:      string | null;
+}
+export interface EntityDetailData extends EntitySummary {
+  references: EntityReferenceItem[];
+}
+
+export function useEntities(type: EntityType) {
+  return useQuery({
+    queryKey: ['entities', type],
+    queryFn:  () => fetchJSON<EntitySummary[]>(`/api/entities/${type}`),
+    staleTime: 60_000,
+    retry: false,
+  });
+}
+
+export function useEntityDetail(type: EntityType, name: string | null) {
+  return useQuery({
+    queryKey: ['entities', type, name],
+    queryFn:  () => fetchJSON<EntityDetailData>(`/api/entities/${type}/${encodeURIComponent(name ?? '')}`),
+    enabled:  Boolean(name),
+    staleTime: 60_000,
+    retry: false,
+  });
+}
+
+// ── Smart Collections (M7) ──────────────────────────────────────────────────────
+export interface SmartCollectionMeta { key: string; label: string; count: number; }
+export interface SmartCollectionItem {
+  id: number; filename: string; processingState: string | null;
+  documentType: string | null; caseId: number | null; createdAt: string | null;
+}
+
+export function useCollections() {
+  return useQuery({
+    queryKey: ['collections'],
+    queryFn:  () => fetchJSON<SmartCollectionMeta[]>('/api/collections'),
+    refetchInterval: 60_000,
+    retry: false,
+  });
+}
+
+export function useCollectionItems(key: string | null) {
+  return useQuery({
+    queryKey: ['collections', key],
+    queryFn:  () => fetchJSON<SmartCollectionItem[]>(`/api/collections/${key}`),
+    enabled:  Boolean(key),
+    staleTime: 30_000,
+    retry: false,
+  });
+}
+
+export interface DeadlineRisk extends CalendarEvent {
+  daysUntil: number;
+  risk:      'overdue' | 'critical' | 'soon' | 'upcoming';
+}
+
+export function useDeadlinesAtRisk(horizon = 90) {
+  return useQuery({
+    queryKey: ['calendar', 'deadlines', horizon],
+    queryFn:  () => fetchJSON<DeadlineRisk[]>(`/api/calendar/deadlines?horizon=${horizon}`),
+    refetchInterval: 60_000,
+    retry: false,
+  });
+}
+
+// ── Per-matter Risk Dashboard (Milestone 1) ────────────────────────────────────
+export type RiskBand = 'low' | 'medium' | 'high';
+
+export interface RiskAssessment {
+  caseId:              number;
+  procedural:          RiskBand;
+  evidence:            RiskBand;
+  deadline:            RiskBand;
+  missingDocuments:    number;
+  unverifiedInsights:  number;
+  unresolvedCitations: number;
+}
+
+export function useCaseRisk(caseId: number | null) {
+  return useQuery({
+    queryKey: ['cases', caseId, 'risk'],
+    queryFn:  () => fetchJSON<RiskAssessment>(`/api/cases/${caseId}/risk`),
+    enabled:  caseId !== null && caseId > 0,
+    staleTime: 30_000,
+    retry: false,
+  });
+}
+
+export function useCalendarEvents(from: string, to: string) {
+  return useQuery({
+    queryKey: ['calendar', from, to],
+    queryFn:  () => fetchJSON<CalendarEvent[]>(`/api/calendar/events?from=${from}&to=${to}`),
+    enabled:  Boolean(from && to),
+    staleTime: 30_000,
+    retry: false,
+  });
+}
+
+export function useNotifications(limit = 50) {
+  return useQuery({
+    queryKey: [...QUERY_KEYS.notifications, limit],
+    queryFn:  () => fetchJSON<NotificationsResponse>(`/api/notifications?limit=${limit}`),
+    refetchInterval: 60_000,
+    retry: false,
+  });
+}
+
+export function useMarkNotificationRead() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (id: number) => postJSON(`/api/notifications/${id}/read`),
+    onSuccess: () => {
+      void qc.invalidateQueries({ queryKey: QUERY_KEYS.notifications });
+    },
+  });
+}
+
+export function useMarkAllNotificationsRead() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: () => postJSON('/api/notifications/read-all'),
+    onSuccess: () => {
+      void qc.invalidateQueries({ queryKey: QUERY_KEYS.notifications });
+    },
+  });
 }

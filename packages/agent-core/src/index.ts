@@ -7,6 +7,7 @@ export type {
   ToolResult,
   AgentInput,
   AgentOutput,
+  AgentProgress,
   OllamaConfig,
 } from './types.js';
 export { canRunAgent, markAgentCompleted, markAgentFailed } from './execution-guard.js';

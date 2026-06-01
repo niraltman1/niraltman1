@@ -1,7 +1,7 @@
 import { runAgent } from '@factum-il/agent-core';
 import { checkConfidence } from '@factum-il/ai-guardrails';
 import type { Repos } from '../../db.js';
-import type { AgentOutput } from '@factum-il/agent-core';
+import type { AgentOutput, AgentProgress } from '@factum-il/agent-core';
 import { persistAgentResult } from './persist-result.js';
 
 // Research agent ALWAYS sets flagForReview = true (medium risk)
@@ -9,6 +9,7 @@ export async function researchLegalQuestion(
   repos: Repos,
   question: string,
   caseId?: number,
+  onProgress?: (p: AgentProgress) => void,
 ): Promise<AgentOutput> {
   // Build a search tool that queries FTS5
   const searchTool = {
@@ -62,6 +63,7 @@ export async function researchLegalQuestion(
 }`,
     tools: [searchTool, precedentTool],
     ...(caseId !== undefined ? { caseId } : {}),
+    ...(onProgress ? { onProgress } : {}),
   });
 
   // Research agent ALWAYS requires human review — override flag

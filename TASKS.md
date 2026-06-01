@@ -418,3 +418,196 @@ All checks pass (2026-05-26):
 - גורם: שורה 199 כתובה בסגנון Delphi/SysUtils — `faDirectory` לא קיים ב-Inno Setup, ו-`FindFirst` שם מקבל `TFindRec` (לא דגל attributes) ומחזיר `Boolean`
 - תיקון: `FindFirst(DesktopDir + '\8.*', FindRec)` + `FindClose(FindRec)` — שימוש ב-Inno Setup API התקין
 - זהו שלב 12 (ISCC); 11 השלבים של publish.ps1 כבר עוברים במלואם
+
+---
+
+## UX Modernization — Phase 0 planning (2026-05-31)
+
+נכתבו תוכניות עבודה מעוגנות-קוד לכל ארבעת פריטי Phase-0 שנותרו ברואדמאפ
+(`docs/UX-MODERNIZATION-ROADMAP.md` §5 Phase 0), בנוסף לתוכנית הניווט הקיימת
+(`docs/IA-NAV-IMPLEMENTATION-PLAN.md`, §4.7.6).
+
+מסמכים חדשים תחת `docs/`:
+- `NOTIFICATIONS-INBOX-IMPLEMENTATION-PLAN.md` — §4.1.3 (תיבת התראות)
+- `INSIGHT-VERIFICATION-IMPLEMENTATION-PLAN.md` — §4.2.1 (אימות תובנות AI)
+- `AGENT-SSE-IMPLEMENTATION-PLAN.md` — §4.2.4 (זרימת שלבי-סוכן)
+- `QUICK-ADD-PALETTE-IMPLEMENTATION-PLAN.md` — §4.6.1 + §4.6.4 (יצירה מהירה + פקודות Cmd+K)
+
+**שני תיקונים לרואדמאפ שעלו מעיגון בקוד (חשוב לפני מימוש):**
+1. §4.1.3 מסומן `[backend ready]`, אך אין טבלת `Notifications` ואין read-API —
+   `notification-service.ts` הוא רק stub ל-WhatsApp. צריך migration 058 + גנרטור שמתמיד שורות.
+2. §4.2.4 טוען ש"כל 5 הסוכנים חושפים /stream" — לא מדויק. קיים רק endpoint גנרי לטוקנים
+   (`/api/ai/stream`). המימוש המומלץ: לפלוט אירועי-שלב לטבלת `AgentExecutionEvents`
+   (mig 053, קיימת) ולהזרים אותם ב-SSE per-execution.
+   הערה נוספת — §4.2.1: `findInsights` מחזיר שורה אחת לכל מסמך, לכן MVP הוא אימות ברמת-רשומה;
+   אימות per-field דורש שינוי סכמה (נדחה).
+
+### What to do next
+- כל תוכנית כוללת: קבצים לשינוי, reuse, סיכונים, ואימות.
+
+## תיבת התראות (§4.1.3) — מומשה (2026-05-31)
+
+מומש הפריט הראשון מתוך תוכניות Phase-0 — אינבוקס התראות מלא (backend → UI):
+
+**Backend:**
+- `migrations/058_notifications.sql` — טבלת `Notifications` (additive, `dedup_key` UNIQUE לאידמפוטנטיות).
+- `packages/database/src/queries/notifications.ts` — `NotificationsRepository`
+  (`upsert` עם `ON CONFLICT DO NOTHING`, `listRecent`, `unreadCount`, `markRead`, `markAllRead`)
+  + ייצוא ב-`index.ts`. בדיקות: `notifications.test.ts` (5 עוברות).
+- `Repos` (`db.ts`) + בנייה ב-`start.ts`.
+- `packages/api/src/routes/notifications.ts` — `GET /api/notifications`, `POST /:id/read`,
+  `POST /read-all`; רשום ב-`app.ts`. עוקב אחר תבנית local-first (ללא requireAuth, כמו queue/tasks).
+- גנרטורים מתמידים שורות ליד הקריאות הקיימות (WhatsApp/log נשמרו כמו שהם):
+  `deadline-tracker-scheduler.ts` (task_due + statute_deadline, נשמר גם ללא טלפון) ו-
+  `insolvency-nudge-scheduler.ts` (form5_gap).
+
+**Frontend:**
+- `apps/dashboard/src/api/hooks.ts` — `useNotifications` (polling 60s), `useMarkNotificationRead`,
+  `useMarkAllNotificationsRead` + `QUERY_KEYS.notifications`.
+- `components/notifications/NotificationBell.tsx` + `NotificationPanel.tsx` — פעמון עם באדג'
+  unread, popover עם deep-links, סמן-כנקרא / סמן-הכל. נטען ב-`AppShell` (top bar חדש).
+
+**אימות:** database (30 בדיקות), api app.test (14), dashboard typecheck + production build — כולם ירוקים.
+
+## ביקורת Phase-0 + Quick-Add/פקודות (§4.6.1+§4.6.4) — מומש (2026-05-31)
+
+**ממצא ביקורת חשוב:** בעת המעבר לפריטים הבאים התגלה שהקוד מקדים את הרואדמאפ —
+שני פריטי Phase-0 כבר ממומשים בליבתם, בניגוד למה שהרואדמאפ והתוכניות הניחו:
+- **§4.2.1 (אימות תובנות):** כבר קיים ב-`DocumentDetail.tsx` — `useDocumentInsights` +
+  `useVerifyInsight`, תצוגת שדות, פס-ביטחון, תג `verification_state`, וכפתורי אשר/דחה.
+  נותר (נדחה): עריכה inline לפני אישור, אימות per-field (דורש שינוי סכמה), "אשר הכל מעל 85%".
+- **§4.2.4 (SSE סוכנים):** כבר קיים — `agentsStreamRouter` עם 5 endpoints `/stream` +
+  `useAgentStream` (EventSource). ה-progress גס (5%→20%→100%). נותר (נדחה): granularity של
+  5 השלבים — דורש token-streaming מ-Ollama וקשה לאמת ללא Ollama רץ.
+- הבאנרים עודכנו בראש שני מסמכי-התוכנית בהתאם.
+
+**מומש §4.6.1+§4.6.4 (Quick-Add + פקודות בלוח-הפקודות):**
+- `apps/dashboard/src/commands/command-registry.ts` — `COMMANDS` (צור תיק/לקוח/משימה) +
+  `matchCommands` (תמיכה בקידומת `>`, התאמה לפי תווית/keywords). **7 בדיקות יחידה.**
+- `SpotlightSearch.tsx` — מקטע "פקודות" משולב בניווט-המקלדת (selectables מאוחד: פקודות→תוצאות),
+  dispatcher `activate`, `CommandRow`. הפקודות מנווטות עם `?new=1`.
+- `useSpotlight.ts` — קיצור גלובלי **"n" / "+"** ל-Quick-Add (מושתק בתוך שדות קלט).
+- `CasesPage` / `ClientsPage` / `TasksPage` — קוראים `?new=1` ופותחים את **הטופס הקיים**
+  (reuse מלא, ללא טפסים חדשים וללא העברת state גלובלי).
+- time-entry הושמט בכוונה עד §4.1.5 (חיוב). dashboard typecheck + build ירוקים.
+
+## שדרוג ניווט/IA (§4.7.6) — מומש (2026-06-01)
+
+הסרגל הצדי שודרג מ-6 פריטים שטוחים + תפריט הגדרות ל-**אקורדיון 8 קבוצות** שחושף את כל
+~25 ה-routes. אומת ש-CI ירוק על PR #44 לפני תחילת העבודה.
+
+- `components/layout/nav-config.tsx` (חדש) — `NAV_GROUPS` (8 קבוצות, כל פריט route קיים),
+  `DEFAULT_EXPANDED`, `ALL_NAV_ITEMS`, `groupIdForPath` (longest-prefix). כל 33 אייקוני
+  Phosphor אומתו מול node_modules לפני הכתיבה.
+- `store/index.ts` — נוספו `expandedGroups` + `toggleNavGroup`/`setNavGroupOpen` ו-middleware
+  `persist` (`partialize` → `{sidebarCollapsed, expandedGroups}`, `merge` מזריע דיפולטים
+  לקבוצות חדשות; שם store `factum-il-ui`).
+- `Sidebar.tsx` (נכתב מחדש) — אקורדיון במצב מורחב, מסילת-אייקונים שטוחה עם מפרידים במצב מכווץ,
+  הרחבה-אוטומטית של הקבוצה הפעילה (`useLocation`), "דווח על באג" הועבר לקבוצת מערכת.
+  נשמרו: סמל המותג, כרטיס Ollama, כפתור הכיווץ. ה-router לא שונה.
+- בדיקות: `__tests__/Sidebar.test.tsx` (5). dashboard: 23 בדיקות, typecheck + build ירוקים.
+
+## שיפורים נדחים של Phase 0 — טופלו (2026-06-01)
+
+לאחר אימות CI ירוק על `6b1669e`, טופלו השיפורים הנדחים:
+- **§4.2.1 עריכה inline** — `PATCH /api/documents/insights/:id` + `updateInsightFields`
+  (6 בדיקות) + מצב עריכה ב-`DocumentDetail`. (per-field confidence + bulk-approve הושארו
+  נדחים בכוונה: המודל פולט confidence יחיד → UI per-field יזייף מספרים; bulk צריך את מסך
+  הסקירה §4.2.2 ב-Phase 1.)
+- **התראות auto-resolve + העדפות** — migration 059 (`resolved_at`), reconcile בסקדיולרים
+  (משימה checked/cancelled, תיק לא-open, filing שעזב Pre_Filing), והשתקת סוגים client-side
+  בפאנל. (notifications: 7 בדיקות.)
+- **§4.2.4 התקדמות שלבי-ריצה** — `onProgress` ב-`runAgent` (gathering→context→analyzing→
+  validating) דרך 5 ה-wrappers וה-`/stream`. (agent-progress: 3 בדיקות.) ה-rail של 5 שלבי-
+  ההנמקה לא נבנה בכוונה — המודל מחזיר JSON בלבד (אין סמני-שלב לפרסר), ושינוי זה מסכן את
+  הפלט המכויל ודורש Ollama חי לאימות.
+
+## Phase 1 — לוח שנה / דוקטינג (§4.1.1) — מומש (2026-06-01)
+
+הפריט הראשון והבכיר ב-Phase 1 (מונע סיכון malpractice). אומת ש-CI ירוק על `f49a7f7` לפני.
+
+- `packages/database/src/queries/calendar.ts` — `CalendarRepository.eventsInRange(from,to)`
+  מאחד שלושה מקורות: `court_hearings`, מועדי התיישנות (`Cases.statute_deadline`, status=open),
+  ומשימות פעילות (`Tasks.due_date`, pending/in_progress). מנרמל ל-`CalendarEvent`. 5 בדיקות.
+- `Repos` + `start.ts` + `GET /api/calendar/events?from=&to=` (`routes/calendar.ts`, ולידציית תאריך).
+- `useCalendarEvents` hook; עמוד `features/calendar/CalendarPage.tsx` — רשת חודשית RTL,
+  תצוגת אג׳נדה, ריל "מועדים קרובים (30 יום)", צ׳יפים צבועים לפי סוג (דיון/התיישנות/משימה),
+  קליק→ניווט לתיק. route `/calendar` + פריט ניווט "יומן" בקבוצת "עבודה שוטפת".
+
+## Phase 1 — קורא/מציג מסמכים (§4.1.2) — MVP מומש (2026-06-01)
+
+המשתמשים יכולים סוף-סוף *לקרוא* מסמך בתוך האפליקציה (היה "partial backend" — לא היה endpoint
+להגשת קובץ). אומת CI ירוק על `e117c55` לפני.
+
+- `GET /api/documents/:id/file` — מגיש את הקובץ המקומי (mime מ-`mime_type`/סיומת,
+  `inline` + `nosniff`, ולידציית קיום קובץ). מקומי בלבד.
+- `features/documents/DocumentReader.tsx` + route `/documents/:id/read`:
+  PDF → `<iframe>` (PDF נייטיב של WebView2, בלי pdfjs כבד); תמונה → `<img>` עם זום;
+  אחר → הודעה + הורדה. טוגל "טקסט OCR" (2 עמודות), הורדה, קישור לתובנות AI.
+- כפתור "קרא מסמך" נוסף ל-`DocumentDetail`.
+
+## Legal Workspace Directive — Step 0 + M1 + M2 (2026-06-01)
+
+עבודה לפי תוכנית `act-as-a-senior-steady-stardust` (אופרציונליזציה של "Legal Workspace UX
+Directive"). כל שלב נדחף אחרי אימות CI ירוק של קודמו.
+
+- **Step 0 — מוניטור מועדים/SLA (§4.4.3)** [commit 09f9440] — `deadlinesAtRisk` (calendar.ts,
+  9 בדיקות), `GET /api/calendar/deadlines`, `DeadlineMonitorPage`, route `/deadlines`, נאב
+  "ראדאר מועדים". (תיקון ה-lint שחסם: הוסר import לא בשימוש.)
+- **M1 — Risk Dashboard לכל תיק** [commit bb1dc0c] — `utils/risk-summary.ts` (טהור, 6 בדיקות):
+  בנדים פרוצדורלי/ראיות/מועדים + מונים (ראיות חסרות, תובנות לא-מאומתות, אסמכתאות פתוחות).
+  `GET /api/cases/:id/risk` (reuse litigation-intelligence + deadlinesAtRisk + counts).
+  `useCaseRisk` + `CaseRiskPanel` מוטמע ב-`CaseDetail` מעל הטאבים. ללא AI חדש.
+- **M2 — "הצג מקור" לתובנות (Principle 2)** [commit 8c7fca9] — `highlight.ts` (splitHighlight,
+  7 בדיקות); `DocumentReader` קורא `?page=&highlight=` (PDF `#page=N` נייטיב, פתיחת OCR אוטומטית
+  + `<mark>` + גלילה למקור); `InsightValue` ב-`DocumentDetail` עם קישור "מקור" לכל שדה.
+
+### M3 — Interactive Timeline ✅ [commit 69c9563]
+`CalendarRepository.caseTimeline(caseId)` (kind 'document' נוסף; 11 בדיקות calendar),
+`GET /api/cases/:id/timeline`, `useCaseTimeline`, `CaseTimeline` (קיבוץ לפי שנה, אירוע→
+מסמך/דיון/משימה), טאב "ציר זמן" ב-CaseDetail. דטרמיניסטי, ללא AI.
+
+### M4 — Citation Intelligence ✅ [commit 26bc77f]
+`CitationsRepository.caseCitationIntelligence` (תדירות + firm-usage + locations; 4 בדיקות),
+`GET /api/cases/:id/citations`, `useCaseCitations`, `CaseCitations` (כרטיסי אסמכתא + "מקור
+במסמך"), טאב "אסמכתאות". reuse `citation_registry`.
+
+### M5 — Hearing Preparation Workspace ✅ [commit 7c0968e]
+`HearingPrepPage` ב-`/cases/:id/hearing-prep` — באנר דיון-הבא (נגזר מ-caseTimeline) + פריסת
+3 עמודות שמרכיבה את הפאנלים הקיימים: CaseRiskPanel (M1) + מועדים פתוחים (deadlinesAtRisk
+מסונן לתיק), CaseTimeline (M3), CaseCitations (M4). כפתור הדפסה. כפתור "הכנה לדיון" ב-CaseDetail.
+הרכבה טהורה, ללא backend חדש — ההתכנסות הראשונה ל-Legal Workbench.
+
+### M6 — Entity-Centric Navigation ✅ (גרסה בטוחה, ללא שינוי pipeline)
+מימוש on-read: שמות שופטים/בתי-משפט נגזרים מהטקסט-החופשי הקיים (`court_hearings.judge_name`,
+`DocumentInsights.judge_name`/`court_name`) ומנורמלים עם `normalizeJudge`/`normalizeCourt`
+מ-legal-ontology — בלי לגעת ב-pipeline.
+- `EntitiesRepository` (judgeReferences/courtReferences; 2 בדיקות) + `entity-grouping.ts`
+  טהור (summarizeEntities/entityDetail; 5 בדיקות) ב-API.
+- `routes/entities.ts`: `/api/entities/judges|courts` + `/:name`. נוסף `@factum-il/legal-ontology`
+  ל-deps של api.
+- `EntitiesPage` (`/entities`, טאבים שופטים/בתי-משפט) + `EntityDetailPage`
+  (`/entities/:type/:name`, הפניות→תיק/קורא-מסמך) + פריט ניווט "ישויות" בקבוצה המשפטית.
+- **נדחה (follow-up):** אכלוס טבלאות `Entities`/`EntityRelations` (mig 042) בעת חילוץ —
+  היסוד לגרף-ידע מתמשך; דורש שינוי pipeline.
+
+### M7 — Smart Collections ✅ (P2)
+אוספים דינמיים מעל מסמכים, מוגדרים בשאילתה (לא תיקייה), תמיד מעודכנים.
+- `SmartCollectionsRepository` (unverified / recent / ocr_pending / hearing; overview עם
+  מונים; 5 בדיקות). `GET /api/collections` + `/:key`.
+- `SmartCollectionsPage` (`/collections`) — כרטיסי אוסף עם מונה + רשימת מסמכים → קורא;
+  פריט ניווט "אוספים חכמים" בקבוצת מסמכים.
+
+### כל ה-Milestones של הדירקטיבה הושלמו (M1–M7 + Step 0)
+נותרו follow-ups בלבד:
+- אכלוס `Entities`/`EntityRelations` ב-pipeline (יסוד גרף-ידע מתמשך; blast-radius — סבב ייעודי).
+- highlight ברמת-פיקסל ב-Reader (דורש hOCR מ-OCR pipeline).
+- Annotations API (טבלה קיימת, אין routes) לשכבת-הערות אינטראקטיבית.
+- §4.7.1 Rules-engine surface — לאמת קודם קיום `CREATE TABLE Rules_Engine`.
+- **Legal Workbench מלא**: HearingPrep (M5) הוא ההתכנסות הראשונה; אפשר להרחיב למסך 3-פאנלים
+  ייעודי (Timeline | Viewer | Insights) שמרכיב את הפאנלים הקיימים.
+- **M6 Entity-Centric Navigation** (P1, יסודי): אכלוס `Entities`/`EntityRelations` (mig 042, לא
+  בשימוש) דרך legal-ontology + `/api/entities` + שמות שופט/ביהמ"ש לחיצים.
+- **M7 Smart Collections** (P2) → ואז התכנסות ל-**Legal Workbench** (3 פאנלים).
+- נדחים: highlight ברמת-פיקסל (דורש hOCR), Annotations API (טבלה קיימת ללא routes),
+  §4.1.2 הרחבות (pdfjs), §4.7.1 (טבלת Rules_Engine — אין CREATE TABLE; לאמת לפני בנייה).

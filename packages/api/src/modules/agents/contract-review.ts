@@ -1,13 +1,17 @@
 import { runAgent } from '@factum-il/agent-core';
 import { checkConfidence } from '@factum-il/ai-guardrails';
 import type { Repos } from '../../db.js';
-import type { AgentOutput } from '@factum-il/agent-core';
+import type { AgentOutput, AgentProgress } from '@factum-il/agent-core';
 import { makeDocumentTool, makeDocumentInsightsTool } from './db-tools.js';
 import { persistAgentResult } from './persist-result.js';
 
 // Contract Review Agent: extracts clauses, identifies risks, flags missing standard sections.
 // Always sets flagForReview = true (medium risk — lawyer must verify AI analysis).
-export async function reviewContract(repos: Repos, documentId: number): Promise<AgentOutput> {
+export async function reviewContract(
+  repos: Repos,
+  documentId: number,
+  onProgress?: (p: AgentProgress) => void,
+): Promise<AgentOutput> {
   const output = await runAgent({
     agentName: 'contract-review',
     task: `בדוק את החוזה הבא וספק ניתוח בפורמט JSON:
@@ -31,6 +35,7 @@ export async function reviewContract(repos: Repos, documentId: number): Promise<
 }`,
     tools:      [makeDocumentTool(repos, documentId), makeDocumentInsightsTool(repos, documentId)],
     documentId,
+    ...(onProgress ? { onProgress } : {}),
   });
 
   // Contract review always requires attorney verification
