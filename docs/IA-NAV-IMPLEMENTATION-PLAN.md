@@ -5,6 +5,15 @@
 > ("Navigation/IA overhaul — un-orphan ~25 routes"), the highest-ROI Phase-0 item.
 > **Constraint posture:** strictly local-first; no new network/AI calls.
 
+> ## ✅ STATUS (2026-06-01): implemented
+> Shipped exactly as planned: `components/layout/nav-config.tsx` (8 groups, every item an
+> existing route, `groupIdForPath` longest-prefix matcher), `store/index.ts` extended with
+> `expandedGroups` + `toggleNavGroup`/`setNavGroupOpen` and `persist` middleware
+> (`partialize` → `{sidebarCollapsed, expandedGroups}`, `merge` re-seeds defaults for new
+> groups), and a rewritten `Sidebar.tsx` (accordion when expanded, flat icon-rail with
+> dividers when collapsed, active-group auto-expand, bug-report moved into the מערכת group).
+> Router unchanged. Tests: `__tests__/Sidebar.test.tsx` (5). Dashboard typecheck + build green.
+
 ---
 
 ## 1. Context & problem

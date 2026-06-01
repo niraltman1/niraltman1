@@ -1,97 +1,40 @@
-import { useState, useRef, useEffect } from 'react';
-import { NavLink, useNavigate } from 'react-router-dom';
-import {
-  UsersIcon,
-  ScalesIcon,
-  SealCheckIcon,
-  ListBulletsIcon,
-  PulseIcon,
-  GearIcon,
-  HardDriveIcon,
-  BugIcon,
-  EnvelopeIcon,
-  RobotIcon,
-  ShieldWarningIcon,
-} from '@phosphor-icons/react';
+import { useState, useEffect } from 'react';
+import { NavLink, useLocation } from 'react-router-dom';
+import { ScalesIcon, BugIcon, CaretDownIcon } from '@phosphor-icons/react';
 import { useUIStore } from '@/store/index.js';
 import { BugReportModal } from '@/components/admin/BugReportModal.js';
+import { NAV_GROUPS, groupIdForPath, type NavItem } from './nav-config.js';
 
-const NAV_ITEMS = [
-  { to: '/dashboard', label: 'לוח בקרה',             Icon: SealCheckIcon   },
-  { to: '/queue',     label: 'צינור קליטה ואישורים', Icon: ListBulletsIcon },
-  { to: '/clients',   label: 'ניהול תיקים ולקוחות',  Icon: UsersIcon       },
-  { to: '/mail',      label: 'מחולל מייל',            Icon: EnvelopeIcon    },
-  { to: '/agents',    label: 'סוכני AI',              Icon: RobotIcon       },
-  { to: '/activity',  label: 'פעילות',                Icon: PulseIcon       },
-] as const;
+function itemClass({ isActive }: { isActive: boolean }): string {
+  return `sidebar-item ${isActive ? 'sidebar-item-active' : ''}`;
+}
 
-function SettingsMenu({ collapsed }: { collapsed: boolean }) {
-  const [open, setOpen]       = useState(false);
-  const [bugOpen, setBugOpen] = useState(false);
-  const ref                   = useRef<HTMLDivElement>(null);
-  const navigate              = useNavigate();
-
-  useEffect(() => {
-    function onClickOutside(e: MouseEvent) {
-      if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false);
-    }
-    if (open) document.addEventListener('mousedown', onClickOutside);
-    return () => document.removeEventListener('mousedown', onClickOutside);
-  }, [open]);
-
+/** A single navigation link rendered inside an expanded group. */
+function GroupItem({ item }: { item: NavItem }) {
+  const { to, label, Icon } = item;
   return (
-    <>
-      <div ref={ref} className="relative">
-        <button
-          onClick={() => setOpen((v) => !v)}
-          className={`sidebar-item w-full ${open ? 'sidebar-item-active' : ''}`}
-          title={collapsed ? 'הגדרות' : undefined}
-          aria-haspopup="true"
-          aria-expanded={open}
-        >
-          <GearIcon size={18} weight="duotone" className="shrink-0" />
-          {!collapsed && <span>הגדרות</span>}
-        </button>
-
-        {open && (
-          <div
-            className="absolute bottom-full mb-1 right-0 w-44 rounded-lg overflow-hidden z-50 glass"
-            style={{ boxShadow: '0 20px 40px rgba(0,0,0,0.5)' }}
-          >
-            {[
-              { label: 'אבחון מערכת',   icon: HardDriveIcon,    path: '/admin' },
-              { label: 'הגדרות גיבוי',  icon: HardDriveIcon,    path: '/admin/backup-settings' },
-              { label: 'מצב שחזור',     icon: ShieldWarningIcon, path: '/admin/recovery' },
-            ].map(({ label, icon: Icon, path }) => (
-              <button
-                key={path}
-                className="sidebar-item w-full rounded-none text-sm"
-                onClick={() => { setOpen(false); navigate(path); }}
-              >
-                <Icon size={16} weight="duotone" className="shrink-0" />
-                <span>{label}</span>
-              </button>
-            ))}
-            <button
-              className="sidebar-item w-full rounded-none text-sm"
-              style={{ borderTop: '1px solid var(--hairline-2)' }}
-              onClick={() => { setOpen(false); setBugOpen(true); }}
-            >
-              <BugIcon size={16} weight="duotone" className="shrink-0" />
-              <span>דווח על באג</span>
-            </button>
-          </div>
-        )}
-      </div>
-
-      {bugOpen && <BugReportModal onClose={() => setBugOpen(false)} />}
-    </>
+    <NavLink to={to} className={itemClass} style={{ paddingInlineStart: 30 }}>
+      <Icon size={15} weight="duotone" className="shrink-0" />
+      <span style={{ flex: 1 }}>{label}</span>
+    </NavLink>
   );
 }
 
 export function Sidebar() {
   const sidebarCollapsed = useUIStore((s) => s.sidebarCollapsed);
   const toggleSidebar    = useUIStore((s) => s.toggleSidebar);
+  const expandedGroups   = useUIStore((s) => s.expandedGroups);
+  const toggleNavGroup   = useUIStore((s) => s.toggleNavGroup);
+  const setNavGroupOpen  = useUIStore((s) => s.setNavGroupOpen);
+
+  const [bugOpen, setBugOpen] = useState(false);
+
+  // Auto-expand the group that owns the active route (longest-prefix match).
+  const { pathname } = useLocation();
+  useEffect(() => {
+    const gid = groupIdForPath(pathname);
+    if (gid) setNavGroupOpen(gid, true);
+  }, [pathname, setNavGroupOpen]);
 
   return (
     <aside
@@ -151,43 +94,80 @@ export function Sidebar() {
         )}
       </div>
 
-      {/* Eyebrow */}
-      {!sidebarCollapsed && (
-        <div
-          style={{
-            padding: '16px 20px 6px',
-            fontFamily: 'var(--f-mono)',
-            fontSize: 9,
-            letterSpacing: '0.18em',
-            color: 'var(--fg-3)',
-            textTransform: 'uppercase',
-          }}
-        >
-          WORKSPACE
-        </div>
-      )}
-
       {/* Navigation */}
-      <nav className="flex-1 overflow-y-auto py-1 px-2 space-y-0.5" aria-label="ניווט ראשי">
-        {NAV_ITEMS.map(({ to, label, Icon }) => (
-          <NavLink
-            key={to}
-            to={to}
-            className={({ isActive }) =>
-              `sidebar-item ${isActive ? 'sidebar-item-active' : ''}`
-            }
-            title={sidebarCollapsed ? label : undefined}
-          >
-            <Icon size={16} weight="duotone" className="shrink-0" />
-            {!sidebarCollapsed && <span style={{ flex: 1 }}>{label}</span>}
-          </NavLink>
-        ))}
+      <nav className="flex-1 overflow-y-auto py-2 px-2 space-y-0.5" aria-label="ניווט ראשי">
+        {sidebarCollapsed ? (
+          // ── Collapsed: flat icon rail, grouped by thin dividers ──────────
+          NAV_GROUPS.map((group, gi) => (
+            <div
+              key={group.id}
+              style={gi > 0 ? { borderTop: '1px solid var(--hairline)', paddingTop: 4, marginTop: 4 } : undefined}
+            >
+              {group.items.map(({ to, label, Icon }) => (
+                <NavLink key={to} to={to} className={itemClass} title={label}>
+                  <Icon size={16} weight="duotone" className="shrink-0" />
+                </NavLink>
+              ))}
+              {group.id === 'admin' && (
+                <button
+                  type="button"
+                  className="sidebar-item w-full"
+                  title="דווח על באג"
+                  onClick={() => setBugOpen(true)}
+                >
+                  <BugIcon size={16} weight="duotone" className="shrink-0" />
+                </button>
+              )}
+            </div>
+          ))
+        ) : (
+          // ── Expanded: collapsible 8-group accordion ──────────────────────
+          NAV_GROUPS.map((group) => {
+            const open = expandedGroups[group.id] ?? group.defaultOpen;
+            const GroupIcon = group.Icon;
+            return (
+              <div key={group.id}>
+                <button
+                  type="button"
+                  onClick={() => toggleNavGroup(group.id)}
+                  className="sidebar-item w-full"
+                  aria-expanded={open}
+                >
+                  <GroupIcon size={16} weight="duotone" className="shrink-0" />
+                  <span style={{ flex: 1, fontWeight: 500 }}>{group.label}</span>
+                  <CaretDownIcon
+                    size={12}
+                    className="shrink-0"
+                    style={{
+                      transition: 'transform 0.15s',
+                      transform: open ? 'rotate(0deg)' : 'rotate(90deg)',
+                      color: 'var(--fg-4)',
+                    }}
+                  />
+                </button>
+                {open && (
+                  <div className="space-y-0.5 mt-0.5">
+                    {group.items.map((item) => (
+                      <GroupItem key={item.to} item={item} />
+                    ))}
+                    {group.id === 'admin' && (
+                      <button
+                        type="button"
+                        className="sidebar-item w-full"
+                        style={{ paddingInlineStart: 30 }}
+                        onClick={() => setBugOpen(true)}
+                      >
+                        <BugIcon size={15} weight="duotone" className="shrink-0" />
+                        <span style={{ flex: 1 }}>דווח על באג</span>
+                      </button>
+                    )}
+                  </div>
+                )}
+              </div>
+            );
+          })
+        )}
       </nav>
-
-      {/* Settings */}
-      <div className="px-2 pb-1">
-        <SettingsMenu collapsed={sidebarCollapsed} />
-      </div>
 
       {/* Ollama status card */}
       {!sidebarCollapsed && (
@@ -242,6 +222,8 @@ export function Sidebar() {
         <span style={{ flex: 1 }} />
         <span style={{ fontSize: 16, color: 'var(--fg-3)' }}>{sidebarCollapsed ? '›' : '‹'}</span>
       </button>
+
+      {bugOpen && <BugReportModal onClose={() => setBugOpen(false)} />}
     </aside>
   );
 }

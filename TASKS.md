@@ -491,8 +491,26 @@ All checks pass (2026-05-26):
   (reuse מלא, ללא טפסים חדשים וללא העברת state גלובלי).
 - time-entry הושמט בכוונה עד §4.1.5 (חיוב). dashboard typecheck + build ירוקים.
 
-### What to do next (Phase-0 שנותר — אופציונלי/נדחה)
+## שדרוג ניווט/IA (§4.7.6) — מומש (2026-06-01)
+
+הסרגל הצדי שודרג מ-6 פריטים שטוחים + תפריט הגדרות ל-**אקורדיון 8 קבוצות** שחושף את כל
+~25 ה-routes. אומת ש-CI ירוק על PR #44 לפני תחילת העבודה.
+
+- `components/layout/nav-config.tsx` (חדש) — `NAV_GROUPS` (8 קבוצות, כל פריט route קיים),
+  `DEFAULT_EXPANDED`, `ALL_NAV_ITEMS`, `groupIdForPath` (longest-prefix). כל 33 אייקוני
+  Phosphor אומתו מול node_modules לפני הכתיבה.
+- `store/index.ts` — נוספו `expandedGroups` + `toggleNavGroup`/`setNavGroupOpen` ו-middleware
+  `persist` (`partialize` → `{sidebarCollapsed, expandedGroups}`, `merge` מזריע דיפולטים
+  לקבוצות חדשות; שם store `factum-il-ui`).
+- `Sidebar.tsx` (נכתב מחדש) — אקורדיון במצב מורחב, מסילת-אייקונים שטוחה עם מפרידים במצב מכווץ,
+  הרחבה-אוטומטית של הקבוצה הפעילה (`useLocation`), "דווח על באג" הועבר לקבוצת מערכת.
+  נשמרו: סמל המותג, כרטיס Ollama, כפתור הכיווץ. ה-router לא שונה.
+- בדיקות: `__tests__/Sidebar.test.tsx` (5). dashboard: 23 בדיקות, typecheck + build ירוקים.
+
+### What to do next (Phase-0 הושלם)
+כל פריטי Phase-0 טופלו: §4.1.3 ✅, §4.2.1 ✅ (היה קיים), §4.2.4 ✅ ליבה (היה קיים),
+§4.6.1/§4.6.4 ✅, §4.7.6 ✅. שיפורים נדחים:
 - §4.2.1: עריכה inline + אימות per-field (דורש שינוי סכמה) + bulk-approve.
 - §4.2.4: granularity של 5 שלבים (token-streaming מ-Ollama; דורש Ollama לאימות).
-- §4.7.6 ניווט/IA: התוכנית קיימת (`IA-NAV-IMPLEMENTATION-PLAN.md`) — טרם מומשה.
-- שיפור עתידי להתראות: auto-resolve של התראות ישנות; מסך העדפות התראות.
+- התראות: auto-resolve של התראות ישנות; מסך העדפות התראות.
+- המשך ל-Phase 1 (פרק §5): לוח שנה/דוקטינג (§4.1.1), קורא מסמכים (§4.1.2).
