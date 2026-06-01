@@ -1,19 +1,27 @@
-import { useState } from 'react';
-import { useParams, Link } from 'react-router-dom';
+import { useState, useEffect, useRef } from 'react';
+import { useParams, Link, useSearchParams } from 'react-router-dom';
 import {
   ArrowRightIcon, FileTextIcon, DownloadSimpleIcon,
   MagnifyingGlassPlusIcon, MagnifyingGlassMinusIcon, TextAaIcon, RobotIcon,
 } from '@phosphor-icons/react';
 import { useDocument } from '@/api/hooks.js';
+import { splitHighlight } from './highlight.js';
 
 const IMAGE_EXT = ['.jpg', '.jpeg', '.png', '.heic', '.heif', '.tiff', '.tif', '.webp', '.gif'];
 
 export function DocumentReader() {
   const { id } = useParams<{ id: string }>();
   const docId = Number(id);
+  const [searchParams] = useSearchParams();
+  const pageParam = searchParams.get('page');
+  const highlight = searchParams.get('highlight') ?? '';
   const { data: doc, isLoading, isError } = useDocument(docId);
   const [zoom, setZoom] = useState(1);
   const [showOcr, setShowOcr] = useState(false);
+  const didScrollRef = useRef(false);
+
+  // Open the OCR panel automatically when arriving via "Show Source".
+  useEffect(() => { if (highlight) setShowOcr(true); }, [highlight]);
 
   if (isLoading) {
     return <div className="flex items-center justify-center h-64 text-parchment/30 text-sm">טוען מסמך…</div>;
@@ -37,6 +45,12 @@ export function DocumentReader() {
 
   const isImage = mime.startsWith('image/') || IMAGE_EXT.includes(ext);
   const isPdf   = mime === 'application/pdf' || ext === '.pdf';
+
+  const segments = splitHighlight(ocrText, highlight);
+  const firstMatchIdx = segments.findIndex((s) => s.match);
+  const scrollFirstMark = (el: HTMLElement | null) => {
+    if (el && !didScrollRef.current) { didScrollRef.current = true; el.scrollIntoView({ block: 'center' }); }
+  };
 
   return (
     <div className="space-y-3" dir="rtl">
@@ -85,7 +99,7 @@ export function DocumentReader() {
         {/* Render surface */}
         <div className="bg-navy-100 border border-parchment/10 rounded-xl overflow-hidden" style={{ minHeight: '70vh' }}>
           {isPdf ? (
-            <iframe src={fileUrl} title={filename} className="w-full" style={{ height: '78vh', border: 'none', background: '#fff' }} />
+            <iframe src={pageParam ? `${fileUrl}#page=${encodeURIComponent(pageParam)}` : fileUrl} title={filename} className="w-full" style={{ height: '78vh', border: 'none', background: '#fff' }} />
           ) : isImage ? (
             <div className="overflow-auto p-4 flex items-start justify-center" style={{ height: '78vh' }}>
               <img src={fileUrl} alt={filename} style={{ transform: `scale(${zoom})`, transformOrigin: 'top center', maxWidth: '100%' }} />
@@ -103,9 +117,25 @@ export function DocumentReader() {
         {/* OCR text layer */}
         {showOcr && (
           <div className="bg-navy-100 border border-parchment/10 rounded-xl p-4 overflow-auto" style={{ maxHeight: '78vh' }}>
-            <h2 className="text-parchment/50 text-xs font-semibold uppercase tracking-widest mb-2">טקסט שחולץ (OCR)</h2>
+            <h2 className="text-parchment/50 text-xs font-semibold uppercase tracking-widest mb-2">
+              טקסט שחולץ (OCR){highlight && firstMatchIdx === -1 && <span className="text-parchment/30 normal-case"> · "{highlight}" לא נמצא בטקסט</span>}
+            </h2>
             <p className="text-parchment/70 text-sm whitespace-pre-wrap leading-relaxed font-mono text-[12px]" dir="rtl">
-              {ocrText || 'אין טקסט OCR למסמך זה'}
+              {ocrText
+                ? segments.map((seg, i) =>
+                    seg.match ? (
+                      <mark
+                        key={i}
+                        ref={i === firstMatchIdx ? scrollFirstMark : undefined}
+                        style={{ background: 'var(--brand-gold, #d4af37)', color: '#0b0b0d', borderRadius: 2 }}
+                      >
+                        {seg.text}
+                      </mark>
+                    ) : (
+                      <span key={i}>{seg.text}</span>
+                    ),
+                  )
+                : 'אין טקסט OCR למסמך זה'}
             </p>
           </div>
         )}

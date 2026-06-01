@@ -262,11 +262,11 @@ export function DocumentDetail() {
           </div>
         ) : insights && (insights.case_number || insights.court_name || insights.judge_name || insights.offense_type || insights.next_hearing) ? (
           <dl className="grid grid-cols-2 gap-x-4 gap-y-2 text-sm" dir="rtl">
-            {insights.case_number   && <><dt className="text-parchment/40">מספר תיק</dt><dd className="text-parchment font-mono">{insights.case_number}</dd></>}
-            {insights.court_name    && <><dt className="text-parchment/40">בית משפט</dt><dd className="text-parchment">{insights.court_name}</dd></>}
-            {insights.judge_name    && <><dt className="text-parchment/40">שופט/ת</dt><dd className="text-parchment">{insights.judge_name}</dd></>}
-            {insights.offense_type  && <><dt className="text-parchment/40">עבירה</dt><dd className="text-parchment">{insights.offense_type}</dd></>}
-            {insights.next_hearing  && <><dt className="text-parchment/40">דיון הבא</dt><dd className="text-parchment font-mono">{insights.next_hearing}</dd></>}
+            {insights.case_number  && <><dt className="text-parchment/40">מספר תיק</dt><dd><InsightValue docId={docId} sourcePage={insights.source_page} value={String(insights.case_number)} mono /></dd></>}
+            {insights.court_name   && <><dt className="text-parchment/40">בית משפט</dt><dd><InsightValue docId={docId} sourcePage={insights.source_page} value={String(insights.court_name)} /></dd></>}
+            {insights.judge_name   && <><dt className="text-parchment/40">שופט/ת</dt><dd><InsightValue docId={docId} sourcePage={insights.source_page} value={String(insights.judge_name)} /></dd></>}
+            {insights.offense_type && <><dt className="text-parchment/40">עבירה</dt><dd><InsightValue docId={docId} sourcePage={insights.source_page} value={String(insights.offense_type)} /></dd></>}
+            {insights.next_hearing && <><dt className="text-parchment/40">דיון הבא</dt><dd><InsightValue docId={docId} sourcePage={insights.source_page} value={String(insights.next_hearing)} mono /></dd></>}
           </dl>
         ) : aiEnriched ? (
           <p className="text-parchment/40 text-sm text-center py-4">לא נמצאו תובנות למסמך זה</p>
@@ -338,6 +338,27 @@ export function DocumentDetail() {
 
       <DocumentSigningPanel documentId={docId} />
     </div>
+  );
+}
+
+/** An extracted insight value with a "Show Source" link (directive Principle 2). */
+function InsightValue({ docId, sourcePage, value, mono }: {
+  docId: number; sourcePage: unknown; value: string; mono?: boolean;
+}) {
+  const params = new URLSearchParams();
+  if (sourcePage != null) params.set('page', String(sourcePage));
+  params.set('highlight', value);
+  return (
+    <span className="flex items-center gap-2">
+      <span className={`text-parchment ${mono ? 'font-mono' : ''}`}>{value}</span>
+      <Link
+        to={`/documents/${docId}/read?${params.toString()}`}
+        className="text-gold/70 text-[10px] hover:underline shrink-0"
+        title="הצג מקור במסמך"
+      >
+        מקור
+      </Link>
+    </span>
   );
 }
 
