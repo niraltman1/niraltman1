@@ -14,6 +14,7 @@ CREATE TABLE Notifications (
   link_id     TEXT,
   dedup_key   TEXT    NOT NULL,
   read_at     TEXT,
+  resolved_at TEXT,
   created_at  TEXT    NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ','now'))
 );
 CREATE UNIQUE INDEX idx_notif_dedup ON Notifications(dedup_key);
@@ -93,5 +94,27 @@ describe('NotificationsRepository', () => {
   it('defaults severity to info when omitted', () => {
     repo.upsert({ kind: 'queue_stuck', titleHe: 'פריט תקוע', dedupKey: 'q1' });
     expect(repo.listRecent()[0]!.severity).toBe('info');
+  });
+
+  it('hides resolved notifications from the inbox and the unread count', () => {
+    repo.upsert({ kind: 'task_due', titleHe: 'A', dedupKey: 'task_due:task:1:x' });
+    repo.upsert({ kind: 'task_due', titleHe: 'B', dedupKey: 'task_due:task:2:x' });
+    const [first] = repo.listRecent();
+
+    repo.resolve(first!.id);
+
+    expect(repo.listRecent()).toHaveLength(1);
+    expect(repo.unreadCount()).toBe(1);
+  });
+
+  it('listUnresolvedByKind returns only unresolved rows of that kind', () => {
+    repo.upsert({ kind: 'task_due',  titleHe: 'A', dedupKey: 'task_due:task:1:x' });
+    repo.upsert({ kind: 'statute_deadline', titleHe: 'S', dedupKey: 'statute_deadline:case:9:x' });
+    const taskRows = repo.listUnresolvedByKind('task_due');
+    expect(taskRows).toHaveLength(1);
+    expect(taskRows[0]!.kind).toBe('task_due');
+
+    repo.resolve(taskRows[0]!.id);
+    expect(repo.listUnresolvedByKind('task_due')).toHaveLength(0);
   });
 });

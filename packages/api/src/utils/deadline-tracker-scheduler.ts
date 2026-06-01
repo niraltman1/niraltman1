@@ -99,6 +99,36 @@ async function runCycle(repos: Repos): Promise<void> {
   if (tasks.length + cases.length > 0) {
     logger.info(`[deadline-tracker] Cycle complete — ${tasks.length} task(s), ${cases.length} case deadline(s) alerted`, { category: 'system' });
   }
+
+  reconcileNotifications(repos);
+}
+
+/**
+ * Resolves inbox notifications whose underlying condition is no longer actionable
+ * (task checked/cancelled or gone; case no longer open). Keeps the inbox honest.
+ */
+function reconcileNotifications(repos: Repos): void {
+  const idFromKey = (key: string): number => Number(key.split(':')[2]);
+
+  for (const n of repos.notifications.listUnresolvedByKind('task_due')) {
+    const taskId = idFromKey(n.dedupKey);
+    if (!Number.isFinite(taskId)) continue;
+    const row = repos.db.prepare('SELECT status FROM Tasks WHERE id = ?')
+      .get(taskId) as { status?: string } | undefined;
+    if (!row || row.status === 'checked' || row.status === 'cancelled') {
+      repos.notifications.resolve(n.id);
+    }
+  }
+
+  for (const n of repos.notifications.listUnresolvedByKind('statute_deadline')) {
+    const caseId = idFromKey(n.dedupKey);
+    if (!Number.isFinite(caseId)) continue;
+    const row = repos.db.prepare('SELECT status FROM Cases WHERE id = ?')
+      .get(caseId) as { status?: string } | undefined;
+    if (!row || (row.status != null && row.status !== 'open')) {
+      repos.notifications.resolve(n.id);
+    }
+  }
 }
 
 let _timer: ReturnType<typeof setInterval> | null = null;

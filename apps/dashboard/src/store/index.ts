@@ -10,6 +10,7 @@ interface SpotlightState {
 interface UIState {
   sidebarCollapsed: boolean;
   expandedGroups: Record<string, boolean>;
+  mutedNotificationKinds: Record<string, boolean>;
   spotlight: SpotlightState;
   selectedDocumentId: number | null;
   selectedClientId: number | null;
@@ -20,6 +21,7 @@ interface UIActions {
   toggleSidebar: () => void;
   toggleNavGroup: (id: string) => void;
   setNavGroupOpen: (id: string, open: boolean) => void;
+  toggleNotificationKindMute: (kind: string) => void;
   openSpotlight: () => void;
   closeSpotlight: () => void;
   setSpotlightQuery: (query: string) => void;
@@ -34,6 +36,7 @@ export const useUIStore = create<UIState & UIActions>()(
       (set) => ({
         sidebarCollapsed:  false,
         expandedGroups:    { ...DEFAULT_EXPANDED },
+        mutedNotificationKinds: {},
         spotlight:         { open: false, query: '' },
         selectedDocumentId: null,
         selectedClientId:   null,
@@ -58,6 +61,13 @@ export const useUIStore = create<UIState & UIActions>()(
             'setNavGroupOpen',
           ),
 
+        toggleNotificationKindMute: (kind) =>
+          set(
+            (s) => ({ mutedNotificationKinds: { ...s.mutedNotificationKinds, [kind]: !s.mutedNotificationKinds[kind] } }),
+            false,
+            'toggleNotificationKindMute',
+          ),
+
         openSpotlight: () =>
           set((s) => ({ spotlight: { ...s.spotlight, open: true } }), false, 'openSpotlight'),
 
@@ -80,8 +90,9 @@ export const useUIStore = create<UIState & UIActions>()(
         name: 'factum-il-ui',
         // Persist only layout prefs — never transient spotlight/selection state.
         partialize: (s) => ({
-          sidebarCollapsed: s.sidebarCollapsed,
-          expandedGroups:   s.expandedGroups,
+          sidebarCollapsed:       s.sidebarCollapsed,
+          expandedGroups:         s.expandedGroups,
+          mutedNotificationKinds: s.mutedNotificationKinds,
         }),
         // Merge persisted layout over freshly-seeded defaults so newly-added
         // groups always get a default, while user choices win for known groups.

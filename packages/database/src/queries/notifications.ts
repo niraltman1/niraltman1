@@ -12,16 +12,17 @@ export type NotificationKind =
 export type NotificationLinkType = 'case' | 'client' | 'document' | 'route';
 
 export interface NotificationRow {
-  readonly id:        number;
-  readonly kind:      string;
-  readonly severity:  NotificationSeverity;
-  readonly titleHe:   string;
-  readonly bodyHe:    string | null;
-  readonly linkType:  string | null;
-  readonly linkId:    string | null;
-  readonly dedupKey:  string;
-  readonly readAt:    string | null;
-  readonly createdAt: string;
+  readonly id:         number;
+  readonly kind:       string;
+  readonly severity:   NotificationSeverity;
+  readonly titleHe:    string;
+  readonly bodyHe:     string | null;
+  readonly linkType:   string | null;
+  readonly linkId:     string | null;
+  readonly dedupKey:   string;
+  readonly readAt:     string | null;
+  readonly resolvedAt: string | null;
+  readonly createdAt:  string;
 }
 
 export interface UpsertNotificationInput {
@@ -43,9 +44,10 @@ function mapRow(r: Record<string, unknown>): NotificationRow {
     bodyHe:    (r['body_he']   as string | null) ?? null,
     linkType:  (r['link_type'] as string | null) ?? null,
     linkId:    (r['link_id']   as string | null) ?? null,
-    dedupKey:  r['dedup_key']  as string,
-    readAt:    (r['read_at']   as string | null) ?? null,
-    createdAt: r['created_at'] as string,
+    dedupKey:   r['dedup_key']   as string,
+    readAt:     (r['read_at']    as string | null) ?? null,
+    resolvedAt: (r['resolved_at'] as string | null) ?? null,
+    createdAt:  r['created_at']  as string,
   };
 }
 
@@ -76,16 +78,31 @@ export class NotificationsRepository {
 
   listRecent(limit = 50): NotificationRow[] {
     const rows = this.db.prepare(
-      'SELECT * FROM Notifications ORDER BY created_at DESC LIMIT ?',
+      'SELECT * FROM Notifications WHERE resolved_at IS NULL ORDER BY created_at DESC LIMIT ?',
     ).all(limit) as Record<string, unknown>[];
     return rows.map(mapRow);
   }
 
   unreadCount(): number {
     const row = this.db.prepare(
-      'SELECT COUNT(*) AS n FROM Notifications WHERE read_at IS NULL',
+      'SELECT COUNT(*) AS n FROM Notifications WHERE read_at IS NULL AND resolved_at IS NULL',
     ).get() as { n: number };
     return row.n;
+  }
+
+  /** Unresolved notifications of one kind — used by the schedulers' reconcile pass. */
+  listUnresolvedByKind(kind: string): NotificationRow[] {
+    const rows = this.db.prepare(
+      'SELECT * FROM Notifications WHERE kind = ? AND resolved_at IS NULL',
+    ).all(kind) as Record<string, unknown>[];
+    return rows.map(mapRow);
+  }
+
+  /** Marks a notification resolved (no longer actionable). Idempotent. */
+  resolve(id: number): void {
+    this.db.prepare(
+      "UPDATE Notifications SET resolved_at = strftime('%Y-%m-%dT%H:%M:%fZ','now') WHERE id = ? AND resolved_at IS NULL",
+    ).run(id);
   }
 
   markRead(id: number): void {

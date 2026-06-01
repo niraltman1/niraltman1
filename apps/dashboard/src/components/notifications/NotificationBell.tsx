@@ -1,15 +1,21 @@
-import { useState, useRef, useEffect, useCallback } from 'react';
+import { useState, useRef, useEffect, useCallback, useMemo } from 'react';
 import { BellIcon } from '@phosphor-icons/react';
 import { useNotifications } from '@/api/hooks.js';
+import { useUIStore } from '@/store/index.js';
 import { NotificationPanel } from './NotificationPanel.js';
 
 export function NotificationBell() {
   const [open, setOpen] = useState(false);
   const wrapRef = useRef<HTMLDivElement>(null);
   const { data } = useNotifications();
+  const muted = useUIStore((s) => s.mutedNotificationKinds);
 
-  const unread = data?.unread ?? 0;
-  const items  = data?.items ?? [];
+  // Muted kinds are hidden from the inbox; the badge reflects unmuted unread.
+  const items = useMemo(
+    () => (data?.items ?? []).filter((n) => !muted[n.kind]),
+    [data, muted],
+  );
+  const unread = items.filter((n) => !n.readAt).length;
 
   const close = useCallback(() => setOpen(false), []);
 

@@ -1,12 +1,23 @@
+import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { GearSixIcon } from '@phosphor-icons/react';
 import type { NotificationItem } from '@/api/hooks.js';
 import { useMarkNotificationRead, useMarkAllNotificationsRead } from '@/api/hooks.js';
+import { useUIStore } from '@/store/index.js';
 
 interface Props {
   items: NotificationItem[];
   unread: number;
   onClose: () => void;
 }
+
+const KIND_LABELS: Record<string, string> = {
+  statute_deadline: 'התיישנות',
+  task_due:         'משימות',
+  form5_gap:        'טופס 5',
+  queue_stuck:      'תור תקוע',
+  overdue_tasks:    'משימות באיחור',
+};
 
 function hrefFor(n: NotificationItem): string | null {
   if (!n.linkId) return null;
@@ -43,6 +54,9 @@ export function NotificationPanel({ items, unread, onClose }: Props) {
   const navigate = useNavigate();
   const markRead = useMarkNotificationRead();
   const markAll  = useMarkAllNotificationsRead();
+  const [showSettings, setShowSettings] = useState(false);
+  const muted      = useUIStore((s) => s.mutedNotificationKinds);
+  const toggleMute = useUIStore((s) => s.toggleNotificationKindMute);
 
   function open(n: NotificationItem): void {
     if (!n.readAt) markRead.mutate(n.id);
@@ -78,7 +92,34 @@ export function NotificationPanel({ items, unread, onClose }: Props) {
         {unread > 0 && (
           <span style={{ color: 'var(--brand-gold-2)' }}>{unread} חדשות</span>
         )}
+        <button
+          type="button"
+          onClick={() => setShowSettings((v) => !v)}
+          aria-label="הגדרות התראות"
+          className="mr-auto"
+          style={{ color: showSettings ? 'var(--brand-gold-2)' : 'var(--fg-4)' }}
+        >
+          <GearSixIcon size={15} />
+        </button>
       </header>
+
+      {showSettings && (
+        <div className="px-4 py-2.5 text-xs shrink-0" style={{ borderBottom: '1px solid var(--hairline)' }}>
+          <div style={{ color: 'var(--fg-4)', marginBottom: 6 }}>הצג סוגי התראות:</div>
+          <div className="flex flex-col gap-1.5">
+            {Object.entries(KIND_LABELS).map(([kind, label]) => (
+              <label key={kind} className="flex items-center gap-2" style={{ color: 'var(--fg-2)' }}>
+                <input
+                  type="checkbox"
+                  checked={!muted[kind]}
+                  onChange={() => toggleMute(kind)}
+                />
+                {label}
+              </label>
+            ))}
+          </div>
+        </div>
+      )}
 
       <div className="overflow-auto" style={{ flex: 1 }}>
         {items.length === 0 ? (

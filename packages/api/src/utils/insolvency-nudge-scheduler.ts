@@ -71,6 +71,21 @@ async function runNudgeCycle(repos: Repos): Promise<void> {
       dedupKey: `form5_gap:filing:${row.filing_id}`,
     });
   }
+
+  // Reconcile: resolve form-5 notifications once the filing left Pre_Filing or
+  // has no remaining gaps, so the inbox does not nag about completed filings.
+  for (const n of repos.notifications.listUnresolvedByKind('form5_gap')) {
+    const filingId = Number(n.dedupKey.split(':')[2]);
+    if (!Number.isFinite(filingId)) continue;
+    const filing = repos.db.prepare('SELECT phase FROM insolvency_filings WHERE id = ?')
+      .get(filingId) as { phase?: string } | undefined;
+    const remaining = repos.db.prepare(
+      "SELECT COUNT(*) AS n FROM insolvency_checklist_items WHERE filing_id = ? AND status != 'complete'",
+    ).get(filingId) as { n: number };
+    if (!filing || filing.phase !== 'Pre_Filing' || remaining.n === 0) {
+      repos.notifications.resolve(n.id);
+    }
+  }
 }
 
 let _timer: ReturnType<typeof setInterval> | null = null;
