@@ -5,6 +5,7 @@ import { SetupWizard }     from '@/features/setup/SetupWizard.js';
 import { DashboardPage }   from '@/features/documents/DashboardPage.js';
 import { DocumentsPage }   from '@/features/documents/DocumentsPage.js';
 import { DocumentDetail }  from '@/features/documents/DocumentDetail.js';
+import { DocumentReader }  from '@/features/documents/DocumentReader.js';
 import { ClientsPage }     from '@/features/clients/ClientsPage.js';
 import { ClientCard }      from '@/features/clients/ClientCard.js';
 import { CasesPage }       from '@/features/cases/CasesPage.js';
@@ -47,6 +48,7 @@ export const router: RemixRouter = createBrowserRouter([
       { path: 'dashboard',         element: <DashboardPage />   },
       { path: 'documents',         element: <DocumentsPage />   },
       { path: 'documents/:id',     element: <DocumentDetail />  },
+      { path: 'documents/:id/read', element: <DocumentReader /> },
       { path: 'clients',           element: <ClientsPage />     },
       { path: 'clients/:id',       element: <ClientCard />      },
       { path: 'cases',             element: <CasesPage />       },

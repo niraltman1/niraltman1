@@ -88,13 +88,22 @@ export function DocumentDetail() {
           <ArrowRightIcon size={12} />
           רשימת מסמכים
         </Link>
-        <Link
-          to={`/canvas/${docId}`}
-          className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs text-blue-400 border border-blue-400/20 rounded-lg hover:bg-blue-400/10 transition-colors"
-        >
-          <SquaresFourIcon size={12} />
-          פתח בקנבס
-        </Link>
+        <div className="flex items-center gap-2">
+          <Link
+            to={`/documents/${docId}/read`}
+            className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs text-gold border border-gold/30 rounded-lg hover:bg-gold/10 transition-colors"
+          >
+            <FileTextIcon size={12} />
+            קרא מסמך
+          </Link>
+          <Link
+            to={`/canvas/${docId}`}
+            className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs text-blue-400 border border-blue-400/20 rounded-lg hover:bg-blue-400/10 transition-colors"
+          >
+            <SquaresFourIcon size={12} />
+            פתח בקנבס
+          </Link>
+        </div>
       </div>
 
       {/* Header card */}

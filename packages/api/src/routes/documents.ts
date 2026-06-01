@@ -1,4 +1,6 @@
 import { Router } from 'express';
+import { existsSync } from 'node:fs';
+import { extname, resolve } from 'node:path';
 import type { Repos } from '../db.js';
 import { asyncHandler } from '../utils/async-handler.js';
 import { ok } from '../utils/response.js';
@@ -6,6 +8,7 @@ import { parsePagination } from '../utils/pagination.js';
 import { NotFoundError, ValidationError } from '../errors/api-error.js';
 import { emitActivity } from '../utils/activity-emitter.js';
 import { logAuditEvent } from '../middleware/audit-logger.js';
+import { mimeFromExtension } from '../utils/file-hash.js';
 
 export function documentsRouter(repos: Repos): Router {
   const router = Router();
@@ -32,6 +35,26 @@ export function documentsRouter(repos: Repos): Router {
       .prepare('SELECT * FROM ProcessingStatus WHERE document_id = ? ORDER BY created_at ASC')
       .all(id) as Record<string, unknown>[];
     ok(res, history);
+  }));
+
+  // Serve the raw document file for the in-app reader (§4.1.2). Local file only.
+  router.get('/:id/file', asyncHandler((req, res) => {
+    const id = Number(req.params['id']);
+    if (!Number.isFinite(id)) throw new ValidationError('invalid id');
+    const doc = documents.findById(id);
+    if (!doc) throw new NotFoundError('Document');
+    const storagePath = doc.storagePath;
+    if (!storagePath || !existsSync(storagePath)) throw new NotFoundError('File');
+
+    const ext  = extname(storagePath);
+    const mime = doc.mimeType ?? mimeFromExtension(ext) ?? 'application/octet-stream';
+    res.setHeader('Content-Type', mime);
+    res.setHeader('X-Content-Type-Options', 'nosniff');
+    res.setHeader(
+      'Content-Disposition',
+      `inline; filename*=UTF-8''${encodeURIComponent(doc.filename)}`,
+    );
+    res.sendFile(resolve(storagePath));
   }));
 
   router.get('/:id/insights', asyncHandler((req, res) => {
