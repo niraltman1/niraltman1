@@ -33,7 +33,7 @@ export function htmlToText(html: string): string {
   s = s.replace(/&#(\d+);/g, (_m, n) => String.fromCodePoint(Number(n)));
   for (const [k, v] of Object.entries(HTML_ENTITIES)) s = s.split(k).join(v);
   // Normalise whitespace without touching the characters themselves.
-  s = s.replace(/[ \t ]+/g, ' ').replace(/ *\n */g, '\n').replace(/\n{3,}/g, '\n\n');
+  s = s.replace(/[ \t\u00A0]+/g, ' ').replace(/ *\n */g, '\n').replace(/\n{3,}/g, '\n\n');
   return s.trim();
 }
 
