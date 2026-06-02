@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, afterEach } from 'vitest';
-import { candidateTitle, resolveLaw } from '../wiki-resolve.js';
+import { candidateTitle, candidateTitles, resolveLaw } from '../wiki-resolve.js';
 
 describe('candidateTitle', () => {
   it('drops the year clause after the first comma', () => {
@@ -10,6 +10,16 @@ describe('candidateTitle', () => {
   });
   it('normalises gershayim/quotes and collapses whitespace', () => {
     expect(candidateTitle('חוק  יסוד:  הכנסת')).toBe('חוק יסוד: הכנסת');
+  });
+});
+
+describe('candidateTitles', () => {
+  it('adds a bracket-stripped variant for [version]/[נוסח חדש] suffixes', () => {
+    expect(candidateTitles('חוק-יסוד: הממשלה [התשס"א]'))
+      .toEqual(['חוק-יסוד: הממשלה [התשס"א]', 'חוק-יסוד: הממשלה']);
+  });
+  it('returns a single candidate when there is no trailing bracket', () => {
+    expect(candidateTitles('חוק העונשין, התשל"ז–1977')).toEqual(['חוק העונשין']);
   });
 });
 

@@ -54,6 +54,20 @@ export function candidateTitle(name: string): string {
   return s.replace(/\s+/g, ' ').trim();
 }
 
+/**
+ * Ordered title candidates to try (most specific first), each ID-verified. Beyond the base
+ * candidate we also try one with a trailing bracket qualifier stripped — e.g.
+ * 'חוק-יסוד: הממשלה [התשס"א]' → 'חוק-יסוד: הממשלה', and 'פקודת ... [נוסח חדש]' → 'פקודת ...' —
+ * because the ספר-החוקים page is often titled without the version/[נוסח חדש] suffix.
+ */
+export function candidateTitles(name: string): string[] {
+  const base = candidateTitle(name);
+  const out = [base];
+  const noBracket = base.replace(/\s*\[[^\]]*\]\s*$/, '').trim();
+  if (noBracket && noBracket !== base) out.push(noBracket);
+  return out;
+}
+
 const sleep = (ms: number): Promise<void> => new Promise((res) => setTimeout(res, ms));
 
 type ApiResult =
@@ -135,7 +149,7 @@ export async function resolveLaw(
   const api = opts.api ?? WIKI_API;
   const delayMs = opts.delayMs ?? 0;
   const retryBaseMs = opts.retryBaseMs ?? 1_000;
-  const cand = candidateTitle(name);
+  const cands = candidateTitles(name);
   const tried = new Set<string>();
   let sawTransient = false;
 
@@ -153,10 +167,12 @@ export async function resolveLaw(
     return null;
   };
 
-  const direct = await tryTitle(cand);
-  if (direct) return direct;
+  for (const c of cands) {
+    const hit = await tryTitle(c);
+    if (hit) return hit;
+  }
 
-  const ps = await prefixSearch(api, cand, retryBaseMs);
+  const ps = await prefixSearch(api, cands[0]!, retryBaseMs);
   if (ps.transient) sawTransient = true;
   for (const alt of ps.titles) {
     const hit = await tryTitle(alt);
@@ -164,6 +180,6 @@ export async function resolveLaw(
   }
 
   return sawTransient
-    ? { matched: false, transient: true, reason: `transient API failure resolving "${cand}" (מאגר ${israelLawId})` }
-    : { matched: false, reason: `no ID-verified WikiSource page for "${cand}" (מאגר ${israelLawId})` };
+    ? { matched: false, transient: true, reason: `transient API failure resolving "${cands[0]!}" (מאגר ${israelLawId})` }
+    : { matched: false, reason: `no ID-verified WikiSource page for "${cands[0]!}" (מאגר ${israelLawId})` };
 }
