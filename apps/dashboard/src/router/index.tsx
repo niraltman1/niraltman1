@@ -15,6 +15,7 @@ import { MatterWorkbench } from '@/features/cases/MatterWorkbench.js';
 import { EntitiesPage }    from '@/features/entities/EntitiesPage.js';
 import { EntityDetailPage } from '@/features/entities/EntityDetailPage.js';
 import { SmartCollectionsPage } from '@/features/documents/SmartCollectionsPage.js';
+import { RulesEnginePage }  from '@/features/legal/RulesEnginePage.js';
 import { ActionPlanPage }  from '@/features/action-plan/ActionPlanPage.js';
 import { SearchPage }      from '@/features/search/SearchPage.js';
 import { QueueMonitor }    from '@/features/queue/QueueMonitor.js';
@@ -70,6 +71,7 @@ export const router: RemixRouter = createBrowserRouter([
       { path: 'calendar',          element: <CalendarPage />    },
       { path: 'deadlines',         element: <DeadlineMonitorPage /> },
       { path: 'templates',         element: <TemplatesPage />        },
+      { path: 'rules',             element: <RulesEnginePage />      },
       { path: 'media',             element: <MediaRegistryPage />    },
       { path: 'traffic',           element: <TrafficAlertsPage />   },
       { path: 'studies',           element: <StudiesPage />          },

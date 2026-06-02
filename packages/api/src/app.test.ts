@@ -11,6 +11,7 @@ import {
   SearchEngine,
   DatabaseHardening,
   AnnotationRepository,
+  RulesEngineRepository,
 } from '@factum-il/database';
 import { createApp } from './app.js';
 import type { Repos } from './db.js';
@@ -212,6 +213,20 @@ function buildTestDb(): Database.Database {
       document_id INTEGER, case_number TEXT, court_name TEXT, judge_name TEXT
     );
 
+    CREATE TABLE Rules_Engine (
+      id               INTEGER PRIMARY KEY AUTOINCREMENT,
+      rule_name        TEXT    NOT NULL,
+      procedure_type   TEXT    NOT NULL,
+      description      TEXT,
+      deadline_days    INTEGER,
+      deadline_basis   TEXT,
+      source_reference TEXT,
+      sort_order       INTEGER NOT NULL DEFAULT 0,
+      is_active        INTEGER NOT NULL DEFAULT 1,
+      created_at       TEXT    NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ','now')),
+      UNIQUE(procedure_type, rule_name)
+    );
+
     CREATE TABLE audit_events (
       id            INTEGER PRIMARY KEY AUTOINCREMENT,
       event_type    TEXT NOT NULL,
@@ -249,7 +264,18 @@ beforeAll(() => {
     search:     new SearchEngine(db),
     hardening:  new DatabaseHardening(db),
     annotations: new AnnotationRepository(db),
+    rules:       new RulesEngineRepository(db),
   };
+
+  // Seed a couple of procedural rules across two procedure types.
+  rawDb.exec(`
+    INSERT INTO Rules_Engine (rule_name, procedure_type, deadline_days, sort_order)
+    VALUES
+      ('הגשת כתב הגנה', 'civil', 60, 1),
+      ('ערעור בזכות', 'civil_appeal', 60, 1),
+      ('ערעור פלילי', 'criminal', 45, 1);
+  `);
+
   app = createApp(repos);
 });
 
@@ -390,6 +416,49 @@ describe('GET /api/queue/stats', () => {
     expect(typeof res.body.data.total).toBe('number');
     expect(typeof res.body.data.poisoned).toBe('number');
     expect(typeof res.body.data.byState).toBe('object');
+  });
+});
+
+describe('Rules_Engine API', () => {
+  it('lists all active rules', async () => {
+    const res = await request(app).get('/api/rules');
+    expect(res.status).toBe(200);
+    expect(res.body.success).toBe(true);
+    expect(res.body.data).toHaveLength(3);
+    expect(res.body.data[0].ruleName).toBeDefined();
+    expect(res.body.data[0].procedureType).toBeDefined();
+  });
+
+  it('filters rules by procedureType', async () => {
+    const res = await request(app).get('/api/rules?procedureType=civil');
+    expect(res.status).toBe(200);
+    expect(res.body.data).toHaveLength(1);
+    expect(res.body.data[0].procedureType).toBe('civil');
+    expect(res.body.data[0].deadlineDays).toBe(60);
+  });
+
+  it('returns procedure types with counts', async () => {
+    const res = await request(app).get('/api/rules/types');
+    expect(res.status).toBe(200);
+    const types = res.body.data as { procedureType: string; ruleCount: number }[];
+    expect(types).toHaveLength(3);
+    const civil = types.find((t) => t.procedureType === 'civil');
+    expect(civil?.ruleCount).toBe(1);
+  });
+
+  it('returns a single rule by id', async () => {
+    const list = await request(app).get('/api/rules?procedureType=criminal');
+    const id = list.body.data[0].id as number;
+    const res = await request(app).get(`/api/rules/${id}`);
+    expect(res.status).toBe(200);
+    expect(res.body.data.procedureType).toBe('criminal');
+    expect(res.body.data.deadlineDays).toBe(45);
+  });
+
+  it('returns 404 for a non-existent rule', async () => {
+    const res = await request(app).get('/api/rules/99999');
+    expect(res.status).toBe(404);
+    expect(res.body.error.code).toBe('NOT_FOUND');
   });
 });
 

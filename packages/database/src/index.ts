@@ -52,3 +52,5 @@ export type {
   NotificationLinkType,
   UpsertNotificationInput,
 } from './queries/notifications.js';
+export { RulesEngineRepository } from './queries/rules-engine.js';
+export type { RuleRow, ProcedureTypeSummary } from './queries/rules-engine.js';
