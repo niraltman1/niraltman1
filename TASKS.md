@@ -1,5 +1,16 @@
 # Factum-IL — Task Tracker
 
+## Task E — Full Legal Workbench UI ✅ (2026-06-01, on top of merged PR #44)
+מסך 3-פאנלים לתיק (`/cases/:id/workbench`): Timeline | Document Viewer | AI Insights — הרכבה
+טהורה של פאנלים בדוקים, ללא backend חדש.
+- `CaseTimeline` קיבל prop אופציונלי `onSelectDocument` (אירוע-מסמך טוען בצד במקום ניווט).
+- `WorkbenchDocViewer` (צופה inline: PDF iframe / תמונה / OCR), `WorkbenchInsights` (תובנות
+  המסמך הנבחר + אשר/דחה + "מקור"), `MatterWorkbench` (פריסת 3 עמודות + סקירת-תיק + דיון-הבא +
+  מועדים + CaseRiskPanel + CaseCitations). ברירת-מחדל: המסמך המתוארך האחרון.
+- route `/cases/:id/workbench` + כפתור "שולחן עבודה" ב-CaseDetail.
+- follow-ups שנותרו: אכלוס Entities ב-pipeline · hOCR pixel-highlight · Annotations API ·
+  §4.7.1 אימות Rules_Engine.
+
 ## Phase 0 — Stability ✅ COMPLETE
 - TypeScript typecheck errors fixed across 7 packages
 - vitest 1.x → 3.x upgrade

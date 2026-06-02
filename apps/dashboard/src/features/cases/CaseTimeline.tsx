@@ -16,7 +16,10 @@ function hrefFor(e: CalendarEvent): string {
   return e.linkId;
 }
 
-export function CaseTimeline({ caseId }: { caseId: number }) {
+export function CaseTimeline({ caseId, onSelectDocument }: {
+  caseId: number;
+  onSelectDocument?: (docId: number) => void;
+}) {
   const navigate = useNavigate();
   const { data: events, isLoading } = useCaseTimeline(caseId);
 
@@ -62,7 +65,10 @@ export function CaseTimeline({ caseId }: { caseId: number }) {
                     }}
                   />
                   <button
-                    onClick={() => navigate(hrefFor(e))}
+                    onClick={() => {
+                      if (onSelectDocument && e.kind === 'document') onSelectDocument(Number(e.linkId));
+                      else navigate(hrefFor(e));
+                    }}
                     className="w-full text-right flex items-center gap-2.5 px-3 py-2 rounded-lg hover:bg-parchment/5 transition-colors"
                   >
                     <m.Icon size={15} style={{ color: m.color }} className="shrink-0" />

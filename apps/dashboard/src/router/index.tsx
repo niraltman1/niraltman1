@@ -11,6 +11,7 @@ import { ClientCard }      from '@/features/clients/ClientCard.js';
 import { CasesPage }       from '@/features/cases/CasesPage.js';
 import { CaseDetail }      from '@/features/cases/CaseDetail.js';
 import { HearingPrepPage } from '@/features/cases/HearingPrepPage.js';
+import { MatterWorkbench } from '@/features/cases/MatterWorkbench.js';
 import { EntitiesPage }    from '@/features/entities/EntitiesPage.js';
 import { EntityDetailPage } from '@/features/entities/EntityDetailPage.js';
 import { SmartCollectionsPage } from '@/features/documents/SmartCollectionsPage.js';
@@ -59,6 +60,7 @@ export const router: RemixRouter = createBrowserRouter([
       { path: 'cases',             element: <CasesPage />       },
       { path: 'cases/:id',         element: <CaseDetail />      },
       { path: 'cases/:id/hearing-prep', element: <HearingPrepPage /> },
+      { path: 'cases/:id/workbench',    element: <MatterWorkbench /> },
       { path: 'action-plan',       element: <ActionPlanPage />  },
       { path: 'search',            element: <SearchPage />      },
       { path: 'queue',             element: <QueueMonitor />    },
