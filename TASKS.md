@@ -1,5 +1,40 @@
 # Factum-IL — Task Tracker
 
+## Legal Corpus — Hybrid offline ingestion (Knesset OData × WikiSource) ✅ (2026-06-02)
+Verbatim, per-law-isolated legislation KB, offline-first. Supersedes PR #50's hardcoded
+70-law manifest. Branch `claude/upbeat-hamilton-ma4LI`.
+- **Foundation (from PR #50, brought forward):** migration `061_legal_corpus.sql`
+  (`LegalSources`/`LegalSections` verbatim + `UNIQUE(source_id,section_label)` isolation /
+  `LegalSectionEmbeddings` / `fts_legal_sections` FTS5) · `LegalCorpusRepository` (database) ·
+  read-only `GET /api/legal-corpus/{sources,sources/:key,search}` · wired into db/start/app.
+- **Hybrid ingestion (new):** `@factum-il/legal-corpus-ingest` (private workspace pkg, NOT a
+  dep of api/desktop → never shipped). OData `KNS_IsraelLaw` (`LawValidityDesc eq 'תקף'`,
+  **1,077** valid laws) = authoritative registry; WikiSource "ספר החוקים הפתוח" = full text,
+  matched **deterministically by `{{ח:מאגר|IsraelLawID}}`** (not fuzzy by name). Verbatim
+  slicer ported from PR #50. Unmatched/valid → **metadata-only row** (zero sections, no
+  fabricated text). Emits one-law-per-line JSONL(.gz) + optional per-section embeddings
+  (`nomic-embed-text`). CLI: `pnpm ingest-knesset-odata -- [--out --embed --limit --only]`.
+- **Offline loader:** `initLegalCorpus()` (api) imports the bundled artifact into SQLite on
+  first boot (idempotent; reloads only when the artifact signature changes; graceful if
+  absent). Zero runtime network for legislation — `packages/**` never fetches OData/WikiSource.
+- **Bundling:** artifact gitignored; `publish.ps1` stages `assets/legal-corpus/*.jsonl.gz` →
+  `installer.iss` → `{app}\app\legal-corpus\` (FACTUM_IL_ROOT), `skipifsourcedoesntexist`.
+- **Resolver robustness:** distinguishes transient API failures (429/5xx/network, honors
+  Retry-After) from definitive absence (HTTP 200 + missingtitle) so a rate-limit blip never
+  silently demotes a real law to metadata-only — a two-pass run retries transient failures
+  gently. `candidateTitles()` also tries a bracket-stripped variant ('… [התשס"א]' → '…') to
+  catch ספר-החוקים pages titled without the version/[נוסח חדש] suffix.
+- **Verified:** typecheck/lint clean; tests green — ingest 23/23, database 70/70, api 112/112.
+  PR #53 CI green. Live smoke: חוק העונשין → 660 verbatim sections, 100% ID-match.
+  Coverage on an 80-law live sample: **65% → 96.2% (transient two-pass) → ~100%** (bracket-strip
+  recovered the rest, incl. Basic Laws הכנסת/השפיטה/הממשלה/חופש העיסוק/כבוד האדם/מבקר המדינה).
+- **Next:** (1) run a full `pnpm ingest-knesset-odata -- --embed` in an egress+Ollama dev env to
+  produce the real artifact + confirm match-rate across all 1,077 laws (sample validated only);
+  (2) publish it as a GitHub Release asset and point `publish.ps1` at it; (3) wire
+  `LegalSectionEmbeddings` into
+  `hybrid-search`/`prompt-builder` with per-law scoping (deferred from PR #50); (4) optional
+  wikitext `{{ח:סעיף|…}}` template parser for finer section labels. Close PR #50 in favour of this.
+
 ## Task E — Full Legal Workbench UI ✅ (2026-06-01, on top of merged PR #44)
 מסך 3-פאנלים לתיק (`/cases/:id/workbench`): Timeline | Document Viewer | AI Insights — הרכבה
 טהורה של פאנלים בדוקים, ללא backend חדש.
