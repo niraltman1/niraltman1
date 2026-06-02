@@ -26,6 +26,7 @@ import type {
   SmartCollectionsRepository,
   AnnotationRepository,
   RulesEngineRepository,
+  LegalCorpusRepository,
 } from '@factum-il/database';
 import type { ConfigStore } from './utils/config-store.js';
 
@@ -58,4 +59,5 @@ export interface Repos {
   smartCollections: SmartCollectionsRepository;
   annotations:    AnnotationRepository;
   rules:          RulesEngineRepository;
+  legalCorpus:    LegalCorpusRepository;
 }

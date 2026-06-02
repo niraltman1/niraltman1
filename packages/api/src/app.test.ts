@@ -12,6 +12,7 @@ import {
   DatabaseHardening,
   AnnotationRepository,
   RulesEngineRepository,
+  LegalCorpusRepository,
 } from '@factum-il/database';
 import { createApp } from './app.js';
 import type { Repos } from './db.js';
@@ -227,6 +228,47 @@ function buildTestDb(): Database.Database {
       UNIQUE(procedure_type, rule_name)
     );
 
+    CREATE TABLE LegalSources (
+      id INTEGER PRIMARY KEY AUTOINCREMENT, source_key TEXT NOT NULL UNIQUE, title_he TEXT NOT NULL,
+      short_name TEXT, citation TEXT, source_type TEXT NOT NULL DEFAULT 'statute',
+      procedure_domain TEXT, source_url TEXT, year INTEGER, content_hash TEXT,
+      section_count INTEGER NOT NULL DEFAULT 0, fetched_at TEXT, is_active INTEGER NOT NULL DEFAULT 1,
+      created_at TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ','now')),
+      updated_at TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ','now'))
+    );
+    CREATE TABLE LegalSections (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      source_id INTEGER NOT NULL REFERENCES LegalSources(id) ON DELETE CASCADE,
+      section_label TEXT NOT NULL, heading_he TEXT, verbatim_text_he TEXT NOT NULL,
+      order_index INTEGER NOT NULL DEFAULT 0, parent_label TEXT, char_count INTEGER NOT NULL DEFAULT 0,
+      created_at TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ','now')),
+      UNIQUE(source_id, section_label)
+    );
+    CREATE TABLE LegalSectionEmbeddings (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      section_id INTEGER NOT NULL UNIQUE REFERENCES LegalSections(id) ON DELETE CASCADE,
+      source_id INTEGER NOT NULL REFERENCES LegalSources(id) ON DELETE CASCADE,
+      embedding TEXT NOT NULL, model TEXT NOT NULL DEFAULT 'nomic-embed-text',
+      created_at TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ','now'))
+    );
+    CREATE VIRTUAL TABLE fts_legal_sections USING fts5(
+      heading_he, verbatim_text_he, content='LegalSections', content_rowid='id', tokenize='unicode61'
+    );
+    CREATE TRIGGER trg_legal_sections_ai AFTER INSERT ON LegalSections BEGIN
+      INSERT INTO fts_legal_sections(rowid, heading_he, verbatim_text_he)
+      VALUES (new.id, new.heading_he, new.verbatim_text_he);
+    END;
+    CREATE TRIGGER trg_legal_sections_ad AFTER DELETE ON LegalSections BEGIN
+      INSERT INTO fts_legal_sections(fts_legal_sections, rowid, heading_he, verbatim_text_he)
+      VALUES ('delete', old.id, old.heading_he, old.verbatim_text_he);
+    END;
+    CREATE TRIGGER trg_legal_sections_au AFTER UPDATE ON LegalSections BEGIN
+      INSERT INTO fts_legal_sections(fts_legal_sections, rowid, heading_he, verbatim_text_he)
+      VALUES ('delete', old.id, old.heading_he, old.verbatim_text_he);
+      INSERT INTO fts_legal_sections(rowid, heading_he, verbatim_text_he)
+      VALUES (new.id, new.heading_he, new.verbatim_text_he);
+    END;
+
     CREATE TABLE audit_events (
       id            INTEGER PRIMARY KEY AUTOINCREMENT,
       event_type    TEXT NOT NULL,
@@ -265,6 +307,7 @@ beforeAll(() => {
     hardening:  new DatabaseHardening(db),
     annotations: new AnnotationRepository(db),
     rules:       new RulesEngineRepository(db),
+    legalCorpus: new LegalCorpusRepository(db),
   };
 
   // Seed a couple of procedural rules across two procedure types.
@@ -274,6 +317,19 @@ beforeAll(() => {
       ('הגשת כתב הגנה', 'civil', 60, 1),
       ('ערעור בזכות', 'civil_appeal', 60, 1),
       ('ערעור פלילי', 'criminal', 45, 1);
+  `);
+
+  // Seed one law with two verbatim sections for the legal-corpus read API. Raw SQL (not the
+  // repo) because this harness casts a bare better-sqlite3 handle as DatabaseConnection, whose
+  // `transaction()` wrapper (used by replaceSections) is not present on the raw object. The FTS
+  // triggers populate fts_legal_sections on INSERT, so /search works against this seed.
+  rawDb.exec(`
+    INSERT INTO LegalSources (source_key, title_he, short_name, source_type, procedure_domain, section_count)
+    VALUES ('il_law_2000479', 'חוק העונשין, התשל"ז–1977', 'חוק העונשין', 'statute', 'criminal', 2);
+    INSERT INTO LegalSections (source_id, section_label, verbatim_text_he, order_index, char_count)
+    VALUES
+      ((SELECT id FROM LegalSources WHERE source_key = 'il_law_2000479'), 'סעיף 1', 'הגדרות — בחוק זה, המונחים הבאים יפורשו כדלקמן.', 0, 44),
+      ((SELECT id FROM LegalSources WHERE source_key = 'il_law_2000479'), 'סעיף 2', 'עבירה היא מעשה האסור על פי דין או מחדל האסור על פי דין.', 1, 54);
   `);
 
   app = createApp(repos);
@@ -568,5 +624,43 @@ describe('Entities knowledge graph API', () => {
     expect(stats.body.data.byKind.Court).toBe(1);
     expect(stats.body.data.byKind.Case).toBe(1);
     expect(stats.body.data.relations).toBe(3);
+  });
+});
+
+describe('Legal Corpus API', () => {
+  it('lists sources with KB stats', async () => {
+    const res = await request(app).get('/api/legal-corpus/sources');
+    expect(res.status).toBe(200);
+    expect(res.body.data.stats.sources).toBe(1);
+    expect(res.body.data.stats.sections).toBe(2);
+    expect(res.body.data.sources[0].sourceKey).toBe('il_law_2000479');
+  });
+
+  it('returns one law with its verbatim sections', async () => {
+    const res = await request(app).get('/api/legal-corpus/sources/il_law_2000479');
+    expect(res.status).toBe(200);
+    expect(res.body.data.source.shortName).toBe('חוק העונשין');
+    expect(res.body.data.sections).toHaveLength(2);
+    expect(res.body.data.sections[0].verbatimText).toContain('הגדרות');
+  });
+
+  it('returns 404 for an unknown source', async () => {
+    const res = await request(app).get('/api/legal-corpus/sources/il_law_999999');
+    expect(res.status).toBe(404);
+    expect(res.body.error.code).toBe('NOT_FOUND');
+  });
+
+  it('keyword-searches sections, source-tagged', async () => {
+    const res = await request(app).get('/api/legal-corpus/search?q=עבירה');
+    expect(res.status).toBe(200);
+    expect(res.body.data.length).toBeGreaterThan(0);
+    expect(res.body.data[0].sourceKey).toBe('il_law_2000479');
+    expect(res.body.data[0].verbatimText).toContain('עבירה');
+  });
+
+  it('requires q (422)', async () => {
+    const res = await request(app).get('/api/legal-corpus/search');
+    expect(res.status).toBe(422);
+    expect(res.body.error.code).toBe('VALIDATION_ERROR');
   });
 });

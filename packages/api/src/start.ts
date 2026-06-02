@@ -42,6 +42,7 @@ import {
   SmartCollectionsRepository,
   AnnotationRepository,
   RulesEngineRepository,
+  LegalCorpusRepository,
 } from '@factum-il/database';
 import { createApp } from './app.js';
 import type { Repos } from './db.js';
@@ -52,6 +53,7 @@ import { startInsolvencyNudgeScheduler, stopInsolvencyNudgeScheduler } from './u
 import { startRetentionScheduler, stopRetentionScheduler } from './utils/retention-scheduler.js';
 import { startDeadlineTracker, stopDeadlineTracker } from './utils/deadline-tracker-scheduler.js';
 import { initRegistry } from './utils/legal-registry-loader.js';
+import { initLegalCorpus } from './utils/legal-corpus-loader.js';
 import { seedDefaultAdmin } from './middleware/auth.js';
 import { initLogger } from './utils/logger.js';
 import { logger } from '@factum-il/shared';
@@ -176,6 +178,7 @@ const repos: Repos = {
   smartCollections: new SmartCollectionsRepository(db),
   annotations:      new AnnotationRepository(db),
   rules:            new RulesEngineRepository(db),
+  legalCorpus:      new LegalCorpusRepository(db),
 };
 
 // Release stale agent locks left over from a previous crash or restart.
@@ -220,6 +223,9 @@ if (process.env['NODE_ENV'] === 'production') {
 const _adminCount = (repos.db.prepare('SELECT COUNT(*) as n FROM system_users').get() as { n: number }).n;
 if (_adminCount === 0) seedDefaultAdmin(repos);
 initRegistry();
+// Load the bundled, offline legislation corpus into the DB on first run (idempotent,
+// graceful if the artifact is absent). No network — reads a static JSONL only.
+await initLegalCorpus(repos);
 
 // Wire infrastructure spine — metrics persistence + domain event bus
 // repos.db (DatabaseConnection) satisfies the duck-typed DbHandle in both packages

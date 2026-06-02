@@ -23,6 +23,7 @@
     "test:unit": "pnpm --filter dashboard vitest run",
     "lint": "pnpm -r lint",
     "ingest-registry": "node tools/ingest-legal-sources.mjs",
+    "ingest-knesset-odata": "tsx scripts/ingest-knesset-odata.ts",
     "build:installer": "powershell -ExecutionPolicy Bypass -File publish.ps1"
   },
   "devDependencies": {
@@ -33,6 +34,7 @@
     "eslint": "^9.0.0",
     "eslint-plugin-react": "^7.37.0",
     "eslint-plugin-react-hooks": "^5.0.0",
+    "tsx": "^4.7.0",
     "typescript": "^5.5.0",
     "typescript-eslint": "^8.0.0"
   },
