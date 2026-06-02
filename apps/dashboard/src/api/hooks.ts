@@ -30,6 +30,7 @@ export const QUERY_KEYS = {
   watcherEvents:    ['admin', 'watcher']         as const,
   backupSnapshots:  ['admin', 'backups']         as const,
   notifications:    ['notifications']             as const,
+  documentAnnotations: (docId: number) => ['documents', docId, 'annotations'] as const,
 } as const;
 
 // ─────────────────────────────────────────────
@@ -148,6 +149,61 @@ export function useProcessingStatus(documentId: number) {
     queryFn:  () => fetchJSON<Record<string, unknown>[]>(`/api/documents/${documentId}/status`),
     enabled:  documentId > 0,
     refetchInterval: 5_000,
+  });
+}
+
+// ─────────────────────────────────────────────
+//  Document annotations — notes / bookmarks / redlines / highlights
+// ─────────────────────────────────────────────
+
+export interface Annotation {
+  id:             number;
+  documentId:     number;
+  pageNumber:     number;
+  annotationType: 'highlight' | 'note' | 'redline' | 'bookmark';
+  color:          string | null;
+  content:        string | null;
+  createdAt:      string;
+}
+
+export interface AnnotationCreate {
+  annotationType: Annotation['annotationType'];
+  pageNumber?:    number;
+  content?:       string;
+  color?:         string;
+}
+
+export function useDocumentAnnotations(docId: number) {
+  return useQuery({
+    queryKey: QUERY_KEYS.documentAnnotations(docId),
+    queryFn:  () => fetchJSON<Annotation[]>(`/api/annotations?documentId=${docId}`),
+    enabled:  docId > 0,
+  });
+}
+
+export function useCreateAnnotation(docId: number) {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (input: AnnotationCreate) =>
+      postJSON<Annotation>('/api/annotations', { documentId: docId, ...input }),
+    onSuccess:  () => void qc.invalidateQueries({ queryKey: QUERY_KEYS.documentAnnotations(docId) }),
+  });
+}
+
+export function useUpdateAnnotation(docId: number) {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: ({ id, ...fields }: { id: number; content?: string; color?: string }) =>
+      patchJSON<Annotation>(`/api/annotations/${id}`, fields),
+    onSuccess:  () => void qc.invalidateQueries({ queryKey: QUERY_KEYS.documentAnnotations(docId) }),
+  });
+}
+
+export function useDeleteAnnotation(docId: number) {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (id: number) => deleteJSON<{ ok: boolean }>(`/api/annotations/${id}`),
+    onSuccess:  () => void qc.invalidateQueries({ queryKey: QUERY_KEYS.documentAnnotations(docId) }),
   });
 }
 

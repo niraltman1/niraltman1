@@ -24,6 +24,7 @@ import type {
   CitationsRepository,
   EntitiesRepository,
   SmartCollectionsRepository,
+  AnnotationRepository,
 } from '@factum-il/database';
 import type { ConfigStore } from './utils/config-store.js';
 
@@ -54,4 +55,5 @@ export interface Repos {
   citations:      CitationsRepository;
   entities:       EntitiesRepository;
   smartCollections: SmartCollectionsRepository;
+  annotations:    AnnotationRepository;
 }

@@ -54,6 +54,7 @@ import { notificationsRouter } from './routes/notifications.js';
 import { calendarRouter } from './routes/calendar.js';
 import { entitiesRouter } from './routes/entities.js';
 import { collectionsRouter } from './routes/collections.js';
+import { annotationsRouter } from './routes/annotations.js';
 import { recordActivity }    from './utils/resource-controller.js';
 import { RagHealingService } from './utils/rag-healing.js';
 
@@ -162,6 +163,7 @@ export function createApp(repos: Repos, dbPath?: string): express.Express {
   app.use('/api/calendar',      calendarRouter(repos));
   app.use('/api/entities',      entitiesRouter(repos));
   app.use('/api/collections',   collectionsRouter(repos));
+  app.use('/api/annotations',   annotationsRouter(repos));
 
   // Track activity for Day/Night resource controller
   app.use((_req, _res, next) => { recordActivity(); next(); });

@@ -3,9 +3,11 @@ import { useParams, Link, useSearchParams } from 'react-router-dom';
 import {
   ArrowRightIcon, FileTextIcon, DownloadSimpleIcon,
   MagnifyingGlassPlusIcon, MagnifyingGlassMinusIcon, TextAaIcon, RobotIcon,
+  NoteBlankIcon,
 } from '@phosphor-icons/react';
 import { useDocument } from '@/api/hooks.js';
 import { splitHighlight } from './highlight.js';
+import { DocumentAnnotations } from './DocumentAnnotations.js';
 
 const IMAGE_EXT = ['.jpg', '.jpeg', '.png', '.heic', '.heif', '.tiff', '.tif', '.webp', '.gif'];
 
@@ -18,7 +20,9 @@ export function DocumentReader() {
   const { data: doc, isLoading, isError } = useDocument(docId);
   const [zoom, setZoom] = useState(1);
   const [showOcr, setShowOcr] = useState(false);
+  const [showAnnotations, setShowAnnotations] = useState(false);
   const didScrollRef = useRef(false);
+  const currentPage = pageParam ? Math.max(1, Number(pageParam) || 1) : 1;
 
   // Open the OCR panel automatically when arriving via "Show Source".
   useEffect(() => { if (highlight) setShowOcr(true); }, [highlight]);
@@ -84,6 +88,13 @@ export function DocumentReader() {
               טקסט OCR
             </button>
           )}
+          <button
+            onClick={() => setShowAnnotations((v) => !v)}
+            className={`inline-flex items-center gap-1.5 px-2.5 py-1.5 text-xs rounded-lg border transition-colors ${showAnnotations ? 'text-gold border-gold/30 bg-gold/10' : 'text-parchment/60 border-parchment/15 hover:bg-parchment/5'}`}
+          >
+            <NoteBlankIcon size={13} />
+            הערות
+          </button>
           <a href={fileUrl} download={filename} className="inline-flex items-center gap-1.5 px-2.5 py-1.5 text-xs text-parchment/60 border border-parchment/15 rounded-lg hover:bg-parchment/5">
             <DownloadSimpleIcon size={13} />
             הורד
@@ -95,7 +106,8 @@ export function DocumentReader() {
         </div>
       </div>
 
-      <div className={`grid grid-cols-1 ${showOcr ? 'lg:grid-cols-2' : ''} gap-3`}>
+      <div className="flex flex-col lg:flex-row gap-3">
+        <div className={`flex-1 min-w-0 grid grid-cols-1 ${showOcr ? 'lg:grid-cols-2' : ''} gap-3`}>
         {/* Render surface */}
         <div className="bg-navy-100 border border-parchment/10 rounded-xl overflow-hidden" style={{ minHeight: '70vh' }}>
           {isPdf ? (
@@ -137,6 +149,14 @@ export function DocumentReader() {
                   )
                 : 'אין טקסט OCR למסמך זה'}
             </p>
+          </div>
+        )}
+        </div>
+
+        {/* Annotations side panel */}
+        {showAnnotations && (
+          <div className="lg:w-80 shrink-0">
+            <DocumentAnnotations docId={docId} currentPage={currentPage} />
           </div>
         )}
       </div>
