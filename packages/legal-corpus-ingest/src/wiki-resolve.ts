@@ -7,9 +7,12 @@ import { logger } from '@factum-il/shared';
  * MATCHING IS DETERMINISTIC BY ID, not fuzzy by name: every law page embeds the Knesset
  * law-database id as `{{ח:מאגר|<IsraelLawID>}}` in its wikitext. We derive a candidate
  * page title from the Name, fetch it, and ACCEPT only if its מאגר id equals the law's
- * IsraelLawID. On miss we try prefixsearch alternatives, also ID-verified. A law we cannot
- * confidently match is reported as unmatched → the caller emits a metadata-only record
- * (never fabricated text).
+ * IsraelLawID. On miss we try prefixsearch alternatives, also ID-verified.
+ *
+ * TRANSIENT vs ABSENT: a 429/5xx/network/timeout failure (after retries) is reported as
+ * `transient:true` so the caller can retry — it must NEVER be mistaken for "this law has no
+ * text" (which would silently demote a real law to a metadata-only row). A genuine
+ * "page does not exist" (HTTP 200 + missingtitle) is a definitive, non-transient miss.
  *
  * Build-tool only — never imported by a runtime package.
  */
@@ -18,6 +21,7 @@ const WIKI_API = 'https://he.wikisource.org/w/api.php';
 const WIKI_WIKI = 'https://he.wikisource.org/wiki/';
 const USER_AGENT = 'Factum-IL-corpus-builder/1.0 (+offline legal KB; one-off ingestion)';
 const MAGAR_RE = /\{\{\s*ח:מאגר\s*\|\s*(\d+)/;
+const MAX_ATTEMPTS = 4;
 
 export interface WikiResolution {
   matched:    boolean;
@@ -25,18 +29,20 @@ export interface WikiResolution {
   pageUrl?:   string;
   html?:      string;     // rendered HTML (parse.text) for the verbatim parser
   magarId?:   number;
+  transient?: boolean;    // unmatched due to a transient API failure — caller may retry
   reason?:    string;     // when unmatched
 }
 
 export interface ResolveOptions {
-  api?:     string;
-  delayMs?: number;
+  api?:         string;
+  delayMs?:     number;
+  retryBaseMs?: number;   // backoff base (default 1000; tests set it low for speed)
 }
 
 /**
  * Derive a WikiSource page-title candidate from an official OData law name by dropping the
  * trailing year clause and normalising punctuation. The ספר-החוקים page titles are the law
- * name without the ", התש..–YYYY" suffix, e.g. 'חוק העונשין, התשל"ז–1977' → 'חוק העונשין'.
+ * name without the ", התש..-YYYY" suffix, e.g. 'חוק העונשין, התשל"ז–1977' → 'חוק העונשין'.
  */
 export function candidateTitle(name: string): string {
   let s = name.trim();
@@ -50,35 +56,54 @@ export function candidateTitle(name: string): string {
 
 const sleep = (ms: number): Promise<void> => new Promise((res) => setTimeout(res, ms));
 
-async function apiGet(api: string, params: Record<string, string>): Promise<Record<string, unknown> | null> {
+type ApiResult =
+  | { ok: true; body: Record<string, unknown> }
+  | { ok: false; transient: boolean };
+
+/**
+ * One MediaWiki API GET with retry/backoff. Distinguishes a transient failure (429/5xx/
+ * network/timeout, exhausted) from a definitive non-2xx. A 2xx is always `ok` — the caller
+ * inspects the body to tell "page missing" (definitive) from a real result.
+ */
+async function apiGet(api: string, params: Record<string, string>, retryBaseMs: number): Promise<ApiResult> {
   const qs = new URLSearchParams({ format: 'json', formatversion: '2', ...params }).toString();
-  for (let attempt = 1; attempt <= 3; attempt++) {
+  for (let attempt = 1; attempt <= MAX_ATTEMPTS; attempt++) {
     try {
       const res = await fetch(`${api}?${qs}`, {
         headers: { 'User-Agent': USER_AGENT, Accept: 'application/json' },
         signal:  AbortSignal.timeout(30_000),
       });
-      if (res.status === 429 || res.status >= 500) throw new Error(`HTTP ${res.status}`);
-      if (!res.ok) return null;
-      return (await res.json()) as Record<string, unknown>;
+      if (res.status === 429 || res.status >= 500) {
+        if (attempt === MAX_ATTEMPTS) return { ok: false, transient: true };
+        const ra = Number(res.headers.get('retry-after'));
+        await sleep(Number.isFinite(ra) && ra > 0 ? Math.min(ra * 1000, 15_000) : retryBaseMs * 2 ** (attempt - 1));
+        continue;
+      }
+      if (!res.ok) return { ok: false, transient: false }; // e.g. 400 bad title — definitive
+      return { ok: true, body: (await res.json()) as Record<string, unknown> };
     } catch (err) {
-      if (attempt === 3) { logger.warn(`[wiki] api error: ${String(err)}`, { category: 'system' }); return null; }
-      await sleep(1_000 * 2 ** (attempt - 1));
+      if (attempt === MAX_ATTEMPTS) {
+        logger.warn(`[wiki] api error after ${MAX_ATTEMPTS} attempts: ${String(err)}`, { category: 'system' });
+        return { ok: false, transient: true };
+      }
+      await sleep(retryBaseMs * 2 ** (attempt - 1));
     }
   }
-  return null;
+  return { ok: false, transient: true };
 }
 
 interface ParsedPage { title: string; wikitext: string; html: string; }
+type ParseResult = { page: ParsedPage } | { absent: true } | { transientError: true };
 
-/** action=parse for one page; returns null on missing page / API error. */
-async function parsePage(api: string, page: string): Promise<ParsedPage | null> {
-  const body = await apiGet(api, { action: 'parse', page, prop: 'wikitext|text', redirects: '1' });
-  const parse = body?.['parse'] as Record<string, unknown> | undefined;
-  if (!parse) return null;                       // {error:...} for a missing page
+/** action=parse for one page. */
+async function parsePage(api: string, page: string, retryBaseMs: number): Promise<ParseResult> {
+  const r = await apiGet(api, { action: 'parse', page, prop: 'wikitext|text', redirects: '1' }, retryBaseMs);
+  if (!r.ok) return r.transient ? { transientError: true } : { absent: true };
+  const parse = r.body['parse'] as Record<string, unknown> | undefined;
+  if (!parse) return { absent: true }; // {error: missingtitle} for a non-existent page
   const wikitext = String(((parse['wikitext'] as { '*'?: string } | string) as { '*'?: string })?.['*'] ?? parse['wikitext'] ?? '');
   const html     = String(((parse['text']     as { '*'?: string } | string) as { '*'?: string })?.['*'] ?? parse['text']     ?? '');
-  return { title: String(parse['title'] ?? page), wikitext, html };
+  return { page: { title: String(parse['title'] ?? page), wikitext, html } };
 }
 
 function magarId(wikitext: string): number | null {
@@ -86,10 +111,11 @@ function magarId(wikitext: string): number | null {
   return m ? Number(m[1]) : null;
 }
 
-async function prefixSearch(api: string, term: string, limit = 5): Promise<string[]> {
-  const body = await apiGet(api, { action: 'query', list: 'prefixsearch', pssearch: term, pslimit: String(limit) });
-  const hits = (body?.['query'] as { prefixsearch?: { title: string }[] } | undefined)?.prefixsearch ?? [];
-  return hits.map((h) => h.title);
+async function prefixSearch(api: string, term: string, retryBaseMs: number, limit = 5): Promise<{ titles: string[]; transient: boolean }> {
+  const r = await apiGet(api, { action: 'query', list: 'prefixsearch', pssearch: term, pslimit: String(limit) }, retryBaseMs);
+  if (!r.ok) return { titles: [], transient: r.transient };
+  const hits = (r.body['query'] as { prefixsearch?: { title: string }[] } | undefined)?.prefixsearch ?? [];
+  return { titles: hits.map((h) => h.title), transient: false };
 }
 
 function pageUrl(title: string): string {
@@ -98,7 +124,8 @@ function pageUrl(title: string): string {
 
 /**
  * Resolve one law. Tries the name-derived candidate first, then prefixsearch alternatives,
- * accepting only an ID-verified page. Never throws — returns `{matched:false}` on any miss.
+ * accepting only an ID-verified page. Never throws — returns `{matched:false}` on a definitive
+ * miss, or `{matched:false, transient:true}` when only transient API failures were seen.
  */
 export async function resolveLaw(
   israelLawId: number,
@@ -107,18 +134,21 @@ export async function resolveLaw(
 ): Promise<WikiResolution> {
   const api = opts.api ?? WIKI_API;
   const delayMs = opts.delayMs ?? 0;
+  const retryBaseMs = opts.retryBaseMs ?? 1_000;
   const cand = candidateTitle(name);
   const tried = new Set<string>();
+  let sawTransient = false;
 
   const tryTitle = async (title: string): Promise<WikiResolution | null> => {
     if (!title || tried.has(title)) return null;
     tried.add(title);
-    const p = await parsePage(api, title);
+    const r = await parsePage(api, title, retryBaseMs);
     if (delayMs > 0) await sleep(delayMs);
-    if (!p) return null;
-    const id = magarId(p.wikitext);
+    if ('transientError' in r) { sawTransient = true; return null; }
+    if ('absent' in r) return null;
+    const id = magarId(r.page.wikitext);
     if (id === israelLawId) {
-      return { matched: true, pageTitle: p.title, pageUrl: pageUrl(p.title), html: p.html, magarId: id };
+      return { matched: true, pageTitle: r.page.title, pageUrl: pageUrl(r.page.title), html: r.page.html, magarId: id };
     }
     return null;
   };
@@ -126,10 +156,14 @@ export async function resolveLaw(
   const direct = await tryTitle(cand);
   if (direct) return direct;
 
-  for (const alt of await prefixSearch(api, cand)) {
+  const ps = await prefixSearch(api, cand, retryBaseMs);
+  if (ps.transient) sawTransient = true;
+  for (const alt of ps.titles) {
     const hit = await tryTitle(alt);
     if (hit) return hit;
   }
 
-  return { matched: false, reason: `no ID-verified WikiSource page for "${cand}" (מאגר ${israelLawId})` };
+  return sawTransient
+    ? { matched: false, transient: true, reason: `transient API failure resolving "${cand}" (מאגר ${israelLawId})` }
+    : { matched: false, reason: `no ID-verified WikiSource page for "${cand}" (מאגר ${israelLawId})` };
 }

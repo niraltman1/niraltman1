@@ -1,7 +1,7 @@
 import { mkdir } from 'node:fs/promises';
 import { dirname } from 'node:path';
-import { iterateValidLaws, countValidLaws, ODATA_BASE } from './odata-registry.js';
-import { resolveLaw } from './wiki-resolve.js';
+import { iterateValidLaws, countValidLaws, ODATA_BASE, type ValidLaw } from './odata-registry.js';
+import { resolveLaw, type WikiResolution } from './wiki-resolve.js';
 import { structureLaw } from './structure.js';
 import { ArtifactWriter, type EmbeddingRec } from './artifact.js';
 
@@ -55,14 +55,9 @@ export async function runIngestion(opts: RunOptions): Promise<RunSummary> {
   const writer = new ArtifactWriter(opts.out);
   let processed = 0, ingested = 0, metadataOnly = 0, sectionTotal = 0, embedded = 0;
 
-  for await (const law of iterateValidLaws({ base })) {
-    if (opts.only && !opts.only.has(law.israelLawId)) continue;
-    if (opts.limit != null && processed >= opts.limit) break;
-    processed += 1;
-
-    const resolved = await resolveLaw(law.israelLawId, law.name, { delayMs });
+  // Structure + (optionally) embed one resolved law, write it, and update counters.
+  const processLaw = async (law: ValidLaw, resolved: WikiResolution): Promise<void> => {
     const rec = structureLaw(law, resolved);
-
     if (rec.status === 'ingested') {
       ingested += 1;
       sectionTotal += rec.sections.length;
@@ -80,9 +75,32 @@ export async function runIngestion(opts: RunOptions): Promise<RunSummary> {
       process.stdout.write(`  · ${String(law.israelLawId).padEnd(8)} ${rec.shortName} — metadata-only\n`);
     }
     writer.write(rec);
+  };
 
-    // Few-law smoke runs: stop once every requested id has been written.
+  // Pass 1. Laws that fail ONLY due to a transient API error are deferred (never written as
+  // metadata-only on a rate-limit blip) and retried gently in pass 2.
+  const retryQueue: ValidLaw[] = [];
+  for await (const law of iterateValidLaws({ base })) {
+    if (opts.only && !opts.only.has(law.israelLawId)) continue;
+    if (opts.limit != null && processed >= opts.limit) break;
+    processed += 1;
+
+    const resolved = await resolveLaw(law.israelLawId, law.name, { delayMs });
+    if (!resolved.matched && resolved.transient) { retryQueue.push(law); }
+    else { await processLaw(law, resolved); }
+
+    // Few-law smoke runs: stop once every requested id has been seen.
     if (opts.only && processed >= opts.only.size) break;
+  }
+
+  // Pass 2. One gentler retry (3× the delay) so transient WikiSource rate-limiting never
+  // silently demotes a law that actually has text to a metadata-only row.
+  if (retryQueue.length > 0) {
+    process.stdout.write(`[knesset] retrying ${retryQueue.length} transient failure(s) at ${delayMs * 3}ms...\n`);
+    for (const law of retryQueue) {
+      const resolved = await resolveLaw(law.israelLawId, law.name, { delayMs: delayMs * 3 });
+      await processLaw(law, resolved);
+    }
   }
 
   await writer.close();

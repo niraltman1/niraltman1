@@ -17,6 +17,7 @@ function mockFetch(handler: (url: string) => unknown) {
   vi.stubGlobal('fetch', vi.fn(async (url: string) => ({
     ok: true,
     status: 200,
+    headers: { get: () => null },
     json: async () => handler(url),
     text: async () => '',
   })));
@@ -70,5 +71,29 @@ describe('resolveLaw — deterministic match by {{ח:מאגר|N}}', () => {
     const r = await resolveLaw(2000479, 'חוק העונשין, התשל"ז–1977');
     expect(r.matched).toBe(true);
     expect(r.pageTitle).toBe('חוק העונשין (תיקון)');
+  });
+});
+
+describe('resolveLaw — transient vs definitive miss (no false metadata-only)', () => {
+  it('flags transient (retryable) on repeated 5xx — never a silent metadata-only', async () => {
+    vi.stubGlobal('fetch', vi.fn(async () => ({
+      ok: false, status: 503, headers: { get: () => null }, json: async () => ({}), text: async () => '',
+    })));
+    const r = await resolveLaw(2000479, 'חוק העונשין, התשל"ז–1977', { retryBaseMs: 0 });
+    expect(r.matched).toBe(false);
+    expect(r.transient).toBe(true);
+  });
+
+  it('reports a definitive (non-transient) miss when the page is genuinely absent', async () => {
+    vi.stubGlobal('fetch', vi.fn(async (url: string) => ({
+      ok: true, status: 200, headers: { get: () => null },
+      json: async () => (url.includes('list=prefixsearch')
+        ? { query: { prefixsearch: [] } }
+        : { error: { code: 'missingtitle' } }), // HTTP 200 + missingtitle = definitively absent
+      text: async () => '',
+    })));
+    const r = await resolveLaw(2000479, 'חוק שלא קיים בכלל', { retryBaseMs: 0 });
+    expect(r.matched).toBe(false);
+    expect(r.transient).toBeFalsy();
   });
 });
