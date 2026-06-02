@@ -1,17 +1,27 @@
 import { readdirSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
-import type { VerdictCorpusRepository } from '@factum-il/database';
+import type { VerdictCorpusRepository, VerdictInput } from '@factum-il/database';
 import { logger } from '@factum-il/shared';
-import { rawRowToVerdict, type DatasetProvenance } from './transform.js';
+import { rawRowToVerdict, rawGuychukRowToVerdict, type DatasetProvenance } from './transform.js';
 
 export interface IngestResult {
   ingested: number;
   skipped:  number;
 }
 
+/** A dataset that feeds the verbatim verdict corpus: provenance + how to read & map it. */
+export interface VerdictSource {
+  key:        string;   // CLI selector, e.g. 'supreme' | 'all-courts'
+  config:     string;   // HF datasets-server config
+  split:      string;   // HF datasets-server split
+  provenance: DatasetProvenance;
+  transform:  (row: Record<string, unknown>, prov: DatasetProvenance) => VerdictInput | null;
+}
+
 /**
- * The dataset this corpus is built from. Hardcoded provenance — never read from user
- * input — so every stored ruling self-documents its origin and snapshot date.
+ * Verbatim verdict sources. Provenance is hardcoded — never read from user input — so
+ * every stored ruling self-documents its origin, snapshot, and license. doc_key spaces
+ * are kept distinct per source (see transforms) so the two never collide in one table.
  */
 export const SUPREME_COURT_PROVENANCE: DatasetProvenance = {
   sourceDataset: 'LevMuchnik/SupremeCourtOfIsrael',
@@ -20,20 +30,47 @@ export const SUPREME_COURT_PROVENANCE: DatasetProvenance = {
 };
 
 /**
- * Ingest already-parsed dataset rows into the verbatim verdict corpus. Each row is
- * transformed and upserted (idempotent by doc hash). Rows without a stable key or
- * ruling text are skipped and counted — never faked.
+ * guychuk/case-law-israel covers the FULL court hierarchy (district, magistrate,
+ * family, labor, traffic, …) — complementing the Supreme-Court-only source above.
+ * ⚠️ Its dataset card declares NO license; we record 'unspecified' so it is flagged
+ * for license verification before any production reliance.
+ */
+export const GUYCHUK_PROVENANCE: DatasetProvenance = {
+  sourceDataset: 'guychuk/case-law-israel',
+  snapshotLabel: '2025',
+  sourceLicense: 'unspecified',
+};
+
+export const SUPREME_COURT_SOURCE: VerdictSource = {
+  key: 'supreme', config: 'default', split: 'train',
+  provenance: SUPREME_COURT_PROVENANCE, transform: rawRowToVerdict,
+};
+
+export const ALL_COURTS_SOURCE: VerdictSource = {
+  key: 'all-courts', config: 'default', split: 'judgments',
+  provenance: GUYCHUK_PROVENANCE, transform: rawGuychukRowToVerdict,
+};
+
+export const VERDICT_SOURCES: Record<string, VerdictSource> = {
+  [SUPREME_COURT_SOURCE.key]: SUPREME_COURT_SOURCE,
+  [ALL_COURTS_SOURCE.key]:    ALL_COURTS_SOURCE,
+};
+
+/**
+ * Ingest already-parsed dataset rows into the verbatim verdict corpus, using the given
+ * source's transform. Each row is upserted (idempotent by doc key). Rows without a
+ * stable key or ruling text are skipped and counted — never faked.
  */
 export async function ingestRows(
   repo: VerdictCorpusRepository,
   rows: Iterable<Record<string, unknown>>,
-  prov: DatasetProvenance = SUPREME_COURT_PROVENANCE,
+  source: VerdictSource = SUPREME_COURT_SOURCE,
   embed?: (text: string) => Promise<number[] | null>,
 ): Promise<IngestResult> {
   let ingested = 0;
   let skipped  = 0;
   for (const row of rows) {
-    const input = rawRowToVerdict(row, prov);
+    const input = source.transform(row, source.provenance);
     if (!input) { skipped++; continue; }
     const id = repo.upsertVerdict(input);
     ingested++;
@@ -78,11 +115,12 @@ export function* readJsonlDir(dir: string): Generator<Record<string, unknown>> {
  * until then this throws a clear, actionable error rather than hanging.
  */
 export async function fetchVerdictRowsPage(
-  opts: { dataset?: string; config?: string; split?: string; offset?: number; length?: number } = {},
+  source: VerdictSource = SUPREME_COURT_SOURCE,
+  opts: { offset?: number; length?: number } = {},
 ): Promise<Record<string, unknown>[]> {
-  const dataset = opts.dataset ?? SUPREME_COURT_PROVENANCE.sourceDataset;
-  const config  = opts.config  ?? 'default';
-  const split   = opts.split   ?? 'train';
+  const dataset = source.provenance.sourceDataset;
+  const config  = source.config;
+  const split   = source.split;
   const offset  = opts.offset  ?? 0;
   const length  = Math.min(opts.length ?? 100, 100); // datasets-server caps at 100/req
   const url = `https://datasets-server.huggingface.co/rows?dataset=${encodeURIComponent(dataset)}`

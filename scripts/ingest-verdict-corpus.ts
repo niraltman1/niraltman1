@@ -1,22 +1,23 @@
 #!/usr/bin/env tsx
 /**
  * Ingest the verbatim Israeli verdict corpus (case law / פסיקה) into the dedicated
- * VerdictCorpus knowledge base (migration 063), from the public open dataset
- * LevMuchnik/SupremeCourtOfIsrael (2022 snapshot of Supreme Court public rulings).
+ * VerdictCorpus knowledge base (migration 063), from public open datasets:
+ *   • supreme    → LevMuchnik/SupremeCourtOfIsrael (2022, Supreme Court only, openrail)
+ *   • all-courts → guychuk/case-law-israel (all court levels; ⚠️ license unspecified)
  *
  * Usage:
- *   tsx scripts/ingest-verdict-corpus.ts [--db <path>] [--from-dir <dir>]
- *                                        [--max <n>] [--page <n>] [--embed]
+ *   tsx scripts/ingest-verdict-corpus.ts [--db <path>] [--source supreme|all-courts|both]
+ *                                        [--from-dir <dir>] [--max <n>] [--page <n>] [--embed]
  *
- *   --from-dir <dir>  Read rows from "<dir>/*.jsonl" instead of fetching. Use this when
- *                     network egress to Hugging Face is restricted: export the dataset
- *                     to JSONL once (where allowed) and ingest offline.
- *   --max <n>         Stop after ingesting ~n rows (default: all / 5000 when fetching).
+ *   --source <key>    Which dataset(s) to ingest. Default: both.
+ *   --from-dir <dir>  Read rows offline from "<dir>/<source-key>/*.jsonl" (one subdir per
+ *                     source) instead of fetching. Use when egress to HF is restricted.
+ *   --max <n>         Stop after ~n rows per source (default 5000 when fetching).
  *   --page <n>        Rows per datasets-server request when fetching (max 100).
  *   --embed           Generate per-verdict embeddings (requires Ollama running locally).
  *
- * VERBATIM ONLY: this script never authors legal text — it copies the dataset's ruling
- * text and lifts its metadata. Re-ingestion is idempotent (keyed by document hash).
+ * VERBATIM ONLY: this script never authors legal text — it copies each dataset's ruling
+ * text and lifts its metadata. Re-ingestion is idempotent (keyed by a per-source doc key).
  *
  * NOTE: Fetching needs `datasets-server.huggingface.co` in the environment network
  * allowlist. Until then, use --from-dir, or the script will report the blocked host.
@@ -29,22 +30,37 @@ import {
   ingestRows,
   readJsonlDir,
   fetchVerdictRowsPage,
-  SUPREME_COURT_PROVENANCE,
+  VERDICT_SOURCES,
+  type VerdictSource,
 } from '../packages/api/src/modules/verdict-corpus/ingest.js';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 
-interface Args { dbPath: string; fromDir?: string; max: number; page: number; embed: boolean; }
+interface Args { dbPath: string; fromDir?: string; max: number; page: number; embed: boolean; sources: VerdictSource[]; }
 
 function parseArgs(): Args {
   const a = process.argv.slice(2);
-  const out: Args = { dbPath: join(__dirname, '..', '_data', 'factum-il.db'), max: 5000, page: 100, embed: false };
+  const out: Args = {
+    dbPath: join(__dirname, '..', '_data', 'factum-il.db'),
+    max: 5000, page: 100, embed: false,
+    sources: Object.values(VERDICT_SOURCES), // default: all sources
+  };
   for (let i = 0; i < a.length; i++) {
     if (a[i] === '--db' && a[i + 1]) out.dbPath = a[++i]!;
     else if (a[i] === '--from-dir' && a[i + 1]) out.fromDir = a[++i]!;
     else if (a[i] === '--max' && a[i + 1]) out.max = Number(a[++i]);
     else if (a[i] === '--page' && a[i + 1]) out.page = Math.min(Number(a[++i]), 100);
     else if (a[i] === '--embed') out.embed = true;
+    else if (a[i] === '--source' && a[i + 1]) {
+      const key = a[++i]!;
+      if (key === 'both' || key === 'all') { out.sources = Object.values(VERDICT_SOURCES); continue; }
+      const src = VERDICT_SOURCES[key];
+      if (!src) {
+        console.error(`Unknown --source '${key}'. Valid: ${Object.keys(VERDICT_SOURCES).join(', ')}, both`);
+        process.exit(2);
+      }
+      out.sources = [src];
+    }
   }
   return out;
 }
@@ -86,26 +102,29 @@ async function main(): Promise<void> {
   const embed = args.embed ? await makeEmbedder() : undefined;
 
   console.log(`Ingesting verdict corpus → ${args.dbPath}`);
-  console.log(`Source: ${SUPREME_COURT_PROVENANCE.sourceDataset} (snapshot ${SUPREME_COURT_PROVENANCE.snapshotLabel})`);
+  console.log(`Sources: ${args.sources.map((s) => `${s.key} (${s.provenance.sourceDataset})`).join(', ')}`);
 
   let ingested = 0;
   let skipped  = 0;
 
-  if (args.fromDir) {
-    console.log(`Reading rows from ${args.fromDir}/*.jsonl …`);
-    const res = await ingestRows(repo, readJsonlDir(args.fromDir), SUPREME_COURT_PROVENANCE, embed);
-    ingested += res.ingested; skipped += res.skipped;
-  } else {
-    console.log(`Fetching from Hugging Face datasets-server (page=${args.page}, max=${args.max}) …`);
-    for (let offset = 0; offset < args.max; offset += args.page) {
-      const length = Math.min(args.page, args.max - offset);
-      const rows = await fetchVerdictRowsPage({ offset, length });
-      if (rows.length === 0) break;
-      const res = await ingestRows(repo, rows, SUPREME_COURT_PROVENANCE, embed);
+  for (const source of args.sources) {
+    if (args.fromDir) {
+      const dir = join(args.fromDir, source.key);
+      console.log(`[${source.key}] reading rows from ${dir}/*.jsonl …`);
+      const res = await ingestRows(repo, readJsonlDir(dir), source, embed);
       ingested += res.ingested; skipped += res.skipped;
-      process.stdout.write(`\r  ingested ${ingested}, skipped ${skipped}`);
+    } else {
+      console.log(`[${source.key}] fetching from datasets-server (page=${args.page}, max=${args.max}) …`);
+      for (let offset = 0; offset < args.max; offset += args.page) {
+        const length = Math.min(args.page, args.max - offset);
+        const rows = await fetchVerdictRowsPage(source, { offset, length });
+        if (rows.length === 0) break;
+        const res = await ingestRows(repo, rows, source, embed);
+        ingested += res.ingested; skipped += res.skipped;
+        process.stdout.write(`\r  [${source.key}] ingested ${ingested}, skipped ${skipped}`);
+      }
+      process.stdout.write('\n');
     }
-    process.stdout.write('\n');
   }
 
   const stats = repo.stats();

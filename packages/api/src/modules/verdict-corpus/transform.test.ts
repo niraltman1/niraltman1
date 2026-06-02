@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { rawRowToVerdict, type DatasetProvenance } from './transform.js';
+import { rawRowToVerdict, rawGuychukRowToVerdict, type DatasetProvenance } from './transform.js';
 
 const PROV: DatasetProvenance = {
   sourceDataset: 'LevMuchnik/SupremeCourtOfIsrael',
@@ -61,5 +61,51 @@ describe('rawRowToVerdict', () => {
     delete noDesc['CaseDesc'];
     const v = rawRowToVerdict({ ...noDesc, meta_case_nbr: '5856/03' }, PROV);
     expect(v!.caseNumber).toBe('5856/03');
+  });
+});
+
+const GUYCHUK_PROV: DatasetProvenance = {
+  sourceDataset: 'guychuk/case-law-israel',
+  snapshotLabel: '2025',
+  sourceLicense: 'unspecified',
+};
+
+// Row shape from guychuk/case-law-israel (a magistrate-court judgment). court_type_label
+// is an HF ClassLabel: index 3 = MAGISTRATE_COURT.
+const GUYCHUK_ROW: Record<string, unknown> = {
+  judgment_id:     'abc-123',
+  title:           'פלוני נ. אלמוני',
+  name_number:     'ת"א 12345-01-20',
+  doc_create_date: '2020-03-15',
+  court_type_label: 3,
+  document_text:   'בית משפט השלום ... פסק הדין ... התביעה מתקבלת.',
+  judges_str:      'ישראל ישראלי; דנה כהן',
+};
+
+describe('rawGuychukRowToVerdict', () => {
+  it('maps an all-courts row, resolving the ClassLabel court to Hebrew', () => {
+    const v = rawGuychukRowToVerdict(GUYCHUK_ROW, GUYCHUK_PROV);
+    expect(v).not.toBeNull();
+    expect(v!.docKey).toBe('guychuk:abc-123');     // namespaced — never collides with hashes
+    expect(v!.caseNumber).toBe('ת"א 12345-01-20');
+    expect(v!.caseName).toBe('פלוני נ. אלמוני');
+    expect(v!.court).toBe('שלום');                  // index 3 → MAGISTRATE_COURT → שלום
+    expect(v!.year).toBe(2020);
+    expect(v!.judges).toEqual(['ישראל ישראלי', 'דנה כהן']);
+    expect(v!.verbatimText).toBe(GUYCHUK_ROW['document_text']);
+    expect(v!.sourceDataset).toBe('guychuk/case-law-israel');
+    expect(v!.sourceLicense).toBe('unspecified');  // flagged for license verification
+  });
+
+  it('accepts an already-resolved string court label', () => {
+    const v = rawGuychukRowToVerdict({ ...GUYCHUK_ROW, court_type_label: 'LABOR_COURT' }, GUYCHUK_PROV);
+    expect(v!.court).toBe('עבודה');
+  });
+
+  it('skips rows without a judgment id or document text', () => {
+    expect(rawGuychukRowToVerdict({ ...GUYCHUK_ROW, document_text: '' }, GUYCHUK_PROV)).toBeNull();
+    const noId = { ...GUYCHUK_ROW };
+    delete noId['judgment_id'];
+    expect(rawGuychukRowToVerdict(noId, GUYCHUK_PROV)).toBeNull();
   });
 });
