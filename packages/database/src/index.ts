@@ -77,3 +77,10 @@ export type {
 } from './queries/legal-corpus.js';
 export { PrecedentLibraryRepository } from './queries/precedent-library.js';
 export type { PrecedentLibraryRow, PrecedentLibraryCreateInput } from './queries/precedent-library.js';
+export { VerdictCorpusRepository } from './queries/verdict-corpus.js';
+export type {
+  VerdictInput,
+  VerdictRow,
+  VerdictSearchHit,
+  VerdictCorpusStats,
+} from './queries/verdict-corpus.js';
