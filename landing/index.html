@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Factum-IL | מערכת הבינה המלאכותית לעורכי דין בישראל</title>
-<link href="https://fonts.googleapis.com/css2?family=Assistant:wght@300;400;600;700;800&family=Heebo:wght@400;500;700;900&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Assistant:wght@300;400;600;700;800&family=Heebo:wght@400;500;700;900&family=Cairo:wght@400;600;700;900&display=swap" rel="stylesheet">
 <style>
 :root {
   --bg-main: #060913;
@@ -19,7 +19,9 @@
 }
 
 * { box-sizing: border-box; margin: 0; padding: 0; }
-body { font-family: 'Assistant', sans-serif; background: var(--bg-main); color: var(--text-primary); line-height: 1.6; overflow-x: hidden; }
+body { font-family: 'Assistant', 'Cairo', sans-serif; background: var(--bg-main); color: var(--text-primary); line-height: 1.6; overflow-x: hidden; }
+html[lang="ar"] body { font-family: 'Cairo', sans-serif; }
+html[lang="ar"] h1, html[lang="ar"] h2, html[lang="ar"] h3, html[lang="ar"] h4 { font-family: 'Cairo', sans-serif; }
 h1, h2, h3, h4, .btn { font-family: 'Heebo', sans-serif; }
 
 /* ── HEADER ── */
@@ -32,8 +34,21 @@ header {
 }
 .logo { font-size: 22px; font-weight: 900; letter-spacing: 0.5px; color: var(--text-primary); text-decoration: none; }
 .logo span { color: var(--accent); }
-.header-cta { background: var(--accent); color: var(--bg-main); padding: 8px 20px; border-radius: 4px; font-weight: 700; text-decoration: none; font-size: 14px; transition: 0.2s; }
+.header-nav { display: flex; gap: 20px; align-items: center; }
+.nav-link { color: var(--text-secondary); text-decoration: none; font-size: 14px; font-weight: 600; transition: .2s; white-space: nowrap; }
+.nav-link:hover { color: var(--accent); }
+.header-cta { background: var(--accent); color: var(--bg-main); padding: 8px 20px; border-radius: 4px; font-weight: 700; text-decoration: none; font-size: 14px; transition: 0.2s; white-space: nowrap; }
 .header-cta:hover { opacity: 0.9; transform: translateY(-1px); }
+
+/* ── LANG SWITCHER ── */
+.lang-switcher { display: flex; gap: 4px; align-items: center; }
+.lang-btn {
+  background: none; border: 1px solid var(--border-color); color: var(--text-secondary);
+  padding: 4px 9px; border-radius: 4px; cursor: pointer; font-size: 12px; font-weight: 700;
+  transition: 0.2s; font-family: inherit; letter-spacing: 0.3px;
+}
+.lang-btn.active { background: var(--accent); border-color: var(--accent); color: var(--bg-main); }
+.lang-btn:hover:not(.active) { border-color: var(--accent); color: var(--accent); }
 
 /* ── HERO SECTION ── */
 .hero {
@@ -44,7 +59,7 @@ header {
 .hero-content h1 { font-size: clamp(36px, 4vw, 56px); font-weight: 900; line-height: 1.1; margin-bottom: 24px; }
 .hero-content h1 span { color: var(--accent); }
 .hero-subtitle { font-size: 18px; color: var(--text-secondary); margin-bottom: 40px; max-width: 500px; }
-.hero-buttons { display: flex; gap: 16px; }
+.hero-buttons { display: flex; gap: 16px; flex-wrap: wrap; }
 .btn-primary { background: var(--text-primary); color: var(--bg-main); padding: 14px 28px; border-radius: 6px; font-weight: 700; text-decoration: none; font-size: 16px; transition: 0.2s; }
 .btn-primary:hover { background: var(--accent); }
 .btn-secondary { background: transparent; border: 1px solid var(--border-color); color: var(--text-primary); padding: 14px 28px; border-radius: 6px; font-weight: 700; text-decoration: none; transition: 0.2s; }
@@ -61,7 +76,7 @@ header {
 .ui-sidebar { border-left: 1px solid var(--border-color); padding: 16px; }
 .ui-file { background: rgba(255,255,255,0.03); padding: 10px; border-radius: 4px; margin-bottom: 8px; font-size: 12px; color: var(--text-secondary); border: 1px solid transparent; }
 .ui-file.active { border-color: var(--accent); color: var(--accent); background: var(--accent-glow); }
-.ui-main { padding: 24px; display: flex; flex-direction: column; gap: 16px; }
+.ui-main { padding: 24px; display: flex; flex-direction: column; gap: 16px; overflow-y: auto; }
 .ui-chat-msg { background: rgba(255,255,255,0.05); padding: 12px 16px; border-radius: 8px; font-size: 13px; color: var(--text-secondary); max-width: 80%; }
 .ui-chat-msg.ai { background: var(--accent-glow); border: 1px solid rgba(226, 196, 122, 0.2); color: var(--text-primary); border-top-right-radius: 0; }
 
@@ -79,10 +94,8 @@ header {
 /* ── FEATURES BENTO BOX ── */
 .features-section { padding: 100px 5%; background: var(--bg-surface); }
 .bento-grid {
-  display: grid;
-  grid-template-columns: repeat(4, 1fr);
-  grid-template-rows: auto auto;
-  gap: 20px; max-width: 1200px; margin: 0 auto;
+  display: grid; grid-template-columns: repeat(4, 1fr);
+  grid-template-rows: auto auto; gap: 20px; max-width: 1200px; margin: 0 auto;
 }
 .bento-box {
   background: var(--bg-main); border: 1px solid var(--border-color);
@@ -92,8 +105,6 @@ header {
 .bento-box:hover { border-color: var(--accent); transform: translateY(-2px); box-shadow: 0 10px 30px rgba(0,0,0,0.2); }
 .bento-box h3 { font-size: 22px; margin-bottom: 16px; color: var(--accent); }
 .bento-box p { font-size: 15px; color: var(--text-secondary); line-height: 1.6; }
-
-/* Bento Sizing */
 .bento-drafting { grid-column: span 2; }
 .bento-research { grid-column: span 2; }
 .bento-timeline { grid-column: span 2; }
@@ -107,25 +118,19 @@ header {
   padding: 60px; border-radius: 16px; border: 1px solid var(--border-color);
   position: relative; box-shadow: 0 20px 40px rgba(0,0,0,0.3);
 }
-.founder-title-main { font-family: 'Heebo', sans-serif; font-size: clamp(28px, 3vw, 36px); font-weight: 800; color: var(--text-primary); margin-bottom: 30px; line-height: 1.2; text-align: right; }
+.founder-title-main { font-family: 'Heebo', sans-serif; font-size: clamp(28px, 3vw, 36px); font-weight: 800; color: var(--text-primary); margin-bottom: 30px; line-height: 1.2; }
 .founder-title-main span { color: var(--accent); }
-.founder-quote {
-  font-size: 18px; font-weight: 400; line-height: 1.8; color: var(--text-primary);
-  margin-bottom: 30px; position: relative; z-index: 2;
-}
+.founder-quote { font-size: 17px; font-weight: 400; line-height: 1.9; color: var(--text-primary); margin-bottom: 30px; }
 .founder-quote strong { font-weight: 700; color: var(--accent); }
-.founder-meta {
-  border-top: 1px solid var(--border-color); padding-top: 24px;
-  display: flex; flex-direction: column; gap: 4px;
-}
+.founder-meta { border-top: 1px solid var(--border-color); padding-top: 24px; display: flex; flex-direction: column; gap: 4px; }
 .founder-name { font-size: 20px; font-weight: 800; color: var(--text-primary); font-family: 'Heebo', sans-serif; }
-.founder-title { font-size: 15px; color: var(--text-secondary); }
+.founder-role-title { font-size: 15px; color: var(--text-secondary); }
 
 /* ── BETA FORM ── */
 .beta-section { padding: 100px 5% 120px; background: var(--bg-main); text-align: center; }
 .beta-container { max-width: 800px; margin: 0 auto; }
 .status-badge { display: inline-flex; align-items: center; gap: 8px; background: rgba(239, 68, 68, 0.1); color: var(--danger); padding: 6px 16px; border-radius: 20px; font-weight: 700; font-size: 13px; margin-bottom: 24px; border: 1px solid rgba(239, 68, 68, 0.2); }
-.pulse-dot { width: 8px; height: 8px; background: var(--danger); border-radius: 50%; animation: pulse 2s infinite; }
+.pulse-dot { width: 8px; height: 8px; background: var(--danger); border-radius: 50%; animation: pulse 2s infinite; flex-shrink: 0; }
 .form-wrapper { margin-top: 40px; background: var(--bg-surface); border: 1px solid var(--border-color); border-radius: 12px; overflow: hidden; }
 .form-wrapper iframe { width: 100%; height: 700px; border: none; display: block; }
 
@@ -133,22 +138,28 @@ header {
 .faq-section { padding: 100px 5%; background: var(--bg-surface); }
 .faq-list { max-width: 800px; margin: 0 auto; }
 .faq-item { border-bottom: 1px solid var(--border-color); }
-.faq-btn {
-  width: 100%; background: none; border: none; padding: 24px 0;
-  display: flex; justify-content: space-between; align-items: center;
-  cursor: pointer; text-align: right; gap: 20px;
-}
+.faq-btn { width: 100%; background: none; border: none; padding: 24px 0; display: flex; justify-content: space-between; align-items: center; cursor: pointer; text-align: right; gap: 20px; }
 .faq-q { font-family: 'Heebo', sans-serif; font-size: 17px; font-weight: 600; color: var(--text-primary); line-height: 1.4; transition: color .2s; }
 .faq-icon { width: 28px; height: 28px; flex-shrink: 0; border: 1px solid var(--border-color); display: flex; align-items: center; justify-content: center; font-size: 18px; color: var(--text-secondary); border-radius: 4px; transition: all .25s; }
 .faq-item.open .faq-icon { background: var(--accent); border-color: var(--accent); color: var(--bg-main); transform: rotate(45deg); }
 .faq-item.open .faq-q { color: var(--accent); }
 .faq-answer { max-height: 0; overflow: hidden; transition: max-height .4s ease; }
-.faq-item.open .faq-answer { max-height: 300px; }
+.faq-item.open .faq-answer { max-height: 400px; }
 .faq-a { font-size: 15px; color: var(--text-secondary); line-height: 1.85; padding-bottom: 24px; border-right: 2px solid rgba(226,196,122,0.22); padding-right: 16px; }
 
 /* ── FOOTER ── */
 footer { background: var(--bg-surface); padding: 40px 5%; border-top: 1px solid var(--border-color); text-align: center; color: var(--text-secondary); font-size: 14px; }
 .footer-details { margin-top: 16px; font-size: 13px; opacity: 0.7; }
+.footer-links { margin-top: 16px; font-size: 13px; opacity: 0.6; display: flex; justify-content: center; gap: 24px; }
+.footer-links a { color: inherit; text-decoration: none; }
+.footer-links a:hover { color: var(--accent); opacity: 1; }
+
+/* ── LTR DIRECTION OVERRIDES ── */
+[dir="ltr"] .ui-sidebar { border-left: none; border-right: 1px solid var(--border-color); }
+[dir="ltr"] .faq-a { border-right: none; padding-right: 0; border-left: 2px solid rgba(226,196,122,0.22); padding-left: 16px; }
+[dir="ltr"] .faq-btn { text-align: left; }
+[dir="ltr"] .ui-chat-msg.ai { border-top-right-radius: 8px; border-top-left-radius: 0; }
+[dir="ltr"] .founder-title-main { text-align: left; }
 
 @keyframes pulse { 0% { box-shadow: 0 0 0 0 rgba(239, 68, 68, 0.4); } 70% { box-shadow: 0 0 0 10px rgba(239, 68, 68, 0); } 100% { box-shadow: 0 0 0 0 rgba(239, 68, 68, 0); } }
 
@@ -161,6 +172,11 @@ footer { background: var(--bg-surface); padding: 40px 5%; border-top: 1px solid 
   .bento-grid { grid-template-columns: 1fr; }
   .bento-box { grid-column: span 1 !important; }
   .founder-container { padding: 40px 30px; }
+  .header-nav { gap: 12px; }
+}
+@media (max-width: 640px) {
+  .nav-link { display: none; }
+  .lang-btn { padding: 4px 7px; font-size: 11px; }
 }
 </style>
 </head>
@@ -168,21 +184,27 @@ footer { background: var(--bg-surface); padding: 40px 5%; border-top: 1px solid 
 
 <header>
   <a href="#" class="logo">Factum<span>IL</span></a>
-  <nav style="display:flex;gap:24px;align-items:center;">
-    <a href="#features" style="color:var(--text-secondary);text-decoration:none;font-size:14px;font-weight:600;transition:.2s;" onmouseover="this.style.color='var(--accent)'" onmouseout="this.style.color='var(--text-secondary)'">יכולות</a>
-    <a href="#founder" style="color:var(--text-secondary);text-decoration:none;font-size:14px;font-weight:600;transition:.2s;" onmouseover="this.style.color='var(--accent)'" onmouseout="this.style.color='var(--text-secondary)'">אודות</a>
-    <a href="#faq" style="color:var(--text-secondary);text-decoration:none;font-size:14px;font-weight:600;transition:.2s;" onmouseover="this.style.color='var(--accent)'" onmouseout="this.style.color='var(--text-secondary)'">שאלות ותשובות</a>
-    <a href="#beta" class="header-cta">הרשמה לבטא V13</a>
+  <nav class="header-nav">
+    <a href="#features" class="nav-link" data-i18n="nav_features">יכולות</a>
+    <a href="#founder" class="nav-link" data-i18n="nav_about">אודות</a>
+    <a href="#faq" class="nav-link" data-i18n="nav_faq">שאלות ותשובות</a>
+    <div class="lang-switcher">
+      <button class="lang-btn active" data-lang="he" onclick="setLang('he')">HE</button>
+      <button class="lang-btn" data-lang="en" onclick="setLang('en')">EN</button>
+      <button class="lang-btn" data-lang="ru" onclick="setLang('ru')">RU</button>
+      <button class="lang-btn" data-lang="ar" onclick="setLang('ar')">AR</button>
+    </div>
+    <a href="#beta" class="header-cta" data-i18n="header_cta">הרשמה לבטא V13</a>
   </nav>
 </header>
 
 <section class="hero">
   <div class="hero-content">
-    <h1>לעשות עבודת נמלים זו לא <span>אסטרטגיה משפטית.</span></h1>
-    <p class="hero-subtitle">Factum IL היא עוזר משפטי מבוסס AI, שיושב מקומית על המחשב שלך. ניתוח פרוטוקולים, איתור סתירות, ומחקר פסיקה — בשניות, תוך הגנה מוחלטת על חיסיון עו"ד-לקוח.</p>
+    <h1 data-i18n-html="hero_h1">לעשות עבודת נמלים זו לא <span>אסטרטגיה משפטית.</span></h1>
+    <p class="hero-subtitle" data-i18n="hero_subtitle">Factum IL היא עוזר משפטי מבוסס AI, שיושב מקומית על המחשב שלך. ניתוח פרוטוקולים, איתור סתירות, ומחקר פסיקה — בשניות, תוך הגנה מוחלטת על חיסיון עו"ד-לקוח.</p>
     <div class="hero-buttons">
-      <a href="#beta" class="btn-primary">הבטח את מקומך בבטא</a>
-      <a href="#features" class="btn-secondary">גלה את היכולות</a>
+      <a href="#beta" class="btn-primary" data-i18n="btn_beta">הבטח את מקומך בבטא</a>
+      <a href="#features" class="btn-secondary" data-i18n="btn_features">גלה את היכולות</a>
     </div>
   </div>
 
@@ -194,19 +216,14 @@ footer { background: var(--bg-surface); padding: 40px 5%; border-top: 1px solid 
     </div>
     <div class="ui-body">
       <div class="ui-sidebar">
-        <div style="font-size:11px; color:#94A3B8; margin-bottom:12px; font-weight:700;">תיק פלילי 1234-05-26</div>
-        <div class="ui-file">📄 כתב אישום.pdf</div>
-        <div class="ui-file active">📄 פרוטוקול_חקירה_א.pdf</div>
-        <div class="ui-file">📄 חוות_דעת_מומחה.pdf</div>
+        <div style="font-size:11px;color:#94A3B8;margin-bottom:12px;font-weight:700;" data-i18n="ui_case_label">תיק פלילי 1234-05-26</div>
+        <div class="ui-file" data-i18n="ui_file1">📄 כתב אישום.pdf</div>
+        <div class="ui-file active" data-i18n="ui_file2">📄 פרוטוקול_חקירה_א.pdf</div>
+        <div class="ui-file" data-i18n="ui_file3">📄 חוות_דעת_מומחה.pdf</div>
       </div>
       <div class="ui-main">
-        <div class="ui-chat-msg">האם יש סתירות בגרסת העד המרכזי בין החקירה במשטרה לעדות בבית המשפט?</div>
-        <div class="ui-chat-msg ai">
-          <strong>מצאתי 2 סתירות מהותיות:</strong><br><br>
-          1. בעמ' 14 לחקירה טען העד שעמד במרחק 5 מטרים. בפרוטוקול בית המשפט (עמ' 32, שורה 12) טען שעמד במרחק 15 מטרים.<br>
-          2. לעניין שעת האירוע: גרסה א' (21:30) סותרת את הדו"ח המשטרתי (23:00).<br><br>
-          <em>* להכניס לטיוטת החקירה הנגדית?</em>
-        </div>
+        <div class="ui-chat-msg" data-i18n="ui_chat_q">האם יש סתירות בגרסת העד המרכזי בין החקירה במשטרה לעדות בבית המשפט?</div>
+        <div class="ui-chat-msg ai" data-i18n-html="ui_chat_a"><strong>מצאתי 2 סתירות מהותיות:</strong><br><br>1. בעמ' 14 לחקירה טען העד שעמד במרחק 5 מטרים. בפרוטוקול בית המשפט (עמ' 32, שורה 12) טען שעמד במרחק 15 מטרים.<br>2. לעניין שעת האירוע: גרסה א' (21:30) סותרת את הדו"ח המשטרתי (23:00).<br><br><em>* להכניס לטיוטת החקירה הנגדית?</em></div>
       </div>
     </div>
   </div>
@@ -214,140 +231,121 @@ footer { background: var(--bg-surface); padding: 40px 5%; border-top: 1px solid 
 
 <section class="pain-section">
   <div class="container">
-    <h2 class="section-title">אנחנו יודעים איפה <span>הזמן שלך נשרף.</span></h2>
+    <h2 class="section-title" data-i18n-html="pain_title">אנחנו יודעים איפה <span>הזמן שלך נשרף.</span></h2>
     <div class="pain-grid">
       <div class="pain-card">
         <div class="pain-icon">📑</div>
-        <h3>טביעה בחומרי חקירה</h3>
-        <p>לקרוא 4,000 עמודי פרוטוקול כדי למצוא את השורה האחת שמזכה את הלקוח שלך. משימה ששואבת שעות ומועדת לטעויות אנוש.</p>
+        <h3 data-i18n="pain1_h">טביעה בחומרי חקירה</h3>
+        <p data-i18n="pain1_p">לקרוא 4,000 עמודי פרוטוקול כדי למצוא את השורה האחת שמזכה את הלקוח שלך. משימה ששואבת שעות ומועדת לטעויות אנוש.</p>
       </div>
       <div class="pain-card">
         <div class="pain-icon">⌨️</div>
-        <h3>שעבוד לפרוצדורה</h3>
-        <p>להשקיע זמן יקר בעיצוב המסמך, כיוון שוליים, והתאמה דקדקנית לתקנות סדר הדין 2018 וכללי האזכור האחיד, במקום בטיעון המשפטי.</p>
+        <h3 data-i18n="pain2_h">שעבוד לפרוצדורה</h3>
+        <p data-i18n="pain2_p">להשקיע זמן יקר בעיצוב המסמך, כיוון שוליים, והתאמה דקדקנית לתקנות סדר הדין 2018 וכללי האזכור האחיד, במקום בטיעון המשפטי.</p>
       </div>
       <div class="pain-card">
         <div class="pain-icon">🔒</div>
-        <h3>מלכודת ה-AI בענן</h3>
-        <p>אתה רוצה להשתמש בבינה מלאכותית, אבל הכללים אוסרים עליך להזין נתוני לקוח ל-ChatGPT. הפחד מהפרת חיסיון עוצר את המשרד.</p>
+        <h3 data-i18n="pain3_h">מלכודת ה-AI בענן</h3>
+        <p data-i18n="pain3_p">אתה רוצה להשתמש בבינה מלאכותית, אבל הכללים אוסרים עליך להזין נתוני לקוח ל-ChatGPT. הפחד מהפרת חיסיון עוצר את המשרד.</p>
       </div>
     </div>
   </div>
 </section>
 
 <section class="features-section" id="features">
-  <h2 class="section-title" style="margin-bottom: 50px;">מערכת שנבנתה <span>לצורכי הליטיגציה בישראל</span></h2>
+  <h2 class="section-title" style="margin-bottom:50px;" data-i18n-html="features_title">מערכת שנבנתה <span>לצורכי הליטיגציה בישראל</span></h2>
   <div class="bento-grid">
 
     <div class="bento-box bento-drafting">
-      <h3>ניסוח והפקה של כתבי טענות</h3>
-      <p>המערכת מייצרת אוטומטית טיוטות ראשוניות לבקשות, תגובות, כתבי תביעה והגנה. כל מסמך מקונפג אוטומטית לדרישות הצורניות של בתי המשפט בישראל, כולל בניית כותרות, פסקאות ממוספרות והחלת כללי האזכור האחיד על כל הציטוטים.</p>
+      <h3 data-i18n="bento1_h">ניסוח והפקה של כתבי טענות</h3>
+      <p data-i18n="bento1_p">המערכת מייצרת אוטומטית טיוטות ראשוניות לבקשות, תגובות, כתבי תביעה והגנה. כל מסמך מקונפג אוטומטית לדרישות הצורניות של בתי המשפט בישראל, כולל בניית כותרות, פסקאות ממוספרות והחלת כללי האזכור האחיד על כל הציטוטים.</p>
     </div>
 
     <div class="bento-box bento-research">
-      <h3>מחקר משפטי וחיפוש סמנטי (RAG)</h3>
-      <p>אפשר פשוט "לשאול" את המערכת בעברית איפה נמצא ציטוט מסוים בתוך אלפי עמודים, והיא שולפת את ההקשר המדויק מהתיק ומפסקי דין תומכים, בלי להריץ מילות מפתח יבשות.</p>
+      <h3 data-i18n="bento2_h">מחקר משפטי וחיפוש סמנטי (RAG)</h3>
+      <p data-i18n="bento2_p">אפשר פשוט "לשאול" את המערכת בעברית איפה נמצא ציטוט מסוים בתוך אלפי עמודים, והיא שולפת את ההקשר המדויק מהתיק ומפסקי דין תומכים, בלי להריץ מילות מפתח יבשות.</p>
     </div>
 
     <div class="bento-box bento-timeline">
-      <h3>ניהול מועדים חכם ובניית צירי זמן</h3>
-      <p>המערכת סורקת מיילים, וואטסאפ וסריקות, מזהה את הלקוח ומתייקת אוטומטית. היא בונה ציר זמן משפטי, מזהה מועדים קריטיים לפי סדרי הדין, ומתריעה על התיישנות או מועדי הגשה.</p>
+      <h3 data-i18n="bento3_h">ניהול מועדים חכם ובניית צירי זמן</h3>
+      <p data-i18n="bento3_p">המערכת סורקת מיילים, וואטסאפ וסריקות, מזהה את הלקוח ומתייקת אוטומטית. היא בונה ציר זמן משפטי, מזהה מועדים קריטיים לפי סדרי הדין, ומתריעה על התיישנות או מועדי הגשה.</p>
     </div>
 
     <div class="bento-box bento-security">
-      <h3 style="color: var(--text-primary);">Privacy First (אופליין)</h3>
-      <p style="color: rgba(255,255,255,0.8);">Factum IL רצה לגמרי מקומית (Offline) על המחשב. שום דבר לא עולה לענן. החיסיון נשאר מוחלט. עובד מצוין גם על לפטופ רגיל וגם על שרת מקומי.</p>
+      <h3 style="color:var(--text-primary);" data-i18n="bento4_h">Privacy First (אופליין)</h3>
+      <p style="color:rgba(255,255,255,0.8);" data-i18n="bento4_p">Factum IL רצה לגמרי מקומית (Offline) על המחשב. שום דבר לא עולה לענן. החיסיון נשאר מוחלט. עובד מצוין גם על לפטופ רגיל וגם על שרת מקומי.</p>
     </div>
 
     <div class="bento-box bento-local">
-      <h3>עבודה ברקע (Idle)</h3>
-      <p>המערכת רצה בעיקר כשהמחשב לא בשימוש (בלילה או בהפסקות), כדי לעבד מסמכים כבדים בלי להאט את קצב העבודה השוטף שלך במשרד.</p>
+      <h3 data-i18n="bento5_h">עבודה ברקע (Idle)</h3>
+      <p data-i18n="bento5_p">המערכת רצה בעיקר כשהמחשב לא בשימוש (בלילה או בהפסקות), כדי לעבד מסמכים כבדים בלי להאט את קצב העבודה השוטף שלך במשרד.</p>
     </div>
 
   </div>
 </section>
 
-<!-- FOUNDER SECTION -->
 <section class="founder-section" id="founder">
   <div class="founder-container">
-    <h2 class="founder-title-main">איך מנהלים מאות תיקים ופרויקטי חקיקה בלי <span>"צבא" של מתמחים?</span></h2>
-    <div class="founder-quote">
-      "כשפתחתי את המשרד, הבנתי מהר מאוד את הפער הבלתי אפשרי: מצד אחד, אני עורך דין שרץ על מאות תיקים במקביל – מתעבורה ועד אזרחי ופלילי – ובמקביל מלווה פרויקטי חקיקה לזכויות נכים בכנסת. מצד שני, הזמן שלי פשוט נשרף על דברים טכניים.<br><br>
-      במשרדים הגדולים יש מחלקות שלמות לתיוק, סריקה ומעקב אחרי מועדים. בפרקטיקה הפרטית, רובנו עושים את כל זה לבד. הזמן מתבזבז על בירוקרטיה במקום על עבודה משפטית איכותית וליטיגציה.<br><br>
-      כך נולדה <strong>Factum-IL</strong> ככלי פנימי למשרד שלי. הרעיון לא היה 'עוד תוכנה לניהול תיקים', אלא <strong>תחליף דיגיטלי לצוות עזר (מזכירה/מתמחה) שרץ לגמרי מקומית על המחשב</strong>. מערכת שסורקת אלפי עמודי פרוטוקולים, תלושי שכר ושנות וואטסאפ, ומפיקה 'דוח סתירות' וציר זמן באופן אוטומטי.<br><br>
-      אבל הדבר שהיה לי הכי קריטי בפיתוח הוא <strong>Privacy First</strong>. הכל רץ Offline, לפעמים כשהמחשב ב-Idle. שום דבר לא עולה לענן, והחיסיון נשאר מוחלט. בניתי פתרון שחוסך משכורת של צוות עזר תוך שמירה מלאה על פרטיות, ועכשיו אני גאה לפתוח את הבטא לקולגות שמחפשים בדיוק את אותו הדבר."
-    </div>
+    <h2 class="founder-title-main" data-i18n-html="founder_title">איך מנהלים מאות תיקים ופרויקטי חקיקה בלי <span>"צבא" של מתמחים?</span></h2>
+    <div class="founder-quote" data-i18n-html="founder_quote">"כשפתחתי את המשרד, הבנתי מהר מאוד את הפער הבלתי אפשרי: מצד אחד, אני עורך דין שרץ על מאות תיקים במקביל – מתעבורה ועד אזרחי ופלילי – ובמקביל מלווה פרויקטי חקיקה לזכויות נכים בכנסת. מצד שני, הזמן שלי פשוט נשרף על דברים טכניים.<br><br>במשרדים הגדולים יש מחלקות שלמות לתיוק, סריקה ומעקב אחרי מועדים. בפרקטיקה הפרטית, רובנו עושים את כל זה לבד. הזמן מתבזבז על בירוקרטיה במקום על עבודה משפטית איכותית וליטיגציה.<br><br>כך נולדה <strong>Factum-IL</strong> ככלי פנימי למשרד שלי. הרעיון לא היה 'עוד תוכנה לניהול תיקים', אלא <strong>תחליף דיגיטלי לצוות עזר (מזכירה/מתמחה) שרץ לגמרי מקומית על המחשב</strong>. מערכת שסורקת אלפי עמודי פרוטוקולים, תלושי שכר ושנות וואטסאפ, ומפיקה 'דוח סתירות' וציר זמן באופן אוטומטי.<br><br>אבל הדבר שהיה לי הכי קריטי בפיתוח הוא <strong>Privacy First</strong>. הכל רץ Offline, לפעמים כשהמחשב ב-Idle. שום דבר לא עולה לענן, והחיסיון נשאר מוחלט. בניתי פתרון שחוסך משכורת של צוות עזר תוך שמירה מלאה על פרטיות, ועכשיו אני גאה לפתוח את הבטא לקולגות שמחפשים בדיוק את אותו הדבר."</div>
     <div class="founder-meta">
-      <div class="founder-name">עו"ד ניר אלטמן</div>
-      <div class="founder-title">מנהל משרד עורכי דין, סניגור וליטיגטור, מייסד ומפתח Factum-IL.</div>
+      <div class="founder-name" data-i18n="founder_name">עו"ד ניר אלטמן</div>
+      <div class="founder-role-title" data-i18n="founder_role">מנהל משרד עורכי דין, סניגור וליטיגטור, מייסד ומפתח Factum-IL.</div>
     </div>
   </div>
 </section>
 
-<!-- FAQ SECTION -->
 <section class="faq-section" id="faq">
   <div class="container">
-    <h2 class="section-title">שאלות <span>ותשובות</span></h2>
+    <h2 class="section-title" data-i18n-html="faq_title">שאלות <span>ותשובות</span></h2>
     <div class="faq-list">
 
       <div class="faq-item">
         <button class="faq-btn" onclick="toggleFaq(this)">
-          <span class="faq-q">האם המסמכים שלי נשלחים לענן?</span>
+          <span class="faq-q" data-i18n="faq1_q">האם המסמכים שלי נשלחים לענן?</span>
           <span class="faq-icon">+</span>
         </button>
-        <div class="faq-answer">
-          <p class="faq-a">לא. Factum-IL רץ לגמרי על המחשב שלך. כל המסמכים, הניתוחים ותוצרי ה-AI נשמרים רק מקומית. אין שרת חיצוני, אין ענן, אין שיתוף נתונים — החיסיון נשאר מוחלט.</p>
-        </div>
+        <div class="faq-answer"><p class="faq-a" data-i18n="faq1_a">לא. Factum-IL רץ לגמרי על המחשב שלך. כל המסמכים, הניתוחים ותוצרי ה-AI נשמרים רק מקומית. אין שרת חיצוני, אין ענן, אין שיתוף נתונים — החיסיון נשאר מוחלט.</p></div>
       </div>
 
       <div class="faq-item">
         <button class="faq-btn" onclick="toggleFaq(this)">
-          <span class="faq-q">על איזה חומרה זה עובד?</span>
+          <span class="faq-q" data-i18n="faq2_q">על איזה חומרה זה עובד?</span>
           <span class="faq-icon">+</span>
         </button>
-        <div class="faq-answer">
-          <p class="faq-a">Windows 10/11, מינימום 16GB RAM (מומלץ 32GB). כרטיס גרפי NVIDIA עם 8GB VRAM נותן את הביצועים הטובים ביותר, אך המערכת עובדת גם על CPU בלבד — מעט יותר לאט. Ollama מותקן אוטומטית עם ההתקנה.</p>
-        </div>
+        <div class="faq-answer"><p class="faq-a" data-i18n="faq2_a">Windows 10/11, מינימום 16GB RAM (מומלץ 32GB). כרטיס גרפי NVIDIA עם 8GB VRAM נותן את הביצועים הטובים ביותר, אך המערכת עובדת גם על CPU בלבד — מעט יותר לאט. Ollama מותקן אוטומטית עם ההתקנה.</p></div>
       </div>
 
       <div class="faq-item">
         <button class="faq-btn" onclick="toggleFaq(this)">
-          <span class="faq-q">האם זה מתאים לעורכי דין פרטיים (לא רק משרדים גדולים)?</span>
+          <span class="faq-q" data-i18n="faq3_q">האם זה מתאים לעורכי דין פרטיים (לא רק משרדים גדולים)?</span>
           <span class="faq-icon">+</span>
         </button>
-        <div class="faq-answer">
-          <p class="faq-a">בהחלט — המערכת נבנתה בדיוק עבור עורכי דין שעובדים לבד או בצוות קטן ואין להם "צבא" של מתמחים. היא מחליפה בפועל את צוות העזר הטכני ומאפשרת לאדם אחד לנהל מאות תיקים.</p>
-        </div>
+        <div class="faq-answer"><p class="faq-a" data-i18n="faq3_a">בהחלט — המערכת נבנתה בדיוק עבור עורכי דין שעובדים לבד או בצוות קטן ואין להם "צבא" של מתמחים. היא מחליפה בפועל את צוות העזר הטכני ומאפשרת לאדם אחד לנהל מאות תיקים.</p></div>
       </div>
 
       <div class="faq-item">
         <button class="faq-btn" onclick="toggleFaq(this)">
-          <span class="faq-q">מה כלול בגרסת הבטא ומה עולה?</span>
+          <span class="faq-q" data-i18n="faq4_q">מה כלול בגרסת הבטא ומה עולה?</span>
           <span class="faq-icon">+</span>
         </button>
-        <div class="faq-answer">
-          <p class="faq-a">גרסת הבטא V13 עולה ₪99 לחודש ומעניקה גישה מלאה לכל היכולות. משתתפי הבטא מקבלים השפעה ישירה על פיתוח הפיצ'רים העתידיים ותמיכה צמודה מהמפתחים. אין התחייבות ואין כרטיס אשראי בשלב ההרשמה.</p>
-        </div>
+        <div class="faq-answer"><p class="faq-a" data-i18n="faq4_a">גרסת הבטא V13 עולה ₪99 לחודש ומעניקה גישה מלאה לכל היכולות. משתתפי הבטא מקבלים השפעה ישירה על פיתוח הפיצ'רים העתידיים ותמיכה צמודה מהמפתחים. אין התחייבות ואין כרטיס אשראי בשלב ההרשמה.</p></div>
       </div>
 
       <div class="faq-item">
         <button class="faq-btn" onclick="toggleFaq(this)">
-          <span class="faq-q">למה רק Windows?</span>
+          <span class="faq-q" data-i18n="faq5_q">למה רק Windows?</span>
           <span class="faq-icon">+</span>
         </button>
-        <div class="faq-answer">
-          <p class="faq-a">האפליקציה בנויה על Electron + WebView2 שהוא ייעודי ל-Windows. רוב משרדי עורכי הדין בישראל עובדים על Windows, וזה גם מאפשר אינטגרציה עמוקה עם Office ומערכות ניהול קיימות. תמיכה ב-Mac נמצאת במפת הדרכים.</p>
-        </div>
+        <div class="faq-answer"><p class="faq-a" data-i18n="faq5_a">האפליקציה בנויה על Electron + WebView2 שהוא ייעודי ל-Windows. רוב משרדי עורכי הדין בישראל עובדים על Windows, וזה גם מאפשר אינטגרציה עמוקה עם Office ומערכות ניהול קיימות. תמיכה ב-Mac נמצאת במפת הדרכים.</p></div>
       </div>
 
       <div class="faq-item">
         <button class="faq-btn" onclick="toggleFaq(this)">
-          <span class="faq-q">איך המערכת "יודעת" משפט ישראלי?</span>
+          <span class="faq-q" data-i18n="faq6_q">איך המערכת "יודעת" משפט ישראלי?</span>
           <span class="faq-icon">+</span>
         </button>
-        <div class="faq-answer">
-          <p class="faq-a">המערכת משתמשת במודל Law-IL E2B — מודל שאומן ספציפית על פסקי דין ישראלים, חקיקה ותקנות. הוא מבין את המבנה הפרוצדורלי של בתי המשפט בישראל (שלום, מחוזי, עליון, עבודה, משפחה) ואת כללי האזכור האחיד.</p>
-        </div>
+        <div class="faq-answer"><p class="faq-a" data-i18n="faq6_a">המערכת משתמשת במודל Law-IL E2B — מודל שאומן ספציפית על פסקי דין ישראלים, חקיקה ותקנות. הוא מבין את המבנה הפרוצדורלי של בתי המשפט בישראל (שלום, מחוזי, עליון, עבודה, משפחה) ואת כללי האזכור האחיד.</p></div>
       </div>
 
     </div>
@@ -358,39 +356,321 @@ footer { background: var(--bg-surface); padding: 40px 5%; border-top: 1px solid 
   <div class="beta-container">
     <div class="status-badge">
       <div class="pulse-dot"></div>
-      ההרשמה לגרסת Beta V13 (מאי 2026) פתוחה
+      <span data-i18n="beta_badge">ההרשמה לגרסת Beta V13 (מאי 2026) פתוחה</span>
     </div>
-    <h2 class="section-title" style="margin-bottom: 20px;">קח את היתרון <span>לפני הצד השני.</span></h2>
-    <p style="color: var(--text-secondary); font-size: 18px; margin-bottom: 20px;">
-      אנחנו בוחרים 50 משרדי עורכי דין שיובילו את ההטמעה הראשונית בישראל.<br>
-      הצטרף עכשיו וקבל השפעה ישירה על פיצ'רים עתידיים, תמיכה צמודה, וגישה מלאה.
-    </p>
-
+    <h2 class="section-title" style="margin-bottom:20px;" data-i18n-html="beta_title">קח את היתרון <span>לפני הצד השני.</span></h2>
+    <p style="color:var(--text-secondary);font-size:18px;margin-bottom:20px;" data-i18n-html="beta_desc">אנחנו בוחרים 50 משרדי עורכי דין שיובילו את ההטמעה הראשונית בישראל.<br>הצטרף עכשיו וקבל השפעה ישירה על פיצ'רים עתידיים, תמיכה צמודה, וגישה מלאה.</p>
     <div class="form-wrapper">
-      <iframe src="https://docs.google.com/forms/d/e/1FAIpQLScsCoV9M-5sl6EL5NPVqraFdwmcgSAjKPypaMcnczpiEHmW4A/viewform?embedded=true" title="טופס הרשמה לבטא Factum-IL"></iframe>
+      <iframe id="beta-iframe" src="https://docs.google.com/forms/d/e/1FAIpQLScsCoV9M-5sl6EL5NPVqraFdwmcgSAjKPypaMcnczpiEHmW4A/viewform?embedded=true" title="טופס הרשמה לבטא Factum-IL"></iframe>
     </div>
   </div>
 </section>
 
 <footer>
-  <div>© 2026 Factum-IL. פותח עבור קהילת המשפט בישראל.</div>
+  <div data-i18n="footer_copy">© 2026 Factum-IL. פותח עבור קהילת המשפט בישראל.</div>
   <div class="footer-details">
-    אפרים 18, קרית ביאליק | altman.adv@gmail.com <br>
-    המערכת מהווה כלי עזר משפטי ואינה מחליפה שיקול דעת מקצועי של עורך דין.
+    <span data-i18n="footer_details">אפרים 18, קרית ביאליק | altman.adv@gmail.com</span><br>
+    <span data-i18n="footer_disclaimer">המערכת מהווה כלי עזר משפטי ואינה מחליפה שיקול דעת מקצועי של עורך דין.</span>
   </div>
-  <div style="margin-top:16px; font-size:13px; opacity:0.6;">
-    <a href="terms.html" style="color:inherit; text-decoration:none; margin-left:16px;">תנאי שימוש</a>
-    <a href="accessibility.html" style="color:inherit; text-decoration:none;">הצהרת נגישות</a>
+  <div class="footer-links">
+    <a href="terms.html" data-i18n="footer_terms">תנאי שימוש</a>
+    <a href="accessibility.html" data-i18n="footer_accessibility">הצהרת נגישות</a>
   </div>
 </footer>
 
 <script>
+const translations = {
+  he: {
+    pageTitle: `Factum-IL | מערכת הבינה המלאכותית לעורכי דין בישראל`,
+    nav_features: `יכולות`,
+    nav_about: `אודות`,
+    nav_faq: `שאלות ותשובות`,
+    header_cta: `הרשמה לבטא V13`,
+    hero_h1: `לעשות עבודת נמלים זו לא <span>אסטרטגיה משפטית.</span>`,
+    hero_subtitle: `Factum IL היא עוזר משפטי מבוסס AI, שיושב מקומית על המחשב שלך. ניתוח פרוטוקולים, איתור סתירות, ומחקר פסיקה — בשניות, תוך הגנה מוחלטת על חיסיון עו"ד-לקוח.`,
+    btn_beta: `הבטח את מקומך בבטא`,
+    btn_features: `גלה את היכולות`,
+    ui_case_label: `תיק פלילי 1234-05-26`,
+    ui_file1: `📄 כתב אישום.pdf`,
+    ui_file2: `📄 פרוטוקול_חקירה_א.pdf`,
+    ui_file3: `📄 חוות_דעת_מומחה.pdf`,
+    ui_chat_q: `האם יש סתירות בגרסת העד המרכזי בין החקירה במשטרה לעדות בבית המשפט?`,
+    ui_chat_a: `<strong>מצאתי 2 סתירות מהותיות:</strong><br><br>1. בעמ' 14 לחקירה טען העד שעמד במרחק 5 מטרים. בפרוטוקול בית המשפט (עמ' 32, שורה 12) טען שעמד במרחק 15 מטרים.<br>2. לעניין שעת האירוע: גרסה א' (21:30) סותרת את הדו"ח המשטרתי (23:00).<br><br><em>* להכניס לטיוטת החקירה הנגדית?</em>`,
+    pain_title: `אנחנו יודעים איפה <span>הזמן שלך נשרף.</span>`,
+    pain1_h: `טביעה בחומרי חקירה`,
+    pain1_p: `לקרוא 4,000 עמודי פרוטוקול כדי למצוא את השורה האחת שמזכה את הלקוח שלך. משימה ששואבת שעות ומועדת לטעויות אנוש.`,
+    pain2_h: `שעבוד לפרוצדורה`,
+    pain2_p: `להשקיע זמן יקר בעיצוב המסמך, כיוון שוליים, והתאמה דקדקנית לתקנות סדר הדין 2018 וכללי האזכור האחיד, במקום בטיעון המשפטי.`,
+    pain3_h: `מלכודת ה-AI בענן`,
+    pain3_p: `אתה רוצה להשתמש בבינה מלאכותית, אבל הכללים אוסרים עליך להזין נתוני לקוח ל-ChatGPT. הפחד מהפרת חיסיון עוצר את המשרד.`,
+    features_title: `מערכת שנבנתה <span>לצורכי הליטיגציה בישראל</span>`,
+    bento1_h: `ניסוח והפקה של כתבי טענות`,
+    bento1_p: `המערכת מייצרת אוטומטית טיוטות ראשוניות לבקשות, תגובות, כתבי תביעה והגנה. כל מסמך מקונפג אוטומטית לדרישות הצורניות של בתי המשפט בישראל, כולל בניית כותרות, פסקאות ממוספרות והחלת כללי האזכור האחיד על כל הציטוטים.`,
+    bento2_h: `מחקר משפטי וחיפוש סמנטי (RAG)`,
+    bento2_p: `אפשר פשוט "לשאול" את המערכת בעברית איפה נמצא ציטוט מסוים בתוך אלפי עמודים, והיא שולפת את ההקשר המדויק מהתיק ומפסקי דין תומכים, בלי להריץ מילות מפתח יבשות.`,
+    bento3_h: `ניהול מועדים חכם ובניית צירי זמן`,
+    bento3_p: `המערכת סורקת מיילים, וואטסאפ וסריקות, מזהה את הלקוח ומתייקת אוטומטית. היא בונה ציר זמן משפטי, מזהה מועדים קריטיים לפי סדרי הדין, ומתריעה על התיישנות או מועדי הגשה.`,
+    bento4_h: `Privacy First (אופליין)`,
+    bento4_p: `Factum IL רצה לגמרי מקומית (Offline) על המחשב. שום דבר לא עולה לענן. החיסיון נשאר מוחלט. עובד מצוין גם על לפטופ רגיל וגם על שרת מקומי.`,
+    bento5_h: `עבודה ברקע (Idle)`,
+    bento5_p: `המערכת רצה בעיקר כשהמחשב לא בשימוש (בלילה או בהפסקות), כדי לעבד מסמכים כבדים בלי להאט את קצב העבודה השוטף שלך במשרד.`,
+    founder_title: `איך מנהלים מאות תיקים ופרויקטי חקיקה בלי <span>"צבא" של מתמחים?</span>`,
+    founder_quote: `"כשפתחתי את המשרד, הבנתי מהר מאוד את הפער הבלתי אפשרי: מצד אחד, אני עורך דין שרץ על מאות תיקים במקביל – מתעבורה ועד אזרחי ופלילי – ובמקביל מלווה פרויקטי חקיקה לזכויות נכים בכנסת. מצד שני, הזמן שלי פשוט נשרף על דברים טכניים.<br><br>במשרדים הגדולים יש מחלקות שלמות לתיוק, סריקה ומעקב אחרי מועדים. בפרקטיקה הפרטית, רובנו עושים את כל זה לבד. הזמן מתבזבז על בירוקרטיה במקום על עבודה משפטית איכותית וליטיגציה.<br><br>כך נולדה <strong>Factum-IL</strong> ככלי פנימי למשרד שלי. הרעיון לא היה 'עוד תוכנה לניהול תיקים', אלא <strong>תחליף דיגיטלי לצוות עזר (מזכירה/מתמחה) שרץ לגמרי מקומית על המחשב</strong>. מערכת שסורקת אלפי עמודי פרוטוקולים, תלושי שכר ושנות וואטסאפ, ומפיקה 'דוח סתירות' וציר זמן באופן אוטומטי.<br><br>אבל הדבר שהיה לי הכי קריטי בפיתוח הוא <strong>Privacy First</strong>. הכל רץ Offline, לפעמים כשהמחשב ב-Idle. שום דבר לא עולה לענן, והחיסיון נשאר מוחלט. בניתי פתרון שחוסך משכורת של צוות עזר תוך שמירה מלאה על פרטיות, ועכשיו אני גאה לפתוח את הבטא לקולגות שמחפשים בדיוק את אותו הדבר."`,
+    founder_name: `עו"ד ניר אלטמן`,
+    founder_role: `מנהל משרד עורכי דין, סניגור וליטיגטור, מייסד ומפתח Factum-IL.`,
+    faq_title: `שאלות <span>ותשובות</span>`,
+    faq1_q: `האם המסמכים שלי נשלחים לענן?`,
+    faq1_a: `לא. Factum-IL רץ לגמרי על המחשב שלך. כל המסמכים, הניתוחים ותוצרי ה-AI נשמרים רק מקומית. אין שרת חיצוני, אין ענן, אין שיתוף נתונים — החיסיון נשאר מוחלט.`,
+    faq2_q: `על איזה חומרה זה עובד?`,
+    faq2_a: `Windows 10/11, מינימום 16GB RAM (מומלץ 32GB). כרטיס גרפי NVIDIA עם 8GB VRAM נותן את הביצועים הטובים ביותר, אך המערכת עובדת גם על CPU בלבד — מעט יותר לאט. Ollama מותקן אוטומטית עם ההתקנה.`,
+    faq3_q: `האם זה מתאים לעורכי דין פרטיים (לא רק משרדים גדולים)?`,
+    faq3_a: `בהחלט — המערכת נבנתה בדיוק עבור עורכי דין שעובדים לבד או בצוות קטן ואין להם "צבא" של מתמחים. היא מחליפה בפועל את צוות העזר הטכני ומאפשרת לאדם אחד לנהל מאות תיקים.`,
+    faq4_q: `מה כלול בגרסת הבטא ומה עולה?`,
+    faq4_a: `גרסת הבטא V13 עולה ₪99 לחודש ומעניקה גישה מלאה לכל היכולות. משתתפי הבטא מקבלים השפעה ישירה על פיתוח הפיצ'רים העתידיים ותמיכה צמודה מהמפתחים. אין התחייבות ואין כרטיס אשראי בשלב ההרשמה.`,
+    faq5_q: `למה רק Windows?`,
+    faq5_a: `האפליקציה בנויה על Electron + WebView2 שהוא ייעודי ל-Windows. רוב משרדי עורכי הדין בישראל עובדים על Windows, וזה גם מאפשר אינטגרציה עמוקה עם Office ומערכות ניהול קיימות. תמיכה ב-Mac נמצאת במפת הדרכים.`,
+    faq6_q: `איך המערכת "יודעת" משפט ישראלי?`,
+    faq6_a: `המערכת משתמשת במודל Law-IL E2B — מודל שאומן ספציפית על פסקי דין ישראלים, חקיקה ותקנות. הוא מבין את המבנה הפרוצדורלי של בתי המשפט בישראל (שלום, מחוזי, עליון, עבודה, משפחה) ואת כללי האזכור האחיד.`,
+    beta_badge: `ההרשמה לגרסת Beta V13 (מאי 2026) פתוחה`,
+    beta_title: `קח את היתרון <span>לפני הצד השני.</span>`,
+    beta_desc: `אנחנו בוחרים 50 משרדי עורכי דין שיובילו את ההטמעה הראשונית בישראל.<br>הצטרף עכשיו וקבל השפעה ישירה על פיצ'רים עתידיים, תמיכה צמודה, וגישה מלאה.`,
+    beta_iframe_title: `טופס הרשמה לבטא Factum-IL`,
+    footer_copy: `© 2026 Factum-IL. פותח עבור קהילת המשפט בישראל.`,
+    footer_details: `אפרים 18, קרית ביאליק | altman.adv@gmail.com`,
+    footer_disclaimer: `המערכת מהווה כלי עזר משפטי ואינה מחליפה שיקול דעת מקצועי של עורך דין.`,
+    footer_terms: `תנאי שימוש`,
+    footer_accessibility: `הצהרת נגישות`
+  },
+
+  en: {
+    pageTitle: `Factum-IL | AI Legal Assistant for Israeli Lawyers`,
+    nav_features: `Features`,
+    nav_about: `About`,
+    nav_faq: `FAQ`,
+    header_cta: `Register for Beta V13`,
+    hero_h1: `Grunt work is not a <span>legal strategy.</span>`,
+    hero_subtitle: `Factum-IL is an AI-powered legal assistant that runs entirely on your computer. Analyze transcripts, identify witness contradictions, and research case law — in seconds, with complete attorney-client privilege protection.`,
+    btn_beta: `Secure Your Beta Spot`,
+    btn_features: `Explore Capabilities`,
+    ui_case_label: `Criminal Case 1234-05-26`,
+    ui_file1: `📄 Indictment.pdf`,
+    ui_file2: `📄 Interrogation_Protocol_A.pdf`,
+    ui_file3: `📄 Expert_Opinion.pdf`,
+    ui_chat_q: `Are there contradictions in the key witness's account between the police interrogation and the court testimony?`,
+    ui_chat_a: `<strong>Found 2 material contradictions:</strong><br><br>1. On p. 14 of interrogation, witness claimed standing 5 meters away. In court protocol (p. 32, line 12) claimed 15 meters.<br>2. Event time: version A (21:30) contradicts the police report (23:00).<br><br><em>* Add to cross-examination draft?</em>`,
+    pain_title: `We know where <span>your time burns.</span>`,
+    pain1_h: `Drowning in Case Material`,
+    pain1_p: `Reading 4,000 pages of transcripts to find the single line that exonerates your client. A task that devours hours and is prone to human error.`,
+    pain2_h: `Enslaved to Procedure`,
+    pain2_p: `Spending valuable time on document formatting, margin settings, and meticulous compliance with court rules — instead of on legal argumentation.`,
+    pain3_h: `The Cloud AI Trap`,
+    pain3_p: `You want to use AI, but regulations prohibit entering client data into ChatGPT. Fear of breaching privilege keeps the firm from moving forward.`,
+    features_title: `A system built <span>for Israeli litigation</span>`,
+    bento1_h: `Pleadings Drafting & Production`,
+    bento1_p: `Automatically generates initial drafts for motions, responses, claims, and defenses. Each document is auto-configured to Israeli court formal requirements, including structured headings, numbered paragraphs, and uniform citation standards applied to every quote.`,
+    bento2_h: `Legal Research & Semantic Search (RAG)`,
+    bento2_p: `Simply "ask" the system where a specific quote appears within thousands of pages, and it retrieves the exact context from the file and supporting case law — without dry keyword searches.`,
+    bento3_h: `Smart Deadline Management & Timeline Building`,
+    bento3_p: `Scans emails, WhatsApp, and scanned documents, identifies the client, and files automatically. Builds a legal timeline, identifies critical deadlines per procedural rules, and alerts on statute of limitations or filing deadlines.`,
+    bento4_h: `Privacy First (Offline)`,
+    bento4_p: `Factum-IL runs entirely locally (Offline) on your computer. Nothing goes to the cloud. Privilege remains absolute. Works on a regular laptop or a local server.`,
+    bento5_h: `Background Processing (Idle)`,
+    bento5_p: `The system runs mainly when your computer is idle (overnight or during breaks), processing heavy documents without slowing down your regular workday.`,
+    founder_title: `How do you manage hundreds of cases and legislation projects without an <span>"army" of clerks?</span>`,
+    founder_quote: `"When I opened my practice, I quickly understood the impossible gap: on one hand, I'm a lawyer running hundreds of cases in parallel — from traffic to civil and criminal — while simultaneously supporting disability rights legislation in the Knesset. On the other hand, my time was simply burning on technical tasks.<br><br>Large firms have entire departments for filing, scanning, and tracking deadlines. In private practice, most of us do all of it alone. Time gets wasted on bureaucracy instead of quality legal work and litigation.<br><br>This is how <strong>Factum-IL</strong> was born as an internal tool for my office. The idea wasn't 'another case management software,' but a <strong>digital replacement for support staff (secretary/clerk) that runs entirely locally on the computer</strong>. A system that scans thousands of pages of protocols, payslips, and years of WhatsApp messages, and automatically produces a 'contradictions report' and timeline.<br><br>The most critical thing in development was <strong>Privacy First</strong>. Everything runs Offline, sometimes when the computer is idle. Nothing goes to the cloud, and privilege remains absolute. I built a solution that saves the cost of a support team while fully preserving privacy — and now I'm proud to open the beta to colleagues looking for exactly the same thing."`,
+    founder_name: `Adv. Nir Altman`,
+    founder_role: `Law Office Director, Defense Attorney & Litigator, Founder & Developer of Factum-IL.`,
+    faq_title: `Frequently Asked <span>Questions</span>`,
+    faq1_q: `Are my documents sent to the cloud?`,
+    faq1_a: `No. Factum-IL runs entirely on your computer. All documents, analyses, and AI outputs are stored locally only. No external server, no cloud, no data sharing — privilege remains absolute.`,
+    faq2_q: `What hardware does it require?`,
+    faq2_a: `Windows 10/11, minimum 16GB RAM (32GB recommended). An NVIDIA GPU with 8GB VRAM gives the best performance, but the system also works on CPU only — slightly slower. Ollama is installed automatically with the installation.`,
+    faq3_q: `Is it suitable for solo lawyers (not only large firms)?`,
+    faq3_a: `Absolutely — the system was built exactly for lawyers working alone or in small teams without an "army" of clerks. It effectively replaces the technical support staff and allows one person to manage hundreds of cases.`,
+    faq4_q: `What's included in the beta and what does it cost?`,
+    faq4_a: `Beta version V13 costs ₪99/month and provides full access to all features. Beta participants have direct influence on future feature development and close support from the developers. No commitment and no credit card required at registration.`,
+    faq5_q: `Why Windows only?`,
+    faq5_a: `The application is built on Electron + WebView2, which is Windows-specific. Most Israeli law offices work on Windows, which also enables deep integration with Office and existing management systems. Mac support is on the roadmap.`,
+    faq6_q: `How does the system "know" Israeli law?`,
+    faq6_a: `The system uses the Law-IL E2B model — trained specifically on Israeli court decisions, legislation, and regulations. It understands the procedural structure of Israeli courts (Magistrate, District, Supreme, Labor, Family) and uniform citation rules.`,
+    beta_badge: `Registration for Beta Version V13 (May 2026) is Open`,
+    beta_title: `Get the advantage <span>before the other side.</span>`,
+    beta_desc: `We are selecting 50 law firms to lead the initial deployment in Israel.<br>Join now and get direct influence on future features, close support, and full access.`,
+    beta_iframe_title: `Factum-IL Beta Registration Form`,
+    footer_copy: `© 2026 Factum-IL. Built for Israel's legal community.`,
+    footer_details: `Efraim 18, Kiryat Bialik | altman.adv@gmail.com`,
+    footer_disclaimer: `The system is a legal assistance tool and does not replace the professional judgment of an attorney.`,
+    footer_terms: `Terms of Use`,
+    footer_accessibility: `Accessibility Statement`
+  },
+
+  ru: {
+    pageTitle: `Factum-IL | ИИ-помощник для адвокатов Израиля`,
+    nav_features: `Возможности`,
+    nav_about: `О нас`,
+    nav_faq: `Вопросы и ответы`,
+    header_cta: `Регистрация на Beta V13`,
+    hero_h1: `Рутинная работа — это не <span>юридическая стратегия.</span>`,
+    hero_subtitle: `Factum-IL — AI-помощник для адвокатов, работающий локально на вашем компьютере. Анализ протоколов, выявление противоречий и исследование прецедентов — за секунды, с полной защитой адвокатской тайны.`,
+    btn_beta: `Забронировать место в бета-тесте`,
+    btn_features: `Узнать о возможностях`,
+    ui_case_label: `Уголовное дело 1234-05-26`,
+    ui_file1: `📄 Обвинительное_заключение.pdf`,
+    ui_file2: `📄 Протокол_допроса_А.pdf`,
+    ui_file3: `📄 Заключение_эксперта.pdf`,
+    ui_chat_q: `Есть ли противоречия в показаниях ключевого свидетеля между полицейским допросом и судебными показаниями?`,
+    ui_chat_a: `<strong>Найдено 2 существенных противоречия:</strong><br><br>1. На стр. 14 допроса свидетель утверждал, что стоял в 5 метрах. В суде (стр. 32, строка 12) — в 15 метрах.<br>2. Время события: версия А (21:30) противоречит полицейскому рапорту (23:00).<br><br><em>* Добавить в проект перекрёстного допроса?</em>`,
+    pain_title: `Мы знаем, где <span>сгорает ваше время.</span>`,
+    pain1_h: `Тонете в материалах дела`,
+    pain1_p: `Прочитать 4 000 страниц протоколов, чтобы найти одну строку, оправдывающую клиента. Задача, которая пожирает часы и чревата человеческими ошибками.`,
+    pain2_h: `В плену у процедуры`,
+    pain2_p: `Тратить ценное время на форматирование документов, настройку полей и педантичное соблюдение процессуальных правил — вместо юридической аргументации.`,
+    pain3_h: `Ловушка облачного ИИ`,
+    pain3_p: `Вы хотите использовать ИИ, но правила запрещают вводить данные клиента в ChatGPT. Страх нарушить профессиональную тайну удерживает контору.`,
+    features_title: `Система, созданная <span>для судебных процессов в Израиле</span>`,
+    bento1_h: `Составление состязательных документов`,
+    bento1_p: `Система автоматически генерирует первоначальные проекты ходатайств, ответов, исков и возражений. Каждый документ автоматически соответствует формальным требованиям израильских судов, включая структурированные заголовки и единые стандарты цитирования.`,
+    bento2_h: `Правовые исследования и семантический поиск (RAG)`,
+    bento2_p: `Просто «спросите» систему, где находится нужная цитата среди тысяч страниц, — она извлечёт точный контекст из дела и поддерживающей судебной практики, без сухого поиска по ключевым словам.`,
+    bento3_h: `Управление сроками и хронология`,
+    bento3_p: `Сканирует письма, WhatsApp и документы, идентифицирует клиента и автоматически архивирует. Строит юридическую хронологию, выявляет критические сроки и предупреждает об истечении давности.`,
+    bento4_h: `Privacy First (офлайн)`,
+    bento4_p: `Factum-IL работает полностью локально (Offline) на вашем компьютере. Ничего не уходит в облако. Профессиональная тайна остаётся абсолютной. Работает на обычном ноутбуке или локальном сервере.`,
+    bento5_h: `Фоновая обработка (режим простоя)`,
+    bento5_p: `Система работает преимущественно когда компьютер не используется (ночью или в перерывах), обрабатывая тяжёлые документы без замедления текущей работы.`,
+    founder_title: `Как вести сотни дел и законодательных проектов без <span>«армии» стажёров?</span>`,
+    founder_quote: `"Открыв собственную практику, я быстро осознал невозможный разрыв: с одной стороны, я веду сотни дел параллельно — от ПДД до гражданских и уголовных — и одновременно сопровождаю законопроекты о правах инвалидов в Кнессете. С другой стороны, моё время просто сгорало на технических задачах.<br><br>В крупных фирмах есть целые отделы для архивирования, сканирования и отслеживания сроков. В частной практике большинство из нас делает всё это в одиночку. Время уходит на бюрократию вместо качественной юридической работы.<br><br>Так родился <strong>Factum-IL</strong> как внутренний инструмент для моей конторы. Идея была не в «ещё одной программе управления делами», а в <strong>цифровой замене вспомогательного персонала, работающей полностью локально</strong>. Система, которая сканирует тысячи страниц протоколов, расчётных листков и лет переписки в WhatsApp, и автоматически создаёт «отчёт о противоречиях» и хронологию.<br><br>Самым критичным в разработке был принцип <strong>Privacy First</strong>. Всё работает офлайн. Ничего не уходит в облако, тайна остаётся абсолютной. Я создал решение, экономящее расходы на вспомогательный персонал при полном сохранении конфиденциальности — и теперь с гордостью открываю бета-доступ коллегам, которые ищут именно это."`,
+    founder_name: `Адв. Нир Альтман`,
+    founder_role: `Руководитель юридической фирмы, уголовный защитник и судебный адвокат, основатель и разработчик Factum-IL.`,
+    faq_title: `Вопросы <span>и ответы</span>`,
+    faq1_q: `Мои документы отправляются в облако?`,
+    faq1_a: `Нет. Factum-IL работает полностью на вашем компьютере. Все документы, анализы и результаты ИИ хранятся только локально. Нет внешних серверов, нет облака, нет обмена данными — профессиональная тайна абсолютна.`,
+    faq2_q: `Какое оборудование требуется?`,
+    faq2_a: `Windows 10/11, минимум 16 ГБ ОЗУ (рекомендуется 32 ГБ). Видеокарта NVIDIA с 8 ГБ VRAM даёт наилучшую производительность, но система работает и только на CPU — несколько медленнее. Ollama устанавливается автоматически.`,
+    faq3_q: `Подходит ли для частнопрактикующих адвокатов?`,
+    faq3_a: `Безусловно — система создана именно для адвокатов, работающих самостоятельно или в небольшой команде без «армии» стажёров. Она фактически заменяет технический вспомогательный персонал и позволяет одному человеку вести сотни дел.`,
+    faq4_q: `Что входит в бета-версию и сколько это стоит?`,
+    faq4_a: `Бета-версия V13 стоит ₪99 в месяц и предоставляет полный доступ ко всем функциям. Участники бета-тестирования напрямую влияют на разработку будущих функций и получают поддержку разработчиков. Никаких обязательств и данных карты при регистрации.`,
+    faq5_q: `Почему только Windows?`,
+    faq5_a: `Приложение построено на Electron + WebView2, специфичном для Windows. Большинство израильских юридических контор работают на Windows, что также обеспечивает глубокую интеграцию с Office. Поддержка Mac запланирована.`,
+    faq6_q: `Откуда система «знает» израильское право?`,
+    faq6_a: `Система использует модель Law-IL E2B — обученную специально на израильских судебных решениях, законодательстве и нормативных актах. Она понимает процессуальную структуру израильских судов и правила единого цитирования.`,
+    beta_badge: `Регистрация на бета-версию V13 (май 2026) открыта`,
+    beta_title: `Получите преимущество <span>раньше оппонентов.</span>`,
+    beta_desc: `Мы выбираем 50 юридических фирм для первоначального внедрения в Израиле.<br>Присоединяйтесь сейчас и получите прямое влияние на будущие функции, поддержку и полный доступ.`,
+    beta_iframe_title: `Форма регистрации на бета-тест Factum-IL`,
+    footer_copy: `© 2026 Factum-IL. Создано для юридического сообщества Израиля.`,
+    footer_details: `Эфраим 18, Кирьят-Биалик | altman.adv@gmail.com`,
+    footer_disclaimer: `Система является вспомогательным юридическим инструментом и не заменяет профессиональное суждение адвоката.`,
+    footer_terms: `Условия использования`,
+    footer_accessibility: `Заявление о доступности`
+  },
+
+  ar: {
+    pageTitle: `Factum-IL | مساعد ذكاء اصطناعي للمحامين في إسرائيل`,
+    nav_features: `الميزات`,
+    nav_about: `من نحن`,
+    nav_faq: `الأسئلة والأجوبة`,
+    header_cta: `سجّل في Beta V13`,
+    hero_h1: `العمل الروتيني ليس <span>استراتيجية قانونية.</span>`,
+    hero_subtitle: `Factum-IL هو مساعد قانوني مدعوم بالذكاء الاصطناعي يعمل محلياً على جهاز الكمبيوتر الخاص بك. تحليل المحاضر، وكشف التناقضات، والبحث في الاجتهادات القضائية — في ثوانٍ، مع حماية مطلقة لسرية المحامي-العميل.`,
+    btn_beta: `احجز مكانك في الإصدار التجريبي`,
+    btn_features: `اكتشف الإمكانيات`,
+    ui_case_label: `قضية جنائية 1234-05-26`,
+    ui_file1: `📄 لائحة_الاتهام.pdf`,
+    ui_file2: `📄 محضر_الاستجواب_أ.pdf`,
+    ui_file3: `📄 تقرير_الخبير.pdf`,
+    ui_chat_q: `هل توجد تناقضات في إفادة الشاهد الرئيسي بين التحقيق الشرطي والشهادة أمام المحكمة؟`,
+    ui_chat_a: `<strong>وجدت تناقضَين جوهريَّين:</strong><br><br>1. في صفحة 14 من التحقيق، ادّعى الشاهد أنه كان على بُعد 5 أمتار. في محضر المحكمة (ص 32، سطر 12) ادّعى 15 متراً.<br>2. وقت الحادثة: الرواية أ (21:30) تتعارض مع تقرير الشرطة (23:00).<br><br><em>* إضافة إلى مسودة الاستجواب المتقاطع؟</em>`,
+    pain_title: `نعرف أين <span>يضيع وقتك.</span>`,
+    pain1_h: `غارق في مواد القضية`,
+    pain1_p: `قراءة 4٬000 صفحة من المحاضر للعثور على السطر الوحيد الذي يبرئ موكلك. مهمة تستنزف ساعات وعرضة للأخطاء البشرية.`,
+    pain2_h: `عبد للإجراءات`,
+    pain2_p: `إضاعة الوقت الثمين في تنسيق الوثائق وضبط الهوامش والامتثال الدقيق للوائح المحاكم — بدلاً من الحجج القانونية.`,
+    pain3_h: `فخ الذكاء الاصطناعي السحابي`,
+    pain3_p: `تريد استخدام الذكاء الاصطناعي، لكن القواعد تحظر إدخال بيانات الموكل في ChatGPT. الخوف من انتهاك السرية يشلّ المكتب.`,
+    features_title: `نظام مبنيٌّ <span>لاحتياجات التقاضي في إسرائيل</span>`,
+    bento1_h: `صياغة اللوائح وإعدادها`,
+    bento1_p: `تولّد المنظومة تلقائياً مسودات أوّلية للطلبات والردود واللوائح. كل وثيقة مُهيَّأة تلقائياً لمتطلبات المحاكم الإسرائيلية الشكلية، بما فيها العناوين المنظّمة والفقرات المرقّمة ومعايير الاستشهاد الموحّدة.`,
+    bento2_h: `البحث القانوني والبحث الدلالي (RAG)`,
+    bento2_p: `ببساطة «اسأل» المنظومة عن مكان اقتباس محدد ضمن آلاف الصفحات، فتستخرج السياق الدقيق من الملف والاجتهادات القضائية الداعمة — دون البحث الجاف بالكلمات المفتاحية.`,
+    bento3_h: `إدارة المواعيد وبناء الجداول الزمنية`,
+    bento3_p: `تفحص رسائل البريد الإلكتروني وواتساب والمسوحات، تتعرّف على الموكل وتُصنّف تلقائياً. تبني جدولاً زمنياً قانونياً وتنبّه عند اقتراب مواعيد التقادم أو التقديم.`,
+    bento4_h: `Privacy First (أوفلاين)`,
+    bento4_p: `يعمل Factum-IL بالكامل محلياً (Offline) على جهازك. لا شيء يُرفع إلى السحابة. تبقى السرية مطلقة. يعمل على الحاسوب المحمول العادي أو الخادم المحلي.`,
+    bento5_h: `المعالجة في الخلفية (وقت الخمول)`,
+    bento5_p: `تعمل المنظومة أساساً عندما يكون الجهاز غير مستخدَم (ليلاً أو في الاستراحات)، لمعالجة الوثائق الثقيلة دون إبطاء العمل اليومي.`,
+    founder_title: `كيف تُدير مئات القضايا والمشاريع التشريعية دون <span>«جيش» من المتدرّبين؟</span>`,
+    founder_quote: `"حين فتحت مكتبي، أدركت بسرعة الهوّة المستحيلة: من ناحية، أنا محامٍ يتولّى مئات القضايا في آنٍ واحد — من مرور إلى مدني وجنائي — فيما أرافق مشاريع تشريعية لحقوق ذوي الإعاقة في الكنيست. من ناحية أخرى، وقتي يحترق في مهام تقنية.<br><br>في المكاتب الكبيرة أقسام كاملة للأرشفة والمسح وتتبع المواعيد. في الممارسة الخاصة، معظمنا يفعل كل ذلك وحده. يضيع الوقت في البيروقراطية بدلاً من العمل القانوني الجادّ.<br><br>هكذا وُلد <strong>Factum-IL</strong> أداةً داخليةً لمكتبي. الفكرة لم تكن «برنامجاً آخر لإدارة القضايا»، بل <strong>بديلاً رقمياً لفريق الدعم يعمل محلياً بالكامل</strong>. نظام يمسح آلاف صفحات المحاضر وكشوف الرواتب وسنوات واتساب، ويُنتج «تقرير التناقضات» والجدول الزمني تلقائياً.<br><br>الأمر الأشدّ أهميةً في التطوير كان مبدأ <strong>Privacy First</strong>. كل شيء يعمل دون إنترنت. لا شيء يُرفع إلى السحابة، وتبقى السرية مطلقة. بنيت حلاً يوفّر تكاليف فريق الدعم مع صون كامل للخصوصية — وأنا فخور الآن بفتح الإصدار التجريبي أمام الزملاء الباحثين عن الشيء ذاته."`,
+    founder_name: `المحامي نير ألتمان`,
+    founder_role: `مدير مكتب محاماة، محامٍ جنائي ومرافعاتي، مؤسس ومطوّر Factum-IL.`,
+    faq_title: `الأسئلة <span>الشائعة</span>`,
+    faq1_q: `هل تُرسَل مستنداتي إلى السحابة؟`,
+    faq1_a: `لا. يعمل Factum-IL بالكامل على جهازك. جميع الوثائق والتحليلات ومخرجات الذكاء الاصطناعي تُحفظ محلياً فقط. لا خادم خارجي، لا سحابة، لا مشاركة بيانات — السرية مطلقة.`,
+    faq2_q: `ما متطلبات الأجهزة؟`,
+    faq2_a: `Windows 10/11، ذاكرة RAM 16 غيغابايت كحد أدنى (يُوصى بـ 32 غيغابايت). بطاقة NVIDIA بـ 8 غيغابايت VRAM تعطي أفضل أداء، لكن النظام يعمل على المعالج المركزي وحده — بشكل أبطأ قليلاً. يُثبَّت Ollama تلقائياً.`,
+    faq3_q: `هل يصلح للمحامين المنفردين (لا الشركات الكبيرة فقط)؟`,
+    faq3_a: `بالتأكيد — بُني النظام تحديداً للمحامين العاملين بمفردهم أو في فريق صغير بلا «جيش» متدرّبين. يحلّ فعلياً محلّ فريق الدعم التقني ويتيح لشخص واحد إدارة مئات القضايا.`,
+    faq4_q: `ما المتضمَّن في الإصدار التجريبي وكم يكلّف؟`,
+    faq4_a: `الإصدار التجريبي V13 يكلّف ₪99 شهرياً ويمنح وصولاً كاملاً لجميع الميزات. يؤثّر المشاركون مباشرةً على تطوير الميزات المستقبلية ويتلقّون دعماً وثيقاً من المطوّرين. لا التزام ولا بطاقة ائتمان عند التسجيل.`,
+    faq5_q: `لماذا Windows فقط؟`,
+    faq5_a: `التطبيق مبنيٌّ على Electron + WebView2 الخاص بـ Windows. معظم مكاتب المحاماة الإسرائيلية تعمل على Windows، مما يُتيح أيضاً تكاملاً عميقاً مع Office وأنظمة الإدارة القائمة. دعم Mac في خطة التطوير.`,
+    faq6_q: `كيف تعرف المنظومة القانون الإسرائيلي؟`,
+    faq6_a: `تستخدم المنظومة نموذج Law-IL E2B — مُدرَّب خصيصاً على أحكام قضائية إسرائيلية وتشريعات ولوائح. يفهم الهيكل الإجرائي للمحاكم الإسرائيلية (الصلح، المنطقة، العليا، العمل، الأسرة) وقواعد الاستشهاد الموحّد.`,
+    beta_badge: `التسجيل في الإصدار التجريبي V13 (مايو 2026) مفتوح`,
+    beta_title: `احصل على الميزة <span>قبل الطرف الآخر.</span>`,
+    beta_desc: `نختار 50 مكتب محاماة لقيادة النشر الأولي في إسرائيل.<br>انضمّ الآن واحصل على تأثير مباشر في الميزات المستقبلية ودعم وثيق وصلاحية كاملة.`,
+    beta_iframe_title: `استمارة التسجيل في الإصدار التجريبي Factum-IL`,
+    footer_copy: `© 2026 Factum-IL. طوّر من أجل مجتمع القانون في إسرائيل.`,
+    footer_details: `أفرايم 18، كريات بياليك | altman.adv@gmail.com`,
+    footer_disclaimer: `المنظومة أداة مساعدة قانونية ولا تحلّ محلّ الحكم المهني للمحامي.`,
+    footer_terms: `شروط الاستخدام`,
+    footer_accessibility: `إعلان إمكانية الوصول`
+  }
+};
+
+function setLang(code) {
+  const t = translations[code];
+  if (!t) return;
+
+  const html = document.documentElement;
+  html.lang = code;
+  html.dir = (code === 'he' || code === 'ar') ? 'rtl' : 'ltr';
+  document.title = t.pageTitle;
+
+  document.querySelectorAll('[data-i18n]').forEach(el => {
+    const key = el.dataset.i18n;
+    if (t[key] !== undefined) el.textContent = t[key];
+  });
+
+  document.querySelectorAll('[data-i18n-html]').forEach(el => {
+    const key = el.dataset.i18nHtml;
+    if (t[key] !== undefined) el.innerHTML = t[key];
+  });
+
+  const iframe = document.getElementById('beta-iframe');
+  if (iframe && t.beta_iframe_title) iframe.title = t.beta_iframe_title;
+
+  document.querySelectorAll('.lang-btn').forEach(btn => {
+    btn.classList.toggle('active', btn.dataset.lang === code);
+  });
+
+  try { localStorage.setItem('factum-lang', code); } catch(e) {}
+}
+
 function toggleFaq(btn) {
   const item = btn.closest('.faq-item');
   const isOpen = item.classList.contains('open');
   document.querySelectorAll('.faq-item.open').forEach(i => i.classList.remove('open'));
   if (!isOpen) item.classList.add('open');
 }
+
+(function init() {
+  let saved = 'he';
+  try { saved = localStorage.getItem('factum-lang') || 'he'; } catch(e) {}
+  if (!translations[saved]) saved = 'he';
+  setLang(saved);
+})();
 </script>
 </body>
 </html>
