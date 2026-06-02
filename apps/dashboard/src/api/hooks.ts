@@ -208,6 +208,33 @@ export function useDeleteAnnotation(docId: number) {
 }
 
 // ─────────────────────────────────────────────
+//  Rules_Engine — Israeli procedural rules registry (§4.7.1)
+// ─────────────────────────────────────────────
+
+export interface Rule {
+  id:              number;
+  ruleName:        string;
+  procedureType:   string;
+  description:     string | null;
+  deadlineDays:    number | null;
+  deadlineBasis:   string | null;
+  sourceReference: string | null;
+  sortOrder:       number;
+  isActive:        boolean;
+  createdAt:       string;
+}
+
+export function useRules(procedureType?: string) {
+  return useQuery({
+    queryKey: ['rules', procedureType ?? 'all'] as const,
+    queryFn:  () => fetchJSON<Rule[]>(
+      `/api/rules${procedureType ? `?procedureType=${encodeURIComponent(procedureType)}` : ''}`,
+    ),
+    staleTime: 5 * 60_000,
+  });
+}
+
+// ─────────────────────────────────────────────
 //  Search
 // ─────────────────────────────────────────────
 

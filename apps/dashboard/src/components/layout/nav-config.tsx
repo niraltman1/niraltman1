@@ -68,6 +68,7 @@ export const NAV_GROUPS: NavGroup[] = [
     id: 'legal', label: 'מנוע משפטי', Icon: ScalesIcon, defaultOpen: false,
     items: [
       { to: '/templates',  label: 'תבניות הליך',   Icon: StackIcon },
+      { to: '/rules',      label: 'כללי סדרי דין',  Icon: GavelIcon },
       { to: '/stens',      label: 'טפסים (Stens)', Icon: NoteIcon },
       { to: '/precedents', label: 'תקדימים',       Icon: GavelIcon },
       { to: '/entities',   label: 'ישויות',         Icon: AddressBookIcon },
