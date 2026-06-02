@@ -188,6 +188,30 @@ function buildTestDb(): Database.Database {
       created_at      TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ','now'))
     );
 
+    CREATE TABLE Entities (
+      id          INTEGER PRIMARY KEY AUTOINCREMENT,
+      kind        TEXT NOT NULL,
+      canonical   TEXT NOT NULL,
+      aliases     TEXT NOT NULL DEFAULT '[]',
+      case_id     INTEGER,
+      document_id INTEGER,
+      created_at  TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ','now')),
+      UNIQUE(kind, canonical)
+    );
+
+    CREATE TABLE EntityRelations (
+      id         INTEGER PRIMARY KEY AUTOINCREMENT,
+      from_id    INTEGER NOT NULL REFERENCES Entities(id) ON DELETE CASCADE,
+      to_id      INTEGER NOT NULL REFERENCES Entities(id) ON DELETE CASCADE,
+      relation   TEXT NOT NULL,
+      created_at TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ','now')),
+      UNIQUE(from_id, to_id, relation)
+    );
+
+    CREATE TABLE DocumentInsights (
+      document_id INTEGER, case_number TEXT, court_name TEXT, judge_name TEXT
+    );
+
     CREATE TABLE audit_events (
       id            INTEGER PRIMARY KEY AUTOINCREMENT,
       event_type    TEXT NOT NULL,
@@ -444,5 +468,36 @@ describe('Annotations API', () => {
   it('returns 404 when deleting a non-existent annotation', async () => {
     const res = await request(app).delete('/api/annotations/99999');
     expect(res.status).toBe(404);
+    expect(res.body.error.code).toBe('NOT_FOUND');
+  });
+});
+
+describe('Entities knowledge graph API', () => {
+  it('reports empty stats before any population', async () => {
+    const res = await request(app).get('/api/entities/graph/stats');
+    expect(res.status).toBe(200);
+    expect(res.body.data.totalEntities).toBe(0);
+    expect(res.body.data.relations).toBe(0);
+  });
+
+  it('backfills the graph from DocumentInsights and reflects it in stats', async () => {
+    rawDb.exec(`
+      INSERT INTO Documents (file_hash, original_path, storage_path, filename, extension, file_size_bytes)
+      VALUES ('eg-hash-1', '/in/a.pdf', '/st/a.pdf', 'a.pdf', '.pdf', 10);
+    `);
+    const docId = (rawDb.prepare('SELECT id FROM Documents WHERE file_hash = ?').get('eg-hash-1') as { id: number }).id;
+    rawDb.prepare(
+      'INSERT INTO DocumentInsights (document_id, case_number, court_name, judge_name) VALUES (?,?,?,?)',
+    ).run(docId, 'תא-2024-042', 'שלום תל אביב', 'השופט כהן');
+
+    const back = await request(app).post('/api/entities/backfill');
+    expect(back.status).toBe(200);
+    expect(back.body.data.documents).toBe(1);
+
+    const stats = await request(app).get('/api/entities/graph/stats');
+    expect(stats.body.data.byKind.Judge).toBe(1);
+    expect(stats.body.data.byKind.Court).toBe(1);
+    expect(stats.body.data.byKind.Case).toBe(1);
+    expect(stats.body.data.relations).toBe(3);
   });
 });

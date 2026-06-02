@@ -25,6 +25,7 @@ import type { Repos } from '../db.js';
 import { enrichCanvasFields } from '../modules/canvas/canvas-document-enricher.js';
 import { discoverFields } from './field-discovery.js';
 import { routeEntities } from './entity-router.js';
+import { populateEntityGraph } from './entity-graph.js';
 import { isSystemIdle } from './idle-throttle.js';
 import { withWriteLock } from './write-mutex.js';
 import { emitActivity } from './activity-emitter.js';
@@ -275,6 +276,22 @@ async function runCycle(repos: Repos, targetDocumentId?: number): Promise<void> 
         const { caseId } = await withWriteLock('rag-worker:applyExtraction', () =>
           applyExtraction(repos, doc.id, result.extraction, result.raw),
         );
+
+        // Persist the knowledge graph (judge/court/case entities + relations).
+        // Runs AFTER the extraction transaction has committed and is fully isolated:
+        // a failure here must never roll back or block the extraction (CLAUDE.md §4).
+        try {
+          populateEntityGraph(repos.db, {
+            documentId: doc.id,
+            caseId,
+            caseNumber: result.extraction.caseNumber,
+            courtName:  result.extraction.courtName,
+            judgeName:  result.extraction.judgeName,
+          });
+        } catch (err) {
+          logger.warn(`entity-graph population failed doc=${doc.id}: ${String(err)}`, { category: 'ai' });
+        }
+
         const fields = discoverFields(doc.ocr_text);
         void routeEntities(repos, {
           documentId:       doc.id,
