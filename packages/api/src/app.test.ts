@@ -10,6 +10,7 @@ import {
   BackupRepository,
   SearchEngine,
   DatabaseHardening,
+  AnnotationRepository,
 } from '@factum-il/database';
 import { createApp } from './app.js';
 import type { Repos } from './db.js';
@@ -172,6 +173,21 @@ function buildTestDb(): Database.Database {
       processed   INTEGER NOT NULL DEFAULT 0
     );
 
+    CREATE TABLE Annotations (
+      id              INTEGER PRIMARY KEY AUTOINCREMENT,
+      document_id     INTEGER NOT NULL REFERENCES Documents(id) ON DELETE CASCADE,
+      page_number     INTEGER NOT NULL DEFAULT 1,
+      annotation_type TEXT NOT NULL CHECK(annotation_type IN ('highlight','note','redline','bookmark')),
+      color           TEXT,
+      x               REAL,
+      y               REAL,
+      width           REAL,
+      height          REAL,
+      content         TEXT,
+      created_by      TEXT,
+      created_at      TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ','now'))
+    );
+
     CREATE TABLE audit_events (
       id            INTEGER PRIMARY KEY AUTOINCREMENT,
       event_type    TEXT NOT NULL,
@@ -208,6 +224,7 @@ beforeAll(() => {
     backups:    new BackupRepository(db),
     search:     new SearchEngine(db),
     hardening:  new DatabaseHardening(db),
+    annotations: new AnnotationRepository(db),
   };
   app = createApp(repos);
 });
@@ -349,5 +366,83 @@ describe('GET /api/queue/stats', () => {
     expect(typeof res.body.data.total).toBe('number');
     expect(typeof res.body.data.poisoned).toBe('number');
     expect(typeof res.body.data.byState).toBe('object');
+  });
+});
+
+describe('Annotations API', () => {
+  let docId: number;
+
+  beforeAll(() => {
+    const info = rawDb.prepare(`
+      INSERT INTO Documents (file_hash, original_path, storage_path, filename, extension, file_size_bytes, mime_type)
+      VALUES ('annot-hash-1', '/in/doc.pdf', '/store/doc.pdf', 'doc.pdf', '.pdf', 1024, 'application/pdf')
+    `).run();
+    docId = Number(info.lastInsertRowid);
+  });
+
+  it('GET requires documentId (422)', async () => {
+    const res = await request(app).get('/api/annotations');
+    expect(res.status).toBe(422);
+    expect(res.body.error.code).toBe('VALIDATION_ERROR');
+  });
+
+  it('returns empty list for a document with no annotations', async () => {
+    const res = await request(app).get(`/api/annotations?documentId=${docId}`);
+    expect(res.status).toBe(200);
+    expect(res.body.data).toEqual([]);
+  });
+
+  it('rejects POST without documentId (422)', async () => {
+    const res = await request(app).post('/api/annotations').send({ annotationType: 'note' });
+    expect(res.status).toBe(422);
+  });
+
+  it('rejects POST with invalid annotationType (422)', async () => {
+    const res = await request(app)
+      .post('/api/annotations')
+      .send({ documentId: docId, annotationType: 'scribble' });
+    expect(res.status).toBe(422);
+  });
+
+  it('creates, lists, updates and deletes a note annotation', async () => {
+    const create = await request(app)
+      .post('/api/annotations')
+      .send({ documentId: docId, annotationType: 'note', pageNumber: 2, content: 'הערה ראשונה' });
+    expect(create.status).toBe(201);
+    const id = create.body.data.id as number;
+    expect(typeof id).toBe('number');
+    expect(create.body.data.pageNumber).toBe(2);
+
+    const list = await request(app).get(`/api/annotations?documentId=${docId}`);
+    expect(list.body.data).toHaveLength(1);
+    expect(list.body.data[0].content).toBe('הערה ראשונה');
+
+    const byPage = await request(app).get(`/api/annotations?documentId=${docId}&page=2`);
+    expect(byPage.body.data).toHaveLength(1);
+    const otherPage = await request(app).get(`/api/annotations?documentId=${docId}&page=1`);
+    expect(otherPage.body.data).toHaveLength(0);
+
+    const patch = await request(app)
+      .patch(`/api/annotations/${id}`)
+      .send({ content: 'הערה מעודכנת' });
+    expect(patch.status).toBe(200);
+    expect(patch.body.data.content).toBe('הערה מעודכנת');
+
+    const del = await request(app).delete(`/api/annotations/${id}`);
+    expect(del.status).toBe(200);
+
+    const after = await request(app).get(`/api/annotations?documentId=${docId}`);
+    expect(after.body.data).toHaveLength(0);
+  });
+
+  it('returns 404 when updating a non-existent annotation', async () => {
+    const res = await request(app).patch('/api/annotations/99999').send({ content: 'x' });
+    expect(res.status).toBe(404);
+    expect(res.body.error.code).toBe('NOT_FOUND');
+  });
+
+  it('returns 404 when deleting a non-existent annotation', async () => {
+    const res = await request(app).delete('/api/annotations/99999');
+    expect(res.status).toBe(404);
   });
 });
