@@ -1,11 +1,18 @@
 import type { LegalSourceType } from '@factum-il/database';
 
 /**
- * The 28 core Israeli legal sources. This is metadata only (titles, citations,
- * canonical URLs) — the verbatim text is fetched at ingest time, never authored here.
+ * The core Israeli legal corpus, grouped by domain. This is metadata only (titles,
+ * citations, canonical URLs) — the verbatim text is fetched at ingest time from the
+ * "ספר החוקים הפתוח" project on the open, public-domain Hebrew WikiSource, and is
+ * never authored here. gov.il guideline pages are best-effort.
  *
- * WikiSource entries are fetched from the open, public-domain Hebrew WikiSource
- * (no ToS restriction on legislation). gov.il guideline pages are best-effort.
+ * NOTE ON wikiTitle ACCURACY: every entry's `wikiTitle` is the WikiSource article
+ * title used to build the fetch URL. The original 28 entries are verified; the
+ * domain blocks added afterwards (Basic Laws, Labor, Family, Property/Torts,
+ * Commercial, Public/Administrative, and the extra Criminal entries) are best-effort
+ * titles to be confirmed on the FIRST ingest run. This is safe by design: the
+ * ingester reports-and-skips any page it cannot fetch — it never fabricates text —
+ * so a wrong title yields a logged miss to fix, never bad legal content.
  */
 export interface ManifestEntry {
   sourceKey:       string;
@@ -66,4 +73,66 @@ export const LEGAL_CORPUS_MANIFEST: ManifestEntry[] = [
   { sourceKey: 'state_attorney_guidelines', titleHe: 'הנחיות פרקליט המדינה', shortName: 'הנחיות פרקליט המדינה', citation: 'הנחיות פרקליט המדינה', sourceType: 'guideline', procedureDomain: 'institutional', year: null, url: 'https://www.gov.il/he/departments/policies/stat_attorney_guidelines' },
   { sourceKey: 'ag_guidelines', titleHe: 'הנחיות היועץ המשפטי לממשלה', shortName: 'הנחיות היועמ"ש', citation: 'הנחיות היועץ המשפטי לממשלה', sourceType: 'guideline', procedureDomain: 'institutional', year: null, url: 'https://www.gov.il/he/departments/policies/ag_guidelines' },
   { sourceKey: 'insolvency_commissioner_directives', titleHe: 'הוראות הממונה על חדלות פירעון', shortName: 'הוראות הממונה', citation: 'הוראות הממונה על חדלות פירעון', sourceType: 'guideline', procedureDomain: 'insolvency', year: null, url: 'https://www.gov.il/he/departments/policies/guideline_main' },
+
+  // ── Basic Laws (חוקי יסוד) ───────────────────────────────────────────
+  { sourceKey: 'basic_law_human_dignity_1992', titleHe: 'חוק-יסוד: כבוד האדם וחירותו', shortName: 'חו"י כבוד האדם', citation: 'חוק-יסוד: כבוד האדם וחירותו', sourceType: 'statute', procedureDomain: 'constitutional', year: 1992, wikiTitle: 'חוק-יסוד: כבוד האדם וחירותו' },
+  { sourceKey: 'basic_law_freedom_occupation_1994', titleHe: 'חוק-יסוד: חופש העיסוק', shortName: 'חו"י חופש העיסוק', citation: 'חוק-יסוד: חופש העיסוק', sourceType: 'statute', procedureDomain: 'constitutional', year: 1994, wikiTitle: 'חוק-יסוד: חופש העיסוק' },
+  { sourceKey: 'basic_law_judiciary_1984', titleHe: 'חוק-יסוד: השפיטה', shortName: 'חו"י השפיטה', citation: 'חוק-יסוד: השפיטה', sourceType: 'statute', procedureDomain: 'constitutional', year: 1984, wikiTitle: 'חוק-יסוד: השפיטה' },
+  { sourceKey: 'basic_law_knesset_1958', titleHe: 'חוק-יסוד: הכנסת', shortName: 'חו"י הכנסת', citation: 'חוק-יסוד: הכנסת', sourceType: 'statute', procedureDomain: 'constitutional', year: 1958, wikiTitle: 'חוק-יסוד: הכנסת' },
+  { sourceKey: 'basic_law_government_2001', titleHe: 'חוק-יסוד: הממשלה', shortName: 'חו"י הממשלה', citation: 'חוק-יסוד: הממשלה', sourceType: 'statute', procedureDomain: 'constitutional', year: 2001, wikiTitle: 'חוק-יסוד: הממשלה' },
+  { sourceKey: 'basic_law_state_economy_1975', titleHe: 'חוק-יסוד: משק המדינה', shortName: 'חו"י משק המדינה', citation: 'חוק-יסוד: משק המדינה', sourceType: 'statute', procedureDomain: 'constitutional', year: 1975, wikiTitle: 'חוק-יסוד: משק המדינה' },
+  { sourceKey: 'basic_law_judiciary_president_1964', titleHe: 'חוק-יסוד: נשיא המדינה', shortName: 'חו"י נשיא המדינה', citation: 'חוק-יסוד: נשיא המדינה', sourceType: 'statute', procedureDomain: 'constitutional', year: 1964, wikiTitle: 'חוק-יסוד: נשיא המדינה' },
+  { sourceKey: 'basic_law_state_comptroller_1988', titleHe: 'חוק-יסוד: מבקר המדינה', shortName: 'חו"י מבקר המדינה', citation: 'חוק-יסוד: מבקר המדינה', sourceType: 'statute', procedureDomain: 'constitutional', year: 1988, wikiTitle: 'חוק-יסוד: מבקר המדינה' },
+  { sourceKey: 'basic_law_nation_state_2018', titleHe: 'חוק-יסוד: ישראל – מדינת הלאום של העם היהודי', shortName: 'חו"י הלאום', citation: 'חוק-יסוד: ישראל – מדינת הלאום של העם היהודי', sourceType: 'statute', procedureDomain: 'constitutional', year: 2018, wikiTitle: 'חוק-יסוד: ישראל – מדינת הלאום של העם היהודי' },
+
+  // ── Labor & Employment (דיני עבודה) ──────────────────────────────────
+  { sourceKey: 'severance_pay_1963', titleHe: 'חוק פיצויי פיטורים, התשכ"ג–1963', shortName: 'חוק פיצויי פיטורים', citation: 'חוק פיצויי פיטורים, התשכ"ג–1963', sourceType: 'statute', procedureDomain: 'labor', year: 1963, wikiTitle: 'חוק פיצויי פיטורים' },
+  { sourceKey: 'minimum_wage_1987', titleHe: 'חוק שכר מינימום, התשמ"ז–1987', shortName: 'חוק שכר מינימום', citation: 'חוק שכר מינימום, התשמ"ז–1987', sourceType: 'statute', procedureDomain: 'labor', year: 1987, wikiTitle: 'חוק שכר מינימום' },
+  { sourceKey: 'hours_of_work_and_rest_1951', titleHe: 'חוק שעות עבודה ומנוחה, התשי"א–1951', shortName: 'חוק שעות עבודה ומנוחה', citation: 'חוק שעות עבודה ומנוחה, התשי"א–1951', sourceType: 'statute', procedureDomain: 'labor', year: 1951, wikiTitle: 'חוק שעות עבודה ומנוחה' },
+  { sourceKey: 'annual_leave_1951', titleHe: 'חוק חופשה שנתית, התשי"א–1951', shortName: 'חוק חופשה שנתית', citation: 'חוק חופשה שנתית, התשי"א–1951', sourceType: 'statute', procedureDomain: 'labor', year: 1951, wikiTitle: 'חוק חופשה שנתית' },
+  { sourceKey: 'wage_protection_1958', titleHe: 'חוק הגנת השכר, התשי"ח–1958', shortName: 'חוק הגנת השכר', citation: 'חוק הגנת השכר, התשי"ח–1958', sourceType: 'statute', procedureDomain: 'labor', year: 1958, wikiTitle: 'חוק הגנת השכר' },
+  { sourceKey: 'equal_employment_opportunities_1988', titleHe: 'חוק שוויון ההזדמנויות בעבודה, התשמ"ח–1988', shortName: 'חוק שוויון הזדמנויות בעבודה', citation: 'חוק שוויון ההזדמנויות בעבודה, התשמ"ח–1988', sourceType: 'statute', procedureDomain: 'labor', year: 1988, wikiTitle: 'חוק שוויון ההזדמנויות בעבודה' },
+  { sourceKey: 'labor_courts_1969', titleHe: 'חוק בית הדין לעבודה, התשכ"ט–1969', shortName: 'חוק בית הדין לעבודה', citation: 'חוק בית הדין לעבודה, התשכ"ט–1969', sourceType: 'statute', procedureDomain: 'labor', year: 1969, wikiTitle: 'חוק בית הדין לעבודה' },
+  { sourceKey: 'womens_employment_1954', titleHe: 'חוק עבודת נשים, התשי"ד–1954', shortName: 'חוק עבודת נשים', citation: 'חוק עבודת נשים, התשי"ד–1954', sourceType: 'statute', procedureDomain: 'labor', year: 1954, wikiTitle: 'חוק עבודת נשים' },
+
+  // ── Family (דיני משפחה) ──────────────────────────────────────────────
+  { sourceKey: 'legal_capacity_guardianship_1962', titleHe: 'חוק הכשרות המשפטית והאפוטרופסות, התשכ"ב–1962', shortName: 'חוק הכשרות המשפטית', citation: 'חוק הכשרות המשפטית והאפוטרופסות, התשכ"ב–1962', sourceType: 'statute', procedureDomain: 'family', year: 1962, wikiTitle: 'חוק הכשרות המשפטית והאפוטרופסות' },
+  { sourceKey: 'spousal_property_relations_1973', titleHe: 'חוק יחסי ממון בין בני זוג, התשל"ג–1973', shortName: 'חוק יחסי ממון', citation: 'חוק יחסי ממון בין בני זוג, התשל"ג–1973', sourceType: 'statute', procedureDomain: 'family', year: 1973, wikiTitle: 'חוק יחסי ממון בין בני זוג' },
+  { sourceKey: 'family_law_maintenance_1959', titleHe: 'חוק לתיקון דיני המשפחה (מזונות), התשי"ט–1959', shortName: 'חוק המזונות', citation: 'חוק לתיקון דיני המשפחה (מזונות), התשי"ט–1959', sourceType: 'statute', procedureDomain: 'family', year: 1959, wikiTitle: 'חוק לתיקון דיני המשפחה (מזונות)' },
+  { sourceKey: 'family_court_1995', titleHe: 'חוק בית המשפט לענייני משפחה, התשנ"ה–1995', shortName: 'חוק בית המשפט לענייני משפחה', citation: 'חוק בית המשפט לענייני משפחה, התשנ"ה–1995', sourceType: 'statute', procedureDomain: 'family', year: 1995, wikiTitle: 'חוק בית המשפט לענייני משפחה' },
+  { sourceKey: 'prevention_of_family_violence_1991', titleHe: 'חוק למניעת אלימות במשפחה, התשנ"א–1991', shortName: 'חוק למניעת אלימות במשפחה', citation: 'חוק למניעת אלימות במשפחה, התשנ"א–1991', sourceType: 'statute', procedureDomain: 'family', year: 1991, wikiTitle: 'חוק למניעת אלימות במשפחה' },
+  { sourceKey: 'inheritance_law_1965', titleHe: 'חוק הירושה, התשכ"ה–1965', shortName: 'חוק הירושה', citation: 'חוק הירושה, התשכ"ה–1965', sourceType: 'statute', procedureDomain: 'family', year: 1965, wikiTitle: 'חוק הירושה' },
+
+  // ── Property, Torts & Obligations (קניין, נזיקין וחיובים) ────────────
+  { sourceKey: 'land_law_1969', titleHe: 'חוק המקרקעין, התשכ"ט–1969', shortName: 'חוק המקרקעין', citation: 'חוק המקרקעין, התשכ"ט–1969', sourceType: 'statute', procedureDomain: 'civil', year: 1969, wikiTitle: 'חוק המקרקעין' },
+  { sourceKey: 'tenancy_and_borrowing_1971', titleHe: 'חוק השכירות והשאילה, התשל"א–1971', shortName: 'חוק השכירות והשאילה', citation: 'חוק השכירות והשאילה, התשל"א–1971', sourceType: 'statute', procedureDomain: 'civil', year: 1971, wikiTitle: 'חוק השכירות והשאילה' },
+  { sourceKey: 'unjust_enrichment_1979', titleHe: 'חוק עשיית עושר ולא במשפט, התשל"ט–1979', shortName: 'חוק עשיית עושר', citation: 'חוק עשיית עושר ולא במשפט, התשל"ט–1979', sourceType: 'statute', procedureDomain: 'civil', year: 1979, wikiTitle: 'חוק עשיית עושר ולא במשפט' },
+  { sourceKey: 'gift_law_1968', titleHe: 'חוק המתנה, התשכ"ח–1968', shortName: 'חוק המתנה', citation: 'חוק המתנה, התשכ"ח–1968', sourceType: 'statute', procedureDomain: 'civil', year: 1968, wikiTitle: 'חוק המתנה' },
+  { sourceKey: 'guarantee_law_1967', titleHe: 'חוק הערבות, התשכ"ז–1967', shortName: 'חוק הערבות', citation: 'חוק הערבות, התשכ"ז–1967', sourceType: 'statute', procedureDomain: 'civil', year: 1967, wikiTitle: 'חוק הערבות' },
+  { sourceKey: 'agency_law_1965', titleHe: 'חוק השליחות, התשכ"ה–1965', shortName: 'חוק השליחות', citation: 'חוק השליחות, התשכ"ה–1965', sourceType: 'statute', procedureDomain: 'civil', year: 1965, wikiTitle: 'חוק השליחות' },
+  { sourceKey: 'pledge_law_1967', titleHe: 'חוק המשכון, התשכ"ז–1967', shortName: 'חוק המשכון', citation: 'חוק המשכון, התשכ"ז–1967', sourceType: 'statute', procedureDomain: 'civil', year: 1967, wikiTitle: 'חוק המשכון' },
+  { sourceKey: 'torts_ordinance_1968', titleHe: 'פקודת הנזיקין [נוסח חדש]', shortName: 'פקודת הנזיקין', citation: 'פקודת הנזיקין [נוסח חדש]', sourceType: 'ordinance', procedureDomain: 'civil', year: null, wikiTitle: 'פקודת הנזיקין [נוסח חדש]' },
+  { sourceKey: 'defective_products_liability_1980', titleHe: 'חוק האחריות למוצרים פגומים, התש"ם–1980', shortName: 'חוק האחריות למוצרים פגומים', citation: 'חוק האחריות למוצרים פגומים, התש"ם–1980', sourceType: 'statute', procedureDomain: 'civil', year: 1980, wikiTitle: 'חוק האחריות למוצרים פגומים' },
+  { sourceKey: 'limitation_law_1958', titleHe: 'חוק ההתיישנות, התשי"ח–1958', shortName: 'חוק ההתיישנות', citation: 'חוק ההתיישנות, התשי"ח–1958', sourceType: 'statute', procedureDomain: 'civil', year: 1958, wikiTitle: 'חוק ההתיישנות' },
+  { sourceKey: 'standard_contracts_1982', titleHe: 'חוק החוזים האחידים, התשמ"ג–1982', shortName: 'חוק החוזים האחידים', citation: 'חוק החוזים האחידים, התשמ"ג–1982', sourceType: 'statute', procedureDomain: 'civil', year: 1982, wikiTitle: 'חוק החוזים האחידים' },
+  { sourceKey: 'consumer_protection_1981', titleHe: 'חוק הגנת הצרכן, התשמ"א–1981', shortName: 'חוק הגנת הצרכן', citation: 'חוק הגנת הצרכן, התשמ"א–1981', sourceType: 'statute', procedureDomain: 'civil', year: 1981, wikiTitle: 'חוק הגנת הצרכן' },
+
+  // ── Commercial & Companies (מסחרי ותאגידים) ──────────────────────────
+  { sourceKey: 'companies_law_1999', titleHe: 'חוק החברות, התשנ"ט–1999', shortName: 'חוק החברות', citation: 'חוק החברות, התשנ"ט–1999', sourceType: 'statute', procedureDomain: 'commercial', year: 1999, wikiTitle: 'חוק החברות' },
+  { sourceKey: 'companies_ordinance', titleHe: 'פקודת החברות [נוסח חדש], התשמ"ג–1983', shortName: 'פקודת החברות', citation: 'פקודת החברות [נוסח חדש], התשמ"ג–1983', sourceType: 'ordinance', procedureDomain: 'commercial', year: 1983, wikiTitle: 'פקודת החברות [נוסח חדש]' },
+  { sourceKey: 'securities_law_1968', titleHe: 'חוק ניירות ערך, התשכ"ח–1968', shortName: 'חוק ניירות ערך', citation: 'חוק ניירות ערך, התשכ"ח–1968', sourceType: 'statute', procedureDomain: 'commercial', year: 1968, wikiTitle: 'חוק ניירות ערך' },
+  { sourceKey: 'bills_of_exchange_ordinance', titleHe: 'פקודת השטרות [נוסח חדש]', shortName: 'פקודת השטרות', citation: 'פקודת השטרות [נוסח חדש]', sourceType: 'ordinance', procedureDomain: 'commercial', year: null, wikiTitle: 'פקודת השטרות [נוסח חדש]' },
+  { sourceKey: 'partnerships_ordinance_1975', titleHe: 'פקודת השותפויות [נוסח חדש], התשל"ה–1975', shortName: 'פקודת השותפויות', citation: 'פקודת השותפויות [נוסח חדש], התשל"ה–1975', sourceType: 'ordinance', procedureDomain: 'commercial', year: 1975, wikiTitle: 'פקודת השותפויות [נוסח חדש]' },
+
+  // ── Public & Administrative (ציבורי ומינהלי) ─────────────────────────
+  { sourceKey: 'administrative_courts_2000', titleHe: 'חוק בתי משפט לעניינים מינהליים, התש"ס–2000', shortName: 'חוק בתי משפט מינהליים', citation: 'חוק בתי משפט לעניינים מינהליים, התש"ס–2000', sourceType: 'statute', procedureDomain: 'administrative', year: 2000, wikiTitle: 'חוק בתי משפט לעניינים מינהליים' },
+  { sourceKey: 'interpretation_law_1981', titleHe: 'חוק הפרשנות, התשמ"א–1981', shortName: 'חוק הפרשנות', citation: 'חוק הפרשנות, התשמ"א–1981', sourceType: 'statute', procedureDomain: 'administrative', year: 1981, wikiTitle: 'חוק הפרשנות' },
+  { sourceKey: 'foundations_of_law_1980', titleHe: 'חוק יסודות המשפט, התש"ם–1980', shortName: 'חוק יסודות המשפט', citation: 'חוק יסודות המשפט, התש"ם–1980', sourceType: 'statute', procedureDomain: 'administrative', year: 1980, wikiTitle: 'חוק יסודות המשפט' },
+  { sourceKey: 'privacy_protection_1981', titleHe: 'חוק הגנת הפרטיות, התשמ"א–1981', shortName: 'חוק הגנת הפרטיות', citation: 'חוק הגנת הפרטיות, התשמ"א–1981', sourceType: 'statute', procedureDomain: 'administrative', year: 1981, wikiTitle: 'חוק הגנת הפרטיות' },
+  { sourceKey: 'freedom_of_information_1998', titleHe: 'חוק חופש המידע, התשנ"ח–1998', shortName: 'חוק חופש המידע', citation: 'חוק חופש המידע, התשנ"ח–1998', sourceType: 'statute', procedureDomain: 'administrative', year: 1998, wikiTitle: 'חוק חופש המידע' },
+
+  // ── Criminal — additional core (פלילי — נוספים) ─────────────────────
+  { sourceKey: 'youth_adjudication_1971', titleHe: 'חוק הנוער (שפיטה, ענישה ודרכי טיפול), התשל"א–1971', shortName: 'חוק הנוער', citation: 'חוק הנוער (שפיטה, ענישה ודרכי טיפול), התשל"א–1971', sourceType: 'statute', procedureDomain: 'criminal', year: 1971, wikiTitle: 'חוק הנוער (שפיטה, ענישה ודרכי טיפול)' },
+  { sourceKey: 'arrest_and_search_ordinance_1969', titleHe: 'פקודת סדר הדין הפלילי (מעצר וחיפוש) [נוסח חדש], התשכ"ט–1969', shortName: 'פקודת מעצר וחיפוש', citation: 'פקודת סדר הדין הפלילי (מעצר וחיפוש) [נוסח חדש], התשכ"ט–1969', sourceType: 'ordinance', procedureDomain: 'criminal', year: 1969, wikiTitle: 'פקודת סדר הדין הפלילי (מעצר וחיפוש) [נוסח חדש]' },
+  { sourceKey: 'counter_terrorism_2016', titleHe: 'חוק המאבק בטרור, התשע"ו–2016', shortName: 'חוק המאבק בטרור', citation: 'חוק המאבק בטרור, התשע"ו–2016', sourceType: 'statute', procedureDomain: 'criminal', year: 2016, wikiTitle: 'חוק המאבק בטרור' },
 ];
