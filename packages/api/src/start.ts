@@ -41,6 +41,7 @@ import {
   EntitiesRepository,
   SmartCollectionsRepository,
   AnnotationRepository,
+  LegalCorpusRepository,
 } from '@factum-il/database';
 import { createApp } from './app.js';
 import type { Repos } from './db.js';
@@ -174,6 +175,7 @@ const repos: Repos = {
   entities:       new EntitiesRepository(db),
   smartCollections: new SmartCollectionsRepository(db),
   annotations:      new AnnotationRepository(db),
+  legalCorpus:      new LegalCorpusRepository(db),
 };
 
 // Release stale agent locks left over from a previous crash or restart.

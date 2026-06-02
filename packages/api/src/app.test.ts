@@ -11,6 +11,7 @@ import {
   SearchEngine,
   DatabaseHardening,
   AnnotationRepository,
+  LegalCorpusRepository,
 } from '@factum-il/database';
 import { createApp } from './app.js';
 import type { Repos } from './db.js';
@@ -212,6 +213,39 @@ function buildTestDb(): Database.Database {
       document_id INTEGER, case_number TEXT, court_name TEXT, judge_name TEXT
     );
 
+    CREATE TABLE LegalSources (
+      id INTEGER PRIMARY KEY AUTOINCREMENT, source_key TEXT NOT NULL UNIQUE, title_he TEXT NOT NULL,
+      short_name TEXT, citation TEXT, source_type TEXT NOT NULL DEFAULT 'statute',
+      procedure_domain TEXT, source_url TEXT, year INTEGER, content_hash TEXT,
+      section_count INTEGER NOT NULL DEFAULT 0, fetched_at TEXT, is_active INTEGER NOT NULL DEFAULT 1,
+      created_at TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ','now')),
+      updated_at TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ','now'))
+    );
+    CREATE TABLE LegalSections (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      source_id INTEGER NOT NULL REFERENCES LegalSources(id) ON DELETE CASCADE,
+      section_label TEXT NOT NULL, heading_he TEXT, verbatim_text_he TEXT NOT NULL,
+      order_index INTEGER NOT NULL DEFAULT 0, parent_label TEXT, char_count INTEGER NOT NULL DEFAULT 0,
+      created_at TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ','now')),
+      UNIQUE(source_id, section_label)
+    );
+    CREATE TABLE LegalSectionEmbeddings (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      section_id INTEGER NOT NULL UNIQUE REFERENCES LegalSections(id) ON DELETE CASCADE,
+      source_id INTEGER NOT NULL REFERENCES LegalSources(id) ON DELETE CASCADE,
+      embedding TEXT NOT NULL, model TEXT NOT NULL DEFAULT 'nomic-embed-text',
+      created_at TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ','now'))
+    );
+    CREATE VIRTUAL TABLE fts_legal_sections USING fts5(
+      heading_he, verbatim_text_he, content='LegalSections', content_rowid='id', tokenize='unicode61'
+    );
+    CREATE TRIGGER trg_legal_sections_ai AFTER INSERT ON LegalSections BEGIN
+      INSERT INTO fts_legal_sections(rowid, heading_he, verbatim_text_he) VALUES (new.id, new.heading_he, new.verbatim_text_he);
+    END;
+    CREATE TRIGGER trg_legal_sections_ad AFTER DELETE ON LegalSections BEGIN
+      INSERT INTO fts_legal_sections(fts_legal_sections, rowid, heading_he, verbatim_text_he) VALUES ('delete', old.id, old.heading_he, old.verbatim_text_he);
+    END;
+
     CREATE TABLE audit_events (
       id            INTEGER PRIMARY KEY AUTOINCREMENT,
       event_type    TEXT NOT NULL,
@@ -249,6 +283,7 @@ beforeAll(() => {
     search:     new SearchEngine(db),
     hardening:  new DatabaseHardening(db),
     annotations: new AnnotationRepository(db),
+    legalCorpus: new LegalCorpusRepository(db),
   };
   app = createApp(repos);
 });
@@ -499,5 +534,53 @@ describe('Entities knowledge graph API', () => {
     expect(stats.body.data.byKind.Court).toBe(1);
     expect(stats.body.data.byKind.Case).toBe(1);
     expect(stats.body.data.relations).toBe(3);
+  });
+});
+
+describe('Legal corpus API', () => {
+  beforeAll(() => {
+    // Seed one isolated law via direct SQL (synthetic verbatim text). Direct SQL is used
+    // because the harness casts a raw better-sqlite3 handle whose .transaction() differs
+    // from DatabaseConnection's; replaceSections' transaction path is covered by the
+    // database-package test against a real DatabaseConnection.
+    const info = rawDb.prepare(
+      "INSERT INTO LegalSources (source_key, title_he, source_type, procedure_domain, section_count) VALUES ('corpus_law_a','חוק בדיקה א','statute','criminal',2)",
+    ).run();
+    const sid = Number(info.lastInsertRowid);
+    rawDb.prepare('INSERT INTO LegalSections (source_id, section_label, verbatim_text_he, order_index, char_count) VALUES (?,?,?,?,?)')
+      .run(sid, 'סעיף 1', 'הוראת בדיקה ראשונה', 0, 18);
+    rawDb.prepare('INSERT INTO LegalSections (source_id, section_label, verbatim_text_he, order_index, char_count) VALUES (?,?,?,?,?)')
+      .run(sid, 'סעיף 2', 'הוראת בדיקה שנייה', 1, 17);
+  });
+
+  it('lists sources with KB stats', async () => {
+    const res = await request(app).get('/api/legal-corpus/sources');
+    expect(res.status).toBe(200);
+    expect(res.body.data.stats.sources).toBeGreaterThanOrEqual(1);
+    expect(res.body.data.sources.some((s: { sourceKey: string }) => s.sourceKey === 'corpus_law_a')).toBe(true);
+  });
+
+  it('returns one source with its verbatim sections', async () => {
+    const res = await request(app).get('/api/legal-corpus/sources/corpus_law_a');
+    expect(res.status).toBe(200);
+    expect(res.body.data.sections).toHaveLength(2);
+    expect(res.body.data.sections[0].verbatimText).toContain('בדיקה');
+  });
+
+  it('keyword search returns source-tagged hits', async () => {
+    const res = await request(app).get('/api/legal-corpus/search?q=בדיקה');
+    expect(res.status).toBe(200);
+    expect(res.body.data.length).toBeGreaterThanOrEqual(2);
+    expect(res.body.data[0].sourceKey).toBe('corpus_law_a');
+  });
+
+  it('requires q on search (422)', async () => {
+    const res = await request(app).get('/api/legal-corpus/search');
+    expect(res.status).toBe(422);
+  });
+
+  it('404 for an unknown source', async () => {
+    const res = await request(app).get('/api/legal-corpus/sources/does_not_exist');
+    expect(res.status).toBe(404);
   });
 });

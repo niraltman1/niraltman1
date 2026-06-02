@@ -52,3 +52,12 @@ export type {
   NotificationLinkType,
   UpsertNotificationInput,
 } from './queries/notifications.js';
+export { LegalCorpusRepository } from './queries/legal-corpus.js';
+export type {
+  LegalSourceType,
+  LegalSourceInput,
+  LegalSectionInput,
+  LegalSourceRow,
+  LegalSectionRow,
+  LegalSectionSearchHit,
+} from './queries/legal-corpus.js';
