@@ -710,3 +710,43 @@ he.wikisource.org / gov.il / example.com. לכן **ה-ingestion החי לא בו
 **נדחה (follow-up):** ביצוע ה-ingestion החי (חסום ב-allowlist); ולידציית ה-parser מול
 דף WikiSource אמיתי ראשון (לפני הסתמכות על section labels דקים); parser ייעודי ל-gov.il
 SPA; שילוב ה-corpus ב-hybrid-search/prompt-builder עם סינון פר-חוק.
+
+## 🔻 Session Handoff — אכלוס קורפוסים משפטיים (עודכן 2026-06-02)
+
+שני PRs פתוחים (draft), שניהם **foundation מוכן + CI ירוק**, חסומים אך ורק על **אכלוס נתונים**
+(egress ל-מארחים חיצוניים). המשתמש פתח את ה-allowlist — אך השינוי נכנס לתוקף רק ב-**קונטיינר
+חדש**. בקונטיינר הנוכחי עדיין `403 Host not in allowlist`. להמשיך בסשן חדש.
+
+**עיקרון-על:** verbatim בלבד — להעתיק טקסט משפטי מהמקור, **לעולם לא לנסח/להמציא**. אם מקור לא
+נגיש (403) או הסכימה/split שונה מהצפוי — **לעצור ולדווח פלט מדויק**, לא לאכלס.
+
+### צעד 0 — בדיקת רשת (חובה לפני הכל)
+ודא נגישות לארבעת המארחים; אם מישהו מחזיר `403 Host not in allowlist` — עצור ודווח:
+```
+for h in "datasets-server.huggingface.co/rows?dataset=guychuk%2Fcase-law-israel&config=default&split=judgments&offset=0&length=1" "huggingface.co" "he.wikisource.org" "www.gov.il"; do curl -s -o /dev/null -w "$h → %{http_code}\n" --max-time 15 "https://$h"; done
+```
+
+### PR #52 — קורפוס פסיקה (ענף `claude/case-law-kb`)
+- `git switch claude/case-law-kb`
+- `pnpm tsx scripts/ingest-verdict-corpus.ts --source both --max 5000 --page 100`
+  - `supreme` = LevMuchnik/SupremeCourtOfIsrael (split `train`, openrail)
+  - `all-courts` = guychuk/case-law-israel (split `judgments`, **רישיון `unspecified`** — מסומן בכוונה)
+  - בלי `--embed` בסביבה מרוחקת (אין Ollama; ידלג בחן). embeddings → backfill מקומי אחר כך.
+  - הסכימה של guychuk **אומתה מול ה-Hub החי** (split/columns/ClassLabel order/רישיון) — תקין.
+- בדיקות: `pnpm --filter @factum-il/api exec vitest run src/modules/verdict-corpus/`
+- commit + push (retry/backoff) → הוצא מ-draft (`update_pull_request draft=false`).
+
+### PR #50 — קורפוס חקיקה (ענף `claude/legal-corpus-foundation`)
+- ⚠️ נסגר בטעות ונפתח מחדש (2026-06-02). מצב `mergeable_state: dirty` → **rebase על main קודם.**
+- `git switch claude/legal-corpus-foundation`
+- `git fetch origin main && git rebase origin/main` — פתור קונפליקטים, ודא `pnpm -w typecheck` נקי.
+- `pnpm tsx scripts/ingest-legal-corpus.ts` — **28 מקורות** (manifest) מ-he.wikisource.org / www.gov.il.
+  דגלים: `--from-dir <dir>` (offline), `--only <source_key>`, `--embed`.
+- **אמת את ה-parser מול עמוד WikiSource אמיתי ראשון** לפני הסתמכות על פיצול סעיפים עדין. אם
+  הפיצול נכשל — נשמר החוק כסעיף `full` יחיד (lossless), זה תקין.
+- בדיקות: `pnpm --filter @factum-il/api exec vitest run src/modules/legal-corpus/` +
+  `pnpm --filter @factum-il/database test`
+- commit + `push --force-with-lease` (אחרי rebase) → הוצא מ-draft.
+
+### סיום
+אחרי ששני ה-PRs ready ו-CI ירוק — **לדווח למשתמש לפני מיזוג בפועל**.
