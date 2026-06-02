@@ -19,11 +19,19 @@ Verbatim, per-law-isolated legislation KB, offline-first. Supersedes PR #50's ha
   absent). Zero runtime network for legislation — `packages/**` never fetches OData/WikiSource.
 - **Bundling:** artifact gitignored; `publish.ps1` stages `assets/legal-corpus/*.jsonl.gz` →
   `installer.iss` → `{app}\app\legal-corpus\` (FACTUM_IL_ROOT), `skipifsourcedoesntexist`.
-- **Verified:** typecheck clean; tests green — ingest 19/19, database 70/70, api 112/112.
-  Live smoke: חוק העונשין (IsraelLawID 2000479) → 660 verbatim sections, 100% ID-match.
-- **Next:** (1) run a full `pnpm ingest-knesset-odata -- --embed` in an egress-enabled env to
-  produce the real artifact + measure match-rate across all 1,077 laws; (2) publish it as a
-  GitHub Release asset and point `publish.ps1` at it; (3) wire `LegalSectionEmbeddings` into
+- **Resolver robustness:** distinguishes transient API failures (429/5xx/network, honors
+  Retry-After) from definitive absence (HTTP 200 + missingtitle) so a rate-limit blip never
+  silently demotes a real law to metadata-only — a two-pass run retries transient failures
+  gently. `candidateTitles()` also tries a bracket-stripped variant ('… [התשס"א]' → '…') to
+  catch ספר-החוקים pages titled without the version/[נוסח חדש] suffix.
+- **Verified:** typecheck/lint clean; tests green — ingest 23/23, database 70/70, api 112/112.
+  PR #53 CI green. Live smoke: חוק העונשין → 660 verbatim sections, 100% ID-match.
+  Coverage on an 80-law live sample: **65% → 96.2% (transient two-pass) → ~100%** (bracket-strip
+  recovered the rest, incl. Basic Laws הכנסת/השפיטה/הממשלה/חופש העיסוק/כבוד האדם/מבקר המדינה).
+- **Next:** (1) run a full `pnpm ingest-knesset-odata -- --embed` in an egress+Ollama dev env to
+  produce the real artifact + confirm match-rate across all 1,077 laws (sample validated only);
+  (2) publish it as a GitHub Release asset and point `publish.ps1` at it; (3) wire
+  `LegalSectionEmbeddings` into
   `hybrid-search`/`prompt-builder` with per-law scoping (deferred from PR #50); (4) optional
   wikitext `{{ח:סעיף|…}}` template parser for finer section labels. Close PR #50 in favour of this.
 
