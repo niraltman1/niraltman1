@@ -4,6 +4,7 @@ import {
   useCreateBackup, useRepairManifest, useReplayJob, useCheckIntegrity,
   useUpdateStatus, useTriggerContentUpdate, useSecurityStatus, useAiHealth,
   useStartVacuum, useVacuumStatus,
+  useIngestionStatus, useSetWatchFolders, useRescanFolder,
   deleteJSON,
 } from '@/api/hooks.js';
 import type { UpdateLogRecord, VacuumSessionData } from '@/api/hooks.js';
@@ -549,6 +550,145 @@ function VacuumProtocolPanel() {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
+//  File ingestion (Vacuum Protocol) panel
+// ─────────────────────────────────────────────────────────────────────────────
+
+function eventStatusBadge(e: { processed: boolean; queued: boolean; duplicate: boolean; errorMessage: string | null }): { label: string; cls: string } {
+  if (!e.processed) return e.errorMessage
+    ? { label: 'ממתין (שגיאה)', cls: 'bg-yellow-900/30 text-yellow-300' }
+    : { label: 'ממתין',         cls: 'bg-blue-900/30 text-blue-300' };
+  if (e.duplicate)  return { label: 'כפילות',  cls: 'bg-parchment/10 text-parchment/60' };
+  if (e.queued)     return { label: 'נקלט',    cls: 'bg-green-900/30 text-green-300' };
+  return { label: 'הוחרג', cls: 'bg-parchment/10 text-parchment/50' };
+}
+
+function FileIngestionPanel() {
+  const { data, isLoading } = useIngestionStatus();
+  const setFolders  = useSetWatchFolders();
+  const rescan      = useRescanFolder();
+  const [draft, setDraft]       = useState<string | null>(null);
+  const [rescanPath, setRescanPath] = useState('');
+
+  if (isLoading || !data) return <PanelSkeleton label="טוען מצב קליטה…" />;
+
+  // The textarea is seeded from server state until the user edits it.
+  const foldersText = draft ?? data.watchFolders.join('\n');
+  const s = data.stats;
+
+  return (
+    <div className="space-y-4">
+      {/* Stats row */}
+      <div className="grid grid-cols-4 gap-2 text-center">
+        {[
+          { label: 'ממתינים', value: s.unprocessed, cls: 'text-blue-300' },
+          { label: 'נקלטו',   value: s.processed,   cls: 'text-green-300' },
+          { label: 'שגיאות',  value: s.errors,      cls: 'text-yellow-300' },
+        ].map((m) => (
+          <div key={m.label} className="bg-navy-900/40 rounded border border-parchment/10 py-2">
+            <div className={`text-lg font-mono ${m.cls}`}>{m.value}</div>
+            <div className="text-parchment/40 text-[11px]">{m.label}</div>
+          </div>
+        ))}
+        <div className="bg-navy-900/40 rounded border border-parchment/10 py-2">
+          <div className="text-parchment/80 text-[11px] font-mono mt-1.5">
+            {s.lastProcessedAt ? new Date(s.lastProcessedAt).toLocaleString('he-IL') : '—'}
+          </div>
+          <div className="text-parchment/40 text-[11px]">קליטה אחרונה</div>
+        </div>
+      </div>
+
+      {/* Watched folders editor */}
+      <div className="space-y-2">
+        <label className="text-parchment/60 text-xs">תיקיות במעקב (אחת בכל שורה)</label>
+        <textarea
+          dir="ltr" rows={3} value={foldersText}
+          onChange={(e) => setDraft(e.target.value)}
+          placeholder={'C:\\אלטמן\\נכנס'}
+          className="w-full bg-navy-900/40 border border-parchment/20 rounded px-3 py-2
+                     text-parchment text-sm font-mono placeholder:text-parchment/30
+                     focus:outline-none focus:border-gold/50 resize-none"
+        />
+        <div className="flex items-center gap-2">
+          <button
+            onClick={() => setFolders.mutate(
+              foldersText.split('\n').map((f) => f.trim()).filter(Boolean),
+              { onSuccess: () => setDraft(null) },
+            )}
+            disabled={setFolders.isPending}
+            className="px-3 py-1.5 bg-gold/20 hover:bg-gold/30 text-gold text-xs rounded
+                       border border-gold/30 transition-colors disabled:opacity-50 flex items-center gap-1.5"
+          >
+            {setFolders.isPending ? <CircleNotchIcon size={13} className="animate-spin" /> : <CheckCircleIcon size={13} weight="duotone" />}
+            שמור תיקיות
+          </button>
+          {draft !== null && (
+            <button onClick={() => setDraft(null)} className="text-parchment/40 hover:text-parchment text-xs">ביטול</button>
+          )}
+          {setFolders.isError && (
+            <span className="text-red-400 text-xs flex items-center gap-1">
+              <WarningCircleIcon size={13} /> {(setFolders.error as Error).message}
+            </span>
+          )}
+          {setFolders.isSuccess && draft === null && (
+            <span className="text-green-400 text-xs">נשמר</span>
+          )}
+        </div>
+      </div>
+
+      {/* One-shot rescan */}
+      <div className="flex gap-2 items-center">
+        <input
+          dir="ltr" type="text" value={rescanPath}
+          onChange={(e) => setRescanPath(e.target.value)}
+          placeholder="סרוק תיקייה קיימת לקליטה חד-פעמית…"
+          className="flex-1 bg-navy-900/40 border border-parchment/20 rounded px-3 py-2
+                     text-parchment text-sm font-mono placeholder:text-parchment/30
+                     focus:outline-none focus:border-gold/50"
+        />
+        <button
+          onClick={() => {
+            if (!rescanPath.trim()) return;
+            rescan.mutate(rescanPath.trim(), { onSuccess: () => setRescanPath('') });
+          }}
+          disabled={!rescanPath.trim() || rescan.isPending}
+          className="px-4 py-2 bg-navy-900/40 hover:bg-navy-900/60 text-parchment/80 text-sm rounded
+                     transition-colors disabled:opacity-50 flex items-center gap-1.5 border border-parchment/20 shrink-0"
+        >
+          {rescan.isPending ? <CircleNotchIcon size={14} className="animate-spin" /> : <ArrowsClockwiseIcon size={14} weight="duotone" />}
+          סרוק
+        </button>
+      </div>
+      {rescan.isSuccess && (
+        <p className="text-green-400 text-xs">נוספו {rescan.data?.enqueued ?? 0} קבצים לתור.</p>
+      )}
+
+      {/* Recent events */}
+      {data.recent.length > 0 && (
+        <div className="max-h-56 overflow-y-auto rounded border border-parchment/10">
+          <table className="w-full text-xs">
+            <tbody>
+              {data.recent.map((e) => {
+                const badge = eventStatusBadge(e);
+                return (
+                  <tr key={e.id} className="border-b border-parchment/5 last:border-0">
+                    <td dir="ltr" className="px-2 py-1.5 font-mono text-parchment/70 truncate max-w-[280px]" title={e.filePath}>
+                      {e.filePath}
+                    </td>
+                    <td className="px-2 py-1.5 text-left whitespace-nowrap">
+                      <span className={`inline-block px-2 py-0.5 rounded-full ${badge.cls}`}>{badge.label}</span>
+                    </td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
 //  Recent Crashes panel
 // ─────────────────────────────────────────────────────────────────────────────
 
@@ -831,6 +971,10 @@ export function DiagnosticsPage() {
 
       <Section icon={<HeartbeatIcon size={16} weight="duotone" />} title="מצב פועלים">
         <WorkerHealthPanel />
+      </Section>
+
+      <Section icon={<FolderOpenIcon size={16} weight="duotone" />} title="קליטת קבצים אוטומטית">
+        <FileIngestionPanel />
       </Section>
 
       <Section icon={<FolderOpenIcon size={16} weight="duotone" />} title="אירועי מעקב קבצים">

@@ -52,9 +52,26 @@
   נדחה: העלאת-קבצים לצירופים (אין pipeline), חיוב לפי `duration_minutes`, מיפוי-אוטומטי לפי סוג-הליך.
   חסום-סביבה: הכתבה חיה דורשת `WHISPER_CMD` מקומי (מאומת דרך injection + מסלול 409).
 
-**הצעד הבא:** **שלב קליטת-הקבצים הגלובלי (Vacuum Protocol)** — קליטה אוטומטית של מסמכים אל הצנרת.
-חסומים-סביבה: C1 מסירה-חיה (Telegram allowlist), C2 (whatsapp-web.js+WebView2), C5/C6 Whisper (מודל מקומי).
-תלוי גם ב-B0 (#50/#52).
+- ✅ **קליטת-קבצים אוטומטית (Vacuum Protocol — אינטגרציה)** — חיבור שרשרת-הקליטה מקצה-לקצה
+  (היה: `FileWatcher`/`FileSystemAdapter`/`MediaPipeline` קיימים אך לא מחוברים). ארכיטקטורת
+  **תור עמיד דרך WatcherEvents**: ה-watcher רושם כל קובץ יציב לטבלה (processed=0); processor
+  ברקע (`watcher-event-processor.ts`) מנקז, קורא ל-`MediaPipeline.ingest()`, מסמן processed
+  עם queued/duplicate/excluded, ו-retry עד 3 ניסיונות לפני סגירה (לא hot-loop). שורד קריסות.
+  - DB: `WatcherEventsRepository` (listUnprocessed/markProcessed/recordRetryableError/enqueue/
+    recent/stats) — ללא migration (הטבלה קיימת מ-007). 5 בדיקות.
+  - API: `file-ingestion.ts` (controller: watcher lifecycle + reconfigure + rescan), חיווט
+    ב-`start.ts` (תחת SAFE_MODE, עם MediaPipeline) + shutdown. endpoints ב-admin:
+    `GET /admin/ingestion/status|folders`, `PUT /admin/ingestion/folders` (ולידציה + hot-reconfig),
+    `POST /admin/ingestion/rescan`. תוקן באג `WatcherEvents ORDER BY detected_at`→`occurred_at`.
+    `@factum-il/pipeline` נוסף ל-deps של api. 6 בדיקות processor + 4 בדיקות ConfigStore.
+  - תיקיות-מעקב נשמרות ב-`ConfigStore` (`watchFolders`, נורמליזציה+dedupe, שורד restart).
+  - UI: `FileIngestionPanel` ב-Diagnostics (סטטיסטיקות, עריכת תיקיות, סריקה חד-פעמית, אירועים
+    אחרונים) + hooks `useIngestionStatus`/`useSetWatchFolders`/`useRescanFolder`.
+  - אימות: database 101 · api 146 · dashboard typecheck+lint+build · lint נקי בכל החבילות.
+
+**הצעד הבא (אופציות):** הברחת-נתונים אמיתית (B0 #50/#52 — אכלוס קורפוסים), או הרחבות-קליטה
+(metrics/דשבורד-קליטה ייעודי, זיהוי-לקוח/תיק אוטומטי בקליטה). חסומים-סביבה: C1 מסירה-חיה
+(Telegram allowlist), C2 (whatsapp-web.js+WebView2), C5/C6 Whisper (מודל מקומי).
 
 ---
 
