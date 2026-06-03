@@ -1,5 +1,28 @@
 # Factum-IL — Task Tracker
 
+## 🗓️ Session handoff — תכנון + audit (2026-06-03)
+**הושלם הפעם:**
+- שלוש תוכניות-עבודה מתואמות נדחפו ל-PR #54 (ענף `claude/lucid-johnson-D3EzR`):
+  `WORKPLAN_FRONTEND.md`, `WORKPLAN_BACKEND.md`, `WORKPLAN_COMMUNICATIONS.md`.
+- **מודול תקשורת (C-plan)** — הכרעות בעלים ננעלו: טלגרם (Bot API רשמי) ראשי · וואטסאפ (self-hosted, שליחה-ידנית) גיבוי ·
+  מסמכים בקישור-מקומי · הסכמה+audit · **חשבון מרכזי אחד למשרד + Smart Routing** לתיק ולעו"ד המשויך ·
+  Whisper מקומי · תיוג-AI ב-law-il-E2B בלבד · ללא הקלטת-שיחות.
+- **audit מבוסס-קוד של ה-Frontend** (M1–M7): רוב התוכנית כבר מומשה. עודכן `WORKPLAN_FRONTEND.md` עם
+  טבלת-רקונסיליאציה (done/partial/missing + קבצים).
+
+**פערי-Frontend אמיתיים שנותרו (לפי ה-audit):**
+1. `/search` — UI לא מרנדר תוצאות FTS5 (hook `useSearch` קיים, לא בשימוש) → F-A.
+2. אין דפדפן-קורפוס חקיקה/פסיקה לקריאה מילולית (PrecedentsPage הוא אימות-תקדימים) → F-B.
+3. אין `lib/legal-terms.ts` מרכזי; רכיבים משותפים לא מחולצים → F-C.
+4. Dashboard עדיין KPI ולא "היום שלי" מבוסס-משימות → F-D.
+5. אין שולחן-עבודה 3-פאנלים (החלטת-עיצוב) → F-E.
+
+**הצעד הבא:** או מימוש C0 (תשתית+מודל-נתונים+routing) של מודול התקשורת, או quick-win F-A (חיווט חיפוש).
+תלוי גם ב-B0 (אכלוס קורפוסים #50/#52) שממתין לקונטיינר עם allowlist.
+
+---
+
+
 ## Phase 0 — Stability ✅ COMPLETE
 - TypeScript typecheck errors fixed across 7 packages
 - vitest 1.x → 3.x upgrade
