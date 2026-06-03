@@ -213,6 +213,9 @@ importers:
       '@factum-il/pipeline':
         specifier: workspace:*
         version: link:../pipeline
+      '@factum-il/retrieval':
+        specifier: workspace:*
+        version: link:../retrieval
       '@factum-il/shared':
         specifier: workspace:*
         version: link:../shared

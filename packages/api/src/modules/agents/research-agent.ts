@@ -1,5 +1,6 @@
 import { runAgent } from '@factum-il/agent-core';
 import { checkConfidence } from '@factum-il/ai-guardrails';
+import { searchLegalSections } from '@factum-il/retrieval';
 import type { Repos } from '../../db.js';
 import type { AgentOutput, AgentProgress } from '@factum-il/agent-core';
 import { persistAgentResult } from './persist-result.js';
@@ -49,9 +50,30 @@ export async function researchLegalQuestion(
     },
   };
 
+  // Search the bundled legislation KB (LegalSections + LegalSectionEmbeddings, migration 061)
+  const statuteTool = {
+    name: 'statute_search',
+    description: 'מחפש סעיפי חוק ישראלי רלוונטיים לשאלה במאגר החקיקה',
+    execute: async () => {
+      try {
+        const hits = await searchLegalSections(question, repos.db, { limit: 5 });
+        return hits.map(h => ({
+          law:     h.titleHe,
+          section: h.sectionLabel,
+          heading: h.headingHe,
+          text:    h.verbatimText.slice(0, 500),
+        }));
+      } catch {
+        return [];
+      }
+    },
+  };
+
   const output = await runAgent({
     agentName: 'research-agent',
     task: `חקור את השאלה המשפטית הבאה: "${question}"
+
+השתמש בכלי החיפוש הזמינים: תיקים קיימים, פסיקה, וסעיפי חוק (statute_search).
 
 ספק תשובה בפורמט JSON:
 {
@@ -61,7 +83,7 @@ export async function researchLegalQuestion(
   "disclaimer": "תשובה זו מיועדת לסיוע בלבד ואינה מהווה ייעוץ משפטי",
   "confidence": <0.0–1.0>
 }`,
-    tools: [searchTool, precedentTool],
+    tools: [searchTool, precedentTool, statuteTool],
     ...(caseId !== undefined ? { caseId } : {}),
     ...(onProgress ? { onProgress } : {}),
   });

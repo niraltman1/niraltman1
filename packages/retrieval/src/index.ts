@@ -8,3 +8,5 @@ export type { SearchResult } from './hybrid-search.js';
 export { deterministicSearch } from './deterministic-wrapper.js';
 export { createCaseScopedRetriever } from './case-scoped-retriever.js';
 export type { CaseScopedRetriever } from './case-scoped-retriever.js';
+export { searchLegalSections } from './legal-section-search.js';
+export type { LegalSectionResult } from './legal-section-search.js';
