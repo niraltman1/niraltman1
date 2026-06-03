@@ -14,7 +14,8 @@ const DEFAULT_ORG_DIR = 'C:\\2026 אדמיניסטרציה - משרד עורכי
 interface ConfigData {
   orgDirectory:      string;
   setupCompleted?:   boolean;
-  setupCompletedAt?: string; // ISO 8601
+  setupCompletedAt?: string;   // ISO 8601
+  watchFolders?:     string[]; // directories the file-ingestion watcher monitors
 }
 
 function readRegistryOrgDir(): string | null {
@@ -68,6 +69,20 @@ export class ConfigStore {
 
   setOrgDirectory(path: string): void {
     this.data.orgDirectory = path;
+    this.persist(this.data);
+  }
+
+  /** Directories monitored by the file-ingestion watcher (empty until configured). */
+  getWatchFolders(): string[] {
+    return this.data.watchFolders ?? [];
+  }
+
+  setWatchFolders(folders: string[]): void {
+    // Normalize: trim, drop blanks, de-duplicate (preserve order).
+    const seen = new Set<string>();
+    this.data.watchFolders = folders
+      .map((f) => f.trim())
+      .filter((f) => f.length > 0 && !seen.has(f) && (seen.add(f), true));
     this.persist(this.data);
   }
 

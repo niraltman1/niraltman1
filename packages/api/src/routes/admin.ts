@@ -5,6 +5,8 @@ import { ok } from '../utils/response.js';
 import { getStatus as getResourceStatus, setTurboMode } from '../utils/resource-controller.js';
 import { seedDemo } from '../utils/seed-demo.js';
 import { runVacuumProtocol } from '../utils/vacuum-protocol.js';
+import { reconfigureWatchFolders, rescanFolder } from '../utils/file-ingestion.js';
+import { existsSync, statSync } from 'node:fs';
 import { ValidationError, NotFoundError } from '../errors/api-error.js';
 import type { RagHealingService } from '../utils/rag-healing.js';
 import { requireRole } from '../middleware/auth.js';
@@ -15,7 +17,7 @@ import {
 
 export function adminRouter(repos: Repos, healingService: RagHealingService): Router {
   const router = Router();
-  const { db, backups, hardening, queue, config } = repos;
+  const { db, backups, hardening, queue, config, watcherEvents } = repos;
 
   router.get('/workers', asyncHandler((_req, res) => {
     const rows = db
@@ -25,10 +27,50 @@ export function adminRouter(repos: Repos, healingService: RagHealingService): Ro
   }));
 
   router.get('/watcher/events', asyncHandler((_req, res) => {
-    const rows = db
-      .prepare('SELECT * FROM WatcherEvents ORDER BY detected_at DESC LIMIT 200')
-      .all() as Record<string, unknown>[];
-    ok(res, rows);
+    ok(res, watcherEvents.recent(200));
+  }));
+
+  // ── File ingestion (Vacuum Protocol) ──────────────────────────────────────
+  // Combined status: configured folders + queue stats + recent events.
+  router.get('/ingestion/status', asyncHandler((_req, res) => {
+    ok(res, {
+      watchFolders: config.getWatchFolders(),
+      stats:        watcherEvents.stats(),
+      recent:       watcherEvents.recent(50),
+    });
+  }));
+
+  router.get('/ingestion/folders', asyncHandler((_req, res) => {
+    ok(res, config.getWatchFolders());
+  }));
+
+  // Replace the watched-folder set; validates each path is an existing directory,
+  // persists to ConfigStore, and hot-reconfigures the live watcher.
+  router.put('/ingestion/folders', requireRole('admin', repos), asyncHandler((req, res) => {
+    const body = req.body as { folders?: unknown };
+    if (!Array.isArray(body.folders) || !body.folders.every((f) => typeof f === 'string')) {
+      throw new ValidationError('folders must be an array of strings');
+    }
+    const folders = body.folders as string[];
+    for (const f of folders) {
+      if (!existsSync(f) || !statSync(f).isDirectory()) {
+        throw new ValidationError(`לא תיקייה תקפה: ${f}`);
+      }
+    }
+    config.setWatchFolders(folders);
+    reconfigureWatchFolders(config.getWatchFolders());
+    ok(res, config.getWatchFolders());
+  }));
+
+  // Enqueue every supported file already present under a folder (one-shot bulk ingest).
+  router.post('/ingestion/rescan', requireRole('admin', repos), asyncHandler((req, res) => {
+    const { folder } = req.body as { folder?: string };
+    if (!folder || typeof folder !== 'string') throw new ValidationError('folder is required');
+    if (!existsSync(folder) || !statSync(folder).isDirectory()) {
+      throw new ValidationError(`לא תיקייה תקפה: ${folder}`);
+    }
+    const enqueued = rescanFolder(repos, folder);
+    ok(res, { enqueued });
   }));
 
   router.get('/backups', asyncHandler((_req, res) => {

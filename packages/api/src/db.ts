@@ -18,6 +18,7 @@ import type {
   StensRepository,
   GmailRepository,
   VacuumRepository,
+  WatcherEventsRepository,
   PipelineLogsRepository,
   NotificationsRepository,
   CalendarRepository,
@@ -54,6 +55,7 @@ export interface Repos {
   stens:          StensRepository;
   gmail:          GmailRepository;
   vacuum:         VacuumRepository;
+  watcherEvents:  WatcherEventsRepository;
   pipelineLogs:   PipelineLogsRepository;
   notifications:  NotificationsRepository;
   calendar:       CalendarRepository;

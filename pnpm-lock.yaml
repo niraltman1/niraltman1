@@ -210,6 +210,9 @@ importers:
       '@factum-il/observability':
         specifier: workspace:*
         version: link:../observability
+      '@factum-il/pipeline':
+        specifier: workspace:*
+        version: link:../pipeline
       '@factum-il/shared':
         specifier: workspace:*
         version: link:../shared

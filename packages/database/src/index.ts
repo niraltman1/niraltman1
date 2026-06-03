@@ -29,6 +29,8 @@ export { GmailRepository } from './queries/gmail.js';
 export type { GmailSyncConfig, GmailSyncLog, CreateGmailConfigInput, LogSyncInput } from './queries/gmail.js';
 export { VacuumRepository } from './queries/vacuum.js';
 export type { VacuumSession, VacuumStatus } from './queries/vacuum.js';
+export { WatcherEventsRepository } from './queries/watcher-events.js';
+export type { WatcherEventRow, WatcherEventType, WatcherEventStats, MarkProcessedInput } from './queries/watcher-events.js';
 export type { IntegrityReport, BackupResult, WALCheckpointMode } from './hardening.js';
 export type { SearchHit, SearchOptions } from './search/engine.js';
 export type { BackupSnapshot } from './queries/backups.js';

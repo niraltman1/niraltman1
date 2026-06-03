@@ -72,6 +72,17 @@ async function patchJSON<T>(path: string, body?: unknown): Promise<T> {
   return json.data;
 }
 
+async function putJSON<T>(path: string, body?: unknown): Promise<T> {
+  const res = await fetch(path, {
+    method:  'PUT',
+    headers: { 'Content-Type': 'application/json' },
+    body:    JSON.stringify(body ?? {}),
+  });
+  const json: ApiResponse<T> = await res.json();
+  if (!json.success) throw new ApiClientError(json.error.code, json.error.message);
+  return json.data;
+}
+
 export async function deleteJSON<T>(path: string): Promise<T> {
   const res = await fetch(path, { method: 'DELETE' });
   const json: ApiResponse<T> = await res.json();
@@ -279,6 +290,53 @@ export function useWatcherEvents(limit = 30) {
     queryFn:  () => fetchJSON<Record<string, unknown>[]>(`/api/admin/watcher/events?limit=${limit}`),
     refetchInterval: 5_000,
     retry: false,
+  });
+}
+
+// ─────────────────────────────────────────────
+//  Admin — File ingestion (Vacuum Protocol)
+// ─────────────────────────────────────────────
+
+export interface WatcherEventRow {
+  id:           number;
+  eventType:    string;
+  filePath:     string;
+  processed:    boolean;
+  queued:       boolean;
+  duplicate:    boolean;
+  errorMessage: string | null;
+  occurredAt:   string;
+  processedAt:  string | null;
+}
+
+export interface IngestionStatus {
+  watchFolders: string[];
+  stats: { unprocessed: number; processed: number; errors: number; lastProcessedAt: string | null };
+  recent: WatcherEventRow[];
+}
+
+export function useIngestionStatus() {
+  return useQuery({
+    queryKey: ['admin', 'ingestion', 'status'] as const,
+    queryFn:  () => fetchJSON<IngestionStatus>('/api/admin/ingestion/status'),
+    refetchInterval: 5_000,
+    retry: false,
+  });
+}
+
+export function useSetWatchFolders() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (folders: string[]) => putJSON<string[]>('/api/admin/ingestion/folders', { folders }),
+    onSuccess:  () => void qc.invalidateQueries({ queryKey: ['admin', 'ingestion'] }),
+  });
+}
+
+export function useRescanFolder() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (folder: string) => postJSON<{ enqueued: number }>('/api/admin/ingestion/rescan', { folder }),
+    onSuccess:  () => void qc.invalidateQueries({ queryKey: ['admin', 'ingestion'] }),
   });
 }
 

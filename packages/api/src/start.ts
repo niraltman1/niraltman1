@@ -13,6 +13,8 @@ import { mkdirSync, existsSync, unlinkSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { writeServerConfig, clearServerConfig } from './utils/server-config-writer.js';
 import { ensureAutoVacuum } from './utils/auto-vacuum.js';
+import { MediaPipeline } from './utils/media-pipeline.js';
+import { startFileIngestion, stopFileIngestion } from './utils/file-ingestion.js';
 import {
   DatabaseConnection,
   MigrationRunner,
@@ -34,6 +36,7 @@ import {
   StensRepository,
   GmailRepository,
   VacuumRepository,
+  WatcherEventsRepository,
   PipelineLogsRepository,
   NotificationsRepository,
   CalendarRepository,
@@ -173,6 +176,7 @@ const repos: Repos = {
   stens:          new StensRepository(db),
   gmail:          new GmailRepository(db),
   vacuum:         new VacuumRepository(db),
+  watcherEvents:  new WatcherEventsRepository(db),
   pipelineLogs:   new PipelineLogsRepository(db),
   notifications:  new NotificationsRepository(db),
   calendar:       new CalendarRepository(db),
@@ -257,6 +261,12 @@ const server = app.listen(PORT, () => {
     startInsolvencyNudgeScheduler(repos);
     startRetentionScheduler(repos);
     startDeadlineTracker(repos);
+    // File-ingestion: watch configured folders → durable WatcherEvents queue → media pipeline.
+    const ingestPipeline = new MediaPipeline(
+      repos.processedFiles, repos.documents, repos.evidence,
+      repos.clients, repos.cases, repos.pipelineLogs, repos.contacts,
+    );
+    startFileIngestion(repos, ingestPipeline, configStore.getWatchFolders());
   } else {
     logger.warn('[Factum IL] Safe mode active — background workers disabled');
   }
@@ -266,6 +276,7 @@ function _shutdown() {
   void clearServerConfig();
   stopRagWorker(); stopBackupScheduler(); stopContentUpdateScheduler();
   stopInsolvencyNudgeScheduler(); stopRetentionScheduler(); stopDeadlineTracker();
+  stopFileIngestion();
   try { server.close(); } catch { /* server may not have started yet */ }
 }
 
