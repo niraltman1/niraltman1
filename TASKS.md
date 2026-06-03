@@ -17,8 +17,15 @@
 4. Dashboard עדיין KPI ולא "היום שלי" מבוסס-משימות → F-D.
 5. אין שולחן-עבודה 3-פאנלים (החלטת-עיצוב) → F-E.
 
-**הצעד הבא:** או מימוש C0 (תשתית+מודל-נתונים+routing) של מודול התקשורת, או quick-win F-A (חיווט חיפוש).
-תלוי גם ב-B0 (אכלוס קורפוסים #50/#52) שממתין לקונטיינר עם allowlist.
+**הושלם בהמשך הסשן:**
+- ✅ **F-A (חיפוש גלובלי)** — `SearchPage` + `SpotlightSearch` חוברו ל-contract הקנוני של FTS5
+  (`SearchHit`), עם `features/search/shared.tsx` (entity-meta/href/grouping/highlight) ובדיקת-חוזה
+  `engine.test.ts`. typecheck/lint/build נקיים.
+- 🟡 **C0 (תקשורת — שכבת נתונים + Smart Routing)** — migration 060 (7 טבלאות), `CommunicationsRepository`
+  (ניתוב חכם + consent gate + audit), חובר ל-Repos. 7 בדיקות repo + ולידציית DDL; DB(72)+API(85) ירוקים.
+
+**הצעד הבא (המשך C0):** הצפנת credentials של ערוצים (credential_ref→secret store), routes ב-`packages/api`
+למודול התקשורת, ואכיפת RBAC. לאחר מכן C1 (טלגרם Bot API). תלוי גם ב-B0 (אכלוס קורפוסים #50/#52) לקונטיינר עם allowlist.
 
 ---
 

@@ -31,7 +31,13 @@
 
 ---
 
-## Phase C0 — תשתית ומודל-נתונים (שבועות 1–2)
+## Phase C0 — תשתית ומודל-נתונים (שבועות 1–2)  🟡 **בתהליך — שכבת הנתונים + ניתוב הושלמו**
+> **הושלם:** migration `060_communications.sql` (7 טבלאות, 13 אינדקסים), `CommunicationsRepository`
+> עם מנוע Smart Routing (זיהוי שולח → לקוח → תיק פעיל → עו"ד מ-CaseAssignments; ריבוי-תיקים/אלמוני → triage/UnknownInbox),
+> שער-הסכמה (consent gate) ל-outbound + audit מלא (send/send_blocked/consent/route). חובר ל-Repos.
+> נבדק: 7 בדיקות repo + ולידציית DDL; חבילות DB+API typecheck/lint/tests ירוקים.
+> **נותר ל-C0:** הצפנת credentials בפועל (credential_ref → secret store), routes ב-`packages/api`, אכיפת RBAC.
+
 - [ ] **סכמת DB (migrations חדשים, סלוט פנוי הבא):**
       `CommChannels` (telegram/whatsapp/email/phone + סטטוס חיבור),
       `Conversations` (שיוך ל-client_id/case_id, ערוץ, נושא),
