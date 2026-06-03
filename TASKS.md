@@ -25,9 +25,13 @@
   consent gate + audit), `/api/communications` עם RBAC מדורג (admin/assistant/attorney), הצפנת credentials של
   ערוצים ב-field-cipher (AES-256-GCM; רק credential_ref נשמר). 7 בדיקות repo + 7 בדיקות route; DB(72)+API(92) ירוקים.
 
-**הצעד הבא:** **C1 — טלגרם (Bot API רשמי)**: אינטגרציית inbound (webhook/polling → `routeInbound`) + outbound send
-+ העברת-קבצים + onboarding. תלוי בקונטיינר עם גישת-רשת ל-Telegram. במקביל: B0 (אכלוס קורפוסים #50/#52).
-UI של מודול התקשורת (C3) ייבנה על ה-API הזה — מוטמע ב-CaseDetail/ClientCard וקבוצת "תקשורת" בסיידבר.
+- 🟡 **C1 (טלגרם — Bot API)** — `modules/telegram/`: `TelegramClient` (HTTP מוזרק), `handleTelegramUpdate`→routeInbound,
+  `sendTelegramText` best-effort, routes connect/webhook/set-webhook. 8 בדיקות; API(100) ירוק.
+  ⚠️ `api.telegram.org` לא ב-allowlist → מסירה חיה לא אומתה כאן (הקוד מוכן לסביבה עם גישת-רשת).
+
+**הצעד הבא:** **C3 — ציר-זמן אחיד + נקודות-כניסה** (UI: פאנל תקשורת ב-CaseDetail/ClientCard + קבוצת "תקשורת" בסיידבר,
+על בסיס `/api/communications`). אפשר במקביל C2 (WhatsApp self-hosted, שליחה-ידנית). אימות חי של C1 כשה-allowlist יכלול
+את Telegram. תלוי גם ב-B0 (אכלוס קורפוסים #50/#52).
 
 ---
 

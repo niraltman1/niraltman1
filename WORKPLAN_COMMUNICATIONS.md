@@ -57,13 +57,17 @@
 - [ ] **הצפנת credentials** (Telegram bot token, WhatsApp session) ב-config מוצפן.
 - **קבלה:** ניתן לרשום שיחה/הודעה/הסכמה; gate חוסם שליחה ללא הסכמה; audit נכתב.
 
-## Phase C1 — Telegram (ערוץ ראשי) (שבועות 2–3)
-- [ ] אינטגרציית **Bot API רשמי** בתהליך Node המקומי (inbound polling/webhook + outbound send).
-- [ ] העברת-קבצים דו-כיוונית (קבלת מסמכים מהלקוח → קליטה ל-pipeline; שליחת קישור-חתימה).
-- [ ] **Onboarding אוטומטי:** בפתיחת תיק — הודעת-ברוכים עם קישור לבוט-טלגרם של המשרד
-      ("העדפה: טלגרם — מאובטח ומהיר להעברת מסמכים").
-- [ ] כשל-בחן: אם הבוט/הרשת למטה — לתייג "ממתין לשליחה", לא לקרוס.
-- **קבלה:** הודעה/קובץ נשלחים ומתקבלים דרך טלגרם, מקושרים לתיק, נרשמים בציר-הזמן.
+## Phase C1 — Telegram (ערוץ ראשי) 🟡 **קוד הושלם — נדרש אימות חי (allowlist)**
+- [x] אינטגרציית **Bot API רשמי**: `TelegramClient` (getMe/sendMessage/getFile/downloadFile/setWebhook,
+      HTTP מוזרק לבדיקות ללא רשת), `modules/telegram/`.
+- [x] **Inbound**: `handleTelegramUpdate` → `routeInbound` (זיהוי שולח לפי telegram-id, טקסט/caption +
+      מדיה photo/document/voice → file_id ref). webhook עם אימות secret-token.
+- [x] **Outbound**: `sendTelegramText` (best-effort) — שליחת ההודעה שנרשמה; ה-route מדווח delivery
+      ומבצע audit (delivered/delivery_failed) בלי לחסום רישום (= כשל-בחן: לא קורס).
+- [x] **חיבור/אימות**: `POST /telegram/connect` (admin) — אחסון token מוצפן + `getMe`; `set-webhook`.
+- [ ] **נותר**: העברת-קבצים בפועל (download → pipeline) דורש רשת; Onboarding welcome-link אוטומטי.
+- **אומת:** 8 בדיקות (client envelope/errors/URL; inbound unknown/known/photo/empty) + API(100) ירוק.
+- ⚠️ **חסם-סביבה:** `api.telegram.org` אינו ב-allowlist הנוכחי → אי-אפשר לאמת מסירה חיה כאן.
 
 ## Phase C2 — WhatsApp (גיבוי, שליחה-ידנית) (שבועות 3–4)
 - [ ] **whatsapp-web.js self-hosted** המקושר למספר המשרד (חיבור QR מנוהל מה-UI, session מוצפן).
