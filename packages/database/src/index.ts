@@ -44,6 +44,11 @@ export { EntitiesRepository } from './queries/entities.js';
 export type { EntityReference } from './queries/entities.js';
 export { SmartCollectionsRepository } from './queries/smart-collections.js';
 export type { SmartCollectionKey, SmartCollectionItem, SmartCollectionMeta } from './queries/smart-collections.js';
+export { CommunicationsRepository } from './queries/communications.js';
+export type {
+  CommChannel, CommDirection, ConversationStatus,
+  CommConversation, CommMessage, InboundInput, RoutingResult, SendInput, SendResult,
+} from './queries/communications.js';
 export { NotificationsRepository } from './queries/notifications.js';
 export type {
   NotificationRow,
