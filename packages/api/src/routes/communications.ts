@@ -6,6 +6,9 @@ import { ok } from '../utils/response.js';
 import { ValidationError, NotFoundError, ConflictError } from '../errors/api-error.js';
 import { requireRole } from '../middleware/auth.js';
 import { storeEncryptedField } from '../modules/security/index.js';
+import { TelegramClient } from '../modules/telegram/telegram-client.js';
+import { handleTelegramUpdate, getTelegramToken, type TelegramUpdate } from '../modules/telegram/telegram-inbound.js';
+import { sendTelegramText } from '../modules/telegram/telegram-outbound.js';
 
 const CHANNELS: CommChannel[] = ['telegram', 'whatsapp', 'email', 'phone'];
 const STATUSES: ConversationStatus[] = ['open', 'closed', 'triage'];
@@ -76,7 +79,9 @@ export function communicationsRouter(repos: Repos): Router {
   }));
 
   // Send an outbound message — consent-gated. Blocked sends return 409.
-  router.post('/conversations/:id/send', requireRole('attorney', repos), asyncHandler((req, res) => {
+  // For Telegram, the recorded message is also transmitted (best-effort) and the
+  // delivery outcome is reported; recording is never blocked by a transport failure.
+  router.post('/conversations/:id/send', requireRole('attorney', repos), asyncHandler(async (req, res) => {
     const id = Number(req.params['id']);
     const { body, mediaKind, mediaRef } = req.body as { body?: string; mediaKind?: string; mediaRef?: string };
     if (!body && !mediaRef) throw new ValidationError('body or mediaRef required');
@@ -89,7 +94,17 @@ export function communicationsRouter(repos: Repos): Router {
     if (!result.sent) {
       throw new ConflictError(`שליחה נחסמה — הלקוח לא נתן הסכמה לערוץ ${result.channel}`);
     }
-    ok(res, result);
+    const conv = comm.getConversation(id);
+    let delivery: { delivered: boolean; error?: string } | undefined;
+    if (conv?.channel === 'telegram' && conv.externalThreadId && body) {
+      delivery = await sendTelegramText(repos, conv.externalThreadId, body);
+      comm.audit({
+        conversationId: id, messageId: result.messageId, userId: userIdOf(req),
+        channel: 'telegram', action: delivery.delivered ? 'delivered' : 'delivery_failed',
+        detail: delivery.error ?? null,
+      });
+    }
+    ok(res, { ...result, ...(delivery ? { delivery } : {}) });
   }));
 
   // ── Inbound ingestion (attorney+) ─────────────────────────────────────────
@@ -135,6 +150,51 @@ export function communicationsRouter(repos: Repos): Router {
   // ── Unknown inbox (assistant+) ────────────────────────────────────────────
   router.get('/unknown', requireRole('assistant', repos), asyncHandler((req, res) => {
     ok(res, comm.listUnknownInbox(req.query['all'] === 'true'));
+  }));
+
+  // ── Telegram (C1) ─────────────────────────────────────────────────────────
+  // Connect the firm bot: store the token encrypted, verify via getMe, mark connected.
+  // Requires api.telegram.org to be reachable (runtime network allowlist).
+  router.post('/telegram/connect', requireRole('admin', repos), asyncHandler(async (req, res) => {
+    const { token } = req.body as { token?: string };
+    if (!token) throw new ValidationError('token required');
+    let me;
+    try {
+      me = await new TelegramClient(token).getMe();
+    } catch (e) {
+      throw new ConflictError(`אימות הבוט נכשל: ${e instanceof Error ? e.message : String(e)}`);
+    }
+    const id = comm.upsertChannel({
+      channel: 'telegram', status: 'connected',
+      ...(me.username ? { identifier: `@${me.username}`, label: me.first_name } : {}),
+    });
+    await storeEncryptedField(db, 'CommChannels', id, 'credential', token);
+    comm.upsertChannel({ channel: 'telegram', credentialRef: `enc:CommChannels:${id}:credential` });
+    comm.audit({ conversationId: null, messageId: null, userId: userIdOf(req), channel: 'telegram', action: 'channel_config', detail: 'telegram_connected' });
+    ok(res, { connected: true, bot: me.username ?? null });
+  }));
+
+  // Inbound webhook. Public (no Bearer), but verified via Telegram's secret-token header.
+  // Set COMM_TELEGRAM_WEBHOOK_SECRET to enable verification.
+  router.post('/telegram/webhook', asyncHandler(async (req, res) => {
+    const secret = process.env['COMM_TELEGRAM_WEBHOOK_SECRET'];
+    if (secret && req.headers['x-telegram-bot-api-secret-token'] !== secret) {
+      throw new ConflictError('invalid webhook secret');
+    }
+    const result = handleTelegramUpdate(repos, req.body as TelegramUpdate);
+    // Always 200 so Telegram does not retry indefinitely on non-routable updates.
+    ok(res, { handled: result !== null, ...(result ? { routing: result } : {}) });
+  }));
+
+  // Register the webhook URL with Telegram (admin).
+  router.post('/telegram/set-webhook', requireRole('admin', repos), asyncHandler(async (req, res) => {
+    const { url } = req.body as { url?: string };
+    if (!url) throw new ValidationError('url required');
+    const token = await getTelegramToken(repos);
+    if (!token) throw new ConflictError('telegram_not_connected');
+    const secret = process.env['COMM_TELEGRAM_WEBHOOK_SECRET'];
+    await new TelegramClient(token).setWebhook(url, secret);
+    ok(res, { ok: true });
   }));
 
   return router;
