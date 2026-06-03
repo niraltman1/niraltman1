@@ -42,6 +42,7 @@ import {
   SmartCollectionsRepository,
   CommunicationsRepository,
   CommTemplatesRepository,
+  CallLogsRepository,
 } from '@factum-il/database';
 import { createApp } from './app.js';
 import type { Repos } from './db.js';
@@ -176,6 +177,7 @@ const repos: Repos = {
   smartCollections: new SmartCollectionsRepository(db),
   communications:   new CommunicationsRepository(db),
   commTemplates:    new CommTemplatesRepository(db),
+  callLogs:         new CallLogsRepository(db),
 };
 
 // Release stale agent locks left over from a previous crash or restart.

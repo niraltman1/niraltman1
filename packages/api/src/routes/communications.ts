@@ -7,7 +7,7 @@ import { ValidationError, NotFoundError, ConflictError } from '../errors/api-err
 import { requireRole } from '../middleware/auth.js';
 import { storeEncryptedField } from '../modules/security/index.js';
 import { CommTemplatesRepository } from '@factum-il/database';
-import { transcribeCommMessage, TranscriptionUnavailableError } from '../modules/transcription/whisper.js';
+import { transcribeCommMessage, transcribeAudioData, TranscriptionUnavailableError } from '../modules/transcription/whisper.js';
 import { TelegramClient } from '../modules/telegram/telegram-client.js';
 import { handleTelegramUpdate, getTelegramToken, type TelegramUpdate } from '../modules/telegram/telegram-inbound.js';
 import { sendTelegramText } from '../modules/telegram/telegram-outbound.js';
@@ -290,6 +290,83 @@ export function communicationsRouter(repos: Repos): Router {
     }
     const vars = resolveCaseVars(repos, Number(caseId), tpl.body, userIdOf(req), true);
     ok(res, { rendered: CommTemplatesRepository.render(tpl.body, vars) });
+  }));
+
+  // ── Call documentation (C6) ───────────────────────────────────────────────
+  // Log a phone call (no live recording). Optional action items become linked Tasks.
+  router.post('/calls', asyncHandler((req, res) => {
+    const b = req.body as {
+      clientId?: number; caseId?: number | null; direction?: string; subject?: string;
+      summary?: string; occurredAt?: string; durationMinutes?: number;
+      participants?: string[]; tags?: string[];
+      actionItems?: Array<{ title: string; dueDate?: string; priority?: string }>;
+    };
+    if (!b.clientId) throw new ValidationError('clientId required');
+    if (b.direction && !['inbound', 'outbound'].includes(b.direction)) throw new ValidationError('invalid direction');
+
+    const call = repos.callLogs.create({
+      clientId: b.clientId,
+      caseId: b.caseId ?? null,
+      ...(b.direction ? { direction: b.direction as 'inbound' | 'outbound' } : {}),
+      ...(b.subject !== undefined ? { subject: b.subject } : {}),
+      ...(b.summary !== undefined ? { summary: b.summary } : {}),
+      ...(b.occurredAt ? { occurredAt: b.occurredAt } : {}),
+      ...(b.durationMinutes !== undefined ? { durationMinutes: b.durationMinutes } : {}),
+      ...(b.participants ? { participants: b.participants } : {}),
+      ...(b.tags ? { tags: b.tags } : {}),
+      createdBy: userIdOf(req),
+    });
+
+    // Action items → Tasks linked to the matter/client.
+    const taskIds: number[] = [];
+    for (const item of b.actionItems ?? []) {
+      if (!item.title?.trim()) continue;
+      const t = repos.tasks.create({
+        title: item.title.trim(), source: 'manual',
+        ...(b.caseId != null ? { caseId: b.caseId } : {}),
+        clientId: b.clientId,
+        ...(item.dueDate ? { dueDate: item.dueDate } : {}),
+        ...(item.priority ? { priority: item.priority as 'low' | 'normal' | 'high' | 'critical' } : {}),
+      });
+      taskIds.push(t.id);
+    }
+    ok(res, { call, taskIds });
+  }));
+
+  router.get('/calls', asyncHandler((req, res) => {
+    const { clientId, caseId } = req.query;
+    if (caseId   !== undefined) { ok(res, repos.callLogs.listByCase(Number(caseId))); return; }
+    if (clientId !== undefined) { ok(res, repos.callLogs.listByClient(Number(clientId))); return; }
+    throw new ValidationError('clientId or caseId required');
+  }));
+
+  router.patch('/calls/:id', asyncHandler((req, res) => {
+    const updated = repos.callLogs.update(Number(req.params['id']), req.body as Record<string, never>);
+    if (!updated) throw new NotFoundError('call log not found');
+    ok(res, updated);
+  }));
+
+  // Promote a call into a case timeline (the "save as evidence" bridge).
+  router.post('/calls/:id/save-evidence', asyncHandler((req, res) => {
+    const { caseId } = req.body as { caseId?: number };
+    if (!caseId) throw new ValidationError('caseId required');
+    const updated = repos.callLogs.saveAsEvidence(Number(req.params['id']), Number(caseId));
+    if (!updated) throw new NotFoundError('call log not found');
+    comm.audit({ conversationId: null, messageId: null, userId: userIdOf(req), channel: 'phone', action: 'save_evidence', detail: `call:${updated.id}` });
+    ok(res, updated);
+  }));
+
+  // Dictation: transcribe an audio blob locally (Whisper). 409 when no local transcriber.
+  router.post('/transcribe-audio', asyncHandler(async (req, res) => {
+    const { audioBase64, mimeType } = req.body as { audioBase64?: string; mimeType?: string };
+    if (!audioBase64) throw new ValidationError('audioBase64 required');
+    try {
+      const transcript = await transcribeAudioData(audioBase64, mimeType ?? 'audio/webm');
+      ok(res, { transcript });
+    } catch (e) {
+      if (e instanceof TranscriptionUnavailableError) throw new ConflictError(`תמלול אינו זמין: ${e.message}`);
+      throw e;
+    }
   }));
 
   // ── Telegram (C1) ─────────────────────────────────────────────────────────

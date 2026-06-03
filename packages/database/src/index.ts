@@ -52,6 +52,8 @@ export type {
 } from './queries/communications.js';
 export { CommTemplatesRepository } from './queries/comm-templates.js';
 export type { CommTemplate, TemplateContext, SecureLinkInput } from './queries/comm-templates.js';
+export { CallLogsRepository } from './queries/call-logs.js';
+export type { CallLog, CallDirection, CallLogCreateInput, CallLogPatch } from './queries/call-logs.js';
 export { NotificationsRepository } from './queries/notifications.js';
 export type {
   NotificationRow,

@@ -26,6 +26,7 @@ import type {
   SmartCollectionsRepository,
   CommunicationsRepository,
   CommTemplatesRepository,
+  CallLogsRepository,
 } from '@factum-il/database';
 import type { ConfigStore } from './utils/config-store.js';
 
@@ -58,4 +59,5 @@ export interface Repos {
   smartCollections: SmartCollectionsRepository;
   communications: CommunicationsRepository;
   commTemplates:  CommTemplatesRepository;
+  callLogs:       CallLogsRepository;
 }

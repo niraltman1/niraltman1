@@ -1,4 +1,7 @@
 import { spawn } from 'node:child_process';
+import { writeFile, unlink, mkdtemp } from 'node:fs/promises';
+import { join } from 'node:path';
+import { tmpdir } from 'node:os';
 import type { Repos } from '../../db.js';
 
 /**
@@ -57,4 +60,30 @@ export async function transcribeCommMessage(
   const transcript = await transcriber(msg.mediaRef);
   repos.communications.setTranscript(messageId, transcript);
   return transcript;
+}
+
+const EXT_BY_MIME: Record<string, string> = {
+  'audio/webm': 'webm', 'audio/ogg': 'ogg', 'audio/mpeg': 'mp3',
+  'audio/mp4': 'm4a', 'audio/wav': 'wav', 'audio/x-wav': 'wav',
+};
+
+/**
+ * Transcribe a dictation audio blob (base64) locally: write to a temp file, run the transcriber,
+ * then delete the temp file. Used by the call-documentation "dictate" button. Audio stays local.
+ */
+export async function transcribeAudioData(
+  base64: string,
+  mimeType: string,
+  transcriber: Transcriber = localWhisperTranscriber,
+): Promise<string> {
+  if (!base64) throw new TranscriptionUnavailableError('no audio data');
+  const ext = EXT_BY_MIME[mimeType] ?? 'webm';
+  const dir = await mkdtemp(join(tmpdir(), 'factum-dictate-'));
+  const path = join(dir, `audio.${ext}`);
+  await writeFile(path, Buffer.from(base64, 'base64'));
+  try {
+    return await transcriber(path);
+  } finally {
+    await unlink(path).catch(() => {});
+  }
 }

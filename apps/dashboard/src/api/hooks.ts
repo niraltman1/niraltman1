@@ -2252,7 +2252,7 @@ export interface NotificationsResponse {
 
 export interface CalendarEvent {
   id:         string;
-  kind:       'hearing' | 'statute_deadline' | 'task' | 'document';
+  kind:       'hearing' | 'statute_deadline' | 'task' | 'document' | 'call' | 'evidence';
   date:       string;
   time:       string | null;
   title:      string;
@@ -2623,5 +2623,89 @@ export function useTranscribeMessage(conversationId: number) {
     onSuccess: () => {
       void qc.invalidateQueries({ queryKey: ['communications', 'conversation', conversationId] });
     },
+  });
+}
+
+// ── Call documentation (C6) ──────────────────────────────────────────────────
+export type CallDirection = 'inbound' | 'outbound';
+
+export interface CallLog {
+  id:              number;
+  clientId:        number;
+  caseId:          number | null;
+  isEvidence:      boolean;
+  direction:       CallDirection;
+  subject:         string | null;
+  summary:         string | null;
+  occurredAt:      string;
+  durationMinutes: number | null;
+  participants:    string[];
+  tags:            string[];
+  createdBy:       number | null;
+  createdAt:       string;
+}
+
+export interface CallLogCreateInput {
+  clientId:         number;
+  caseId?:          number | null;
+  direction?:       CallDirection;
+  subject?:         string;
+  summary?:         string;
+  occurredAt?:      string;
+  durationMinutes?: number;
+  participants?:    string[];
+  tags?:            string[];
+  actionItems?:     Array<{ title: string; dueDate?: string; priority?: string }>;
+}
+
+/** List call logs for a client or a case (one of the two must be set). */
+export function useCallLogs(scope: { clientId?: number; caseId?: number }, enabled = true) {
+  const qs = scope.caseId !== undefined ? `caseId=${scope.caseId}` : `clientId=${scope.clientId}`;
+  return useQuery({
+    queryKey: ['communications', 'calls', scope.caseId ?? null, scope.clientId ?? null] as const,
+    queryFn:  () => fetchJSON<CallLog[]>(`/api/communications/calls?${qs}`),
+    enabled:  enabled && (scope.clientId !== undefined || scope.caseId !== undefined),
+  });
+}
+
+export function useCreateCallLog() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (input: CallLogCreateInput) =>
+      postJSON<{ call: CallLog; taskIds: number[] }>('/api/communications/calls', input),
+    onSuccess: () => {
+      void qc.invalidateQueries({ queryKey: ['communications', 'calls'] });
+      void qc.invalidateQueries({ queryKey: ['tasks'] });
+    },
+  });
+}
+
+export function useUpdateCallLog() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (v: { id: number; patch: Partial<CallLog> }) =>
+      patchJSON<CallLog>(`/api/communications/calls/${v.id}`, v.patch),
+    onSuccess: () => void qc.invalidateQueries({ queryKey: ['communications', 'calls'] }),
+  });
+}
+
+/** Promote a call into a case timeline ("save as evidence"). */
+export function useSaveCallEvidence() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (v: { id: number; caseId: number }) =>
+      postJSON<CallLog>(`/api/communications/calls/${v.id}/save-evidence`, { caseId: v.caseId }),
+    onSuccess: () => {
+      void qc.invalidateQueries({ queryKey: ['communications', 'calls'] });
+      void qc.invalidateQueries({ queryKey: ['cases'] });
+    },
+  });
+}
+
+/** Dictation: transcribe an audio blob locally (Whisper). Throws CONFLICT when not configured. */
+export function useTranscribeAudio() {
+  return useMutation({
+    mutationFn: (v: { audioBase64: string; mimeType: string }) =>
+      postJSON<{ transcript: string }>('/api/communications/transcribe-audio', v),
   });
 }

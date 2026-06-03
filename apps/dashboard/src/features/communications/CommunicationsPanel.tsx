@@ -1,13 +1,13 @@
 import { useState, useEffect, useRef } from 'react';
 import {
   PaperPlaneRightIcon, ChatCircleIcon, WarningCircleIcon, SpinnerGapIcon, NoteIcon,
-  ArchiveBoxIcon, WaveformIcon, LockSimpleIcon,
+  ArchiveBoxIcon, WaveformIcon, LockSimpleIcon, PhoneIcon, ArrowBendUpLeftIcon, ArrowBendDownRightIcon,
 } from '@phosphor-icons/react';
 import {
   useCommConversations, useCommConversation, useSendCommMessage, useGrantConsent,
   useCommTemplateMatches, useRenderCommTemplate, useSaveMessageEvidence, useTranscribeMessage,
-  useCaseEvidence,
-  type CommConversation, type CommMessage,
+  useCaseEvidence, useCallLogs, useSaveCallEvidence,
+  type CommConversation, type CommMessage, type CallLog,
 } from '@/api/hooks.js';
 import { CHANNEL_META, STATUS_META, commTime } from './channel-meta.js';
 
@@ -20,8 +20,10 @@ interface Props {
 /** Unified, omnichannel conversation timeline — embeddable in a case, a client, or standalone. */
 export function CommunicationsPanel({ caseId, clientId }: Props) {
   const filter = caseId !== undefined ? { caseId } : clientId !== undefined ? { clientId } : {};
+  const scoped = caseId !== undefined || clientId !== undefined;
   const { data: conversations = [], isLoading } = useCommConversations(filter);
   const { data: exhibits = [] } = useCaseEvidence(caseId ?? null);
+  const { data: calls = [] } = useCallLogs(filter, scoped);
   const [selectedId, setSelectedId] = useState<number | null>(null);
 
   // Auto-select the most recent conversation when the list loads/changes.
@@ -33,7 +35,8 @@ export function CommunicationsPanel({ caseId, clientId }: Props) {
     return <div className="flex justify-center py-12 text-parchment/40"><SpinnerGapIcon size={28} className="animate-spin" /></div>;
   }
 
-  if (conversations.length === 0) {
+  const hasContent = conversations.length > 0 || calls.length > 0;
+  if (!hasContent) {
     return (
       <div className="flex flex-col items-center justify-center py-16 text-parchment/30 gap-3" dir="rtl">
         <ChatCircleIcon size={40} weight="thin" />
@@ -50,23 +53,75 @@ export function CommunicationsPanel({ caseId, clientId }: Props) {
           <span>{exhibits.length} מוצגים נעולים מהתקשורת בתיק זה</span>
         </div>
       )}
-      <div className="grid grid-cols-[260px_1fr] gap-3 min-h-[420px]">
-      {/* Conversation list */}
-      <ul className="space-y-1 border-l border-parchment/10 pl-3 overflow-y-auto max-h-[560px]">
-        {conversations.map((c) => (
-          <li key={c.id}>
-            <ConversationRow conv={c} active={c.id === selectedId} onClick={() => setSelectedId(c.id)} />
-          </li>
-        ))}
-      </ul>
 
-      {/* Selected conversation timeline */}
-      <div>
-        {selectedId !== null
-          ? <ConversationTimeline conversationId={selectedId} />
-          : <div className="text-parchment/30 text-sm py-12 text-center">בחר שיחה</div>}
+      {/* Phone-call notes — the call's primary home (C6) */}
+      {calls.length > 0 && (
+        <div className="space-y-2">
+          <div className="flex items-center gap-1.5 text-xs text-parchment/50">
+            <PhoneIcon size={13} weight="duotone" /> תרשומות שיחה ({calls.length})
+          </div>
+          <ul className="grid gap-2 sm:grid-cols-2">
+            {calls.map((call) => <li key={call.id}><CallLogCard call={call} /></li>)}
+          </ul>
+        </div>
+      )}
+
+      {conversations.length > 0 && (
+        <div className="grid grid-cols-[260px_1fr] gap-3 min-h-[420px]">
+          {/* Conversation list */}
+          <ul className="space-y-1 border-l border-parchment/10 pl-3 overflow-y-auto max-h-[560px]">
+            {conversations.map((c) => (
+              <li key={c.id}>
+                <ConversationRow conv={c} active={c.id === selectedId} onClick={() => setSelectedId(c.id)} />
+              </li>
+            ))}
+          </ul>
+
+          {/* Selected conversation timeline */}
+          <div>
+            {selectedId !== null
+              ? <ConversationTimeline conversationId={selectedId} />
+              : <div className="text-parchment/30 text-sm py-12 text-center">בחר שיחה</div>}
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+/** A logged phone call rendered as a card — distinguished from message threads by a phone icon. */
+function CallLogCard({ call }: { call: CallLog }) {
+  const saveEvidence = useSaveCallEvidence();
+  const inbound = call.direction === 'inbound';
+  const DirIcon = inbound ? ArrowBendDownRightIcon : ArrowBendUpLeftIcon;
+  return (
+    <div className="rounded-xl border border-parchment/12 bg-navy-100/40 px-3 py-2.5 space-y-1.5">
+      <div className="flex items-center gap-1.5">
+        <PhoneIcon size={15} weight="duotone" className="text-emerald-300 shrink-0" />
+        <span className="text-parchment text-sm flex-1 truncate">{call.subject ?? 'תרשומת שיחה'}</span>
+        <DirIcon size={13} className="text-parchment/40" aria-label={inbound ? 'שיחה נכנסת' : 'שיחה יוצאת'} />
       </div>
+      {call.summary && <p className="text-parchment/60 text-xs line-clamp-2 whitespace-pre-wrap">{call.summary}</p>}
+      <div className="flex items-center flex-wrap gap-1.5 text-[10px] text-parchment/40">
+        <span>{commTime(call.occurredAt)}</span>
+        {call.durationMinutes != null && <span>· {call.durationMinutes} ד׳</span>}
+        {call.tags.map((t) => <span key={t} className="px-1.5 py-0.5 rounded bg-gold/10 text-gold/80">{t}</span>)}
       </div>
+      {call.caseId != null && (
+        call.isEvidence ? (
+          <span className="inline-flex items-center gap-1 text-[10px] text-emerald-400">
+            <LockSimpleIcon size={11} weight="fill" /> נשמר כראיה לתיק
+          </span>
+        ) : (
+          <button
+            onClick={() => saveEvidence.mutate({ id: call.id, caseId: call.caseId! })}
+            disabled={saveEvidence.isPending}
+            className="inline-flex items-center gap-1 text-[10px] text-parchment/50 hover:text-gold transition-colors"
+          >
+            <ArchiveBoxIcon size={11} /> שמור כראיה לתיק
+          </button>
+        )
+      )}
     </div>
   );
 }

@@ -2,7 +2,7 @@ import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import { createHash } from 'node:crypto';
 import express from 'express';
 import request from 'supertest';
-import { DatabaseConnection, CommunicationsRepository, CommTemplatesRepository } from '@factum-il/database';
+import { DatabaseConnection, CommunicationsRepository, CommTemplatesRepository, CallLogsRepository, TaskRepository } from '@factum-il/database';
 import { communicationsRouter } from '../communications.js';
 import { errorHandler } from '../../middleware/error.js';
 import type { Repos } from '../../db.js';
@@ -172,5 +172,91 @@ describe('communicationsRouter — RBAC + consent gate (C0)', () => {
     const msgId = (await request(app).get(`/api/communications/conversations/${convId}`).expect(200))
       .body.data.messages[0].id as number;
     await request(app).post(`/api/communications/messages/${msgId}/transcribe`).expect(409);
+  });
+});
+
+// ── Call documentation (C6) ──────────────────────────────────────────────────
+describe('communicationsRouter — call documentation (C6)', () => {
+  let db: DatabaseConnection;
+  let app: express.Express;
+  let attorneyTok: string;
+
+  beforeEach(() => {
+    db = new DatabaseConnection({ path: ':memory:' });
+    db.exec(SCHEMA);
+    db.exec(`
+      CREATE TABLE CallLogs (
+        id INTEGER PRIMARY KEY AUTOINCREMENT, client_id INTEGER NOT NULL, case_id INTEGER,
+        is_evidence INTEGER NOT NULL DEFAULT 0, direction TEXT NOT NULL DEFAULT 'inbound',
+        subject TEXT, summary TEXT, occurred_at TEXT NOT NULL, duration_minutes INTEGER,
+        participants TEXT, tags TEXT, created_by INTEGER,
+        created_at TEXT DEFAULT '2026-01-01', updated_at TEXT DEFAULT '2026-01-01'
+      );
+      CREATE TABLE Tasks (
+        id INTEGER PRIMARY KEY AUTOINCREMENT, title TEXT, description TEXT, status TEXT DEFAULT 'pending',
+        priority TEXT DEFAULT 'normal', due_date TEXT, client_id INTEGER, case_id INTEGER,
+        document_id INTEGER, source TEXT DEFAULT 'manual', created_at TEXT DEFAULT '2026-01-01',
+        updated_at TEXT DEFAULT '2026-01-01'
+      );
+    `);
+    db.prepare("INSERT INTO Clients (id, name_he) VALUES (1, 'לקוח')").run();
+    db.prepare("INSERT INTO Cases (id, client_id, status) VALUES (5,1,'open')").run();
+    attorneyTok = tokenFor(db, 'att1', 'attorney');
+
+    const repos = {
+      db,
+      communications: new CommunicationsRepository(db),
+      commTemplates:  new CommTemplatesRepository(db),
+      callLogs:       new CallLogsRepository(db),
+      tasks:          new TaskRepository(db),
+    } as unknown as Repos;
+    app = express();
+    app.use(express.json());
+    app.use('/api/communications', communicationsRouter(repos));
+    app.use(errorHandler);
+  });
+
+  afterEach(() => db.close());
+
+  it('creates a call log and spins action items into linked Tasks', async () => {
+    const res = await request(app).post('/api/communications/calls')
+      .set('Authorization', `Bearer ${attorneyTok}`)
+      .send({
+        clientId: 1, caseId: 5, direction: 'outbound', subject: 'עדכון',
+        summary: 'סיכום שיחה', durationMinutes: 8, tags: ['דחוף'],
+        actionItems: [{ title: 'להכין תצהיר', priority: 'high' }, { title: '' }],
+      }).expect(200);
+    expect(res.body.data.call.id).toBeGreaterThan(0);
+    expect(res.body.data.call.caseId).toBe(5);
+    expect(res.body.data.taskIds).toHaveLength(1); // blank action item skipped
+    const task = db.prepare('SELECT * FROM Tasks WHERE id = ?').get(res.body.data.taskIds[0]) as Record<string, unknown>;
+    expect(task['title']).toBe('להכין תצהיר');
+    expect(task['case_id']).toBe(5);
+  });
+
+  it('lists calls by client and by case', async () => {
+    await request(app).post('/api/communications/calls').set('Authorization', `Bearer ${attorneyTok}`)
+      .send({ clientId: 1, subject: 'א' }).expect(200);
+    await request(app).post('/api/communications/calls').set('Authorization', `Bearer ${attorneyTok}`)
+      .send({ clientId: 1, caseId: 5, subject: 'ב' }).expect(200);
+    expect((await request(app).get('/api/communications/calls?clientId=1').expect(200)).body.data).toHaveLength(2);
+    expect((await request(app).get('/api/communications/calls?caseId=5').expect(200)).body.data).toHaveLength(1);
+  });
+
+  it('promotes a call into the case timeline via save-evidence', async () => {
+    const created = await request(app).post('/api/communications/calls')
+      .set('Authorization', `Bearer ${attorneyTok}`).send({ clientId: 1, subject: 'שיחה' }).expect(200);
+    const id = created.body.data.call.id as number;
+    const promoted = await request(app).post(`/api/communications/calls/${id}/save-evidence`)
+      .set('Authorization', `Bearer ${attorneyTok}`).send({ caseId: 5 }).expect(200);
+    expect(promoted.body.data.isEvidence).toBe(true);
+    expect(promoted.body.data.caseId).toBe(5);
+  });
+
+  it('transcribe-audio returns 409 when no local Whisper is configured', async () => {
+    delete process.env['WHISPER_CMD'];
+    await request(app).post('/api/communications/transcribe-audio')
+      .set('Authorization', `Bearer ${attorneyTok}`)
+      .send({ audioBase64: Buffer.from('x').toString('base64'), mimeType: 'audio/webm' }).expect(409);
   });
 });

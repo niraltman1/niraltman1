@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import {
   GavelIcon, UserIcon, CalendarIcon, ArrowRightIcon,
-  UsersIcon, FileTextIcon, RobotIcon, PulseIcon, ChatCircleIcon,
+  UsersIcon, FileTextIcon, RobotIcon, PulseIcon,
   WarningCircleIcon, CheckCircleIcon, CaretDownIcon, CaretUpIcon, ShieldCheckIcon,
 } from '@phosphor-icons/react';
 import { useCase, useCaseContacts, useDocuments, useCaseInsights, useCaseActivity, useAgentSummarize, useAgentTimeline, useAgentDiscovery } from '@/api/hooks.js';
@@ -11,7 +11,6 @@ import { AgentOutputPanel } from '@/components/common/AgentOutputPanel.js';
 import { CaseRiskPanel } from './CaseRiskPanel.js';
 import { CaseTimeline } from './CaseTimeline.js';
 import { CaseCitations } from './CaseCitations.js';
-import { CommunicationsPanel } from '@/features/communications/CommunicationsPanel.js';
 
 const STATUS_LABELS: Record<string, string> = {
   open:      'פתוח',
@@ -34,7 +33,7 @@ const STATUS_CLS: Record<string, string> = {
   archived:  'badge badge-neutral',
 };
 
-type Tab = 'documents' | 'timeline' | 'communications' | 'contacts' | 'insights' | 'citations' | 'activity';
+type Tab = 'documents' | 'timeline' | 'contacts' | 'insights' | 'citations' | 'activity';
 
 export function CaseDetail() {
   const { id } = useParams<{ id: string }>();
@@ -154,7 +153,6 @@ export function CaseDetail() {
         {([
           { key: 'documents' as Tab, label: 'מסמכים', Icon: FileTextIcon },
           { key: 'timeline'  as Tab, label: 'ציר זמן', Icon: CalendarIcon },
-          { key: 'communications' as Tab, label: 'תקשורת', Icon: ChatCircleIcon },
           { key: 'contacts'  as Tab, label: 'אנשי קשר', Icon: UsersIcon },
           { key: 'insights'  as Tab, label: 'תובנות AI', Icon: RobotIcon },
           { key: 'citations' as Tab, label: 'אסמכתאות', Icon: GavelIcon },
@@ -201,7 +199,6 @@ export function CaseDetail() {
 
       {tab === 'timeline' && <CaseTimeline caseId={caseId} />}
 
-      {tab === 'communications' && <CommunicationsPanel caseId={caseId} />}
 
       {tab === 'citations' && <CaseCitations caseId={caseId} />}
 

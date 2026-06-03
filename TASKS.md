@@ -42,9 +42,18 @@
 - ✅ **C5 (ראיות + תמלול)** — migration 062 (CommEvidence נעול+content-hash, transcript col), saveMessageAsEvidence/
   listCaseEvidence/setTranscript, מודול transcription (Whisper מוזרק, WHISPER_CMD), routes save-evidence/evidence/transcribe,
   ו-UI (שמור-כראיה + תמלל + באנר מוצגים). +3 repo/+2 transcription/+2 route tests.
+- ✅ **C6 (תיעוד שיחות + הכתבה + שני צירי-זמן)** — migration 063 (`CallLogs`, אדיטיבי, idempotent),
+  `CallLogsRepository` (create/list-by-client+case/update/`saveAsEvidence`), הרחבת `caseTimeline()` עם אירועי
+  `call` (שיחות שקודמו לראיה) + `evidence` (מוצגי-הודעות C5) → **שני צירי-זמן נפרדים** (תקשורת ↔ תיק).
+  routes: `POST /communications/calls` (+פריטי-פעולה→Tasks), list, `PATCH`, `/save-evidence`, `/transcribe-audio`
+  (הכתבה מקומית, 409 ללא Whisper). UI: `CallLogModal` (Modal, הקלטה→הכתבה), כרטיסי-שיחה ב-`CommunicationsPanel`,
+  טאב **"ניהול תקשורת לקוח"** + כפתור "תעד שיחה" ב-ClientCard, הסרת טאב התקשורת מ-CaseDetail,
+  `call`/`evidence` ב-KIND_META (CaseTimeline/Calendar/DeadlineMonitor). +4 repo/+timeline/+4 route tests.
+  נדחה: העלאת-קבצים לצירופים (אין pipeline), חיוב לפי `duration_minutes`, מיפוי-אוטומטי לפי סוג-הליך.
+  חסום-סביבה: הכתבה חיה דורשת `WHISPER_CMD` מקומי (מאומת דרך injection + מסלול 409).
 
-**הצעד הבא:** **C6 — תיעוד שיחות + הכתבה** (טופס "תעד שיחה", ללא הקלטת-שיחה חיה; הכתבת-סיכום אחרי השיחה דרך Whisper;
-שילוב בציר-הזמן). חסומים-סביבה: C1 מסירה-חיה (Telegram allowlist), C2 (whatsapp-web.js+WebView2), C5/C6 Whisper (מודל מקומי).
+**הצעד הבא:** **שלב קליטת-הקבצים הגלובלי (Vacuum Protocol)** — קליטה אוטומטית של מסמכים אל הצנרת.
+חסומים-סביבה: C1 מסירה-חיה (Telegram allowlist), C2 (whatsapp-web.js+WebView2), C5/C6 Whisper (מודל מקומי).
 תלוי גם ב-B0 (#50/#52).
 
 ---

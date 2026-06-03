@@ -6,7 +6,7 @@ import type { DatabaseConnection } from '../connection.js';
  * Read-only; the underlying tables own the data. All dates are ISO (YYYY-MM-DD[...]).
  */
 
-export type CalendarEventKind = 'hearing' | 'statute_deadline' | 'task' | 'document';
+export type CalendarEventKind = 'hearing' | 'statute_deadline' | 'task' | 'document' | 'call' | 'evidence';
 
 export type DeadlineRiskLevel = 'overdue' | 'critical' | 'soon' | 'upcoming';
 
@@ -274,6 +274,37 @@ export class CalendarRepository {
         linkType: 'document', linkId: String(r['id'] as number),
       });
     }
+
+    // Calls promoted to evidence (C6) — phone calls the user curated into this matter.
+    try {
+      const calls = this.db.prepare(
+        "SELECT id, subject, occurred_at FROM CallLogs WHERE case_id = ? AND is_evidence = 1",
+      ).all(caseId) as Record<string, unknown>[];
+      for (const r of calls) {
+        events.push({
+          id: `call:${r['id'] as number}`, kind: 'call', date: dayOf(r['occurred_at'] as string), time: null,
+          title: (r['subject'] as string | null) ?? 'תיעוד שיחה',
+          caseId, caseNumber: c?.case_number ?? null, courtName: null, judge: null,
+          linkType: 'case', linkId: String(caseId),
+        });
+      }
+    } catch { /* CallLogs absent before migration 063 */ }
+
+    // Communication messages saved as evidence (C5).
+    try {
+      const exhibits = this.db.prepare(
+        'SELECT id, channel, body, message_created_at FROM CommEvidence WHERE case_id = ?',
+      ).all(caseId) as Record<string, unknown>[];
+      for (const r of exhibits) {
+        events.push({
+          id: `evidence:${r['id'] as number}`, kind: 'evidence',
+          date: dayOf((r['message_created_at'] as string | null) ?? new Date().toISOString()), time: null,
+          title: ((r['body'] as string | null) ?? `מוצג (${r['channel'] as string})`).slice(0, 80),
+          caseId, caseNumber: c?.case_number ?? null, courtName: null, judge: null,
+          linkType: 'case', linkId: String(caseId),
+        });
+      }
+    } catch { /* CommEvidence absent before migration 062 */ }
 
     events.sort((a, b) => (a.date !== b.date ? (a.date < b.date ? -1 : 1) : a.id.localeCompare(b.id)));
     return events;
