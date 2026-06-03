@@ -47,6 +47,23 @@ export function getRelatedEntities(entityId: number, db: DbHandle): LegalEntity[
   `).all(entityId, entityId) as EntityRow[]).map(rowToEntity);
 }
 
+/**
+ * Idempotently records a directed relation between two entities.
+ * UNIQUE(from_id, to_id, relation) makes repeated calls a no-op.
+ */
+export function upsertRelation(
+  fromId: number,
+  toId: number,
+  relation: string,
+  db: DbHandle,
+): void {
+  if (!fromId || !toId || fromId === toId) return;
+  db.prepare(`
+    INSERT OR IGNORE INTO EntityRelations (from_id, to_id, relation)
+    VALUES (?, ?, ?)
+  `).run(fromId, toId, relation);
+}
+
 export function upsertEntity(
   entity: Omit<LegalEntity, 'id'>,
   db: DbHandle,

@@ -62,3 +62,14 @@ export type {
   NotificationLinkType,
   UpsertNotificationInput,
 } from './queries/notifications.js';
+export { RulesEngineRepository } from './queries/rules-engine.js';
+export type { RuleRow, ProcedureTypeSummary } from './queries/rules-engine.js';
+export { LegalCorpusRepository } from './queries/legal-corpus.js';
+export type {
+  LegalSourceType,
+  LegalSourceInput,
+  LegalSectionInput,
+  LegalSourceRow,
+  LegalSectionRow,
+  LegalSectionSearchHit,
+} from './queries/legal-corpus.js';

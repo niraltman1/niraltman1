@@ -27,6 +27,9 @@ import type {
   CommunicationsRepository,
   CommTemplatesRepository,
   CallLogsRepository,
+  AnnotationRepository,
+  RulesEngineRepository,
+  LegalCorpusRepository,
 } from '@factum-il/database';
 import type { ConfigStore } from './utils/config-store.js';
 
@@ -60,4 +63,7 @@ export interface Repos {
   communications: CommunicationsRepository;
   commTemplates:  CommTemplatesRepository;
   callLogs:       CallLogsRepository;
+  annotations:    AnnotationRepository;
+  rules:          RulesEngineRepository;
+  legalCorpus:    LegalCorpusRepository;
 }

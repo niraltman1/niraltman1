@@ -358,6 +358,20 @@ foreach ($f in @("Config.ps1", "IdentifierParser.ps1")) {
     if (Test-Path $src) { Copy-Item $src $LibDst -Force }
 }
 
+# Bundled legislation corpus (offline KB) — generated locally by `pnpm ingest-knesset-odata`
+# (large + gitignored, so not in the repo). Stage the built artifact if present; the API's
+# first-run loader imports {app}\app\legal-corpus\*.jsonl.gz into SQLite. App boots fine
+# without it (loader is graceful), so this is a warning, not a hard failure — mirrors the GGUF.
+$CorpusDst = Join-Path $OutDir "legal-corpus"
+New-Item -ItemType Directory -Force -Path $CorpusDst | Out-Null
+$CorpusSrc = Join-Path $RepoRoot "assets\legal-corpus\legal-corpus.knesset.jsonl.gz"
+if (Test-Path $CorpusSrc) {
+    Copy-Item -Force $CorpusSrc $CorpusDst
+    Write-Host "  Legal corpus: staged ($([math]::Round((Get-Item $CorpusSrc).Length/1MB,1)) MB)" -ForegroundColor Gray
+} else {
+    Write-Host "  WARNING: legal-corpus artifact not found — run 'pnpm ingest-knesset-odata -- --embed' before packaging. App will boot without bundled legislation." -ForegroundColor Yellow
+}
+
 # ── Download portable Node.js ──────────────────────────────────────────────────
 Step "Downloading portable Node.js v$NodeVersion"
 $RuntimeDst = Join-Path $OutDir "runtime"

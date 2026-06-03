@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import {
-  GavelIcon, UserIcon, CalendarIcon, ArrowRightIcon,
+  GavelIcon, UserIcon, CalendarIcon, ArrowRightIcon, SquaresFourIcon,
   UsersIcon, FileTextIcon, RobotIcon, PulseIcon,
   WarningCircleIcon, CheckCircleIcon, CaretDownIcon, CaretUpIcon, ShieldCheckIcon,
 } from '@phosphor-icons/react';
@@ -113,6 +113,13 @@ export function CaseDetail() {
               </span>
             )}
             <Link
+              to={`/cases/${caseId}/workbench`}
+              className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs text-gold border border-gold/40 rounded-lg bg-gold/10 hover:bg-gold/20 transition-colors"
+            >
+              <SquaresFourIcon size={12} />
+              שולחן עבודה
+            </Link>
+            <Link
               to={`/cases/${caseId}/hearing-prep`}
               className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs text-gold border border-gold/30 rounded-lg hover:bg-gold/10 transition-colors"
             >
@@ -198,7 +205,6 @@ export function CaseDetail() {
       )}
 
       {tab === 'timeline' && <CaseTimeline caseId={caseId} />}
-
 
       {tab === 'citations' && <CaseCitations caseId={caseId} />}
 

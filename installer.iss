@@ -100,6 +100,12 @@ Source: "FactumIL_Dist\dashboard\*"; DestDir: "{app}\app\dashboard"; Flags: igno
 ; so FACTUM_IL_ROOT + '\migrations' = {app}\app\migrations\  ✓
 Source: "FactumIL_Dist\migrations\*"; DestDir: "{app}\app\migrations"; Flags: ignoreversion
 
+; ── Bundled legislation corpus (offline KB, loaded into SQLite on first boot) ──
+; Loader reads FACTUM_IL_ROOT\legal-corpus\ = {app}\app\legal-corpus\. Large + generated
+; by `pnpm ingest-knesset-odata`; skipifsourcedoesntexist so packaging works without it.
+Source: "FactumIL_Dist\legal-corpus\*"; DestDir: "{app}\app\legal-corpus"; Flags: ignoreversion skipifsourcedoesntexist createallsubdirs recursesubdirs
+
+
 ; ── Legal Registry + PowerShell helpers ──────────────────────────────────────
 Source: "FactumIL_Dist\powershell\lib\Legal_Registry.json";  DestDir: "{app}\powershell\lib"; Flags: ignoreversion
 Source: "FactumIL_Dist\powershell\lib\Config.ps1";           DestDir: "{app}\powershell\lib"; Flags: ignoreversion skipifsourcedoesntexist
