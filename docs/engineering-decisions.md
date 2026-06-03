@@ -1,87 +1,186 @@
-# Engineering Decisions Log
+# Engineering Decisions Log — Factum-IL v1.0.0
 
 This document records **why** significant technical decisions were made.
 Each entry explains the problem, the alternatives considered, and the chosen solution.
 
 ---
 
-## TypeScript Strict-Mode Patterns
+## Architectural Decisions
 
-### `noUncheckedIndexedAccess` and `ReactNode` conditionals
+### SQLite over PostgreSQL
 
-**Problem:** Components that store API data as `Record<string, unknown>` use bracket access like
-`obj['nameHe']`. With `noUncheckedIndexedAccess: true`, the compiler adds `| undefined` to every
-bracket access, producing `unknown | undefined`. Passing that into a JSX conditional like
-`{obj['nameHe'] && <span>{obj['nameHe']}</span>}` is rejected because `unknown` is not assignable
-to `ReactNode`.
+**Problem:** The system needs a reliable, zero-infrastructure database for a law firm desktop app that must work fully offline.
 
-**Why not cast everywhere?** `obj['nameHe'] as string` would suppress the error but silently pass
-`undefined` to JSX when the field is absent.
+**Alternatives considered:** PostgreSQL (requires a running server process, complex installation), LevelDB (no SQL, no FTS5), SQLite WAL mode.
 
-**Chosen solution:** Double-bang conversion `!!obj['nameHe']` produces `boolean`. Then
-`{!!obj['nameHe'] && <span>{...}</span>}` yields `false | JSX.Element`, which IS a valid
-`ReactNode`. The check is explicit and the inner expression uses a normal cast (`as string`)
-only where the field is actually rendered.
+**Chosen solution:** SQLite with WAL mode and better-sqlite3. SQLite is a single file, requires no separate server process, ships with the installer, and supports everything needed: transactions, FTS5, foreign keys, and (via sqlite-vec extension) vector search.
+
+**Tradeoff:** SQLite is single-writer. This is acceptable because the application is single-machine. WAL mode mitigates read/write contention.
 
 ---
 
-### `exactOptionalPropertyTypes` and optional props
+### WAL Mode + busy_timeout
 
-**Problem:** When `exactOptionalPropertyTypes: true` is set, TypeScript distinguishes between
-"property is absent" and "property is present with value `undefined`". Assigning
-`trend={condition ? value : undefined}` is rejected because the prop is declared as `trend?: string`
-(meaning "absent or string"), not `trend: string | undefined` (meaning "present but possibly undefined").
-
-**Chosen solution:** Spread pattern:
-```typescript
-{...(condition ? { trend: value } : {})}
+```sql
+PRAGMA journal_mode = WAL;
+PRAGMA synchronous = NORMAL;
+PRAGMA busy_timeout = 5000;
+PRAGMA foreign_keys = ON;
+PRAGMA encoding = 'UTF-8';
+PRAGMA cache_size = -32000;
 ```
-This omits the key entirely when the condition is false, satisfying `exactOptionalPropertyTypes`.
+
+**Why WAL:** Allows concurrent readers while a writer is active. Critical because the file watcher, queue worker, RAG worker, and HTTP API all share the same database.
+
+**Why busy_timeout:** Under concurrent load, a write may briefly block a read. A 5-second timeout prevents immediate SQLITE_BUSY errors — the caller retries for up to 5 seconds before failing.
+
+**Why NORMAL synchronous:** Safe with WAL — protects against corruption on OS crash. FULL is unnecessarily slow for this workload.
 
 ---
 
-### `better-sqlite3` Statement generic parameter
+### Two-Database Architecture (primary + data_store)
 
-**Problem:** `ReturnType<BetterSQLite3Database['prepare']>` evaluates to
-`Statement<[unknown[] | {}]>` — a statement that requires exactly one argument of type `unknown[] | {}`.
-Every `.run()` / `.get()` / `.all()` call that passes a plain array is then rejected.
+**Problem:** Storing embeddings (float arrays, potentially hundreds of bytes each) in the primary database alongside document metadata inflates the primary file and slows VACUUM operations.
 
-**Root cause:** The `better-sqlite3` type declarations use a conditional type on the `prepare`
-return based on the `BindParameters = unknown[] | {}` default. TypeScript resolves this to a
-single-element tuple wrapping the union, not to the intended `Statement<unknown[]>`.
+**Chosen solution:** A second SQLite file (`_data.db`) attached as the `data_store` schema holds `vec_chunks` and related embedding rows. The primary `factum-il.db` remains lean.
 
-**Chosen solution:**
+**Attachment:** `ATTACH DATABASE '_data.db' AS data_store;` is issued on every connection open.
+
+---
+
+### FTS5 with Hebrew Prefix Normalisation
+
+**Why FTS5 over FTS3/4:** FTS5 supports the `content` table optimisation (zero-copy, index-only storage), BM25 ranking, and `MATCH` phrase queries needed for Hebrew search.
+
+**Why prefix normalisation:** Hebrew is a morphologically rich language — prepositional prefixes (ב, ל, מ, כ, ש, ו) attach to words. Searching `לחוזה` must find `חוזה`. The normaliser strips prefixes before FTS matching and also expands legal synonyms (חוזה → הסכם, עסקה).
+
+**FTS5 tokenizer:** `unicode61` only. The `tokenchars` option was removed because `better-sqlite3@9.x` bundles SQLite 3.45.x, which does not support `tokenchars` (added in SQLite 3.46). Hyphenated legal identifiers are handled via phrase matching instead.
+
+---
+
+### sqlite-vec for KNN Vector Search
+
+**Why not pgvector:** We are not using PostgreSQL. sqlite-vec is a native SQLite extension that loads via `loadExtension()` and supports KNN cosine similarity search with no external dependencies.
+
+**Why bundled in the installer:** The extension (`sqlite-vec.dll`) must match the SQLite version bundled by better-sqlite3. Pre-built binaries are copied to `{app}\tools\` by the installer. `SQLITE_VEC_PATH` registry entry tells the API where to load it from.
+
+**Fallback:** If the extension is absent, the system continues with FTS5 keyword search only. A warning is logged; no crash occurs.
+
+---
+
+### Local Ollama over Cloud AI
+
+**Why local-only AI:** Attorney-client privilege requires that no document content, client names, or case details leave the machine. Cloud AI APIs (OpenAI, Anthropic, Azure) are architecturally incompatible with this requirement.
+
+**Why Ollama:** Zero-configuration local inference server with a simple HTTP API. Supports model management (`ollama pull`), health check endpoint, and streaming.
+
+**Single model policy:** `BrainboxAI/law-il-E2B:Q4_K_M` is the only permitted model. It is trained specifically on Israeli law and produces output in correct formal legal Hebrew. Any general-purpose model (llama, mistral, etc.) produces untested output and must never be used.
+
+---
+
+### Forward-Only Migrations with SHA-256 Checksums
+
+**Why forward-only:** Rollback migrations are difficult to write correctly for destructive operations (DROP COLUMN, etc.) and create a false sense of safety. The system uses `ActionLog` and `ManifestSnapshots` for data-level recovery instead.
+
+**Why SHA-256 checksums:** The `_migrations` table records the SHA-256 of each migration file at the time it was applied. If a migration file is changed after being applied (e.g., accidentally edited), the runner detects the hash mismatch and aborts. This prevents silent schema drift.
+
+**60 migrations (001–060):** Each runs exactly once, in order, in a transaction. PRAGMA statements (WAL, foreign_keys) are separated from the transaction body because SQLite prohibits changing `journal_mode` inside a transaction.
+
+---
+
+### RBAC with 5 Roles (packages/policy-engine)
+
+**Why not ACL per resource:** Per-resource ACLs are complex to manage and audit. Five roles cover the actual access patterns of a boutique law firm:
+- `admin` — IT/office manager
+- `attorney` — senior lawyers with signing authority
+- `assistant` — paralegals and secretaries
+- `reviewer` — external reviewers (read + approve)
+- `read_only` — clients or external auditors
+
+**CaseAssignments table:** Attorneys are assigned to specific cases. An attorney cannot see cases not assigned to them, even if they have the `attorney` role. This is RBAC v2 — role + case-level isolation.
+
+---
+
+### Safe Mode Design (FACTUM_IL_SAFE_MODE=1)
+
+**Problem:** During repair or forensic investigation, background workers must not run and modify data while an admin is working.
+
+**Chosen solution:** `FACTUM_IL_SAFE_MODE=1` (registry or env var) disables all 6 background workers at startup. The API server and UI remain functional — only automated background processing stops. This enables:
+- Running `POST /api/admin/repair/*` endpoints without race conditions
+- Using `POST /api/recovery/*` endpoints safely
+- Inspecting the database while no workers are writing
+
+Disabling safe mode requires setting the registry value to `0` and restarting the server.
+
+---
+
+### Single Model Policy (law-il-E2B)
+
+**Why enforce this at code level:** The model name is read from `OLLAMA_MODEL` env var but is validated against the expected value on startup. If the env var is set to anything other than `BrainboxAI/law-il-E2B:Q4_K_M`, a warning is logged (not a crash, to allow development overrides).
+
+**Why this model is non-negotiable in production:** Israeli legal documents use specialised terminology, court hierarchies (שלום, מחוזי, עליון, עבודה, משפחה), and procedural rules that general-purpose models consistently mishandle. The 20 procedural rules seeded in `Rules_Engine` are calibrated against this model's output format.
+
+---
+
+### Data Firewall (Zero-Root Rule)
+
+**Problem:** The law firm's office also has an associated nursing/medical practice. Medical files from the nursing practice must never enter the legal pipeline — they are subject to different regulatory and privilege rules.
+
+**Chosen solution:** A hardcoded `EXCLUDED_PATTERNS` list blocks any file or directory matching medical/nursing keywords from being ingested. This is a compile-time invariant, not a configuration option.
+
+```
+Blocked: /סיעוד/ /רפואה/ /חן/ /Nursing/ /Medical/ /Healthcare/
+         *.סיעוד.pdf *nursing* *medical_report*
+         node_modules .git __MACOSX System32 Windows\
+```
+
+**Academic bypass:** `ACADEMIC_ROOT` env var allows nursing/medical terms only in designated academic study paths (Academic Hub). The bypass is path-scoped — it cannot be exploited to sneak medical client documents into the legal pipeline.
+
+---
+
+### Inno Setup 6 for the Installer
+
+**Why Inno Setup over MSIX / WiX / Electron Builder:**
+- MSIX requires code signing certificates and Microsoft Store or Intune deployment
+- WiX is XML-heavy and requires Visual Studio integration
+- Electron Builder is for Electron apps (which this is not)
+- Inno Setup 6 is a proven, scriptable Windows installer that handles Hebrew paths, registry writes, custom install steps, and silent mode
+
+**Why 12-step staging via publish.ps1:** The install process requires conditional steps (download model only if internet is available, copy DLL to tools, rebuild better-sqlite3 native module). Inno Setup Pascal script cannot express all of this logic; PowerShell can.
+
+---
+
+### better-sqlite3 Synchronous Driver
+
+**Why not async SQLite (node-sqlite3):** SQLite is single-writer synchronous. An async wrapper adds Promise overhead without providing actual concurrency — SQLite serialises writes regardless. The synchronous model simplifies route handlers (no `await` needed for DB calls) and makes transaction logic straightforward.
+
+**TypeScript typing workaround:**
 ```typescript
 prepare(sql: string): Statement<unknown[]> {
   return this.db.prepare(sql) as Statement<unknown[]>;
 }
 ```
-The explicit return type bypasses the conditional type resolution. The cast is safe because all
-callers pass arrays. This is a known limitation of `better-sqlite3`'s type definitions.
+`DatabaseConnection.prepare()` takes 0 type parameters. Use `.all() as Type[]` for typed results.
 
 ---
 
+## TypeScript Strict-Mode Patterns
+
+### `noUncheckedIndexedAccess` and ReactNode conditionals
+
+Use `!!obj['field']` to produce `boolean`, then `{!!obj['field'] && <span>{obj['field'] as string}</span>}`. This satisfies strict mode without silent `undefined` passthrough.
+
+### `exactOptionalPropertyTypes` and optional props
+
+Use spread pattern `{...(condition ? { prop: value } : {})}` to omit keys entirely when condition is false.
+
 ### Router type annotation portability
 
-**Problem:** `export const router = createBrowserRouter([...])` causes TypeScript to infer
-`RemixRouter` as the type, but the declaration file is inside the pnpm content-addressable store at
-`.pnpm/@remix-run+router@1.23.2/node_modules/@remix-run/router`. TypeScript then refuses to emit
-the declaration file because "the inferred type cannot be named without a reference to" that deep
-path — which is not portable across machines or pnpm versions.
-
-**Alternative tried:** `import type { Router } from 'react-router-dom'` — fails because `Router`
-in `react-router-dom` is a React component (value), not the router object type.
-
-**Alternative tried:** `import type { RemixRouter } from 'react-router-dom'` — `RemixRouter` is
-imported internally by react-router-dom but not re-exported.
-
-**Chosen solution:** Add `@remix-run/router` as an explicit devDependency (it was already a
-transitive dependency in the lockfile), then:
+Add `@remix-run/router` as an explicit devDependency and annotate:
 ```typescript
 import type { Router as RemixRouter } from '@remix-run/router';
 export const router: RemixRouter = createBrowserRouter([...]);
 ```
-This makes the type annotation use a first-class dependency path, not a deep store path.
 
 ---
 
@@ -89,178 +188,53 @@ This makes the type annotation use a first-class dependency path, not a deep sto
 
 ### Unified response envelope
 
-All endpoints return `{ success: true, data: T }` or `{ success: false, error: { code, message } }`.
+All endpoints return `{ success: true, data: T }` or `{ success: false, error: { code, message } }`. Status codes remain meaningful (404, 409, 422, 500).
 
-**Why:** A discriminated union is easier to unwrap in typed TypeScript than HTTP status codes alone.
-Status codes are still meaningful (404, 422, 409, 500) but the envelope lets callers check
-`body.success` without inspecting `response.status`.
+### asyncHandler wrapper
 
-**Tradeoff:** Slightly more verbose than returning data directly, but eliminates ambiguity about
-what a 200 response contains when partial errors are possible.
-
----
-
-### `asyncHandler` wrapper
-
-```typescript
-export const asyncHandler = (fn: RequestHandler): RequestHandler =>
-  (req, res, next) => Promise.resolve(fn(req, res, next)).catch(next);
-```
-
-**Why:** Express 4.x does not catch Promise rejections from route handlers automatically.
-Without this wrapper, every route would need its own `try/catch`. The wrapper lets route handlers
-throw `ApiError` subclasses (or any Error) and have them handled centrally by `errorHandler`.
-
-**Note:** Express 5 adds native async support, but since we're on Express 4 for stability, this
-wrapper is the correct pattern.
-
----
-
-### `Object.setPrototypeOf(this, new.target.prototype)` in ApiError
-
-**Why:** In ESM modules (`.mjs` or TypeScript compiled to ESM), subclassing built-in classes like
-`Error` can break the prototype chain. `instanceof NotFoundError` might return `false` even on a
-`NotFoundError` instance when the class is loaded from a different module instance (which can happen
-with symlinked packages in a monorepo).
-
-`Object.setPrototypeOf(this, new.target.prototype)` in the base `ApiError` constructor restores
-the correct prototype chain for every subclass, making `instanceof` reliable.
-
----
+Express 4 does not catch Promise rejections automatically. `asyncHandler` wraps route handlers to forward rejections to the central `errorHandler` middleware.
 
 ### Helmet with CSP disabled
 
-```typescript
-app.use(helmet({ contentSecurityPolicy: false }));
-```
+`contentSecurityPolicy: false` prevents WebView2's DevTools and accessibility scripts from being blocked by Helmet's CSP defaults. All other Helmet protections remain active.
 
-**Why CSP is disabled:** In production, Express serves the pre-built Vite bundle as static files.
-The Content Security Policy header generated by helmet's defaults blocks `inline scripts` and
-`eval`, which Vite's production bundle does not use — but WebView2 (the embedded browser in the
-desktop shell) may also inject its own scripts for DevTools or accessibility that would be blocked.
-Disabling CSP avoids false positives while all other helmet protections (X-Frame-Options,
-X-Content-Type-Options, HSTS, etc.) remain active.
+### UNIQUE constraint → 409 detection
+
+`better-sqlite3` throws a plain `Error` with `code: 'SQLITE_CONSTRAINT_UNIQUE'`. The central error middleware detects this and returns 409, keeping route handlers clean.
 
 ---
 
-### UNIQUE constraint → 409 automatic detection
+## Desktop Shell Decision
 
-```typescript
-if (err.message?.includes('UNIQUE constraint failed')) {
-  return res.status(409).json(fail('CONFLICT', 'Record already exists'));
-}
-```
+### C# WPF + WebView2 (not Electron)
 
-**Why:** `better-sqlite3` throws a plain `Error` (with `code: 'SQLITE_CONSTRAINT_UNIQUE'`) rather
-than a typed exception for constraint violations. Routes would need per-endpoint try/catch blocks
-to catch and rethrow as `ConflictError`. Centralising the detection in the error middleware keeps
-route handlers clean.
+**Why not Electron:** Bundles Chromium (100–200 MB), requires separate build pipeline, does not integrate with Windows WebView2.
 
----
+**Chosen approach:** C# WPF + `Microsoft.Web.WebView2` (uses the system Edge runtime, installed on Windows 10 1903+). The WPF app starts the Node.js API as a child process and navigates WebView2 to `http://localhost:3001`.
 
-## Database Decisions
+### DB path: environment variable, not hardcoded
 
-### WAL mode + foreign keys on every connection
-
-```typescript
-this.db.pragma('journal_mode = WAL');
-this.db.pragma('foreign_keys = ON');
-```
-
-**WAL mode:** Allows concurrent readers while a writer is active. Critical because the file watcher,
-queue worker, and HTTP API all open the same database.
-
-**Foreign keys:** SQLite does not enforce FK constraints by default. Enabling per-connection ensures
-referential integrity (e.g., `ActionPlan.document_id` cannot reference a deleted `Document`).
+`FACTUM_IL_DB_PATH` and `FACTUM_IL_ROOT` are set by the installer in the registry and passed to the Node.js process by `ApiHostService.cs`. This allows the database to live at the user-chosen install path, not a hardcoded location.
 
 ---
 
-### `better-sqlite3` synchronous driver
+## Audio Pipeline Decision
 
-**Why:** `better-sqlite3` uses synchronous I/O, which is correct for SQLite because SQLite itself
-is single-writer synchronous. Using an async driver (like `node-sqlite3`) would only add Promise
-overhead with no actual concurrency benefit (SQLite still serialises writes).
+### ffmpeg + whisper-fast.exe for WhatsApp Voice Notes
 
-The synchronous model also simplifies route handlers — no `await` needed for DB calls, and
-transaction logic is straightforward.
+WhatsApp saves voice notes as `.opus` files. Tesseract cannot process audio. The pipeline routes audio files through:
+1. ffmpeg converts `.opus` / `.m4a` / `.ogg` to 16kHz mono WAV
+2. `whisper-fast.exe` transcribes the WAV to Hebrew text
+3. The transcript is stored in `Document.ocr_text` and processed as a regular text document
 
----
-
-### FTS5 tokenizer: `unicode61` only (no `tokenchars`)
-
-**Why `tokenchars` was removed:** `tokenchars ".-_"` is a FTS5 tokeniser option that keeps
-characters like hyphens and dots as part of a word rather than splitting on them. This was added
-for legal document numbers like `תיק-2024-001`. However, the `tokenchars` option was introduced
-in SQLite 3.46, and `better-sqlite3@9.6.0` bundles SQLite 3.45.3, which throws a parse error.
-
-**Impact:** Hyphenated tokens are now split at the hyphen. Searching for `תיק-2024-001` still
-works via FTS5 phrase matching (`"תיק 2024 001"`), but exact hyphenated searches don't collapse.
-This is acceptable for the current use case.
-
-**Future:** When `better-sqlite3` upgrades its bundled SQLite to 3.46+, `tokenchars` can be
-re-added to a new migration that rebuilds the FTS virtual tables.
+If `WHISPER_EXE` or `FFMPEG_EXE` is not set, audio files are registered with an empty transcript (graceful degradation — no crash).
 
 ---
 
-## Desktop Shell Decisions
+## Windows Path Constraints
 
-### Node.js child process instead of Electron
-
-**Why not Electron:** Electron bundles Chromium (100–200 MB), requires a separate build pipeline,
-and does not integrate with Windows WebView2. The requirement was Windows-native packaging.
-
-**Chosen approach:** C# WPF + `Microsoft.Web.WebView2` (uses the system Edge/WebView2 runtime,
-already installed on Windows 10 1903+). The WPF app starts the Node.js API as a child process
-and navigates WebView2 to `http://localhost:3001`.
-
-**Production packaging:** Node.js must be installed on the target machine (or bundled via
-`pkg`/`nexe` in a future phase). The current install script ensures Node.js is present via winget.
-
----
-
-### DB path: branded root literal
-
-```csharp
-const string dbPath = @"C:\אלטמן משרד עורכי דין - סדר 2026\_Data\factum-il.db";
-```
-
-**Why not `AppData`?** `Environment.GetFolderPath(SpecialFolder.ApplicationData)` gives
-`C:\Users\<user>\AppData\Roaming\` — correct for user-scoped data but not aligned with the
-office folder structure that the PowerShell installer creates. All other components (Config.ps1,
-start.ts) use the branded root. Using `AppData` would split DB storage from document storage.
-
-**Why not `CommonApplicationData`?** `C:\ProgramData\` requires admin rights to write. The
-office root is under `C:\`, which on Windows 11 requires admin for creation (done once by
-the installer) but allows subsequent writes by the current user after the ACL is set.
-
----
-
-## Ollama Integration
-
-### Environment variable for model name
-
-```typescript
-const LEGAL_MODEL = process.env['OLLAMA_MODEL'] ?? 'llama3.2';
-```
-
-**Why:** The original model name `law-il-e2b` was a placeholder that doesn't exist in the Ollama
-registry. Rather than hardcoding a specific model, using an environment variable lets operators
-swap the model without a code change — useful when a better Hebrew legal model becomes available
-or when running on hardware that requires a smaller quantisation.
-
-**Default `llama3.2`:** Available via `ollama pull llama3.2`, performs adequately for document
-classification and metadata extraction. The installer pulls it automatically.
-
----
-
-## Installation Pack
-
-### ZIP at `/tmp/FactumIL-Install.zip` (not Desktop)
-
-**Why:** The build environment is Linux (no Windows Desktop directory). The ZIP contains the full
-source tree (minus `node_modules` and `dist`) + `INSTALL.md`. On Windows, the user extracts it,
-runs `START-HERE.ps1`, and the installer builds everything locally, ensuring fresh dependencies.
-
-**Why source, not pre-built binaries:** The API binary depends on the platform
-(`better-sqlite3` native module). The Vite dashboard must be built with the correct `NODE_ENV`.
-Distributing source + a build step is more reliable than cross-compiled binaries.
+- All PowerShell scripts use `-LiteralPath` exclusively — no glob expansion
+- `spawn()` calls use `shell: false` with arguments as separate argv elements
+- `ConvertTo-Json -Compress` handles Unicode and backslash escaping in HTTP bodies
+- `publish.ps1` converts `$env:TEMP` to full path via `(Get-Item -LiteralPath $env:TEMP).FullName` to handle Hebrew short (8.3) usernames
+- BOM (`0xEF 0xBB 0xBF`) is prepended to all `.ps1`/`.psm1`/`.psd1` files in the distribution — PowerShell 5.1 on Windows reads BOM-less UTF-8 as Windows-1252
