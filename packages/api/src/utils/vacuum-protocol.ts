@@ -10,6 +10,9 @@
  *  - Windows long paths → automatically prefixed with \\?\ when on Win32
  *  - Forbidden OS characters in folder names → sanitized with regex
  *  - PDF integrity validation → skip encrypted / corrupt PDFs
+ *  - Symlink loops → prevented via inode tracking
+ *  - Destination collisions → detected and skipped (no overwrites)
+ *  - Case number validation → 8 Israeli court types validated
  */
 
 import { join, dirname, basename, extname, resolve, sep } from 'node:path';
@@ -17,11 +20,28 @@ import { readdir, stat, mkdir, rename, open as fsOpen } from 'node:fs/promises';
 import { EffortController } from './effort-controller.js';
 import type { EffortReport } from './effort-controller.js';
 
+// Israeli court case number patterns (8 types)
+const ISRAELI_CASE_TYPES = {
+  'ת"א': /^ת["״]א\s*\d+$/,   // תיק אזרחי בסדר דין רגיל
+  'ת"פ': /^ת["״]פ\s*\d+$/,   // תיק פלילי
+  'בג"ץ': /^בג["״]ץ\s*\d+$/, // בג"ץ
+  'ע"א': /^ע["״]א\s*\d+$/,   // עררית אזורית
+  'עב': /^עב\s*\d+$/,         // ערעור בעל כורח
+  'תמש': /^תמש\s*\d+$/,      // תיק משפחה
+  'עת"מ': /^עת["״]מ\s*\d+$/, // עררית משפטית
+  'rg': /^\d{1,5}[-–]\d{2}[-–]\d{2,6}$/, // Generic: NNNN-YY-ZZZZ
+};
+
 const CASE_NUMBER_RE = /(\d{1,5}[-–]\d{2}[-–]\d{2,6}|ת["״]פ\s*\d+|ת["״]ד\s*\d+|ע["״]פ\s*\d+|רת["״]פ\s*\d+)/;
 const FORBIDDEN_CHARS_RE = /[\\/:*?"<>|]/g;
-const SUPPORTED_EXTS = new Set(['.pdf', '.docx', '.doc', '.txt', '.odt']);
+const SUPPORTED_EXTS = new Set([
+  // Documents
+  '.pdf', '.docx', '.doc', '.txt', '.odt',
+  // Images
+  '.jpg', '.jpeg', '.png', '.gif', '.bmp', '.webp', '.svg', '.tiff', '.ico'
+]);
 
-// ── OS helpers ───────────────────────────────────────────────────────────────
+// ── OS helpers ───────────────────────────────────────────────────────────
 
 function toLongPath(p: string): string {
   if (process.platform === 'win32' && !p.startsWith('\\\\?\\') && !p.startsWith('\\\\')) {
@@ -34,20 +54,116 @@ function sanitizeFolderName(name: string): string {
   return name.replace(FORBIDDEN_CHARS_RE, '_').replace(/\s+/g, ' ').trim();
 }
 
+/**
+ * Validates that a matched case number is actually a valid Israeli court case.
+ * Prevents false positives from generic number patterns.
+ */
+function isValidIsraeliCaseNumber(caseNumber: string): boolean {
+  if (!caseNumber) return false;
+  
+  // Check against known Israeli patterns
+  for (const pattern of Object.values(ISRAELI_CASE_TYPES)) {
+    if (pattern.test(caseNumber.trim())) {
+      return true;
+    }
+  }
+  
+  return false;
+}
+
 // ── PDF integrity check ──────────────────────────────────────────────────────
 
+/**
+ * Validates PDF file integrity by checking:
+ * 1. File size > 0
+ * 2. Valid PDF header (%PDF)
+ * 3. Valid PDF footer (%%EOF)
+ * 4. Encryption status
+ */
 async function isPdfSafe(filePath: string): Promise<{ valid: boolean; encrypted: boolean }> {
   let fh: Awaited<ReturnType<typeof fsOpen>> | null = null;
   try {
-    fh = await fsOpen(toLongPath(filePath), 'r');
-    const buf = Buffer.alloc(1024);
-    const { bytesRead } = await fh.read(buf, 0, 1024, 0);
-    const chunk = buf.subarray(0, bytesRead).toString('latin1');
-    const valid = chunk.startsWith('%PDF');
-    const encrypted = valid && chunk.includes('/Encrypt');
-    return { valid, encrypted };
-  } catch {
+    const longPath = toLongPath(filePath);
+    const filestat = await stat(longPath);
+    
+    // Reject zero-length files
+    if (filestat.size === 0) {
+      return { valid: false, encrypted: false };
+    }
+    
+    fh = await fsOpen(longPath, 'r');
+    
+    // Check header
+    const headerBuf = Buffer.alloc(8);
+    const { bytesRead: headerBytes } = await fh.read(headerBuf, 0, 8, 0);
+    const headerStr = headerBuf.subarray(0, headerBytes).toString('latin1');
+    
+    if (!headerStr.startsWith('%PDF')) {
+      return { valid: false, encrypted: false };
+    }
+    
+    // Check footer (last 1KB, look for %%EOF)
+    const footerSize = Math.min(1024, filestat.size);
+    const footerBuf = Buffer.alloc(footerSize);
+    await fh.read(footerBuf, 0, footerSize, Math.max(0, filestat.size - footerSize));
+    const footerStr = footerBuf.toString('latin1');
+    
+    const hasEof = footerStr.includes('%%EOF');
+    
+    // Check for encryption
+    const chunkBuf = Buffer.alloc(4096);
+    const { bytesRead } = await fh.read(chunkBuf, 0, 4096, 0);
+    const chunk = chunkBuf.subarray(0, bytesRead).toString('latin1');
+    const encrypted = chunk.includes('/Encrypt');
+    
+    return { valid: hasEof, encrypted };
+  } catch (e) {
     return { valid: false, encrypted: false };
+  } finally {
+    await fh?.close().catch(() => undefined);
+  }
+}
+
+// ── Image integrity check ────────────────────────────────────────────────────
+
+/**
+ * Validates image file integrity by checking magic bytes (file signatures).
+ * Returns false if file is zero-length or has invalid header.
+ */
+async function isImageSafe(filePath: string): Promise<boolean> {
+  let fh: Awaited<ReturnType<typeof fsOpen>> | null = null;
+  try {
+    const longPath = toLongPath(filePath);
+    const filestat = await stat(longPath);
+    
+    // Reject zero-length files
+    if (filestat.size === 0) {
+      return false;
+    }
+    
+    fh = await fsOpen(longPath, 'r');
+    const headerBuf = Buffer.alloc(16);
+    const { bytesRead } = await fh.read(headerBuf, 0, 16, 0);
+    
+    if (bytesRead === 0) {
+      return false;
+    }
+    
+    const header = headerBuf.subarray(0, bytesRead);
+    
+    // Check for common image magic bytes
+    const isJpeg = header[0] === 0xFF && header[1] === 0xD8;
+    const isPng = header[0] === 0x89 && header[1] === 0x50 && header[2] === 0x4E && header[3] === 0x47;
+    const isGif = header[0] === 0x47 && header[1] === 0x49 && header[2] === 0x46; // GIF87a or GIF89a
+    const isBmp = header[0] === 0x42 && header[1] === 0x4D; // BM
+    const isWebp = header[8] === 0x57 && header[9] === 0x45 && header[10] === 0x42 && header[11] === 0x50; // WEBP
+    const isTiff = (header[0] === 0x49 && header[1] === 0x49) || (header[0] === 0x4D && header[1] === 0x4D); // Little/Big endian TIFF
+    const isSvg = header.toString('utf8').startsWith('<svg') || header.toString('utf8').includes('<?xml');
+    const isIco = header[0] === 0x00 && header[1] === 0x00 && header[2] === 0x01;
+    
+    return isJpeg || isPng || isGif || isBmp || isWebp || isTiff || isSvg || isIco;
+  } catch (e) {
+    return false;
   } finally {
     await fh?.close().catch(() => undefined);
   }
@@ -70,26 +186,73 @@ async function isFileLocked(filePath: string): Promise<boolean> {
 
 // ── Directory scanner ────────────────────────────────────────────────────────
 
-async function scanDir(dir: string, out: string[], errors: string[]): Promise<void> {
+/**
+ * Recursively scans a directory tree, collecting supported files.
+ * Prevents infinite loops by tracking visited inodes (device:inode pairs).
+ * Limits concurrency to avoid overwhelming the OS with file descriptors.
+ */
+async function scanDir(
+  dir: string,
+  out: string[],
+  errors: string[],
+  visited: Map<string, boolean> = new Map()
+): Promise<void> {
   try {
-    const items = await readdir(toLongPath(dir), { withFileTypes: true });
-    await Promise.all(items.map(async (item) => {
-      if (item.isSymbolicLink()) return; // skip junctions (My Music etc.)
+    const longPath = toLongPath(dir);
+    const dirstat = await stat(longPath);
+    
+    // Track inode to prevent symlink loops
+    const inode = `${dirstat.dev}:${dirstat.ino}`;
+    if (visited.has(inode)) {
+      return; // Already scanned this directory (symlink loop detected)
+    }
+    visited.set(inode, true);
+    
+    const items = await readdir(longPath, { withFileTypes: true });
+    
+    // Limit concurrency to 10 concurrent directory operations
+    const concurrencyLimit = 10;
+    let running = 0;
+    const pending: Promise<void>[] = [];
+    
+    for (const item of items) {
+      if (item.isSymbolicLink()) continue; // skip symbolic links
+      
       const full = join(dir, item.name);
+      
       if (item.isDirectory()) {
-        await scanDir(full, out, errors);
+        const task = (async () => {
+          try {
+            await scanDir(full, out, errors, visited);
+          } catch (e) {
+            errors.push(
+              `תיקייה: ${full}, שגיאה: ${(e as NodeJS.ErrnoException).code || 'UNKNOWN'}`
+            );
+          }
+        })();
+        
+        running++;
+        if (running >= concurrencyLimit) {
+          await Promise.race(pending);
+          running--;
+        }
+        pending.push(task);
       } else if (item.isFile() && SUPPORTED_EXTS.has(extname(item.name).toLowerCase())) {
         out.push(full);
       }
-    }));
+    }
+    
+    // Wait for remaining tasks
+    await Promise.all(pending);
   } catch (e) {
-    errors.push(`שגיאה בסריקת תיקייה ${dir}: ${String(e)}`);
+    const code = (e as NodeJS.ErrnoException).code || 'UNKNOWN';
+    errors.push(`סריקת תיקייה נכשלה: ${dir}, שגיאה: ${code}`);
   }
 }
 
-// ── Public types ─────────────────────────────────────────────────────────────
+// ── Public types ───────────────────────────────────────────────────────────
 
-export type VacuumAction = 'move' | 'keep' | 'pending' | 'skip' | 'skip_encrypted' | 'skip_corrupt';
+export type VacuumAction = 'move' | 'keep' | 'pending' | 'skip' | 'skip_encrypted' | 'skip_corrupt' | 'skip_collision';
 
 export interface VacuumEntry {
   filePath:     string;
@@ -122,13 +285,27 @@ export interface VacuumOptions {
   onProgress?:  (entry: VacuumEntry) => void;
 }
 
-// ── Main runner ──────────────────────────────────────────────────────────────
+// ── Main runner ───────────────────────────────────────────────────────────
 
 export async function runVacuumProtocol(opts: VacuumOptions): Promise<VacuumReport> {
   const { dryRun, onProgress } = opts;
+
+  // Validate input paths
+  if (!opts.targetDir || !opts.targetDir.trim()) {
+    throw new Error('targetDir נדרש ובעל ערך');
+  }
+  if (!opts.orgDir || !opts.orgDir.trim()) {
+    throw new Error('orgDir נדרש ובעל ערך');
+  }
+
   // Resolve to absolute paths once so all downstream comparisons are stable.
   const absTarget = resolve(opts.targetDir);
   const absOrg    = resolve(opts.orgDir);
+
+  if (absTarget === absOrg) {
+    throw new Error('targetDir ו-orgDir לא יכולים להיות זהים');
+  }
+
   const effort  = new EffortController({ ceilPercent: opts.ceilPercent ?? 70 });
   const startedAt = new Date().toISOString();
   const filePaths: string[] = [];
@@ -153,15 +330,18 @@ export async function runVacuumProtocol(opts: VacuumOptions): Promise<VacuumRepo
     const fileName   = basename(filePath);
     const detectedAt = new Date().toISOString();
 
-    // Sample CPU every 10 files to avoid 250ms overhead per file
-    if (idx % 10 === 0) await effort.throttle();
+    // Sample CPU after every file to ensure accurate throttling
+    await effort.throttle();
 
-    if (extname(fileName).toLowerCase() === '.pdf') {
+    const fileExt = extname(fileName).toLowerCase();
+
+    // ── Validate file integrity ───────────────────────────────────────────
+    if (fileExt === '.pdf') {
       const { valid, encrypted } = await isPdfSafe(filePath);
       if (!valid) {
         const entry: VacuumEntry = {
           filePath, fileName, caseNumber: null, expectedPath: null,
-          action: 'skip_corrupt', contradiction: 'PDF פגום', detectedAt,
+          action: 'skip_corrupt', contradiction: 'PDF פגום או ריק', detectedAt,
         };
         entries.push(entry);
         skipCount++;
@@ -180,14 +360,34 @@ export async function runVacuumProtocol(opts: VacuumOptions): Promise<VacuumRepo
       }
     }
 
-    // ── Case number extraction ────────────────────────────────────────────
+    // Validate image files
+    if (['.jpg', '.jpeg', '.png', '.gif', '.bmp', '.webp', '.svg', '.tiff', '.ico'].includes(fileExt)) {
+      const validImage = await isImageSafe(filePath);
+      if (!validImage) {
+        const entry: VacuumEntry = {
+          filePath, fileName, caseNumber: null, expectedPath: null,
+          action: 'skip_corrupt', contradiction: 'תמונה פגומה או ריקה', detectedAt,
+        };
+        entries.push(entry);
+        skipCount++;
+        onProgress?.(entry);
+        continue;
+      }
+    }
+
+    // ── Case number extraction and validation ────────────────────────────────
     const m = CASE_NUMBER_RE.exec(fileName);
-    const caseNumber = m ? (m[1] ?? null) : null;
+    const caseNumberMatch = m ? (m[1] ?? null) : null;
+
+    // Validate that the matched number is actually a known Israeli case type
+    const caseNumber = caseNumberMatch && isValidIsraeliCaseNumber(caseNumberMatch)
+      ? caseNumberMatch
+      : null;
 
     if (!caseNumber) {
       const entry: VacuumEntry = {
         filePath, fileName, caseNumber: null, expectedPath: null,
-        action: 'skip', contradiction: 'לא זוהה מספר תיק', detectedAt,
+        action: 'skip', contradiction: 'מספר תיק לא זוהה או לא חוקי', detectedAt,
       };
       entries.push(entry);
       skipCount++;
@@ -217,10 +417,15 @@ export async function runVacuumProtocol(opts: VacuumOptions): Promise<VacuumRepo
 
     // ── Check for destination collision ───────────────────────────────────
     let contradiction: string | null = null;
+    let destinationExists = false;
+    
     try {
       await stat(toLongPath(resolvedExpected));
-      contradiction = `קובץ קיים בנתיב היעד — ידרש מיזוג ידני`;
-    } catch { /* target free */ }
+      destinationExists = true;
+      contradiction = `קובץ קיים בנתיב היעד — נדרש מיזוג ידני`;
+    } catch {
+      /* target is free */
+    }
 
     if (dryRun) {
       const entry: VacuumEntry = {
@@ -228,7 +433,19 @@ export async function runVacuumProtocol(opts: VacuumOptions): Promise<VacuumRepo
         action: 'move', contradiction, detectedAt,
       };
       entries.push(entry);
-      moveCount++;
+      if (!contradiction) moveCount++;
+      onProgress?.(entry);
+      continue;
+    }
+
+    // In non-dryRun mode, skip if destination already exists
+    if (destinationExists) {
+      const entry: VacuumEntry = {
+        filePath, fileName, caseNumber, expectedPath,
+        action: 'skip_collision', contradiction, detectedAt,
+      };
+      entries.push(entry);
+      skipCount++;
       onProgress?.(entry);
       continue;
     }
@@ -251,23 +468,25 @@ export async function runVacuumProtocol(opts: VacuumOptions): Promise<VacuumRepo
       await rename(toLongPath(filePath), toLongPath(resolvedExpected));
       const entry: VacuumEntry = {
         filePath, fileName, caseNumber, expectedPath: resolvedExpected,
-        action: 'move', contradiction, detectedAt,
+        action: 'move', contradiction: null, detectedAt,
       };
       entries.push(entry);
       moveCount++;
       onProgress?.(entry);
     } catch (e) {
       const msg = String(e);
+      const code = (e as NodeJS.ErrnoException).code || 'UNKNOWN';
+      
       if (msg.includes('EPERM') || msg.includes('EACCES')) {
         const entry: VacuumEntry = {
           filePath, fileName, caseNumber, expectedPath: resolvedExpected,
-          action: 'pending', contradiction: `הרשאה נדחתה: ${msg}`, detectedAt,
+          action: 'pending', contradiction: `הרשאה נדחתה (${code})`, detectedAt,
         };
         entries.push(entry);
         pendingCount++;
         onProgress?.(entry);
       } else {
-        errors.push(`שגיאה בהזזת קובץ ${filePath}: ${msg}`);
+        errors.push(`קובץ: ${filePath}, שגיאה: ${code}, פרטים: ${msg}`);
         skipCount++;
       }
     }
