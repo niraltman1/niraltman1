@@ -56,8 +56,10 @@ export function communicationsRouter(repos: Repos): Router {
     ok(res, { id });
   }));
 
-  // ── Conversations (assistant+) ────────────────────────────────────────────
-  router.get('/conversations', requireRole('assistant', repos), asyncHandler((req, res) => {
+  // ── Conversations (operational — ungated like /cases, /documents) ──────────
+  // Privileged-content reads; the trusted local app reaches these without a token,
+  // consistent with the rest of the operational API. Secrets stay admin-gated below.
+  router.get('/conversations', asyncHandler((req, res) => {
     const q = req.query;
     const filter: { caseId?: number; clientId?: number; userId?: number; status?: ConversationStatus } = {};
     if (q['caseId']   !== undefined) filter.caseId   = Number(q['caseId']);
@@ -71,17 +73,17 @@ export function communicationsRouter(repos: Repos): Router {
     ok(res, comm.listConversations(filter));
   }));
 
-  router.get('/conversations/:id', requireRole('assistant', repos), asyncHandler((req, res) => {
+  router.get('/conversations/:id', asyncHandler((req, res) => {
     const id = Number(req.params['id']);
     const conversation = comm.getConversation(id);
     if (!conversation) throw new NotFoundError('conversation not found');
     ok(res, { conversation, messages: comm.listMessages(id) });
   }));
 
-  // Send an outbound message — consent-gated. Blocked sends return 409.
-  // For Telegram, the recorded message is also transmitted (best-effort) and the
-  // delivery outcome is reported; recording is never blocked by a transport failure.
-  router.post('/conversations/:id/send', requireRole('attorney', repos), asyncHandler(async (req, res) => {
+  // Send an outbound message — human-initiated (HITL), consent-gated, audited.
+  // Blocked sends return 409. For Telegram the recorded message is also transmitted
+  // (best-effort); recording is never blocked by a transport failure.
+  router.post('/conversations/:id/send', asyncHandler(async (req, res) => {
     const id = Number(req.params['id']);
     const { body, mediaKind, mediaRef } = req.body as { body?: string; mediaKind?: string; mediaRef?: string };
     if (!body && !mediaRef) throw new ValidationError('body or mediaRef required');
@@ -107,9 +109,9 @@ export function communicationsRouter(repos: Repos): Router {
     ok(res, { ...result, ...(delivery ? { delivery } : {}) });
   }));
 
-  // ── Inbound ingestion (attorney+) ─────────────────────────────────────────
+  // ── Inbound ingestion (operational) ───────────────────────────────────────
   // Manual/test ingestion point; channel webhooks (C1+) call the repo directly.
-  router.post('/inbound', requireRole('attorney', repos), asyncHandler((req, res) => {
+  router.post('/inbound', asyncHandler((req, res) => {
     const b = req.body as { channel?: string; externalId?: string; body?: string; displayName?: string;
       mediaKind?: string; mediaRef?: string; externalThreadId?: string };
     if (!b.channel || !CHANNELS.includes(b.channel as CommChannel)) throw new ValidationError('invalid channel');
@@ -125,13 +127,13 @@ export function communicationsRouter(repos: Repos): Router {
     ok(res, result);
   }));
 
-  router.post('/messages/:id/handled', requireRole('assistant', repos), asyncHandler((req, res) => {
+  router.post('/messages/:id/handled', asyncHandler((req, res) => {
     comm.markHandled(Number(req.params['id']));
     ok(res, { handled: true });
   }));
 
-  // ── Consent (attorney+) ───────────────────────────────────────────────────
-  router.post('/consent', requireRole('attorney', repos), asyncHandler((req, res) => {
+  // ── Consent (operational; recorded + audited) ─────────────────────────────
+  router.post('/consent', asyncHandler((req, res) => {
     const { clientId, channel, granted, source } = req.body as {
       clientId?: number; channel?: string; granted?: boolean; source?: string;
     };
@@ -141,14 +143,14 @@ export function communicationsRouter(repos: Repos): Router {
     ok(res, { clientId, channel, granted: granted !== false });
   }));
 
-  router.get('/consent/:clientId/:channel', requireRole('assistant', repos), asyncHandler((req, res) => {
+  router.get('/consent/:clientId/:channel', asyncHandler((req, res) => {
     const channel = req.params['channel'] as CommChannel;
     if (!CHANNELS.includes(channel)) throw new ValidationError('invalid channel');
     ok(res, { granted: comm.hasConsent(Number(req.params['clientId']), channel) });
   }));
 
-  // ── Unknown inbox (assistant+) ────────────────────────────────────────────
-  router.get('/unknown', requireRole('assistant', repos), asyncHandler((req, res) => {
+  // ── Unknown inbox (operational) ───────────────────────────────────────────
+  router.get('/unknown', asyncHandler((req, res) => {
     ok(res, comm.listUnknownInbox(req.query['all'] === 'true'));
   }));
 

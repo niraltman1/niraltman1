@@ -29,9 +29,15 @@
   `sendTelegramText` best-effort, routes connect/webhook/set-webhook. 8 בדיקות; API(100) ירוק.
   ⚠️ `api.telegram.org` לא ב-allowlist → מסירה חיה לא אומתה כאן (הקוד מוכן לסביבה עם גישת-רשת).
 
-**הצעד הבא:** **C3 — ציר-זמן אחיד + נקודות-כניסה** (UI: פאנל תקשורת ב-CaseDetail/ClientCard + קבוצת "תקשורת" בסיידבר,
-על בסיס `/api/communications`). אפשר במקביל C2 (WhatsApp self-hosted, שליחה-ידנית). אימות חי של C1 כשה-allowlist יכלול
-את Telegram. תלוי גם ב-B0 (אכלוס קורפוסים #50/#52).
+- ✅ **C3 (ציר-זמן אחיד + נקודות-כניסה)** — `features/communications/`: `CommunicationsPanel` (master/detail, בועות,
+  שער-הסכמה ב-UI), hooks ל-`/api/communications`, טאב "תקשורת" ב-CaseDetail+ClientCard, route `/communications` +
+  פריט סיידבר "מרכז תקשורת" + תיבת אלמונים. typecheck+lint+build נקיים.
+- 🔧 **יישור RBAC (תיקון):** endpoints תפעוליים של התקשורת הופכו ל-ungated (כמו /cases,/documents) כדי להתאים ל-app
+  המקומי הנאמן; סודות (channels, telegram connect) נשארו admin-gated. בקרת-שליחה = consent gate(409)+audit+HITL.
+- 📝 **C2 (WhatsApp) הערת-ארכיטקטורה:** Puppeteer יוגדר עם `executablePath` ל-WebView2/Edge המקומי (לא הורדת Chromium).
+
+**הצעד הבא:** **C4 — תבניות חכמות מודעות-הקשר** (Case Type × Phase × Status, הזרקת-משתנים, שליחה-לחתימה דרך קישור-מקומי) ⟵ B2.
+חסומים-סביבה (לכשתתאפשר רשת/דפדפן): C1 מסירה-חיה (allowlist ל-Telegram), C2 (whatsapp-web.js+WebView2). תלוי גם ב-B0 (#50/#52).
 
 ---
 

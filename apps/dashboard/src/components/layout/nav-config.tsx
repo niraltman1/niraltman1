@@ -4,7 +4,7 @@ import {
   FilesIcon, FileTextIcon, TrayIcon, CheckCircleIcon, BroomIcon, ImageIcon, VaultIcon,
   ScalesIcon, StackIcon, NoteIcon, GavelIcon,
   RobotIcon,
-  EnvelopeIcon, EnvelopeSimpleIcon,
+  ChatCircleIcon, EnvelopeIcon, EnvelopeSimpleIcon,
   GraduationCapIcon,
   GearIcon, HardDriveIcon, ChartLineIcon, NotebookIcon, LockKeyIcon,
   CloudArrowUpIcon, ShieldWarningIcon,
@@ -80,8 +80,9 @@ export const NAV_GROUPS: NavGroup[] = [
     ],
   },
   {
-    id: 'comms', label: 'תקשורת', Icon: EnvelopeIcon, defaultOpen: false,
+    id: 'comms', label: 'תקשורת', Icon: ChatCircleIcon, defaultOpen: false,
     items: [
+      { to: '/communications', label: 'מרכז תקשורת', Icon: ChatCircleIcon },
       { to: '/mail',  label: 'מחולל מייל', Icon: EnvelopeIcon },
       { to: '/gmail', label: 'חיבור Gmail', Icon: EnvelopeSimpleIcon },
     ],

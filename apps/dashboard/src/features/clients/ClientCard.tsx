@@ -3,15 +3,16 @@ import { useParams, Link } from 'react-router-dom';
 import {
   UserIcon, PhoneIcon, EnvelopeSimpleIcon, IdentificationCardIcon,
   PencilSimpleIcon, GavelIcon, FolderOpenIcon, ClockCounterClockwiseIcon,
-  ArrowRightIcon, ClipboardTextIcon, CircleNotchIcon, CurrencyCircleDollarIcon,
+  ArrowRightIcon, ClipboardTextIcon, CircleNotchIcon, CurrencyCircleDollarIcon, ChatCircleIcon,
 } from '@phosphor-icons/react';
 import { useClient, useCases, useDocuments, useExportWorksheet } from '@/api/hooks.js';
 import { ClientTimeline } from './ClientTimeline.js';
+import { CommunicationsPanel } from '@/features/communications/CommunicationsPanel.js';
 import { CaseProcedurePanel } from '@/features/legal-engine/CaseProcedurePanel.js';
 import { TrafficCasePanel }  from '@/features/traffic/TrafficCasePanel.js';
 import { LedgerPage } from '@/features/ledger/LedgerPage.js';
 
-type Tab = 'cases' | 'documents' | 'timeline' | 'worksheet' | 'ledger';
+type Tab = 'cases' | 'documents' | 'timeline' | 'communications' | 'worksheet' | 'ledger';
 
 function StatuteCountdownBadge({ deadline }: { deadline?: string | null }) {
   if (!deadline) return null;
@@ -160,6 +161,7 @@ export function ClientCard() {
           { key: 'cases',     label: 'תיקים',       Icon: GavelIcon                 },
           { key: 'documents', label: 'מסמכים',      Icon: FolderOpenIcon            },
           { key: 'timeline',  label: 'ציר זמן',     Icon: ClockCounterClockwiseIcon },
+          { key: 'communications', label: 'תקשורת', Icon: ChatCircleIcon           },
           { key: 'worksheet', label: 'גיליון עבודה', Icon: ClipboardTextIcon        },
           { key: 'ledger',    label: 'ספר גבייה',   Icon: CurrencyCircleDollarIcon  },
         ] as const).map(({ key, label, Icon }) => (
@@ -244,6 +246,10 @@ export function ClientCard() {
 
       {tab === 'timeline' && (
         <ClientTimeline clientId={clientId} />
+      )}
+
+      {tab === 'communications' && (
+        <CommunicationsPanel clientId={clientId} />
       )}
 
       {tab === 'ledger' && (

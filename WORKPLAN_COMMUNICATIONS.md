@@ -35,8 +35,9 @@
 > **שכבת נתונים:** migration `060_communications.sql` (7 טבלאות, 13 אינדקסים), `CommunicationsRepository`
 > עם מנוע **Smart Routing** (זיהוי שולח → לקוח → תיק פעיל → עו"ד מ-CaseAssignments; ריבוי-תיקים/אלמוני →
 > triage/UnknownInbox, ללא ניחוש), **שער-הסכמה** ל-outbound + **audit מלא** (send/send_blocked/consent/route/channel_config).
-> **API + RBAC:** `/api/communications` עם דירוג הרשאות — credentials של ערוצים → `admin`; קריאת שיחות/inbox → `assistant+`;
-> שליחה/הסכמה/ingest → `attorney+`. שליחה ללא הסכמה → `409`.
+> **API + RBAC:** `/api/communications` בקו אחד עם דפוס-הקוד הקיים — **endpoints תפעוליים פתוחים** (כמו `/cases`,`/documents`)
+> ל-app המקומי הנאמן; **סודות/governance** (channels, telegram connect/set-webhook) → `admin` בלבד (least-privilege).
+> הבקרה המשפטית על שליחה היא **שער-ההסכמה (409) + audit + HITL** (לחיצת-אדם), לא RBAC.
 > **הצפנת credentials:** סודות הערוצים מוצפנים ב-`field-cipher` (AES-256-GCM); `CommChannels` מחזיק רק `credential_ref`,
 > לעולם לא את הסוד. `listChannels` חושף `hasCredential` בלבד.
 > **נבדק:** 7 בדיקות repo + 7 בדיקות route (RBAC 401/403, consent 409→200, ולידציה 422) + ולידציית DDL.
@@ -73,14 +74,20 @@
 - [ ] **whatsapp-web.js self-hosted** המקושר למספר המשרד (חיבור QR מנוהל מה-UI, session מוצפן).
 - [ ] **דגם שליחה-ידנית:** ה-UI מכין את ההודעה/הקישור; המשתמש מאשר ולוחץ "שלח" (הקטנת סיכון-חסימה).
 - [ ] consent-gated; **Fallback Nudge:** אם הלקוח מתעקש על WhatsApp — מותר, עם הצעה תקופתית לעבור לטלגרם.
+- 🏗️ **החלטת-ארכיטקטורה (בעלים):** **לא** להוריד Chromium נפרד. Factum-IL כבר משתמש ב-**WebView2** (מנוע Chromium).
+      להגדיר Puppeteer דינמית עם `executablePath` שמצביע ל-Edge/WebView2 runtime המקומי
+      (`puppeteer.launch({ executablePath: <edge/webview2 path> })`), לפי הסביבה.
 - **קבלה:** הודעת WhatsApp נשלחת בלחיצה ידנית, consent נאכף, נרשמת בציר-הזמן ובאודיט.
+- ⚠️ **חסם-סביבה:** whatsapp-web.js + דפדפן-חי + מכשיר-מקושר אינם זמינים/ניתנים-לאימות ב-sandbox הנוכחי.
 
-## Phase C3 — ציר-זמן אחיד + נקודות-כניסה (שבועות 4–5) ⟵ F0/F3
-- [ ] **Unified Timeline** בתוך התיק/הלקוח: היסטוריה כרונולוגית של כל האינטראקציות מכל הערוצים.
-- [ ] **אינדיקטור-ערוץ** בכל בועת-הודעה (טלגרם/וואטסאפ/מייל/שיחה).
-- [ ] **Action Bar** עם בורר-ערוץ-יוצא לפני שליחה.
-- [ ] **נקודות-כניסה (הדרישה המקורית):** פריט **"תקשורת"** בסיידבר הראשי + פאנל מוטמע **בכל כרטיס לקוח** + **בכל תיק**.
-- **קבלה:** עו"ד רואה ומנהל את כל התקשורת עם לקוח ממקום אחד, מכל אחת משלוש נקודות-הכניסה.
+## Phase C3 — ציר-זמן אחיד + נקודות-כניסה ✅ **הושלם**
+- [x] **Unified Timeline** (`features/communications/CommunicationsPanel.tsx`): master/detail של שיחות + בועות הודעה
+      (inbound/outbound), עם hooks (`useCommConversations/useCommConversation/useSendCommMessage/useGrantConsent`).
+- [x] **אינדיקטור-ערוץ** בכל שיחה/בועה (טלגרם/וואטסאפ/מייל/טלפון — `channel-meta.tsx`).
+- [x] **Action Bar** + **שער-הסכמה ב-UI:** שליחה חסומה (409) מציגה באנר "תעד הסכמה ושלח" (HITL).
+- [x] **שלוש נקודות-כניסה (הדרישה המקורית):** פריט **"מרכז תקשורת"** בסיידבר (קבוצת "תקשורת" + route `/communications`),
+      טאב **"תקשורת"** מוטמע ב-**CaseDetail** (פר-תיק) וב-**ClientCard** (פר-לקוח). דף-הבית כולל גם תיבת אלמונים (C8).
+- **אומת:** dashboard typecheck + lint נקיים, build (4708 modules) עובר.
 
 ## Phase C4 — תבניות חכמות מודעות-הקשר (שבוע 5) ⟵ B2
 - [ ] **טעינה דינמית:** הצעת תבניות לפי הצלבת `Case Type` × `Case Phase` × `Client Status`.

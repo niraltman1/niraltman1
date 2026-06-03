@@ -35,6 +35,7 @@ import { StudiesPage }        from '@/features/studies/StudiesPage.js';
 import { EvidenceLockerPage } from '@/features/evidence/EvidenceLockerPage.js';
 import { StensLibraryPage }   from '@/features/stens/StensLibraryPage.js';
 import { CanvasPage }         from '@/features/canvas/CanvasPage.js';
+import { CommunicationsInboxPage } from '@/features/communications/CommunicationsInboxPage.js';
 import { GmailBridgePage }    from '@/features/gmail/GmailBridgePage.js';
 import { MailWorkspacePage }  from '@/features/mail/MailWorkspacePage.js';
 import { AgentsWorkspacePage } from '@/features/agents/AgentsWorkspacePage.js';
@@ -73,6 +74,7 @@ export const router: RemixRouter = createBrowserRouter([
       { path: 'studies',           element: <StudiesPage />          },
       { path: 'evidence',          element: <EvidenceLockerPage />   },
       { path: 'stens',             element: <StensLibraryPage />     },
+      { path: 'communications',    element: <CommunicationsInboxPage /> },
       { path: 'gmail',             element: <GmailBridgePage />      },
       { path: 'mail',              element: <MailWorkspacePage />    },
       { path: 'agents',             element: <AgentsWorkspacePage />  },

@@ -35,17 +35,15 @@ function tokenFor(db: DatabaseConnection, username: string, role: string): strin
 describe('communicationsRouter — RBAC + consent gate (C0)', () => {
   let db: DatabaseConnection;
   let app: express.Express;
-  let adminTok: string, attorneyTok: string, assistantTok: string, readonlyTok: string;
+  let adminTok: string, attorneyTok: string;
 
   beforeEach(() => {
     db = new DatabaseConnection({ path: ':memory:' });
     db.exec(SCHEMA);
     db.prepare("INSERT INTO Clients (id, name_he) VALUES (1, 'לקוח')").run();
 
-    adminTok     = tokenFor(db, 'admin1', 'admin');
-    attorneyTok  = tokenFor(db, 'att1', 'attorney');
-    assistantTok = tokenFor(db, 'asst1', 'assistant');
-    readonlyTok  = tokenFor(db, 'ro1', 'read_only');
+    adminTok    = tokenFor(db, 'admin1', 'admin');
+    attorneyTok = tokenFor(db, 'att1', 'attorney');
 
     const repos = { db, communications: new CommunicationsRepository(db) } as unknown as Repos;
     app = express();
@@ -57,61 +55,56 @@ describe('communicationsRouter — RBAC + consent gate (C0)', () => {
   afterEach(() => db.close());
 
   it('rejects unauthenticated requests with 401', async () => {
-    await request(app).get('/api/communications/conversations').expect(401);
+    await request(app).get('/api/communications/channels').expect(401);
   });
 
-  it('rejects channel admin endpoint for non-admin with 403', async () => {
+  it('rejects channel admin endpoint for non-admin with 403 (secrets are least-privilege)', async () => {
     await request(app).get('/api/communications/channels')
       .set('Authorization', `Bearer ${attorneyTok}`).expect(403);
   });
 
-  it('allows admin to list channels', async () => {
+  it('allows admin to list channels (secret values never returned)', async () => {
     const res = await request(app).get('/api/communications/channels')
       .set('Authorization', `Bearer ${adminTok}`).expect(200);
     expect(res.body.success).toBe(true);
     expect(Array.isArray(res.body.data)).toBe(true);
   });
 
-  it('lets assistant read conversations but not send', async () => {
-    await request(app).get('/api/communications/conversations')
-      .set('Authorization', `Bearer ${assistantTok}`).expect(200);
-    await request(app).post('/api/communications/conversations/1/send')
-      .set('Authorization', `Bearer ${assistantTok}`).send({ body: 'x' }).expect(403);
+  it('operational reads are ungated like /cases, /documents', async () => {
+    // No Authorization header — trusted local app, consistent with the rest of the API.
+    await request(app).get('/api/communications/conversations').expect(200);
+    await request(app).get('/api/communications/unknown').expect(200);
   });
 
-  it('read_only cannot read conversations (403)', async () => {
-    await request(app).get('/api/communications/conversations')
-      .set('Authorization', `Bearer ${readonlyTok}`).expect(403);
-  });
-
-  it('attorney inbound→send is consent-gated: 409 until consent, then 200', async () => {
-    // Link identity + one open case so routing binds the conversation.
+  it('send is consent-gated (409 → 200) and audited, regardless of role gating', async () => {
     db.prepare("INSERT INTO Cases (id, client_id, status, opened_date) VALUES (5, 1, 'open', '2026-01-01')").run();
     db.prepare("INSERT INTO CommContactIdentities (channel, external_id, client_id) VALUES ('telegram','tg-1',1)").run();
 
     const inbound = await request(app).post('/api/communications/inbound')
-      .set('Authorization', `Bearer ${attorneyTok}`)
       .send({ channel: 'telegram', externalId: 'tg-1', body: 'שלום' }).expect(200);
     const convId = inbound.body.data.conversationId as number;
     expect(convId).toBeGreaterThan(0);
 
-    // No consent yet → blocked (409).
+    // No consent yet → blocked (409) — the legal control, independent of RBAC.
     await request(app).post(`/api/communications/conversations/${convId}/send`)
-      .set('Authorization', `Bearer ${attorneyTok}`).send({ body: 'נחזור אליך' }).expect(409);
+      .send({ body: 'נחזור אליך' }).expect(409);
 
-    // Grant consent → send succeeds.
     await request(app).post('/api/communications/consent')
-      .set('Authorization', `Bearer ${attorneyTok}`)
       .send({ clientId: 1, channel: 'telegram', granted: true, source: 'intake' }).expect(200);
 
     const sent = await request(app).post(`/api/communications/conversations/${convId}/send`)
-      .set('Authorization', `Bearer ${attorneyTok}`).send({ body: 'נחזור אליך' }).expect(200);
+      .send({ body: 'נחזור אליך' }).expect(200);
     expect(sent.body.data.sent).toBe(true);
+
+    // Every attempt is audited (send_blocked + send).
+    const blocked = db.prepare("SELECT COUNT(*) c FROM CommAudit WHERE action='send_blocked'").get() as { c: number };
+    const sends   = db.prepare("SELECT COUNT(*) c FROM CommAudit WHERE action='send'").get() as { c: number };
+    expect(blocked.c).toBe(1);
+    expect(sends.c).toBe(1);
   });
 
   it('validates channel on inbound (422)', async () => {
     await request(app).post('/api/communications/inbound')
-      .set('Authorization', `Bearer ${attorneyTok}`)
       .send({ channel: 'fax', externalId: 'x' }).expect(422);
   });
 });

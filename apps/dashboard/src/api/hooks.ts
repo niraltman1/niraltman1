@@ -2440,3 +2440,116 @@ export function useMarkAllNotificationsRead() {
     },
   });
 }
+
+// ─────────────────────────────────────────────
+//  Communications (omnichannel — C3)
+// ─────────────────────────────────────────────
+
+export type CommChannel = 'telegram' | 'whatsapp' | 'email' | 'phone';
+export type CommDirection = 'inbound' | 'outbound';
+export type ConversationStatus = 'open' | 'closed' | 'triage';
+
+export interface CommConversation {
+  id:               number;
+  channel:          CommChannel;
+  externalThreadId: string | null;
+  clientId:         number | null;
+  caseId:           number | null;
+  assignedUserId:   number | null;
+  subject:          string | null;
+  status:           ConversationStatus;
+  lastMessageAt:    string | null;
+  createdAt:        string;
+}
+
+export interface CommMessage {
+  id:             number;
+  conversationId: number;
+  channel:        CommChannel;
+  direction:      CommDirection;
+  body:           string | null;
+  mediaKind:      string | null;
+  mediaRef:       string | null;
+  senderIdentity: string | null;
+  handled:        boolean;
+  replied:        boolean;
+  createdAt:      string;
+  sentAt:         string | null;
+}
+
+export interface UnknownInboxRow {
+  id:          number;
+  channel:     CommChannel;
+  externalId:  string;
+  displayName: string | null;
+  body:        string | null;
+  mediaKind:   string | null;
+  resolved:    boolean;
+  createdAt:   string;
+}
+
+export interface CommSendResult {
+  sent:      boolean;
+  messageId: number;
+  delivery?: { delivered: boolean; error?: string };
+}
+
+interface CommFilter { caseId?: number; clientId?: number; status?: ConversationStatus }
+
+function commFilterKey(f: CommFilter): string {
+  return `${f.caseId ?? ''}:${f.clientId ?? ''}:${f.status ?? ''}`;
+}
+
+export function useCommConversations(filter: CommFilter = {}, enabled = true) {
+  const qs = new URLSearchParams();
+  if (filter.caseId   !== undefined) qs.set('caseId',   String(filter.caseId));
+  if (filter.clientId !== undefined) qs.set('clientId', String(filter.clientId));
+  if (filter.status   !== undefined) qs.set('status',   filter.status);
+  const query = qs.toString();
+  return useQuery({
+    queryKey: ['communications', 'conversations', commFilterKey(filter)] as const,
+    queryFn:  () => fetchJSON<CommConversation[]>(`/api/communications/conversations${query ? `?${query}` : ''}`),
+    enabled,
+  });
+}
+
+export function useCommConversation(id: number | null) {
+  return useQuery({
+    queryKey: ['communications', 'conversation', id] as const,
+    queryFn:  () => fetchJSON<{ conversation: CommConversation; messages: CommMessage[] }>(
+      `/api/communications/conversations/${id}`,
+    ),
+    enabled: id !== null,
+  });
+}
+
+export function useCommUnknownInbox(enabled = true) {
+  return useQuery({
+    queryKey: ['communications', 'unknown'] as const,
+    queryFn:  () => fetchJSON<UnknownInboxRow[]>('/api/communications/unknown'),
+    enabled,
+  });
+}
+
+export function useSendCommMessage(conversationId: number) {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (body: string) =>
+      postJSON<CommSendResult>(`/api/communications/conversations/${conversationId}/send`, { body }),
+    onSuccess: () => {
+      void qc.invalidateQueries({ queryKey: ['communications', 'conversation', conversationId] });
+      void qc.invalidateQueries({ queryKey: ['communications', 'conversations'] });
+    },
+  });
+}
+
+export function useGrantConsent() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (v: { clientId: number; channel: CommChannel; granted: boolean; source?: string }) =>
+      postJSON('/api/communications/consent', v),
+    onSuccess: () => {
+      void qc.invalidateQueries({ queryKey: ['communications'] });
+    },
+  });
+}
