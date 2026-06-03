@@ -1,6 +1,6 @@
 import { useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { CaretRightIcon, CaretLeftIcon, GavelIcon, WarningCircleIcon, CheckSquareIcon, FileTextIcon } from '@phosphor-icons/react';
+import { CaretRightIcon, CaretLeftIcon, GavelIcon, WarningCircleIcon, CheckSquareIcon, FileTextIcon, PhoneIcon, LockSimpleIcon } from '@phosphor-icons/react';
 import { useCalendarEvents, type CalendarEvent } from '@/api/hooks.js';
 
 const WEEKDAYS = ['א׳', 'ב׳', 'ג׳', 'ד׳', 'ה׳', 'ו׳', 'ש׳'];
@@ -14,6 +14,8 @@ const KIND_STYLE: Record<CalendarEvent['kind'], { bg: string; fg: string; Icon: 
   statute_deadline: { bg: 'rgba(248,113,113,0.16)', fg: '#fca5a5', Icon: WarningCircleIcon, label: 'התיישנות' },
   task:             { bg: 'rgba(212,175,55,0.16)',  fg: '#e7c66b', Icon: CheckSquareIcon,   label: 'משימה' },
   document:         { bg: 'rgba(163,163,163,0.16)', fg: '#a3a3a3', Icon: FileTextIcon,      label: 'מסמך' },
+  call:             { bg: 'rgba(110,231,183,0.16)', fg: '#6ee7b7', Icon: PhoneIcon,        label: 'שיחה' },
+  evidence:         { bg: 'rgba(52,211,153,0.16)',  fg: '#34d399', Icon: LockSimpleIcon,   label: 'ראיה' },
 };
 
 function ymd(d: Date): string {

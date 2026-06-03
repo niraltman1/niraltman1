@@ -54,6 +54,7 @@ import { notificationsRouter } from './routes/notifications.js';
 import { calendarRouter } from './routes/calendar.js';
 import { entitiesRouter } from './routes/entities.js';
 import { collectionsRouter } from './routes/collections.js';
+import { communicationsRouter } from './routes/communications.js';
 import { annotationsRouter } from './routes/annotations.js';
 import { rulesRouter } from './routes/rules.js';
 import { legalCorpusRouter } from './routes/legal-corpus.js';
@@ -165,6 +166,7 @@ export function createApp(repos: Repos, dbPath?: string): express.Express {
   app.use('/api/calendar',      calendarRouter(repos));
   app.use('/api/entities',      entitiesRouter(repos));
   app.use('/api/collections',   collectionsRouter(repos));
+  app.use('/api/communications', communicationsRouter(repos));
   app.use('/api/annotations',   annotationsRouter(repos));
   app.use('/api/rules',         rulesRouter(repos));
   app.use('/api/legal-corpus',  legalCorpusRouter(repos));

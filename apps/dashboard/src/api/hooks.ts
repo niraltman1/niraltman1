@@ -238,10 +238,19 @@ export function useRules(procedureType?: string) {
 //  Search
 // ─────────────────────────────────────────────
 
+/** Canonical search-hit contract returned by `GET /api/search` (see SearchEngine.SearchHit). */
+export interface SearchHit {
+  entityType: 'document' | 'client' | 'case';
+  id:         number;
+  rank:       number;
+  snippet:    string;
+  title:      string;
+}
+
 export function useSearch(query: string) {
   return useQuery({
     queryKey: QUERY_KEYS.search(query),
-    queryFn:  () => fetchJSON<Record<string, unknown>[]>(`/api/search?q=${encodeURIComponent(query)}`),
+    queryFn:  () => fetchJSON<SearchHit[]>(`/api/search?q=${encodeURIComponent(query)}`),
     enabled:  query.trim().length >= 2,
     staleTime: 30_000,
   });
@@ -2326,7 +2335,7 @@ export interface NotificationsResponse {
 
 export interface CalendarEvent {
   id:         string;
-  kind:       'hearing' | 'statute_deadline' | 'task' | 'document';
+  kind:       'hearing' | 'statute_deadline' | 'task' | 'document' | 'call' | 'evidence';
   date:       string;
   time:       string | null;
   title:      string;
@@ -2512,5 +2521,274 @@ export function useMarkAllNotificationsRead() {
     onSuccess: () => {
       void qc.invalidateQueries({ queryKey: QUERY_KEYS.notifications });
     },
+  });
+}
+
+// ─────────────────────────────────────────────
+//  Communications (omnichannel — C3)
+// ─────────────────────────────────────────────
+
+export type CommChannel = 'telegram' | 'whatsapp' | 'email' | 'phone';
+export type CommDirection = 'inbound' | 'outbound';
+export type ConversationStatus = 'open' | 'closed' | 'triage';
+
+export interface CommConversation {
+  id:               number;
+  channel:          CommChannel;
+  externalThreadId: string | null;
+  clientId:         number | null;
+  caseId:           number | null;
+  assignedUserId:   number | null;
+  subject:          string | null;
+  status:           ConversationStatus;
+  lastMessageAt:    string | null;
+  createdAt:        string;
+}
+
+export interface CommMessage {
+  id:             number;
+  conversationId: number;
+  channel:        CommChannel;
+  direction:      CommDirection;
+  body:           string | null;
+  mediaKind:      string | null;
+  mediaRef:       string | null;
+  senderIdentity: string | null;
+  handled:        boolean;
+  replied:        boolean;
+  transcript:     string | null;
+  createdAt:      string;
+  sentAt:         string | null;
+}
+
+export interface UnknownInboxRow {
+  id:          number;
+  channel:     CommChannel;
+  externalId:  string;
+  displayName: string | null;
+  body:        string | null;
+  mediaKind:   string | null;
+  resolved:    boolean;
+  createdAt:   string;
+}
+
+export interface CommSendResult {
+  sent:      boolean;
+  messageId: number;
+  delivery?: { delivered: boolean; error?: string };
+}
+
+interface CommFilter { caseId?: number; clientId?: number; status?: ConversationStatus }
+
+function commFilterKey(f: CommFilter): string {
+  return `${f.caseId ?? ''}:${f.clientId ?? ''}:${f.status ?? ''}`;
+}
+
+export function useCommConversations(filter: CommFilter = {}, enabled = true) {
+  const qs = new URLSearchParams();
+  if (filter.caseId   !== undefined) qs.set('caseId',   String(filter.caseId));
+  if (filter.clientId !== undefined) qs.set('clientId', String(filter.clientId));
+  if (filter.status   !== undefined) qs.set('status',   filter.status);
+  const query = qs.toString();
+  return useQuery({
+    queryKey: ['communications', 'conversations', commFilterKey(filter)] as const,
+    queryFn:  () => fetchJSON<CommConversation[]>(`/api/communications/conversations${query ? `?${query}` : ''}`),
+    enabled,
+  });
+}
+
+export function useCommConversation(id: number | null) {
+  return useQuery({
+    queryKey: ['communications', 'conversation', id] as const,
+    queryFn:  () => fetchJSON<{ conversation: CommConversation; messages: CommMessage[] }>(
+      `/api/communications/conversations/${id}`,
+    ),
+    enabled: id !== null,
+  });
+}
+
+export function useCommUnknownInbox(enabled = true) {
+  return useQuery({
+    queryKey: ['communications', 'unknown'] as const,
+    queryFn:  () => fetchJSON<UnknownInboxRow[]>('/api/communications/unknown'),
+    enabled,
+  });
+}
+
+export function useSendCommMessage(conversationId: number) {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (body: string) =>
+      postJSON<CommSendResult>(`/api/communications/conversations/${conversationId}/send`, { body }),
+    onSuccess: () => {
+      void qc.invalidateQueries({ queryKey: ['communications', 'conversation', conversationId] });
+      void qc.invalidateQueries({ queryKey: ['communications', 'conversations'] });
+    },
+  });
+}
+
+export function useGrantConsent() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (v: { clientId: number; channel: CommChannel; granted: boolean; source?: string }) =>
+      postJSON('/api/communications/consent', v),
+    onSuccess: () => {
+      void qc.invalidateQueries({ queryKey: ['communications'] });
+    },
+  });
+}
+
+export interface CommTemplateMatch {
+  id:      number;
+  nameHe:  string;
+  channel: CommChannel | null;
+  preview: string;
+}
+
+/** Context-matched templates for a case (or generic when caseId is null). */
+export function useCommTemplateMatches(caseId: number | null, channel?: CommChannel, enabled = true) {
+  const qs = new URLSearchParams();
+  if (caseId !== null) qs.set('caseId', String(caseId));
+  if (channel) qs.set('channel', channel);
+  const query = qs.toString();
+  return useQuery({
+    queryKey: ['communications', 'templates', caseId ?? 'none', channel ?? 'any'] as const,
+    queryFn:  () => fetchJSON<CommTemplateMatch[]>(`/api/communications/templates/match${query ? `?${query}` : ''}`),
+    enabled,
+  });
+}
+
+/** Render a template for a case — mints real secure links server-side. */
+export function useRenderCommTemplate() {
+  return useMutation({
+    mutationFn: (v: { templateId: number; caseId: number | null }) =>
+      postJSON<{ rendered: string }>(`/api/communications/templates/${v.templateId}/render`,
+        v.caseId !== null ? { caseId: v.caseId } : {}),
+  });
+}
+
+export interface CommEvidenceRow {
+  id:             number;
+  messageId:      number;
+  caseId:         number | null;
+  channel:        CommChannel;
+  body:           string | null;
+  mediaKind:      string | null;
+  contentHash:    string;
+  capturedAt:     string;
+}
+
+export function useCaseEvidence(caseId: number | null) {
+  return useQuery({
+    queryKey: ['communications', 'evidence', caseId] as const,
+    queryFn:  () => fetchJSON<CommEvidenceRow[]>(`/api/communications/evidence?caseId=${caseId}`),
+    enabled:  caseId !== null,
+  });
+}
+
+/** Snapshot a message as a locked exhibit. */
+export function useSaveMessageEvidence(conversationId: number) {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (messageId: number) => postJSON(`/api/communications/messages/${messageId}/save-evidence`),
+    onSuccess: () => {
+      void qc.invalidateQueries({ queryKey: ['communications', 'conversation', conversationId] });
+      void qc.invalidateQueries({ queryKey: ['communications', 'evidence'] });
+    },
+  });
+}
+
+/** Transcribe a voice message locally (Whisper). Throws CONFLICT when not configured. */
+export function useTranscribeMessage(conversationId: number) {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (messageId: number) => postJSON<{ transcript: string }>(`/api/communications/messages/${messageId}/transcribe`),
+    onSuccess: () => {
+      void qc.invalidateQueries({ queryKey: ['communications', 'conversation', conversationId] });
+    },
+  });
+}
+
+// ── Call documentation (C6) ──────────────────────────────────────────────────
+export type CallDirection = 'inbound' | 'outbound';
+
+export interface CallLog {
+  id:              number;
+  clientId:        number;
+  caseId:          number | null;
+  isEvidence:      boolean;
+  direction:       CallDirection;
+  subject:         string | null;
+  summary:         string | null;
+  occurredAt:      string;
+  durationMinutes: number | null;
+  participants:    string[];
+  tags:            string[];
+  createdBy:       number | null;
+  createdAt:       string;
+}
+
+export interface CallLogCreateInput {
+  clientId:         number;
+  caseId?:          number | null;
+  direction?:       CallDirection;
+  subject?:         string;
+  summary?:         string;
+  occurredAt?:      string;
+  durationMinutes?: number;
+  participants?:    string[];
+  tags?:            string[];
+  actionItems?:     Array<{ title: string; dueDate?: string; priority?: string }>;
+}
+
+/** List call logs for a client or a case (one of the two must be set). */
+export function useCallLogs(scope: { clientId?: number; caseId?: number }, enabled = true) {
+  const qs = scope.caseId !== undefined ? `caseId=${scope.caseId}` : `clientId=${scope.clientId}`;
+  return useQuery({
+    queryKey: ['communications', 'calls', scope.caseId ?? null, scope.clientId ?? null] as const,
+    queryFn:  () => fetchJSON<CallLog[]>(`/api/communications/calls?${qs}`),
+    enabled:  enabled && (scope.clientId !== undefined || scope.caseId !== undefined),
+  });
+}
+
+export function useCreateCallLog() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (input: CallLogCreateInput) =>
+      postJSON<{ call: CallLog; taskIds: number[] }>('/api/communications/calls', input),
+    onSuccess: () => {
+      void qc.invalidateQueries({ queryKey: ['communications', 'calls'] });
+      void qc.invalidateQueries({ queryKey: ['tasks'] });
+    },
+  });
+}
+
+export function useUpdateCallLog() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (v: { id: number; patch: Partial<CallLog> }) =>
+      patchJSON<CallLog>(`/api/communications/calls/${v.id}`, v.patch),
+    onSuccess: () => void qc.invalidateQueries({ queryKey: ['communications', 'calls'] }),
+  });
+}
+
+/** Promote a call into a case timeline ("save as evidence"). */
+export function useSaveCallEvidence() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (v: { id: number; caseId: number }) =>
+      postJSON<CallLog>(`/api/communications/calls/${v.id}/save-evidence`, { caseId: v.caseId }),
+    onSuccess: () => {
+      void qc.invalidateQueries({ queryKey: ['communications', 'calls'] });
+      void qc.invalidateQueries({ queryKey: ['cases'] });
+    },
+  });
+}
+
+/** Dictation: transcribe an audio blob locally (Whisper). Throws CONFLICT when not configured. */
+export function useTranscribeAudio() {
+  return useMutation({
+    mutationFn: (v: { audioBase64: string; mimeType: string }) =>
+      postJSON<{ transcript: string }>('/api/communications/transcribe-audio', v),
   });
 }

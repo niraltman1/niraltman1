@@ -1,6 +1,6 @@
 import { useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { GavelIcon, ShieldWarningIcon, CheckSquareIcon, FileTextIcon, ClockIcon } from '@phosphor-icons/react';
+import { GavelIcon, ShieldWarningIcon, CheckSquareIcon, FileTextIcon, ClockIcon, PhoneIcon, LockSimpleIcon } from '@phosphor-icons/react';
 import { useCaseTimeline, type CalendarEvent } from '@/api/hooks.js';
 
 const KIND_META: Record<CalendarEvent['kind'], { Icon: typeof GavelIcon; color: string; label: string }> = {
@@ -8,6 +8,8 @@ const KIND_META: Record<CalendarEvent['kind'], { Icon: typeof GavelIcon; color: 
   statute_deadline: { Icon: ShieldWarningIcon, color: '#f87171', label: 'התיישנות' },
   task:             { Icon: CheckSquareIcon,   color: '#e7c66b', label: 'משימה' },
   document:         { Icon: FileTextIcon,      color: '#a3a3a3', label: 'מסמך' },
+  call:             { Icon: PhoneIcon,         color: '#6ee7b7', label: 'שיחה' },
+  evidence:         { Icon: LockSimpleIcon,    color: '#34d399', label: 'ראיה' },
 };
 
 function hrefFor(e: CalendarEvent): string {

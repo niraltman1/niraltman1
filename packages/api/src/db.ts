@@ -24,6 +24,9 @@ import type {
   CitationsRepository,
   EntitiesRepository,
   SmartCollectionsRepository,
+  CommunicationsRepository,
+  CommTemplatesRepository,
+  CallLogsRepository,
   AnnotationRepository,
   RulesEngineRepository,
   LegalCorpusRepository,
@@ -57,6 +60,9 @@ export interface Repos {
   citations:      CitationsRepository;
   entities:       EntitiesRepository;
   smartCollections: SmartCollectionsRepository;
+  communications: CommunicationsRepository;
+  commTemplates:  CommTemplatesRepository;
+  callLogs:       CallLogsRepository;
   annotations:    AnnotationRepository;
   rules:          RulesEngineRepository;
   legalCorpus:    LegalCorpusRepository;

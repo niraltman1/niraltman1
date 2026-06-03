@@ -1,6 +1,6 @@
 import { useNavigate } from 'react-router-dom';
 import { useMemo } from 'react';
-import { GavelIcon, CheckSquareIcon, ShieldWarningIcon, FileTextIcon } from '@phosphor-icons/react';
+import { GavelIcon, CheckSquareIcon, ShieldWarningIcon, FileTextIcon, PhoneIcon, LockSimpleIcon } from '@phosphor-icons/react';
 import { useDeadlinesAtRisk, type DeadlineRisk } from '@/api/hooks.js';
 
 const KIND_ICON = {
@@ -8,6 +8,8 @@ const KIND_ICON = {
   statute_deadline: ShieldWarningIcon,
   task:             CheckSquareIcon,
   document:         FileTextIcon,
+  call:             PhoneIcon,
+  evidence:         LockSimpleIcon,
 } as const;
 
 const BANDS: { key: DeadlineRisk['risk']; label: string; color: string }[] = [

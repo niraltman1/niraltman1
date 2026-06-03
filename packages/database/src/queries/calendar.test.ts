@@ -130,5 +130,25 @@ describe('CalendarRepository.eventsInRange (§4.1.1)', () => {
       expect(tl.find((e) => e.id === 'document:100')!.linkType).toBe('document');
       expect(tl.find((e) => e.id === 'hearing:10')!.linkType).toBe('case');
     });
+
+    it('includes calls promoted as evidence and comm exhibits, excludes un-promoted calls (C6)', () => {
+      db.exec(`CREATE TABLE IF NOT EXISTS CallLogs (
+        id INTEGER PRIMARY KEY AUTOINCREMENT, client_id INTEGER, case_id INTEGER, is_evidence INTEGER DEFAULT 0,
+        direction TEXT, subject TEXT, summary TEXT, occurred_at TEXT, duration_minutes INTEGER,
+        participants TEXT, tags TEXT, created_by INTEGER, created_at TEXT, updated_at TEXT
+      )`);
+      db.exec(`CREATE TABLE IF NOT EXISTS CommEvidence (
+        id INTEGER PRIMARY KEY AUTOINCREMENT, message_id INTEGER, case_id INTEGER, channel TEXT,
+        body TEXT, message_created_at TEXT
+      )`);
+      db.prepare("INSERT INTO CallLogs (id, client_id, case_id, is_evidence, subject, occurred_at) VALUES (30, 1, 1, 1, 'שיחת עדכון', '2026-05-12')").run();
+      db.prepare("INSERT INTO CallLogs (id, client_id, case_id, is_evidence, subject, occurred_at) VALUES (31, 1, 1, 0, 'שיחה לא מקושרת', '2026-05-13')").run();
+      db.prepare("INSERT INTO CommEvidence (id, message_id, case_id, channel, body, message_created_at) VALUES (40, 5, 1, 'telegram', 'הודעה חשובה', '2026-05-11')").run();
+
+      const ids = repo.caseTimeline(1).map((e) => e.id);
+      expect(ids).toContain('call:30');       // promoted to evidence
+      expect(ids).not.toContain('call:31');   // is_evidence = 0 → excluded
+      expect(ids).toContain('evidence:40');   // comm message exhibit
+    });
   });
 });

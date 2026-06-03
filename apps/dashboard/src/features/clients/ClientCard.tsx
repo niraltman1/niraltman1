@@ -3,15 +3,17 @@ import { useParams, Link } from 'react-router-dom';
 import {
   UserIcon, PhoneIcon, EnvelopeSimpleIcon, IdentificationCardIcon,
   PencilSimpleIcon, GavelIcon, FolderOpenIcon, ClockCounterClockwiseIcon,
-  ArrowRightIcon, ClipboardTextIcon, CircleNotchIcon, CurrencyCircleDollarIcon,
+  ArrowRightIcon, ClipboardTextIcon, CircleNotchIcon, CurrencyCircleDollarIcon, ChatCircleIcon,
 } from '@phosphor-icons/react';
 import { useClient, useCases, useDocuments, useExportWorksheet } from '@/api/hooks.js';
 import { ClientTimeline } from './ClientTimeline.js';
+import { CommunicationsPanel } from '@/features/communications/CommunicationsPanel.js';
+import { CallLogModal } from '@/features/communications/CallLogModal.js';
 import { CaseProcedurePanel } from '@/features/legal-engine/CaseProcedurePanel.js';
 import { TrafficCasePanel }  from '@/features/traffic/TrafficCasePanel.js';
 import { LedgerPage } from '@/features/ledger/LedgerPage.js';
 
-type Tab = 'cases' | 'documents' | 'timeline' | 'worksheet' | 'ledger';
+type Tab = 'cases' | 'documents' | 'timeline' | 'communications' | 'worksheet' | 'ledger';
 
 function StatuteCountdownBadge({ deadline }: { deadline?: string | null }) {
   if (!deadline) return null;
@@ -65,6 +67,7 @@ export function ClientCard() {
   const { data: docsData }   = useDocuments(1, 50);
 
   const [tab, setTab]         = useState<Tab>('cases');
+  const [callModalOpen, setCallModalOpen] = useState(false);
   const exportWorksheet       = useExportWorksheet();
 
   if (isLoading) {
@@ -160,6 +163,7 @@ export function ClientCard() {
           { key: 'cases',     label: 'תיקים',       Icon: GavelIcon                 },
           { key: 'documents', label: 'מסמכים',      Icon: FolderOpenIcon            },
           { key: 'timeline',  label: 'ציר זמן',     Icon: ClockCounterClockwiseIcon },
+          { key: 'communications', label: 'ניהול תקשורת לקוח', Icon: ChatCircleIcon  },
           { key: 'worksheet', label: 'גיליון עבודה', Icon: ClipboardTextIcon        },
           { key: 'ledger',    label: 'ספר גבייה',   Icon: CurrencyCircleDollarIcon  },
         ] as const).map(({ key, label, Icon }) => (
@@ -244,6 +248,23 @@ export function ClientCard() {
 
       {tab === 'timeline' && (
         <ClientTimeline clientId={clientId} />
+      )}
+
+      {tab === 'communications' && (
+        <div className="space-y-3" dir="rtl">
+          <div className="flex justify-end">
+            <button
+              onClick={() => setCallModalOpen(true)}
+              className="btn-secondary text-sm flex items-center gap-1.5"
+            >
+              <PhoneIcon size={15} weight="duotone" /> תעד שיחה
+            </button>
+          </div>
+          <CommunicationsPanel clientId={clientId} />
+          {callModalOpen && (
+            <CallLogModal clientId={clientId} onClose={() => setCallModalOpen(false)} />
+          )}
+        </div>
       )}
 
       {tab === 'ledger' && (
