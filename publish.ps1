@@ -359,17 +359,48 @@ foreach ($f in @("Config.ps1", "IdentifierParser.ps1")) {
 }
 
 # Bundled legislation corpus (offline KB) — generated locally by `pnpm ingest-knesset-odata`
-# (large + gitignored, so not in the repo). Stage the built artifact if present; the API's
-# first-run loader imports {app}\app\legal-corpus\*.jsonl.gz into SQLite. App boots fine
-# without it (loader is graceful), so this is a warning, not a hard failure — mirrors the GGUF.
+# or downloaded automatically from the GitHub Release v-corpus-latest. The API's first-run
+# loader imports {app}\app\legal-corpus\*.jsonl.gz into SQLite on first boot. App boots fine
+# without it (loader is graceful), so a missing corpus is a warning, not a hard failure.
 $CorpusDst = Join-Path $OutDir "legal-corpus"
 New-Item -ItemType Directory -Force -Path $CorpusDst | Out-Null
 $CorpusSrc = Join-Path $RepoRoot "assets\legal-corpus\legal-corpus.knesset.jsonl.gz"
+
+# Auto-download from GitHub Release v-corpus-latest when not built locally.
+# Set GH_TOKEN env var for private-repo access; unauthenticated works on public repos.
+if (-not (Test-Path $CorpusSrc)) {
+    Write-Host "  Trying to download legal corpus from GitHub Release v-corpus-latest..." -ForegroundColor Gray
+    $ApiHeaders = @{ 'User-Agent' = 'Factum-IL-Build' }
+    if ($env:GH_TOKEN) { $ApiHeaders['Authorization'] = "Bearer $($env:GH_TOKEN)" }
+    try {
+        $rel = Invoke-RestMethod `
+            -Uri "https://api.github.com/repos/niraltman1/niraltman1/releases/tags/v-corpus-latest" `
+            -Headers $ApiHeaders -UseBasicParsing
+        $asset = $rel.assets |
+            Where-Object { $_.name -eq 'legal-corpus.knesset.jsonl.gz' } |
+            Select-Object -First 1
+        if ($asset) {
+            New-Item -ItemType Directory -Force -Path (Split-Path $CorpusSrc) | Out-Null
+            $DlHeaders = @{
+                'User-Agent' = 'Factum-IL-Build'
+                'Accept'     = 'application/octet-stream'
+            }
+            if ($env:GH_TOKEN) { $DlHeaders['Authorization'] = "Bearer $($env:GH_TOKEN)" }
+            Invoke-WebRequest -Uri $asset.url -OutFile $CorpusSrc -Headers $DlHeaders -UseBasicParsing
+            Write-Host "  Legal corpus: downloaded ($([math]::Round((Get-Item $CorpusSrc).Length/1MB,1)) MB)" -ForegroundColor Gray
+        } else {
+            Write-Host "  Release v-corpus-latest found but no corpus asset attached yet." -ForegroundColor DarkYellow
+        }
+    } catch {
+        Write-Host "  Corpus auto-download failed: $_ — falling back to local build." -ForegroundColor DarkYellow
+    }
+}
+
 if (Test-Path $CorpusSrc) {
     Copy-Item -Force $CorpusSrc $CorpusDst
     Write-Host "  Legal corpus: staged ($([math]::Round((Get-Item $CorpusSrc).Length/1MB,1)) MB)" -ForegroundColor Gray
 } else {
-    Write-Host "  WARNING: legal-corpus artifact not found — run 'pnpm ingest-knesset-odata -- --embed' before packaging. App will boot without bundled legislation." -ForegroundColor Yellow
+    Write-Host "  WARNING: legal-corpus artifact not found — run 'pnpm ingest-knesset-odata -- --embed' or trigger the 'Ingest Knesset Corpus' GitHub Actions workflow. App will boot without bundled legislation." -ForegroundColor Yellow
 }
 
 # ── Download portable Node.js ──────────────────────────────────────────────────
