@@ -39,9 +39,13 @@
 - ✅ **C4 (תבניות חכמות)** — migration 061 (CommTemplates+CommSecureLinks, 4 זרעים), `CommTemplatesRepository`
   (render טהור + matchTemplates specificity + secure links), routes match/render, ובורר תבניות ב-UI. 6 repo + 2 route tests.
 
-**הצעד הבא:** **C5 — חילוץ ראיות + תמלול Whisper** ("שמור כראיה" → כספת ראיות נעולה; Whisper מקומי להודעות-קוליות).
-חסומים-סביבה (לכשתתאפשר רשת/דפדפן/מודל): C1 מסירה-חיה (allowlist ל-Telegram), C2 (whatsapp-web.js+WebView2),
-C5 Whisper (מודל מקומי). תלוי גם ב-B0 (#50/#52).
+- ✅ **C5 (ראיות + תמלול)** — migration 062 (CommEvidence נעול+content-hash, transcript col), saveMessageAsEvidence/
+  listCaseEvidence/setTranscript, מודול transcription (Whisper מוזרק, WHISPER_CMD), routes save-evidence/evidence/transcribe,
+  ו-UI (שמור-כראיה + תמלל + באנר מוצגים). +3 repo/+2 transcription/+2 route tests.
+
+**הצעד הבא:** **C6 — תיעוד שיחות + הכתבה** (טופס "תעד שיחה", ללא הקלטת-שיחה חיה; הכתבת-סיכום אחרי השיחה דרך Whisper;
+שילוב בציר-הזמן). חסומים-סביבה: C1 מסירה-חיה (Telegram allowlist), C2 (whatsapp-web.js+WebView2), C5/C6 Whisper (מודל מקומי).
+תלוי גם ב-B0 (#50/#52).
 
 ---
 
