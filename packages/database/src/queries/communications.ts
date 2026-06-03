@@ -109,8 +109,68 @@ function mapMessage(r: Record<string, unknown>): CommMessage {
   };
 }
 
+export type ChannelStatus = 'connected' | 'disconnected' | 'error';
+
+export interface CommChannelRow {
+  id:            number;
+  channel:       CommChannel;
+  label:         string | null;
+  status:        ChannelStatus;
+  identifier:    string | null;
+  hasCredential: boolean;     // never the secret itself — only whether one is configured
+  updatedAt:     string;
+}
+
+export interface UnknownInboxRow {
+  id:          number;
+  channel:     CommChannel;
+  externalId:  string;
+  displayName: string | null;
+  body:        string | null;
+  mediaKind:   string | null;
+  resolved:    boolean;
+  createdAt:   string;
+}
+
 export class CommunicationsRepository {
   constructor(private readonly db: DatabaseConnection) {}
+
+  // ── Channels (firm-wide) ──────────────────────────────────────────────────
+  /** Register or update a channel. `credentialRef` points at the encrypted secret store. */
+  upsertChannel(c: {
+    channel: CommChannel; label?: string; identifier?: string;
+    status?: ChannelStatus; credentialRef?: string;
+  }): number {
+    this.db.prepare(`
+      INSERT INTO CommChannels (channel, label, identifier, status, credential_ref, updated_at)
+      VALUES (?, ?, ?, ?, ?, strftime('%Y-%m-%dT%H:%M:%fZ','now'))
+      ON CONFLICT(channel) DO UPDATE SET
+        label          = COALESCE(excluded.label,          CommChannels.label),
+        identifier     = COALESCE(excluded.identifier,     CommChannels.identifier),
+        status         = COALESCE(excluded.status,         CommChannels.status),
+        credential_ref = COALESCE(excluded.credential_ref, CommChannels.credential_ref),
+        updated_at     = strftime('%Y-%m-%dT%H:%M:%fZ','now')
+    `).run(c.channel, c.label ?? null, c.identifier ?? null,
+           c.status ?? 'disconnected', c.credentialRef ?? null);
+    return (this.db.prepare('SELECT id FROM CommChannels WHERE channel = ?')
+      .get(c.channel) as { id: number }).id;
+  }
+
+  /** List channels for the admin view — the secret is NEVER returned, only `hasCredential`. */
+  listChannels(): CommChannelRow[] {
+    const rows = this.db.prepare(
+      'SELECT id, channel, label, status, identifier, credential_ref, updated_at FROM CommChannels ORDER BY channel',
+    ).all() as Record<string, unknown>[];
+    return rows.map((r) => ({
+      id:            r['id'] as number,
+      channel:       r['channel'] as CommChannel,
+      label:         (r['label'] as string | null) ?? null,
+      status:        r['status'] as ChannelStatus,
+      identifier:    (r['identifier'] as string | null) ?? null,
+      hasCredential: (r['credential_ref'] as string | null) != null,
+      updatedAt:     r['updated_at'] as string,
+    }));
+  }
 
   // ── Identity resolution ───────────────────────────────────────────────────
   /** Resolve a channel-specific sender identity to a client id, if known. */
@@ -335,6 +395,24 @@ export class CommunicationsRepository {
 
   markHandled(messageId: number): void {
     this.db.prepare(`UPDATE CommMessages SET handled = 1 WHERE id = ?`).run(messageId);
+  }
+
+  /** Unknown-sender inbox (C8 routing target). Defaults to unresolved only. */
+  listUnknownInbox(includeResolved = false): UnknownInboxRow[] {
+    const sql = `SELECT id, channel, external_id, display_name, body, media_kind, resolved, created_at
+                 FROM CommUnknownInbox
+                 ${includeResolved ? '' : 'WHERE resolved = 0'}
+                 ORDER BY created_at DESC`;
+    return (this.db.prepare(sql).all() as Record<string, unknown>[]).map((r) => ({
+      id:          r['id'] as number,
+      channel:     r['channel'] as CommChannel,
+      externalId:  r['external_id'] as string,
+      displayName: (r['display_name'] as string | null) ?? null,
+      body:        (r['body'] as string | null) ?? null,
+      mediaKind:   (r['media_kind'] as string | null) ?? null,
+      resolved:    Number(r['resolved']) === 1,
+      createdAt:   r['created_at'] as string,
+    }));
   }
 
   // ── Audit ─────────────────────────────────────────────────────────────────
