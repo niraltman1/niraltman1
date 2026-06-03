@@ -89,12 +89,15 @@
       טאב **"תקשורת"** מוטמע ב-**CaseDetail** (פר-תיק) וב-**ClientCard** (פר-לקוח). דף-הבית כולל גם תיבת אלמונים (C8).
 - **אומת:** dashboard typecheck + lint נקיים, build (4708 modules) עובר.
 
-## Phase C4 — תבניות חכמות מודעות-הקשר (שבוע 5) ⟵ B2
-- [ ] **טעינה דינמית:** הצעת תבניות לפי הצלבת `Case Type` × `Case Phase` × `Client Status`.
-- [ ] **הזרקת-משתנים:** מנוע תבניות מחליף placeholders (`{{client_name}}`,`{{court_date}}`,`{{upload_link}}`)
-      בערכים אמיתיים מה-DB → טיוטה לאישור לפני שליחה.
-- [ ] **שליחה-לחתימה:** התבנית מייצרת **קישור מקומי מאובטח** לעמוד-חתימה (מתחבר ל-DocumentSignatures הקיים).
-- **קבלה:** עו"ד בוחר תבנית מתאימה-להקשר, היא מתמלאת אוטומטית, ונשלחת אחרי אישור.
+## Phase C4 — תבניות חכמות מודעות-הקשר ✅ **הושלם**
+- [x] **טעינה דינמית:** `CommTemplates` מותאמות לפי `Case Type` × `Case Status` × `Channel` (NULL=wildcard),
+      מסודרות לפי specificity (`matchTemplates`). migration 061 + 4 תבניות-זרע עבריות.
+- [x] **הזרקת-משתנים:** `render()` טהור מחליף `{{client_name}}`,`{{case_number}}`,`{{court_name}}`,
+      `{{next_hearing}}`,`{{today}}`,`{{firm_name}}` בערכים מה-DB; placeholders לא-מוכרים → '—' (אין דליפת `{{}}`).
+- [x] **שליחה-לחתימה:** `CommSecureLinks` מנפיק **קישור מקומי מאובטח** מבוסס-token ל-`{{sign_link}}`/`{{upload_link}}`
+      (ה-preview לא מנפיק; רק `render` בפועל). תשתית מוכנה לחיבור עמוד-החתימה/DocumentSignatures.
+- [x] **UI:** בורר "תבניות חכמות" ב-action-bar → רינדור לטיוטה הניתנת לעריכה → אישור-אדם → שליחה consent-gated (HITL).
+- **אומת:** 6 בדיקות repo + 2 route; DB(78)+API(101) ירוקים; dashboard build נקי; migration אידמפוטנטי.
 
 ## Phase C5 — חילוץ ראיות + תמלול Whisper (שבוע 6)
 - [ ] **"שמור כראיה"** ליד כל הודעת-טקסט/מדיה → מעתיק תוכן+מטא (חותמת-זמן, שולח) ל-tab **"מוצגים/ראיות"** נעול בתיק.

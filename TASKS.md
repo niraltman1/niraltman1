@@ -36,8 +36,12 @@
   המקומי הנאמן; סודות (channels, telegram connect) נשארו admin-gated. בקרת-שליחה = consent gate(409)+audit+HITL.
 - 📝 **C2 (WhatsApp) הערת-ארכיטקטורה:** Puppeteer יוגדר עם `executablePath` ל-WebView2/Edge המקומי (לא הורדת Chromium).
 
-**הצעד הבא:** **C4 — תבניות חכמות מודעות-הקשר** (Case Type × Phase × Status, הזרקת-משתנים, שליחה-לחתימה דרך קישור-מקומי) ⟵ B2.
-חסומים-סביבה (לכשתתאפשר רשת/דפדפן): C1 מסירה-חיה (allowlist ל-Telegram), C2 (whatsapp-web.js+WebView2). תלוי גם ב-B0 (#50/#52).
+- ✅ **C4 (תבניות חכמות)** — migration 061 (CommTemplates+CommSecureLinks, 4 זרעים), `CommTemplatesRepository`
+  (render טהור + matchTemplates specificity + secure links), routes match/render, ובורר תבניות ב-UI. 6 repo + 2 route tests.
+
+**הצעד הבא:** **C5 — חילוץ ראיות + תמלול Whisper** ("שמור כראיה" → כספת ראיות נעולה; Whisper מקומי להודעות-קוליות).
+חסומים-סביבה (לכשתתאפשר רשת/דפדפן/מודל): C1 מסירה-חיה (allowlist ל-Telegram), C2 (whatsapp-web.js+WebView2),
+C5 Whisper (מודל מקומי). תלוי גם ב-B0 (#50/#52).
 
 ---
 
