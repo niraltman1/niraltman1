@@ -1,130 +1,55 @@
 import { useEffect, useRef, useState, useCallback, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { MagnifyingGlassIcon, XIcon, FileTextIcon, UsersIcon, GavelIcon } from '@phosphor-icons/react';
-import type { IconWeight } from '@phosphor-icons/react';
+import { MagnifyingGlassIcon, XIcon } from '@phosphor-icons/react';
 import { useUIStore } from '@/store/index.js';
 import { useSearch } from '@/api/hooks.js';
+import type { SearchHit } from '@/api/hooks.js';
 import { matchCommands, type Command } from '@/commands/command-registry.js';
+import {
+  ENTITY_META,
+  type SearchEntityType,
+  resultHref,
+  resultSub,
+  groupHits,
+  countByType,
+  Highlight,
+} from '@/features/search/shared.js';
 
 type Selectable =
   | { kind: 'command'; command: Command }
-  | { kind: 'hit'; hit: Record<string, unknown> };
+  | { kind: 'hit'; hit: SearchHit };
 
 interface Props {
   onClose: () => void;
 }
 
-type EntityFilter = 'all' | 'clients' | 'cases' | 'documents';
+type Filter = 'all' | SearchEntityType;
 
-const FILTER_TABS: { key: EntityFilter; label: string }[] = [
-  { key: 'all',       label: 'הכל'     },
-  { key: 'clients',   label: 'לקוחות'  },
-  { key: 'cases',     label: 'תיקים'   },
-  { key: 'documents', label: 'מסמכים'  },
+const FILTER_TABS: { key: Filter; label: string }[] = [
+  { key: 'all',      label: 'הכל'    },
+  { key: 'client',   label: 'לקוחות' },
+  { key: 'case',     label: 'תיקים'  },
+  { key: 'document', label: 'מסמכים' },
 ];
-
-const GROUP_META: Record<string, { label: string; Icon: React.ComponentType<{ size?: number; className?: string; weight?: IconWeight }> }> = {
-  client:   { label: 'לקוחות',  Icon: UsersIcon    },
-  case:     { label: 'תיקים',   Icon: GavelIcon    },
-  document: { label: 'מסמכים',  Icon: FileTextIcon },
-};
-
-function highlightSnippet(text: string, query: string, maxLen = 140): string {
-  const idx = text.toLowerCase().indexOf(query.toLowerCase());
-  if (idx > 60) {
-    text = '…' + text.slice(idx - 30);
-  }
-  return text.length > maxLen ? text.slice(0, maxLen) + '…' : text;
-}
-
-function resultHref(hit: Record<string, unknown>): string {
-  const type = hit['type'] as string;
-  const id   = hit['id']   as number;
-  if (type === 'client')   return `/clients/${id}`;
-  if (type === 'case')     return `/cases/${id}`;
-  if (type === 'document') return `/documents/${id}`;
-  return '/dashboard';
-}
-
-function resultLabel(hit: Record<string, unknown>): string {
-  return (
-    (hit['nameHe']   as string | undefined) ??
-    (hit['titleHe']  as string | undefined) ??
-    (hit['filename'] as string | undefined) ??
-    String(hit['id'])
-  );
-}
-
-function resultSub(hit: Record<string, unknown>, query: string): string | null {
-  const type = hit['type'] as string;
-  if (type === 'document') {
-    const snippet = (hit['ocrText'] as string | undefined) ?? (hit['ocr_text'] as string | undefined);
-    return snippet ? highlightSnippet(snippet, query) : null;
-  }
-  return (hit['idNumber'] as string | null) ?? (hit['caseNumber'] as string | null) ?? null;
-}
-
-function badgeCls(type: string): string {
-  if (type === 'client')   return 'badge badge-blue';
-  if (type === 'case')     return 'badge badge-gold';
-  return 'badge badge-neutral';
-}
-
-function badgeLabel(type: string): string {
-  if (type === 'client')   return 'לקוח';
-  if (type === 'case')     return 'תיק';
-  return 'מסמך';
-}
-
-function GroupIcon({ type }: { type: string }) {
-  const meta = GROUP_META[type];
-  if (!meta) return null;
-  const { Icon } = meta;
-  const cls =
-    type === 'client'   ? 'text-blue-400' :
-    type === 'case'     ? 'text-gold' :
-    'text-parchment/40';
-  return <Icon size={13} className={`${cls} shrink-0`} weight="duotone" />;
-}
 
 export function SpotlightSearch({ onClose }: Props) {
   const navigate    = useNavigate();
   const { spotlight, setSpotlightQuery } = useUIStore();
   const inputRef    = useRef<HTMLInputElement>(null);
   const listRef     = useRef<HTMLDivElement>(null);
-  const [filter, setFilter] = useState<EntityFilter>('all');
+  const [filter, setFilter] = useState<Filter>('all');
   const [cursor, setCursor] = useState(0);
 
   const { data: rawResults } = useSearch(spotlight.query);
-  const allHits = useMemo(() => (rawResults ?? []) as Record<string, unknown>[], [rawResults]);
+  const allHits = useMemo<SearchHit[]>(() => rawResults ?? [], [rawResults]);
 
-  const hits = useMemo(() => {
-    if (filter === 'all') return allHits;
-    return allHits.filter((h) => {
-      const t = h['type'] as string;
-      if (filter === 'clients')   return t === 'client';
-      if (filter === 'cases')     return t === 'case';
-      if (filter === 'documents') return t === 'document';
-      return true;
-    });
-  }, [allHits, filter]);
+  const hits = useMemo(
+    () => (filter === 'all' ? allHits : allHits.filter((h) => h.entityType === filter)),
+    [allHits, filter],
+  );
 
-  // Flat index → grouped sections (only when filter=all)
-  const groups = useMemo(() => {
-    if (filter !== 'all') return null;
-    const map = new Map<string, Record<string, unknown>[]>();
-    for (const h of hits) {
-      const t = h['type'] as string;
-      if (!map.has(t)) map.set(t, []);
-      map.get(t)!.push(h);
-    }
-    // Deterministic order: clients → cases → documents
-    const order = ['client', 'case', 'document'];
-    return order.flatMap((type) => {
-      const items = map.get(type);
-      return items ? [{ type, items }] : [];
-    });
-  }, [hits, filter]);
+  // Grouped sections (only in the unfiltered "all" view).
+  const groups = useMemo(() => (filter === 'all' ? groupHits(hits) : null), [hits, filter]);
 
   // Matching commands (§4.6.4) — only in the unfiltered "all" view.
   const commandMatches = useMemo<Command[]>(
@@ -226,11 +151,7 @@ export function SpotlightSearch({ onClose }: Props) {
         {!tooShort && (
           <div className="flex gap-1 px-4 py-2 border-b border-parchment/10">
             {FILTER_TABS.map(({ key, label }) => {
-              const count =
-                key === 'all' ? allHits.length :
-                key === 'clients'   ? allHits.filter((h) => h['type'] === 'client').length :
-                key === 'cases'     ? allHits.filter((h) => h['type'] === 'case').length :
-                allHits.filter((h) => h['type'] === 'document').length;
+              const count = key === 'all' ? allHits.length : countByType(allHits, key);
               return (
                 <button
                   key={key}
@@ -294,14 +215,11 @@ export function SpotlightSearch({ onClose }: Props) {
             // ── Flat list (filtered mode) ───────────────────────
             <ul>
               {hits.map((hit, i) => {
-                const type = hit['type'] as string;
-                const label = resultLabel(hit);
-                const sub   = resultSub(hit, query);
                 const flatIdx = commandCount + i;
                 return (
-                  <li key={`${type}-${hit['id'] as number}`}>
+                  <li key={`${hit.entityType}-${hit.id}`}>
                     <ResultRow
-                      hit={hit} type={type} label={label} sub={sub}
+                      hit={hit} query={query}
                       idx={flatIdx} cursor={cursor}
                       onHover={() => setCursor(flatIdx)}
                       onClick={() => activate({ kind: 'hit', hit })}
@@ -313,7 +231,8 @@ export function SpotlightSearch({ onClose }: Props) {
           ) : (
             // ── Grouped mode ────────────────────────────────────
             groups!.map((group) => {
-              const meta = GROUP_META[group.type]!;
+              const meta = ENTITY_META[group.type];
+              const { Icon } = meta;
               const offset = commandCount + groups!
                 .slice(0, groups!.indexOf(group))
                 .reduce((acc, g) => acc + g.items.length, 0);
@@ -322,7 +241,7 @@ export function SpotlightSearch({ onClose }: Props) {
                   {/* Group header */}
                   <div className="flex items-center gap-2 px-4 py-1.5 sticky top-0 bg-navy/90 backdrop-blur-sm
                                   border-b border-parchment/5">
-                    <GroupIcon type={group.type} />
+                    <Icon size={13} className={`${meta.accent} shrink-0`} weight="duotone" />
                     <span className="text-[10px] font-semibold uppercase tracking-widest text-parchment/30">
                       {meta.label}
                     </span>
@@ -332,11 +251,9 @@ export function SpotlightSearch({ onClose }: Props) {
                     {group.items.map((hit, i) => {
                       const flatIdx = offset + i;
                       return (
-                        <li key={`${group.type}-${hit['id'] as number}`}>
+                        <li key={`${group.type}-${hit.id}`}>
                           <ResultRow
-                            hit={hit} type={group.type}
-                            label={resultLabel(hit)}
-                            sub={resultSub(hit, query)}
+                            hit={hit} query={query}
                             idx={flatIdx} cursor={cursor}
                             onHover={() => setCursor(flatIdx)}
                             onClick={() => activate({ kind: 'hit', hit })}
@@ -396,17 +313,18 @@ function CommandRow({ command, idx, cursor, onHover, onClick }: CommandRowProps)
 
 // ── Result row component ──────────────────────────────────────────────────────
 interface RowProps {
-  hit:     Record<string, unknown>;
-  type:    string;
-  label:   string;
-  sub:     string | null;
+  hit:     SearchHit;
+  query:   string;
   idx:     number;
   cursor:  number;
   onHover: () => void;
   onClick: () => void;
 }
 
-function ResultRow({ hit, type, label, sub, idx, cursor, onHover, onClick }: RowProps) {
+function ResultRow({ hit, query, idx, cursor, onHover, onClick }: RowProps) {
+  const meta = ENTITY_META[hit.entityType];
+  const { Icon } = meta;
+  const sub = resultSub(hit);
   return (
     <button
       data-idx={idx}
@@ -416,18 +334,19 @@ function ResultRow({ hit, type, label, sub, idx, cursor, onHover, onClick }: Row
         ${idx === cursor ? 'bg-gold/10' : 'hover:bg-parchment/5'}`}
     >
       <div className="mt-0.5">
-        <GroupIcon type={type} />
+        <Icon size={13} className={`${meta.accent} shrink-0`} weight="duotone" />
       </div>
       <div className="flex-1 min-w-0">
         <div className="flex items-center gap-2">
-          <span className="text-parchment text-sm font-medium truncate">{label}</span>
-          <span className={badgeCls(type)}>{badgeLabel(type)}</span>
-          {(hit['idNumber'] as string | null) && type === 'client' && (
-            <span className="text-parchment/30 text-xs">{hit['idNumber'] as string}</span>
-          )}
+          <span className="text-parchment text-sm font-medium truncate">
+            <Highlight text={hit.title} query={query} />
+          </span>
+          <span className={meta.badgeCls}>{meta.badge}</span>
         </div>
         {sub && (
-          <p className="text-parchment/35 text-xs mt-0.5 truncate" dir="rtl">{sub}</p>
+          <p className="text-parchment/35 text-xs mt-0.5 truncate" dir="rtl">
+            <Highlight text={sub} query={query} />
+          </p>
         )}
       </div>
       {idx === cursor && (

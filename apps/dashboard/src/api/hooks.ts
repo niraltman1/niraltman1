@@ -155,10 +155,19 @@ export function useProcessingStatus(documentId: number) {
 //  Search
 // ─────────────────────────────────────────────
 
+/** Canonical search-hit contract returned by `GET /api/search` (see SearchEngine.SearchHit). */
+export interface SearchHit {
+  entityType: 'document' | 'client' | 'case';
+  id:         number;
+  rank:       number;
+  snippet:    string;
+  title:      string;
+}
+
 export function useSearch(query: string) {
   return useQuery({
     queryKey: QUERY_KEYS.search(query),
-    queryFn:  () => fetchJSON<Record<string, unknown>[]>(`/api/search?q=${encodeURIComponent(query)}`),
+    queryFn:  () => fetchJSON<SearchHit[]>(`/api/search?q=${encodeURIComponent(query)}`),
     enabled:  query.trim().length >= 2,
     staleTime: 30_000,
   });
