@@ -28,7 +28,7 @@
 | "הצג מקור" (provenance) | ✅ הושלם | `DocumentReader.tsx` + `CaseCitations.tsx` (`?highlight=`) |
 | צופה מסמך in-app | ✅ הושלם | `features/documents/DocumentReader.tsx` (zoom, OCR, highlight) |
 | Admin (journal/recovery/RBAC/backup) | ✅ הושלם | `features/admin/*` תחת `/admin/*` |
-| **חיפוש גלובלי (`/search`)** | 🟡 **stub** | `features/search/SearchPage.tsx` — קולט input אך **לא** מרנדר תוצאות FTS5 (hook `useSearch` קיים אך לא בשימוש) |
+| **חיפוש גלובלי (`/search`)** | ✅ הושלם (F-A) | `features/search/SearchPage.tsx` + `shared.tsx` — תוצאות FTS5 מקובצות/מודגשות/נווטות; `SpotlightSearch` תוקן לאותו contract; חוזה ננעל ב-`engine.test.ts` |
 | **מאגר חקיקה/פסיקה (קריאה מילולית)** | ❌ **חסר** | `PrecedentsPage` הוא כלי-אימות-תקדימים, **לא** דפדפן-קורפוס לטקסט מלא של חקיקה/פסיקה |
 | **מילון מונחים מרכזי** (`legal-terms.ts`) | ❌ **חסר** | מיפויי-תוויות מפוזרים inline (CaseDetail/ClientTimeline/CaseCitations/DeadlineMonitor) |
 | **רכיבים משותפים מחולצים** | 🟡 חלקי | `ConfidenceBadge` קיים inline ולא מיוצא; `DeadlineChip`/`SourceLink`/`EmptyState` inline; `AsyncBoundary`/`HebrewDate`/`CaseNumber` **לא קיימים** |
@@ -57,12 +57,15 @@
 
 # הפאזות שנותרו (העבודה האמיתית)
 
-## Phase F-A — חיווט תוצאות החיפוש הגלובלי *(quick win, שבוע 1)*
-**הפער המביך:** ה-API (FTS5) מחזיר תוצאות, ה-hook `useSearch` קיים — אך `SearchPage` לא צורך אותו ולא מרנדר.
-- [ ] לחבר `SearchPage.tsx` ל-`useSearch()`; debounce על הקלט.
-- [ ] תצוגת-תוצאות מקובצת (תיקים / מסמכים / לקוחות / פסיקה), הדגשת-המונח, ניווט-מקלדת.
-- [ ] מצב "אין תוצאות" + מצב טעינה אחיד; קליק → ניווט ליעד.
-- **קבלה:** הקלדת מונח מציגה תוצאות אמיתיות מקובצות וניתנות-לניווט.
+## Phase F-A — חיווט תוצאות החיפוש הגלובלי ✅ **הושלם**
+**מה שהיה:** ה-API (FTS5) החזיר תוצאות אך `SearchPage` היה stub, ו-`SpotlightSearch` קרא contract מיושן
+(`hit.type/nameHe/filename/ocrText`) שלא תאם את הצורה האמיתית — ולכן תייג שורות לפי id וניווט ל-`/dashboard`.
+- [x] `useSearch()` מוטפס ל-contract הקנוני `SearchHit {entityType,id,rank,snippet,title}`.
+- [x] `features/search/shared.tsx` — מקור-אמת אחד: entity-meta, hrefs, grouping, הדגשת-מונח (`<Highlight>`).
+- [x] `SearchPage` נבנה מחדש: תוצאות מקובצות/מודגשות/נווטות + filter-pills + sync ל-`?q=` + מצבי טעינה/ריק/אין-תוצאות/שגיאה.
+- [x] `SpotlightSearch` תוקן לאותו contract דרך ה-helpers המשותפים.
+- [x] בדיקת-חוזה `packages/database/src/search/engine.test.ts` נועלת את הצורה (case/client/document).
+- **אומת:** typecheck + lint + build נקיים; 5 בדיקות-חוזה ירוקות; בדיקות API/DB קיימות עוברות.
 
 ## Phase F-B — מסך מאגר חקיקה ופסיקה (קריאה מילולית) *(שבועות 1–3)* ⟵ B0/B1
 **הפער המרכזי:** הנתונים שאוכלסו (חקיקה #50 / פסיקה #52) **בלתי-נראים** — אין מסך לקריאתם. `PrecedentsPage`
