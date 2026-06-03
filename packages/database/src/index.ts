@@ -50,6 +50,8 @@ export type {
   CommConversation, CommMessage, CommChannelRow, UnknownInboxRow,
   InboundInput, RoutingResult, SendInput, SendResult,
 } from './queries/communications.js';
+export { CommTemplatesRepository } from './queries/comm-templates.js';
+export type { CommTemplate, TemplateContext, SecureLinkInput } from './queries/comm-templates.js';
 export { NotificationsRepository } from './queries/notifications.js';
 export type {
   NotificationRow,

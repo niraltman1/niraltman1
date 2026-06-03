@@ -2,7 +2,7 @@ import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import { createHash } from 'node:crypto';
 import express from 'express';
 import request from 'supertest';
-import { DatabaseConnection, CommunicationsRepository } from '@factum-il/database';
+import { DatabaseConnection, CommunicationsRepository, CommTemplatesRepository } from '@factum-il/database';
 import { communicationsRouter } from '../communications.js';
 import { errorHandler } from '../../middleware/error.js';
 import type { Repos } from '../../db.js';
@@ -12,7 +12,11 @@ CREATE TABLE system_users (id INTEGER PRIMARY KEY AUTOINCREMENT, username TEXT, 
 CREATE TABLE user_sessions (id INTEGER PRIMARY KEY AUTOINCREMENT, user_id INTEGER, token_hash TEXT, expires_at TEXT);
 CREATE TABLE Clients (id INTEGER PRIMARY KEY, name_he TEXT);
 CREATE TABLE Contacts (id INTEGER PRIMARY KEY);
-CREATE TABLE Cases (id INTEGER PRIMARY KEY, client_id INTEGER, status TEXT DEFAULT 'open', opened_date TEXT);
+CREATE TABLE Cases (id INTEGER PRIMARY KEY, client_id INTEGER, status TEXT DEFAULT 'open', opened_date TEXT, case_number TEXT, title_he TEXT, court_name TEXT, case_type TEXT DEFAULT 'civil');
+CREATE TABLE court_hearings (id INTEGER PRIMARY KEY AUTOINCREMENT, case_id INTEGER, hearing_date TEXT);
+CREATE TABLE Documents (id INTEGER PRIMARY KEY);
+CREATE TABLE CommTemplates (id INTEGER PRIMARY KEY AUTOINCREMENT, name_he TEXT, body TEXT, channel TEXT, case_type TEXT, case_status TEXT, client_status TEXT, is_active INTEGER DEFAULT 1, created_at TEXT DEFAULT '2026-01-01', updated_at TEXT DEFAULT '2026-01-01');
+CREATE TABLE CommSecureLinks (id INTEGER PRIMARY KEY AUTOINCREMENT, token TEXT UNIQUE, purpose TEXT, case_id INTEGER, document_id INTEGER, created_by INTEGER, expires_at TEXT, used_at TEXT, created_at TEXT DEFAULT '2026-01-01');
 CREATE TABLE CaseAssignments (id INTEGER PRIMARY KEY AUTOINCREMENT, case_id INTEGER, user_id INTEGER, role TEXT DEFAULT 'attorney', assigned_at TEXT DEFAULT '2026-01-01', revoked_at TEXT);
 CREATE TABLE CommChannels (id INTEGER PRIMARY KEY AUTOINCREMENT, channel TEXT, label TEXT, status TEXT DEFAULT 'disconnected', identifier TEXT, credential_ref TEXT, created_at TEXT DEFAULT '2026-01-01', updated_at TEXT DEFAULT '2026-01-01', UNIQUE(channel));
 CREATE TABLE CommContactIdentities (id INTEGER PRIMARY KEY AUTOINCREMENT, channel TEXT, external_id TEXT, display_name TEXT, client_id INTEGER, contact_id INTEGER, created_at TEXT DEFAULT '2026-01-01', UNIQUE(channel, external_id));
@@ -45,7 +49,11 @@ describe('communicationsRouter — RBAC + consent gate (C0)', () => {
     adminTok    = tokenFor(db, 'admin1', 'admin');
     attorneyTok = tokenFor(db, 'att1', 'attorney');
 
-    const repos = { db, communications: new CommunicationsRepository(db) } as unknown as Repos;
+    const repos = {
+      db,
+      communications: new CommunicationsRepository(db),
+      commTemplates:  new CommTemplatesRepository(db),
+    } as unknown as Repos;
     app = express();
     app.use(express.json());
     app.use('/api/communications', communicationsRouter(repos));
@@ -106,5 +114,34 @@ describe('communicationsRouter — RBAC + consent gate (C0)', () => {
   it('validates channel on inbound (422)', async () => {
     await request(app).post('/api/communications/inbound')
       .send({ channel: 'fax', externalId: 'x' }).expect(422);
+  });
+
+  // ── Smart templates (C4) ──────────────────────────────────────────────────
+  it('matches context templates and renders case variables (preview does not mint links)', async () => {
+    db.prepare("UPDATE Clients SET name_he = 'דנה כהן' WHERE id = 1").run();
+    db.prepare("INSERT INTO Cases (id, client_id, status, case_number, title_he, court_name, case_type) VALUES (5,1,'open','תא-2024-7','תביעה','שלום ת\"א','civil')").run();
+    db.prepare("INSERT INTO CommTemplates (name_he, body, case_status) VALUES ('reminder','שלום {{client_name}}, תיק {{case_number}}','open')").run();
+    db.prepare("INSERT INTO CommTemplates (name_he, body, case_status) VALUES ('closed-tpl','x','closed')").run();
+    db.prepare("INSERT INTO CommTemplates (name_he, body) VALUES ('sign-tpl','חתום: {{sign_link}}')").run();
+
+    const res = await request(app).get('/api/communications/templates/match?caseId=5').expect(200);
+    const names = (res.body.data as { nameHe: string; preview: string }[]).map((t) => t.nameHe);
+    expect(names).toContain('reminder');
+    expect(names).not.toContain('closed-tpl');     // status mismatch
+    const reminder = (res.body.data as { nameHe: string; preview: string }[]).find((t) => t.nameHe === 'reminder')!;
+    expect(reminder.preview).toBe('שלום דנה כהן, תיק תא-2024-7');
+    // Preview must NOT mint a real secure link.
+    const minted = db.prepare('SELECT COUNT(*) c FROM CommSecureLinks').get() as { c: number };
+    expect(minted.c).toBe(0);
+  });
+
+  it('render endpoint mints a real secure link for sign placeholders', async () => {
+    db.prepare("INSERT INTO Cases (id, client_id, status, case_number, case_type) VALUES (5,1,'open','תא-1','civil')").run();
+    const r = db.prepare("INSERT INTO CommTemplates (name_he, body) VALUES ('sign','חתום: {{sign_link}}')").run();
+    const res = await request(app).post(`/api/communications/templates/${Number(r.lastInsertRowid)}/render`)
+      .send({ caseId: 5 }).expect(200);
+    expect(res.body.data.rendered).toContain('/secure/');
+    const minted = db.prepare("SELECT COUNT(*) c FROM CommSecureLinks WHERE purpose='sign'").get() as { c: number };
+    expect(minted.c).toBe(1);
   });
 });

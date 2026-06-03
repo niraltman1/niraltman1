@@ -2553,3 +2553,32 @@ export function useGrantConsent() {
     },
   });
 }
+
+export interface CommTemplateMatch {
+  id:      number;
+  nameHe:  string;
+  channel: CommChannel | null;
+  preview: string;
+}
+
+/** Context-matched templates for a case (or generic when caseId is null). */
+export function useCommTemplateMatches(caseId: number | null, channel?: CommChannel, enabled = true) {
+  const qs = new URLSearchParams();
+  if (caseId !== null) qs.set('caseId', String(caseId));
+  if (channel) qs.set('channel', channel);
+  const query = qs.toString();
+  return useQuery({
+    queryKey: ['communications', 'templates', caseId ?? 'none', channel ?? 'any'] as const,
+    queryFn:  () => fetchJSON<CommTemplateMatch[]>(`/api/communications/templates/match${query ? `?${query}` : ''}`),
+    enabled,
+  });
+}
+
+/** Render a template for a case — mints real secure links server-side. */
+export function useRenderCommTemplate() {
+  return useMutation({
+    mutationFn: (v: { templateId: number; caseId: number | null }) =>
+      postJSON<{ rendered: string }>(`/api/communications/templates/${v.templateId}/render`,
+        v.caseId !== null ? { caseId: v.caseId } : {}),
+  });
+}

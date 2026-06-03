@@ -6,6 +6,7 @@ import { ok } from '../utils/response.js';
 import { ValidationError, NotFoundError, ConflictError } from '../errors/api-error.js';
 import { requireRole } from '../middleware/auth.js';
 import { storeEncryptedField } from '../modules/security/index.js';
+import { CommTemplatesRepository } from '@factum-il/database';
 import { TelegramClient } from '../modules/telegram/telegram-client.js';
 import { handleTelegramUpdate, getTelegramToken, type TelegramUpdate } from '../modules/telegram/telegram-inbound.js';
 import { sendTelegramText } from '../modules/telegram/telegram-outbound.js';
@@ -15,6 +16,60 @@ const STATUSES: ConversationStatus[] = ['open', 'closed', 'triage'];
 
 function userIdOf(req: unknown): number | null {
   return (req as { userId?: number }).userId ?? null;
+}
+
+const LINK_BASE  = process.env['COMM_LINK_BASE_URL'] ?? 'http://localhost';
+const FIRM_NAME  = process.env['COMM_FIRM_NAME'] ?? 'המשרד';
+
+function heDate(iso: string | null): string {
+  if (!iso) return '';
+  try { return new Date(iso).toLocaleDateString('he-IL', { day: '2-digit', month: '2-digit', year: 'numeric' }); }
+  catch { return iso; }
+}
+
+interface CaseVarRow { case_number: string; title_he: string; court_name: string | null; client_id: number | null; status: string; case_type: string }
+
+/** Resolve the variable map for a case. Secure-link placeholders are only minted when `mint` is true. */
+function resolveCaseVars(
+  repos: Repos, caseId: number, body: string, userId: number | null, mint: boolean,
+): Record<string, string> {
+  const c = repos.db.prepare(
+    'SELECT case_number, title_he, court_name, client_id, status, case_type FROM Cases WHERE id = ?',
+  ).get(caseId) as CaseVarRow | undefined;
+  const clientName = c?.client_id != null
+    ? (repos.db.prepare('SELECT name_he FROM Clients WHERE id = ?').get(c.client_id) as { name_he: string } | undefined)?.name_he
+    : undefined;
+  const hearing = repos.db.prepare(
+    "SELECT hearing_date FROM court_hearings WHERE case_id = ? AND hearing_date >= date('now') ORDER BY hearing_date ASC LIMIT 1",
+  ).get(caseId) as { hearing_date: string } | undefined;
+
+  const vars: Record<string, string> = {
+    client_name:  clientName ?? '',
+    case_number:  c?.case_number ?? '',
+    case_title:   c?.title_he ?? '',
+    court_name:   c?.court_name ?? '',
+    next_hearing: heDate(hearing?.hearing_date ?? null),
+    today:        new Date().toLocaleDateString('he-IL'),
+    firm_name:    FIRM_NAME,
+  };
+
+  // Secure local links — minted only when actually composing (not on preview).
+  const wantsSign   = body.includes('{{sign_link}}');
+  const wantsUpload = body.includes('{{upload_link}}');
+  if (mint) {
+    if (wantsSign) {
+      const { token } = repos.commTemplates.createSecureLink({ purpose: 'sign', caseId, createdBy: userId, ttlHours: 168 });
+      vars['sign_link'] = `${LINK_BASE}/secure/${token}`;
+    }
+    if (wantsUpload) {
+      const { token } = repos.commTemplates.createSecureLink({ purpose: 'upload', caseId, createdBy: userId, ttlHours: 168 });
+      vars['upload_link'] = `${LINK_BASE}/secure/${token}`;
+    }
+  } else {
+    if (wantsSign)   vars['sign_link']   = '[קישור מאובטח לחתימה]';
+    if (wantsUpload) vars['upload_link'] = '[קישור מאובטח להעלאה]';
+  }
+  return vars;
 }
 
 /**
@@ -152,6 +207,61 @@ export function communicationsRouter(repos: Repos): Router {
   // ── Unknown inbox (operational) ───────────────────────────────────────────
   router.get('/unknown', asyncHandler((req, res) => {
     ok(res, comm.listUnknownInbox(req.query['all'] === 'true'));
+  }));
+
+  // ── Smart templates (C4) ──────────────────────────────────────────────────
+  // All active templates (admin/management view).
+  router.get('/templates', asyncHandler((_req, res) => {
+    ok(res, repos.commTemplates.listTemplates());
+  }));
+
+  // Context-matched templates with a non-minting preview for a case (or generic if no case).
+  router.get('/templates/match', asyncHandler((req, res) => {
+    const caseIdRaw = req.query['caseId'];
+    const channel   = req.query['channel'] as CommChannel | undefined;
+    if (channel && !CHANNELS.includes(channel)) throw new ValidationError('invalid channel');
+
+    let ctx: { channel?: CommChannel; caseType?: string | null; caseStatus?: string | null } = {};
+    let vars: Record<string, string> | null = null;
+    if (caseIdRaw !== undefined) {
+      const caseId = Number(caseIdRaw);
+      const c = repos.db.prepare('SELECT status, case_type FROM Cases WHERE id = ?').get(caseId) as
+        { status: string; case_type: string } | undefined;
+      if (!c) throw new NotFoundError('case not found');
+      ctx = { caseType: c.case_type, caseStatus: c.status, ...(channel ? { channel } : {}) };
+      vars = null; // resolved per template below (only for those needing it)
+    } else if (channel) {
+      ctx = { channel };
+    }
+
+    const matched = repos.commTemplates.matchTemplates(ctx);
+    const result = matched.map((t) => {
+      let preview = t.body;
+      if (caseIdRaw !== undefined) {
+        if (!vars) vars = resolveCaseVars(repos, Number(caseIdRaw), t.body, userIdOf(req), false);
+        else if (t.body.includes('{{sign_link}}') || t.body.includes('{{upload_link}}')) {
+          vars = resolveCaseVars(repos, Number(caseIdRaw), t.body, userIdOf(req), false);
+        }
+        preview = CommTemplatesRepository.render(t.body, vars);
+      }
+      return { id: t.id, nameHe: t.nameHe, channel: t.channel, preview };
+    });
+    ok(res, result);
+  }));
+
+  // Render a template for a case — mints real secure links for sign/upload placeholders.
+  router.post('/templates/:id/render', asyncHandler((req, res) => {
+    const id = Number(req.params['id']);
+    const { caseId } = req.body as { caseId?: number };
+    const tpl = repos.commTemplates.getTemplate(id);
+    if (!tpl) throw new NotFoundError('template not found');
+    if (caseId === undefined) {
+      // No case context — render with empty vars (generic placeholders collapse to '—').
+      ok(res, { rendered: CommTemplatesRepository.render(tpl.body, {}) });
+      return;
+    }
+    const vars = resolveCaseVars(repos, Number(caseId), tpl.body, userIdOf(req), true);
+    ok(res, { rendered: CommTemplatesRepository.render(tpl.body, vars) });
   }));
 
   // ── Telegram (C1) ─────────────────────────────────────────────────────────

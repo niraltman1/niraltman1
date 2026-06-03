@@ -1,7 +1,8 @@
 import { useState, useEffect, useRef } from 'react';
-import { PaperPlaneRightIcon, ChatCircleIcon, WarningCircleIcon, SpinnerGapIcon } from '@phosphor-icons/react';
+import { PaperPlaneRightIcon, ChatCircleIcon, WarningCircleIcon, SpinnerGapIcon, NoteIcon } from '@phosphor-icons/react';
 import {
   useCommConversations, useCommConversation, useSendCommMessage, useGrantConsent,
+  useCommTemplateMatches, useRenderCommTemplate,
   type CommConversation, type CommMessage,
 } from '@/api/hooks.js';
 import { CHANNEL_META, STATUS_META, commTime } from './channel-meta.js';
@@ -83,8 +84,10 @@ function ConversationTimeline({ conversationId }: { conversationId: number }) {
   const { data, isLoading } = useCommConversation(conversationId);
   const send = useSendCommMessage(conversationId);
   const grantConsent = useGrantConsent();
+  const renderTpl = useRenderCommTemplate();
   const [draft, setDraft] = useState('');
   const [needsConsent, setNeedsConsent] = useState(false);
+  const [pickerOpen, setPickerOpen] = useState(false);
   const endRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => { endRef.current?.scrollIntoView({ block: 'nearest' }); }, [data?.messages.length]);
@@ -96,6 +99,13 @@ function ConversationTimeline({ conversationId }: { conversationId: number }) {
 
   const { conversation, messages } = data;
   const channel = CHANNEL_META[conversation.channel];
+
+  function applyTemplate(templateId: number) {
+    renderTpl.mutate(
+      { templateId, caseId: conversation.caseId },
+      { onSuccess: (r) => { setDraft(r.rendered); setPickerOpen(false); } },
+    );
+  }
 
   function submit() {
     const text = draft.trim();
@@ -151,6 +161,17 @@ function ConversationTimeline({ conversationId }: { conversationId: number }) {
         </div>
       )}
 
+      {/* Template picker */}
+      <div className="relative mt-2">
+        <button
+          onClick={() => setPickerOpen((o) => !o)}
+          className="flex items-center gap-1.5 text-xs text-parchment/60 hover:text-gold transition-colors"
+        >
+          <NoteIcon size={14} weight="duotone" /> תבניות חכמות
+        </button>
+        {pickerOpen && <TemplatePicker conv={conversation} onPick={applyTemplate} busy={renderTpl.isPending} />}
+      </div>
+
       {/* Action bar */}
       <div className="mt-2 flex items-end gap-2">
         <textarea
@@ -173,6 +194,34 @@ function ConversationTimeline({ conversationId }: { conversationId: number }) {
           שלח
         </button>
       </div>
+    </div>
+  );
+}
+
+function TemplatePicker({ conv, onPick, busy }: { conv: CommConversation; onPick: (id: number) => void; busy: boolean }) {
+  const { data: templates = [], isLoading } = useCommTemplateMatches(conv.caseId, conv.channel);
+  return (
+    <div className="absolute bottom-full mb-1 right-0 w-80 max-h-64 overflow-y-auto bg-navy-100 border border-parchment/20 rounded-lg shadow-2xl z-10 p-1">
+      {isLoading ? (
+        <div className="py-4 text-center text-parchment/40 text-xs">טוען…</div>
+      ) : templates.length === 0 ? (
+        <div className="py-4 text-center text-parchment/40 text-xs">אין תבניות מתאימות להקשר זה</div>
+      ) : (
+        <ul className="space-y-0.5">
+          {templates.map((t) => (
+            <li key={t.id}>
+              <button
+                onClick={() => onPick(t.id)}
+                disabled={busy}
+                className="w-full text-right px-2.5 py-1.5 rounded-md hover:bg-gold/10 disabled:opacity-50 transition-colors"
+              >
+                <div className="text-parchment text-sm">{t.nameHe}</div>
+                <div className="text-parchment/40 text-[11px] truncate">{t.preview}</div>
+              </button>
+            </li>
+          ))}
+        </ul>
+      )}
     </div>
   );
 }
