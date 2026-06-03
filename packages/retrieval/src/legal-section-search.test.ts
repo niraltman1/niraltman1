@@ -59,8 +59,7 @@ describe('searchLegalSections — FTS path', () => {
 
   it('sourceKey filter is passed to the SQL (single-source queries)', async () => {
     const r1 = sectionRow({ id: 1, source_key: 'il_law_1' });
-    const r2 = sectionRow({ id: 2, source_key: 'il_law_2' });
-    // Only r1 returned when sourceKey matches
+    // Only r1 returned when sourceKey matches (r2 belongs to a different law)
     const db = makeDb({ ftsRows: [r1] });
     const results = await searchLegalSections('query', db, { sourceKey: 'il_law_1' });
     expect(results).toHaveLength(1);
