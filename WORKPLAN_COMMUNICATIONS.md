@@ -31,12 +31,16 @@
 
 ---
 
-## Phase C0 — תשתית ומודל-נתונים (שבועות 1–2)  🟡 **בתהליך — שכבת הנתונים + ניתוב הושלמו**
-> **הושלם:** migration `060_communications.sql` (7 טבלאות, 13 אינדקסים), `CommunicationsRepository`
-> עם מנוע Smart Routing (זיהוי שולח → לקוח → תיק פעיל → עו"ד מ-CaseAssignments; ריבוי-תיקים/אלמוני → triage/UnknownInbox),
-> שער-הסכמה (consent gate) ל-outbound + audit מלא (send/send_blocked/consent/route). חובר ל-Repos.
-> נבדק: 7 בדיקות repo + ולידציית DDL; חבילות DB+API typecheck/lint/tests ירוקים.
-> **נותר ל-C0:** הצפנת credentials בפועל (credential_ref → secret store), routes ב-`packages/api`, אכיפת RBAC.
+## Phase C0 — תשתית ומודל-נתונים ✅ **הושלם**
+> **שכבת נתונים:** migration `060_communications.sql` (7 טבלאות, 13 אינדקסים), `CommunicationsRepository`
+> עם מנוע **Smart Routing** (זיהוי שולח → לקוח → תיק פעיל → עו"ד מ-CaseAssignments; ריבוי-תיקים/אלמוני →
+> triage/UnknownInbox, ללא ניחוש), **שער-הסכמה** ל-outbound + **audit מלא** (send/send_blocked/consent/route/channel_config).
+> **API + RBAC:** `/api/communications` עם דירוג הרשאות — credentials של ערוצים → `admin`; קריאת שיחות/inbox → `assistant+`;
+> שליחה/הסכמה/ingest → `attorney+`. שליחה ללא הסכמה → `409`.
+> **הצפנת credentials:** סודות הערוצים מוצפנים ב-`field-cipher` (AES-256-GCM); `CommChannels` מחזיק רק `credential_ref`,
+> לעולם לא את הסוד. `listChannels` חושף `hasCredential` בלבד.
+> **נבדק:** 7 בדיקות repo + 7 בדיקות route (RBAC 401/403, consent 409→200, ולידציה 422) + ולידציית DDL.
+> DB(72)+API(92) ירוקים; typecheck+lint נקיים.
 
 - [ ] **סכמת DB (migrations חדשים, סלוט פנוי הבא):**
       `CommChannels` (telegram/whatsapp/email/phone + סטטוס חיבור),

@@ -21,11 +21,13 @@
 - ✅ **F-A (חיפוש גלובלי)** — `SearchPage` + `SpotlightSearch` חוברו ל-contract הקנוני של FTS5
   (`SearchHit`), עם `features/search/shared.tsx` (entity-meta/href/grouping/highlight) ובדיקת-חוזה
   `engine.test.ts`. typecheck/lint/build נקיים.
-- 🟡 **C0 (תקשורת — שכבת נתונים + Smart Routing)** — migration 060 (7 טבלאות), `CommunicationsRepository`
-  (ניתוב חכם + consent gate + audit), חובר ל-Repos. 7 בדיקות repo + ולידציית DDL; DB(72)+API(85) ירוקים.
+- ✅ **C0 (תקשורת — תשתית מלאה)** — migration 060 (7 טבלאות), `CommunicationsRepository` (Smart Routing +
+  consent gate + audit), `/api/communications` עם RBAC מדורג (admin/assistant/attorney), הצפנת credentials של
+  ערוצים ב-field-cipher (AES-256-GCM; רק credential_ref נשמר). 7 בדיקות repo + 7 בדיקות route; DB(72)+API(92) ירוקים.
 
-**הצעד הבא (המשך C0):** הצפנת credentials של ערוצים (credential_ref→secret store), routes ב-`packages/api`
-למודול התקשורת, ואכיפת RBAC. לאחר מכן C1 (טלגרם Bot API). תלוי גם ב-B0 (אכלוס קורפוסים #50/#52) לקונטיינר עם allowlist.
+**הצעד הבא:** **C1 — טלגרם (Bot API רשמי)**: אינטגרציית inbound (webhook/polling → `routeInbound`) + outbound send
++ העברת-קבצים + onboarding. תלוי בקונטיינר עם גישת-רשת ל-Telegram. במקביל: B0 (אכלוס קורפוסים #50/#52).
+UI של מודול התקשורת (C3) ייבנה על ה-API הזה — מוטמע ב-CaseDetail/ClientCard וקבוצת "תקשורת" בסיידבר.
 
 ---
 
