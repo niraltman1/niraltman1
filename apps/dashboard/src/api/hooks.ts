@@ -2473,6 +2473,7 @@ export interface CommMessage {
   senderIdentity: string | null;
   handled:        boolean;
   replied:        boolean;
+  transcript:     string | null;
   createdAt:      string;
   sentAt:         string | null;
 }
@@ -2580,5 +2581,47 @@ export function useRenderCommTemplate() {
     mutationFn: (v: { templateId: number; caseId: number | null }) =>
       postJSON<{ rendered: string }>(`/api/communications/templates/${v.templateId}/render`,
         v.caseId !== null ? { caseId: v.caseId } : {}),
+  });
+}
+
+export interface CommEvidenceRow {
+  id:             number;
+  messageId:      number;
+  caseId:         number | null;
+  channel:        CommChannel;
+  body:           string | null;
+  mediaKind:      string | null;
+  contentHash:    string;
+  capturedAt:     string;
+}
+
+export function useCaseEvidence(caseId: number | null) {
+  return useQuery({
+    queryKey: ['communications', 'evidence', caseId] as const,
+    queryFn:  () => fetchJSON<CommEvidenceRow[]>(`/api/communications/evidence?caseId=${caseId}`),
+    enabled:  caseId !== null,
+  });
+}
+
+/** Snapshot a message as a locked exhibit. */
+export function useSaveMessageEvidence(conversationId: number) {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (messageId: number) => postJSON(`/api/communications/messages/${messageId}/save-evidence`),
+    onSuccess: () => {
+      void qc.invalidateQueries({ queryKey: ['communications', 'conversation', conversationId] });
+      void qc.invalidateQueries({ queryKey: ['communications', 'evidence'] });
+    },
+  });
+}
+
+/** Transcribe a voice message locally (Whisper). Throws CONFLICT when not configured. */
+export function useTranscribeMessage(conversationId: number) {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (messageId: number) => postJSON<{ transcript: string }>(`/api/communications/messages/${messageId}/transcribe`),
+    onSuccess: () => {
+      void qc.invalidateQueries({ queryKey: ['communications', 'conversation', conversationId] });
+    },
   });
 }

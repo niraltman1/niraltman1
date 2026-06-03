@@ -7,6 +7,7 @@ import { ValidationError, NotFoundError, ConflictError } from '../errors/api-err
 import { requireRole } from '../middleware/auth.js';
 import { storeEncryptedField } from '../modules/security/index.js';
 import { CommTemplatesRepository } from '@factum-il/database';
+import { transcribeCommMessage, TranscriptionUnavailableError } from '../modules/transcription/whisper.js';
 import { TelegramClient } from '../modules/telegram/telegram-client.js';
 import { handleTelegramUpdate, getTelegramToken, type TelegramUpdate } from '../modules/telegram/telegram-inbound.js';
 import { sendTelegramText } from '../modules/telegram/telegram-outbound.js';
@@ -185,6 +186,33 @@ export function communicationsRouter(repos: Repos): Router {
   router.post('/messages/:id/handled', asyncHandler((req, res) => {
     comm.markHandled(Number(req.params['id']));
     ok(res, { handled: true });
+  }));
+
+  // ── Evidence + transcription (C5) ─────────────────────────────────────────
+  // Snapshot a message as a write-protected, content-hashed exhibit bound to its case.
+  router.post('/messages/:id/save-evidence', asyncHandler((req, res) => {
+    const exhibit = comm.saveMessageAsEvidence(Number(req.params['id']), userIdOf(req));
+    ok(res, exhibit);
+  }));
+
+  // Locked exhibits for a case.
+  router.get('/evidence', asyncHandler((req, res) => {
+    const caseId = req.query['caseId'];
+    if (caseId === undefined) throw new ValidationError('caseId required');
+    ok(res, comm.listCaseEvidence(Number(caseId)));
+  }));
+
+  // Transcribe a voice/audio message locally (Whisper). 503 when no local transcriber.
+  router.post('/messages/:id/transcribe', asyncHandler(async (req, res) => {
+    try {
+      const transcript = await transcribeCommMessage(repos, Number(req.params['id']));
+      ok(res, { transcript });
+    } catch (e) {
+      if (e instanceof TranscriptionUnavailableError) {
+        throw new ConflictError(`תמלול אינו זמין: ${e.message}`);
+      }
+      throw e;
+    }
   }));
 
   // ── Consent (operational; recorded + audited) ─────────────────────────────

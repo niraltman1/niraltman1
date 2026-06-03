@@ -35,7 +35,12 @@ CREATE TABLE CommConversations (
 CREATE TABLE CommMessages (
   id INTEGER PRIMARY KEY AUTOINCREMENT, conversation_id INTEGER, channel TEXT, direction TEXT,
   external_message_id TEXT, sender_identity TEXT, body TEXT, media_kind TEXT, media_ref TEXT,
-  handled INTEGER DEFAULT 0, replied INTEGER DEFAULT 0, created_at TEXT DEFAULT '2026-01-01', sent_at TEXT
+  handled INTEGER DEFAULT 0, replied INTEGER DEFAULT 0, transcript TEXT, created_at TEXT DEFAULT '2026-01-01', sent_at TEXT
+);
+CREATE TABLE CommEvidence (
+  id INTEGER PRIMARY KEY AUTOINCREMENT, message_id INTEGER UNIQUE, conversation_id INTEGER, case_id INTEGER,
+  client_id INTEGER, channel TEXT, direction TEXT, sender_identity TEXT, body TEXT, media_kind TEXT, media_ref TEXT,
+  content_hash TEXT, message_created_at TEXT, captured_by INTEGER, is_locked INTEGER DEFAULT 1, captured_at TEXT DEFAULT '2026-01-01'
 );
 CREATE TABLE CommConsent (
   id INTEGER PRIMARY KEY AUTOINCREMENT, client_id INTEGER, channel TEXT, granted INTEGER DEFAULT 1,
@@ -154,5 +159,42 @@ describe('CommunicationsRepository (C0 — Smart Routing + consent gate)', () =>
     expect(repo.hasConsent(1, 'telegram')).toBe(true);
     repo.recordConsent(1, 'telegram', false);
     expect(repo.hasConsent(1, 'telegram')).toBe(false);
+  });
+
+  // ── C5: evidence + transcription ────────────────────────────────────────────
+  it('saves a message as a locked, content-hashed exhibit bound to the case', () => {
+    db.prepare("INSERT INTO Cases (id, client_id, status, opened_date) VALUES (5,1,'open','2026-01-01')").run();
+    db.prepare("INSERT INTO CommContactIdentities (channel, external_id, client_id) VALUES ('telegram','tg-1',1)").run();
+    const r = repo.routeInbound({ channel: 'telegram', externalId: 'tg-1', body: 'הודעה חשובה' });
+    const messageId = repo.listMessages(r.conversationId!)[0]!.id;
+
+    const ex = repo.saveMessageAsEvidence(messageId, 7);
+    expect(ex.caseId).toBe(5);
+    expect(ex.body).toBe('הודעה חשובה');
+    expect(ex.contentHash).toMatch(/^[a-f0-9]{64}$/);
+    expect(ex.capturedBy).toBe(7);
+
+    const list = repo.listCaseEvidence(5);
+    expect(list).toHaveLength(1);
+    const audited = db.prepare("SELECT COUNT(*) c FROM CommAudit WHERE action='save_evidence'").get() as { c: number };
+    expect(audited.c).toBe(1);
+  });
+
+  it('save-as-evidence is idempotent per message', () => {
+    db.prepare("INSERT INTO CommContactIdentities (channel, external_id, client_id) VALUES ('telegram','tg-1',1)").run();
+    const r = repo.routeInbound({ channel: 'telegram', externalId: 'tg-1', body: 'x' });
+    const messageId = repo.listMessages(r.conversationId!)[0]!.id;
+    repo.saveMessageAsEvidence(messageId, 7);
+    repo.saveMessageAsEvidence(messageId, 7);
+    const count = db.prepare('SELECT COUNT(*) c FROM CommEvidence WHERE message_id = ?').get(messageId) as { c: number };
+    expect(count.c).toBe(1);
+  });
+
+  it('stores a transcript on a message', () => {
+    db.prepare("INSERT INTO CommContactIdentities (channel, external_id, client_id) VALUES ('telegram','tg-1',1)").run();
+    const r = repo.routeInbound({ channel: 'telegram', externalId: 'tg-1', mediaKind: 'audio', mediaRef: '/tmp/v.ogg' });
+    const messageId = repo.listMessages(r.conversationId!)[0]!.id;
+    repo.setTranscript(messageId, 'שלום, זו הודעה קולית');
+    expect(repo.getMessage(messageId)!.transcript).toBe('שלום, זו הודעה קולית');
   });
 });

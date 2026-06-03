@@ -21,7 +21,8 @@ CREATE TABLE CaseAssignments (id INTEGER PRIMARY KEY AUTOINCREMENT, case_id INTE
 CREATE TABLE CommChannels (id INTEGER PRIMARY KEY AUTOINCREMENT, channel TEXT, label TEXT, status TEXT DEFAULT 'disconnected', identifier TEXT, credential_ref TEXT, created_at TEXT DEFAULT '2026-01-01', updated_at TEXT DEFAULT '2026-01-01', UNIQUE(channel));
 CREATE TABLE CommContactIdentities (id INTEGER PRIMARY KEY AUTOINCREMENT, channel TEXT, external_id TEXT, display_name TEXT, client_id INTEGER, contact_id INTEGER, created_at TEXT DEFAULT '2026-01-01', UNIQUE(channel, external_id));
 CREATE TABLE CommConversations (id INTEGER PRIMARY KEY AUTOINCREMENT, channel TEXT, external_thread_id TEXT, client_id INTEGER, case_id INTEGER, assigned_user_id INTEGER, subject TEXT, status TEXT DEFAULT 'open', last_message_at TEXT, created_at TEXT DEFAULT '2026-01-01', UNIQUE(channel, external_thread_id));
-CREATE TABLE CommMessages (id INTEGER PRIMARY KEY AUTOINCREMENT, conversation_id INTEGER, channel TEXT, direction TEXT, external_message_id TEXT, sender_identity TEXT, body TEXT, media_kind TEXT, media_ref TEXT, handled INTEGER DEFAULT 0, replied INTEGER DEFAULT 0, created_at TEXT DEFAULT '2026-01-01', sent_at TEXT);
+CREATE TABLE CommMessages (id INTEGER PRIMARY KEY AUTOINCREMENT, conversation_id INTEGER, channel TEXT, direction TEXT, external_message_id TEXT, sender_identity TEXT, body TEXT, media_kind TEXT, media_ref TEXT, handled INTEGER DEFAULT 0, replied INTEGER DEFAULT 0, transcript TEXT, created_at TEXT DEFAULT '2026-01-01', sent_at TEXT);
+CREATE TABLE CommEvidence (id INTEGER PRIMARY KEY AUTOINCREMENT, message_id INTEGER UNIQUE, conversation_id INTEGER, case_id INTEGER, client_id INTEGER, channel TEXT, direction TEXT, sender_identity TEXT, body TEXT, media_kind TEXT, media_ref TEXT, content_hash TEXT, message_created_at TEXT, captured_by INTEGER, is_locked INTEGER DEFAULT 1, captured_at TEXT DEFAULT '2026-01-01');
 CREATE TABLE CommConsent (id INTEGER PRIMARY KEY AUTOINCREMENT, client_id INTEGER, channel TEXT, granted INTEGER DEFAULT 1, source TEXT, granted_at TEXT DEFAULT '2026-01-01', revoked_at TEXT, UNIQUE(client_id, channel));
 CREATE TABLE CommAudit (id INTEGER PRIMARY KEY AUTOINCREMENT, conversation_id INTEGER, message_id INTEGER, user_id INTEGER, channel TEXT, action TEXT, detail TEXT, created_at TEXT DEFAULT '2026-01-01');
 CREATE TABLE CommUnknownInbox (id INTEGER PRIMARY KEY AUTOINCREMENT, channel TEXT, external_id TEXT, display_name TEXT, body TEXT, media_kind TEXT, media_ref TEXT, resolved INTEGER DEFAULT 0, resolved_as TEXT, resolved_ref INTEGER, created_at TEXT DEFAULT '2026-01-01');
@@ -143,5 +144,33 @@ describe('communicationsRouter — RBAC + consent gate (C0)', () => {
     expect(res.body.data.rendered).toContain('/secure/');
     const minted = db.prepare("SELECT COUNT(*) c FROM CommSecureLinks WHERE purpose='sign'").get() as { c: number };
     expect(minted.c).toBe(1);
+  });
+
+  // ── Evidence + transcription (C5) ──────────────────────────────────────────
+  it('saves a message as a locked exhibit and lists it by case', async () => {
+    db.prepare("INSERT INTO Cases (id, client_id, status) VALUES (5,1,'open')").run();
+    db.prepare("INSERT INTO CommContactIdentities (channel, external_id, client_id) VALUES ('telegram','tg-1',1)").run();
+    const inbound = await request(app).post('/api/communications/inbound')
+      .send({ channel: 'telegram', externalId: 'tg-1', body: 'ראיה' }).expect(200);
+    const convId = inbound.body.data.conversationId as number;
+    const msgId = (await request(app).get(`/api/communications/conversations/${convId}`).expect(200))
+      .body.data.messages[0].id as number;
+
+    const saved = await request(app).post(`/api/communications/messages/${msgId}/save-evidence`).expect(200);
+    expect(saved.body.data.contentHash).toMatch(/^[a-f0-9]{64}$/);
+
+    const list = await request(app).get('/api/communications/evidence?caseId=5').expect(200);
+    expect(list.body.data).toHaveLength(1);
+  });
+
+  it('transcribe returns 409 when no local Whisper is configured', async () => {
+    delete process.env['WHISPER_CMD'];
+    db.prepare("INSERT INTO CommContactIdentities (channel, external_id, client_id) VALUES ('telegram','tg-1',1)").run();
+    const inbound = await request(app).post('/api/communications/inbound')
+      .send({ channel: 'telegram', externalId: 'tg-1', mediaKind: 'audio', mediaRef: '/tmp/v.ogg' }).expect(200);
+    const convId = inbound.body.data.conversationId as number;
+    const msgId = (await request(app).get(`/api/communications/conversations/${convId}`).expect(200))
+      .body.data.messages[0].id as number;
+    await request(app).post(`/api/communications/messages/${msgId}/transcribe`).expect(409);
   });
 });

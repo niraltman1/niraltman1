@@ -47,7 +47,7 @@ export type { SmartCollectionKey, SmartCollectionItem, SmartCollectionMeta } fro
 export { CommunicationsRepository } from './queries/communications.js';
 export type {
   CommChannel, CommDirection, ConversationStatus, ChannelStatus,
-  CommConversation, CommMessage, CommChannelRow, UnknownInboxRow,
+  CommConversation, CommMessage, CommChannelRow, UnknownInboxRow, CommEvidenceRow,
   InboundInput, RoutingResult, SendInput, SendResult,
 } from './queries/communications.js';
 export { CommTemplatesRepository } from './queries/comm-templates.js';

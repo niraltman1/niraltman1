@@ -1,8 +1,12 @@
 import { useState, useEffect, useRef } from 'react';
-import { PaperPlaneRightIcon, ChatCircleIcon, WarningCircleIcon, SpinnerGapIcon, NoteIcon } from '@phosphor-icons/react';
+import {
+  PaperPlaneRightIcon, ChatCircleIcon, WarningCircleIcon, SpinnerGapIcon, NoteIcon,
+  ArchiveBoxIcon, WaveformIcon, LockSimpleIcon,
+} from '@phosphor-icons/react';
 import {
   useCommConversations, useCommConversation, useSendCommMessage, useGrantConsent,
-  useCommTemplateMatches, useRenderCommTemplate,
+  useCommTemplateMatches, useRenderCommTemplate, useSaveMessageEvidence, useTranscribeMessage,
+  useCaseEvidence,
   type CommConversation, type CommMessage,
 } from '@/api/hooks.js';
 import { CHANNEL_META, STATUS_META, commTime } from './channel-meta.js';
@@ -17,6 +21,7 @@ interface Props {
 export function CommunicationsPanel({ caseId, clientId }: Props) {
   const filter = caseId !== undefined ? { caseId } : clientId !== undefined ? { clientId } : {};
   const { data: conversations = [], isLoading } = useCommConversations(filter);
+  const { data: exhibits = [] } = useCaseEvidence(caseId ?? null);
   const [selectedId, setSelectedId] = useState<number | null>(null);
 
   // Auto-select the most recent conversation when the list loads/changes.
@@ -38,7 +43,14 @@ export function CommunicationsPanel({ caseId, clientId }: Props) {
   }
 
   return (
-    <div className="grid grid-cols-[260px_1fr] gap-3 min-h-[420px]" dir="rtl">
+    <div className="space-y-3" dir="rtl">
+      {caseId !== undefined && exhibits.length > 0 && (
+        <div className="flex items-center gap-2 text-xs text-parchment/60 bg-navy-100/50 border border-parchment/10 rounded-lg px-3 py-1.5">
+          <LockSimpleIcon size={14} weight="fill" className="text-emerald-400" />
+          <span>{exhibits.length} מוצגים נעולים מהתקשורת בתיק זה</span>
+        </div>
+      )}
+      <div className="grid grid-cols-[260px_1fr] gap-3 min-h-[420px]">
       {/* Conversation list */}
       <ul className="space-y-1 border-l border-parchment/10 pl-3 overflow-y-auto max-h-[560px]">
         {conversations.map((c) => (
@@ -53,6 +65,7 @@ export function CommunicationsPanel({ caseId, clientId }: Props) {
         {selectedId !== null
           ? <ConversationTimeline conversationId={selectedId} />
           : <div className="text-parchment/30 text-sm py-12 text-center">בחר שיחה</div>}
+      </div>
       </div>
     </div>
   );
@@ -140,7 +153,7 @@ function ConversationTimeline({ conversationId }: { conversationId: number }) {
 
       {/* Messages */}
       <div className="flex-1 overflow-y-auto max-h-[400px] space-y-2 pl-1">
-        {messages.map((m) => <MessageBubble key={m.id} msg={m} />)}
+        {messages.map((m) => <MessageBubble key={m.id} msg={m} conversationId={conversationId} />)}
         <div ref={endRef} />
       </div>
 
@@ -226,10 +239,14 @@ function TemplatePicker({ conv, onPick, busy }: { conv: CommConversation; onPick
   );
 }
 
-function MessageBubble({ msg }: { msg: CommMessage }) {
+function MessageBubble({ msg, conversationId }: { msg: CommMessage; conversationId: number }) {
   const outbound = msg.direction === 'outbound';
+  const saveEvidence = useSaveMessageEvidence(conversationId);
+  const transcribe = useTranscribeMessage(conversationId);
+  const [transcribeErr, setTranscribeErr] = useState<string | null>(null);
+
   return (
-    <div className={`flex ${outbound ? 'justify-start' : 'justify-end'}`}>
+    <div className={`group flex ${outbound ? 'justify-start' : 'justify-end'}`}>
       <div
         className={`max-w-[78%] rounded-2xl px-3 py-2 text-sm
           ${outbound
@@ -240,7 +257,38 @@ function MessageBubble({ msg }: { msg: CommMessage }) {
           <div className="text-[11px] text-parchment/50 mb-0.5">[{msg.mediaKind}]</div>
         )}
         {msg.body && <p className="whitespace-pre-wrap break-words">{msg.body}</p>}
-        <div className="text-[10px] text-parchment/35 mt-1 text-left">{commTime(msg.createdAt)}</div>
+
+        {/* Local Whisper transcript for voice notes */}
+        {msg.transcript && (
+          <p className="mt-1 pt-1 border-t border-parchment/15 text-parchment/70 text-xs whitespace-pre-wrap">
+            <WaveformIcon size={12} className="inline ml-1 text-parchment/40" /> {msg.transcript}
+          </p>
+        )}
+
+        <div className="flex items-center gap-2 mt-1">
+          <span className="text-[10px] text-parchment/35 flex-1 text-left">{commTime(msg.createdAt)}</span>
+
+          {/* Per-message actions (appear on hover) */}
+          {msg.mediaKind === 'audio' && !msg.transcript && (
+            <button
+              onClick={() => { setTranscribeErr(null); transcribe.mutate(msg.id, { onError: () => setTranscribeErr('תמלול אינו זמין') }); }}
+              disabled={transcribe.isPending}
+              title="תמלל הקלטה (מקומי)"
+              className="opacity-0 group-hover:opacity-100 transition-opacity text-parchment/40 hover:text-gold"
+            >
+              {transcribe.isPending ? <SpinnerGapIcon size={13} className="animate-spin" /> : <WaveformIcon size={13} />}
+            </button>
+          )}
+          <button
+            onClick={() => saveEvidence.mutate(msg.id)}
+            disabled={saveEvidence.isPending || saveEvidence.isSuccess}
+            title="שמור כראיה (מוצג נעול)"
+            className="opacity-0 group-hover:opacity-100 transition-opacity text-parchment/40 hover:text-gold disabled:text-emerald-400 disabled:opacity-100"
+          >
+            {saveEvidence.isSuccess ? <LockSimpleIcon size={13} weight="fill" /> : <ArchiveBoxIcon size={13} />}
+          </button>
+        </div>
+        {transcribeErr && <p className="text-[10px] text-amber-300/80 mt-0.5">{transcribeErr}</p>}
       </div>
     </div>
   );

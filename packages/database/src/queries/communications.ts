@@ -1,3 +1,4 @@
+import { createHash } from 'node:crypto';
 import type { DatabaseConnection } from '../connection.js';
 
 /**
@@ -37,8 +38,25 @@ export interface CommMessage {
   senderIdentity: string | null;
   handled:        boolean;
   replied:        boolean;
+  transcript:     string | null;
   createdAt:      string;
   sentAt:         string | null;
+}
+
+export interface CommEvidenceRow {
+  id:               number;
+  messageId:        number;
+  caseId:           number | null;
+  clientId:         number | null;
+  channel:          CommChannel;
+  direction:        CommDirection;
+  senderIdentity:   string | null;
+  body:             string | null;
+  mediaKind:        string | null;
+  contentHash:      string;
+  messageCreatedAt: string | null;
+  capturedBy:       number | null;
+  capturedAt:       string;
 }
 
 export interface InboundInput {
@@ -104,8 +122,27 @@ function mapMessage(r: Record<string, unknown>): CommMessage {
     senderIdentity: (r['sender_identity'] as string | null) ?? null,
     handled:        Number(r['handled']) === 1,
     replied:        Number(r['replied']) === 1,
+    transcript:     (r['transcript'] as string | null) ?? null,
     createdAt:      r['created_at'] as string,
     sentAt:         (r['sent_at'] as string | null) ?? null,
+  };
+}
+
+function mapEvidence(r: Record<string, unknown>): CommEvidenceRow {
+  return {
+    id:               r['id'] as number,
+    messageId:        r['message_id'] as number,
+    caseId:           (r['case_id'] as number | null) ?? null,
+    clientId:         (r['client_id'] as number | null) ?? null,
+    channel:          r['channel'] as CommChannel,
+    direction:        r['direction'] as CommDirection,
+    senderIdentity:   (r['sender_identity'] as string | null) ?? null,
+    body:             (r['body'] as string | null) ?? null,
+    mediaKind:        (r['media_kind'] as string | null) ?? null,
+    contentHash:      r['content_hash'] as string,
+    messageCreatedAt: (r['message_created_at'] as string | null) ?? null,
+    capturedBy:       (r['captured_by'] as number | null) ?? null,
+    capturedAt:       r['captured_at'] as string,
   };
 }
 
@@ -395,6 +432,62 @@ export class CommunicationsRepository {
 
   markHandled(messageId: number): void {
     this.db.prepare(`UPDATE CommMessages SET handled = 1 WHERE id = ?`).run(messageId);
+  }
+
+  // ── Evidence + transcription (C5) ───────────────────────────────────────────
+  /**
+   * Snapshot a message as a write-protected, content-hashed exhibit bound to its case
+   * (chain of custody). Idempotent per message (UNIQUE(message_id)); returns the exhibit.
+   */
+  saveMessageAsEvidence(messageId: number, capturedBy: number | null): CommEvidenceRow {
+    const msg = this.db.prepare(`
+      SELECT m.*, c.case_id AS conv_case_id, c.client_id AS conv_client_id
+        FROM CommMessages m
+        JOIN CommConversations c ON c.id = m.conversation_id
+       WHERE m.id = ?
+    `).get(messageId) as Record<string, unknown> | undefined;
+    if (!msg) throw new Error(`Message ${messageId} not found`);
+
+    // Verbatim snapshot: transcript is included so a transcribed voice note is captured too.
+    const snapshot = `${String(msg['body'] ?? '')}\n${String(msg['transcript'] ?? '')}\n${String(msg['media_ref'] ?? '')}`;
+    const contentHash = createHash('sha256').update(snapshot).digest('hex');
+
+    this.db.prepare(`
+      INSERT INTO CommEvidence
+        (message_id, conversation_id, case_id, client_id, channel, direction, sender_identity,
+         body, media_kind, media_ref, content_hash, message_created_at, captured_by)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+      ON CONFLICT(message_id) DO NOTHING
+    `).run(
+      messageId, msg['conversation_id'], msg['conv_case_id'] ?? null, msg['conv_client_id'] ?? null,
+      msg['channel'], msg['direction'], msg['sender_identity'],
+      msg['body'] ?? null, msg['media_kind'] ?? null, msg['media_ref'] ?? null,
+      contentHash, msg['created_at'] ?? null, capturedBy,
+    );
+
+    const row = this.db.prepare('SELECT * FROM CommEvidence WHERE message_id = ?').get(messageId) as Record<string, unknown>;
+    this.audit({
+      conversationId: Number(msg['conversation_id']), messageId, userId: capturedBy,
+      channel: msg['channel'] as CommChannel, action: 'save_evidence', detail: `hash:${contentHash.slice(0, 12)}`,
+    });
+    return mapEvidence(row);
+  }
+
+  /** Exhibits captured for a case (locked, newest first). */
+  listCaseEvidence(caseId: number): CommEvidenceRow[] {
+    return (this.db.prepare(
+      'SELECT * FROM CommEvidence WHERE case_id = ? ORDER BY captured_at DESC',
+    ).all(caseId) as Record<string, unknown>[]).map(mapEvidence);
+  }
+
+  /** Store a (locally produced) transcript on a voice/audio message. */
+  setTranscript(messageId: number, transcript: string): void {
+    this.db.prepare('UPDATE CommMessages SET transcript = ? WHERE id = ?').run(transcript, messageId);
+  }
+
+  getMessage(messageId: number): CommMessage | null {
+    const r = this.db.prepare('SELECT * FROM CommMessages WHERE id = ?').get(messageId) as Record<string, unknown> | undefined;
+    return r ? mapMessage(r) : null;
   }
 
   /** Unknown-sender inbox (C8 routing target). Defaults to unresolved only. */
