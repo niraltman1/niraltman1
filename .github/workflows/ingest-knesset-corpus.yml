@@ -1,72 +1,144 @@
-name: Ingest Knesset Corpus
+import fs from 'fs';
+import path from 'path';
 
-on:
-  workflow_dispatch:
-    inputs:
-      embed:
-        description: 'Generate per-section embeddings via nomic-embed-text (requires Ollama)'
-        type: boolean
-        default: true
+// הגדרות ופרמטרים מתוך ה-CLI
+const args = process.argv.slice(2);
+const shouldEmbed = args.includes('--embed');
+const delayArgIndex = args.indexOf('--delay');
+const delayMs = delayArgIndex !== -1 ? parseInt(args[delayArgIndex + 1], 10) : 500;
 
-permissions:
-  contents: write
+// נתיב השמירה - כתיבה תוך כדי ריצה כדי לא לפוצץ את הזיכרון
+const OUTPUT_DIR = path.join(process.cwd(), 'assets', 'legal-corpus');
+const OUTPUT_FILE = path.join(OUTPUT_DIR, 'legal-corpus.knesset.jsonl');
+const OLLAMA_URL = 'http://127.0.0.1:11434/api/embeddings';
 
-jobs:
-  ingest:
-    name: Ingest 1,077 Israeli laws → v-corpus-latest
-    runs-on: ubuntu-latest
-    timeout-minutes: 240
+if (!fs.existsSync(OUTPUT_DIR)) {
+  fs.mkdirSync(OUTPUT_DIR, { recursive: true });
+}
 
-    steps:
-      - uses: actions/checkout@v4
+// פונקציית השהייה
+const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
 
-      - uses: pnpm/action-setup@v4
-        with:
-          version: '9.4.0'
+// משיכת נתונים עם Timeout וניסיונות חוזרים (מגן מפני תקיעות רשת)
+async function fetchWithRetry(url: string, options: any = {}, retries = 3, timeoutMs = 10000): Promise<any> {
+  for (let i = 0; i < retries; i++) {
+    const controller = new AbortController();
+    const id = setTimeout(() => controller.abort(), timeoutMs);
+    try {
+      const response = await fetch(url, {
+        ...options,
+        signal: controller.signal,
+        headers: {
+          'User-Agent': 'Factum-IL-Bot/1.0 (Research Agent Ingestion)',
+          ...options.headers,
+        },
+      });
+      clearTimeout(id);
+      if (!response.ok) throw new Error(`HTTP Error: ${response.status}`);
+      return await response.text();
+    } catch (error: any) {
+      clearTimeout(id);
+      console.warn(`[אזהרה] שגיאה בגישה ל-${url} (ניסיון ${i + 1}/${retries}): ${error.message}`);
+      if (i === retries - 1) throw error;
+      await sleep(2000 * (i + 1)); // Backoff מעריכי
+    }
+  }
+}
 
-      - uses: actions/setup-node@v4
-        with:
-          node-version: '22'
-          cache: pnpm
-          cache-dependency-path: pnpm-lock.yaml
+// קידוד וקטורי מול Ollama (עם הגנת קריסה)
+async function getEmbedding(text: string): Promise<number[]> {
+  try {
+    const controller = new AbortController();
+    const id = setTimeout(() => controller.abort(), 15000); // 15 שניות גג לקידוד
+    
+    const response = await fetch(OLLAMA_URL, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ model: 'nomic-embed-text', prompt: text }),
+      signal: controller.signal,
+    });
+    
+    clearTimeout(id);
+    if (!response.ok) throw new Error(`Ollama Error: ${response.status}`);
+    const data = await response.json();
+    return data.embedding;
+  } catch (error: any) {
+    console.error(`[שגיאת Ollama] הקידוד נכשל עבור טקסט באורך ${text.length} תווים: ${error.message}`);
+    return []; // מחזיר מערך ריק במקום לתקוע את התהליך
+  }
+}
 
-      - name: Install dependencies
-        run: pnpm install --frozen-lockfile
+// פירוק טקסט ארוך למקטעים קצרים (מונע קריסת Context Window ב-Ollama)
+function chunkTextBySections(rawText: string): string[] {
+  // פיצול גס לפי סימוני פרקים/סעיפים בוויקיטקסט (למשל "== פרק א ==" או "סעיף 1.")
+  const chunks = rawText.split(/(?=== [א-ת])/).map(c => c.trim()).filter(c => c.length > 50);
+  
+  // אם לא נמצאו פרקים, מפצלים לפי פסקאות כדי להבטיח שמירה על גודל הגיוני
+  if (chunks.length <= 1) {
+    return rawText.split(/\n\n/).map(c => c.trim()).filter(c => c.length > 50);
+  }
+  return chunks;
+}
 
-      - name: Install Ollama + pull nomic-embed-text
-        if: ${{ inputs.embed }}
-        run: |
-          curl -fsSL https://ollama.com/install.sh | sh
-          ollama serve &
-          echo "Waiting for Ollama to be ready..."
-          for i in $(seq 1 30); do
-            curl -sf http://localhost:11434/api/tags > /dev/null && echo "Ollama ready after ${i}s" && break || sleep 1
-          done
-          ollama pull nomic-embed-text
+// הפונקציה הראשית
+async function main() {
+  console.log(`[Factum IL] מתחיל ייבוא מאגר חקיקה...`);
+  console.log(`השהייה: ${delayMs}ms | יצירת וקטורים: ${shouldEmbed}`);
+  
+  const writeStream = fs.createWriteStream(OUTPUT_FILE, { flags: 'w' }); // דורס קובץ ישן
+  
+  // כאן אמורה להיות השאילתה שלך ל-OData של הכנסת או ל-JSON שחילצנו מקובץ ה-PDF.
+  // לשם ההדגמה היציבה, אנו מגדירים מערך חוקים (יש להחליף בלולאה המלאה שלך):
+  const mockLawsToIngest = [
+    { id: "1", title: "חוק ההוצאה לפועל", url: "https://he.wikisource.org/w/index.php?title=חוק_ההוצאה_לפועל&action=raw" },
+    { id: "2", title: "פקודת התעבורה", url: "https://he.wikisource.org/w/index.php?title=פקודת_התעבורה&action=raw" }
+  ];
 
-      - name: Run ingestion
-        run: |
-          if [ "${{ inputs.embed }}" = "true" ]; then
-            pnpm ingest-knesset-odata -- --embed --delay 500
-          else
-            pnpm ingest-knesset-odata -- --delay 500
-          fi
+  let totalProcessed = 0;
 
-      - name: Create release v-corpus-latest (if absent)
-        env:
-          GH_TOKEN: ${{ github.token }}
-        run: |
-          gh release create v-corpus-latest \
-            --repo niraltman1/niraltman1 \
-            --title "Knesset Legal Corpus (latest)" \
-            --notes "Auto-generated: all valid Israeli laws from Knesset OData × WikiSource (ספר החוקים הפתוח), with optional nomic-embed-text per-section embeddings. Not a product release — consumed by publish.ps1 during the Windows installer build." \
-            || true
+  for (const law of mockLawsToIngest) {
+    try {
+      console.log(`מוריד: ${law.title}...`);
+      const rawText = await fetchWithRetry(law.url);
+      const chunks = chunkTextBySections(rawText);
+      
+      console.log(`> פוצל ל-${chunks.length} סעיפים/מקטעים.`);
 
-      - name: Upload corpus asset (clobber existing)
-        env:
-          GH_TOKEN: ${{ github.token }}
-        run: |
-          gh release upload v-corpus-latest \
-            --repo niraltman1/niraltman1 \
-            --clobber \
-            assets/legal-corpus/legal-corpus.knesset.jsonl.gz
+      for (let i = 0; i < chunks.length; i++) {
+        const chunkText = chunks[i];
+        let embedding: number[] = [];
+        
+        if (shouldEmbed) {
+          embedding = await getEmbedding(chunkText);
+        }
+
+        const jsonlRecord = {
+          law_id: law.id,
+          law_title: law.title,
+          chunk_index: i,
+          text: chunkText,
+          embedding: embedding,
+          source: "knesset_odata_wikisource",
+          timestamp: new Date().toISOString()
+        };
+
+        // כתיבה אסינכרונית ומיידית לדיסק - אם הסקריפט נופל, מה שנכתב נשמר!
+        writeStream.write(JSON.stringify(jsonlRecord) + '\n');
+      }
+
+      totalProcessed++;
+      await sleep(delayMs); // כיבוד השרתים החיצוניים כדי לא להיחסם
+
+    } catch (error: any) {
+      console.error(`[שגיאה קריטית] דילוג על "${law.title}" בגלל חריגה: ${error.message}`);
+    }
+  }
+
+  writeStream.end();
+  console.log(`\n[הושלם] עובדו בהצלחה ${totalProcessed} חוקים. הקובץ נשמר ב- ${OUTPUT_FILE}`);
+}
+
+main().catch(err => {
+  console.error("קריסה כללית בסקריפט:", err);
+  process.exit(1);
+});
