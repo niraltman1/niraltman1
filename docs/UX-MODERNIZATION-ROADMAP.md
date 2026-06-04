@@ -11,6 +11,43 @@
 
 ---
 
+## 0. Status reconciliation (June 2026)
+
+> **Read this first.** This audit was written *before* the M1–M7 dashboard work, the
+> C-communications module, and the notifications / IA / quick-add implementations landed.
+> Several gaps below are marked "missing / P0" but are **already built and routed**. The
+> sections are kept intact for their analysis and wireframes, but **the table below is the
+> current truth**, and **`WORKPLAN_FRONTEND.md` is the living execution plan** for the work
+> that genuinely remains (phases F-B…F-G).
+
+**Now built since this audit (verified in code):**
+
+| Audit section | Status | Evidence (route / file) |
+|---|---|---|
+| §4.1.1 Calendar & Docketing | ✅ Shipped | `/calendar` · `features/calendar/CalendarPage.tsx` |
+| §4.1.2 Document Reader/Viewer | ✅ Shipped | `/documents/:id/read` · `features/documents/DocumentReader.tsx` |
+| §4.1.3 Notifications / Alert inbox | ✅ Shipped | `NotificationBell` mounted in `components/layout/AppShell.tsx` |
+| §4.4.3 Deadline / SLA monitor | ✅ Shipped | `/deadlines` · `features/calendar/DeadlineMonitorPage.tsx` |
+| §4.7.1 Rules-engine surface | ✅ Shipped | `/rules` · `features/legal/RulesEnginePage.tsx` |
+| 3-panel matter workbench (WORKPLAN F-E) | ✅ Shipped | `/cases/:id/workbench` · `features/cases/MatterWorkbench.tsx` |
+| §4.7.6 Navigation/IA overhaul | ✅ Shipped | 8-group accordion · `components/layout/nav-config.tsx` + `Sidebar.tsx` |
+| Global search wiring (F-A) | ✅ Shipped | `/search` · `features/search/SearchPage.tsx` |
+
+**Genuinely remaining (confirmed absent in code):**
+- **Legal-corpus reader** `/library` (statute/case-law full-text read) — no route. *Largest
+  functional gap;* WORKPLAN phase **F-B**.
+- **Central `lib/legal-terms.ts` dictionary + extracted shared components** (`AsyncBoundary`,
+  `DeadlineChip`, `SourceLink`, `EmptyState`, `HebrewDate`, `CaseNumber`) — phase **F-C**.
+- **"My Day" task-home** — `DashboardPage` is still KPI-only (phase **F-D**).
+- **Billing / time / trust** — `features/ledger/LedgerPage.tsx` exists but is **not** wired
+  into `router/index.tsx` (orphaned).
+- Reporting/analytics, Insolvency Form 5 UI, Import wizard, Settings/Preferences, Saved
+  views/Kanban, GDPR/erasure UI — all still UI-less.
+- **Cross-cutting UI debt** (phases F-C/F-G): no i18n (strings hardcoded across ~87 `.tsx`),
+  no shared form component, modal focus-trap/contrast a11y gaps, no responsive breakpoints.
+
+---
+
 ## 1. Executive summary
 
 Factum-IL is **not** an early prototype — it is a mature local-first legal platform:
@@ -31,14 +68,18 @@ A recurring theme: **substantial backend capability already exists with no UI to
 it.** Those items are flagged **`[backend ready]`** and represent the fastest, highest-
 leverage wins.
 
-### The five highest-impact gaps
-| # | Gap | Why it's #1-tier | Phase |
-|---|-----|------------------|-------|
-| 1 | **Calendar & Docketing** | Deadline-driven practice with no calendar = malpractice risk; the core of Clio/MyCase | 1 |
-| 2 | **Document Reader/Viewer** | Users cannot *read* documents in-app today → they leave the product | 1 |
-| 3 | **Billing / Time / Invoicing / Trust** | The economic core of practice-management software; only a thin AR ledger exists | 2 |
-| 4 | **Notifications / Alert inbox** | Liability-prevention alerts are generated server-side but never surfaced | 0 |
-| 5 | **Navigation/IA overhaul** | The sidebar exposes only 6 of 31+ routes — built features are orphaned | 0 |
+### The five highest-impact gaps *(status updated — see §0)*
+| # | Gap | Why it's #1-tier | Phase | Status |
+|---|-----|------------------|-------|--------|
+| 1 | **Calendar & Docketing** | Deadline-driven practice with no calendar = malpractice risk; the core of Clio/MyCase | 1 | ✅ Shipped |
+| 2 | **Document Reader/Viewer** | Users cannot *read* documents in-app today → they leave the product | 1 | ✅ Shipped |
+| 3 | **Billing / Time / Invoicing / Trust** | The economic core of practice-management software; only a thin AR ledger exists | 2 | ⛔ Remaining |
+| 4 | **Notifications / Alert inbox** | Liability-prevention alerts are generated server-side but never surfaced | 0 | ✅ Shipped |
+| 5 | **Navigation/IA overhaul** | The sidebar exposes only 6 of 31+ routes — built features are orphaned | 0 | ✅ Shipped |
+
+> **Top gaps that now actually lead** (still unbuilt, per §0): **Legal-corpus reader**
+> (`/library`, F-B), **Billing/Trust** (#3 above), **"My Day" home** (F-D), and the
+> **shared-components / i18n** cleanup (F-C).
 
 ---
 
@@ -56,12 +97,13 @@ leverage wins.
 | Admin: Diagnostics, Mission Control, Backup, Recovery, Journal, RBAC v1 | ✅ Exists |
 | Setup wizard, encrypted backup | ✅ Exists |
 
-### Verified gaps driving this audit
-- **No Calendar / court-hearings / docketing screen**, although `court_hearings` table,
-  iCal import, and hearing fields already exist server-side.
-- **No document reader** — `DocumentDetail` is text/metadata only; no PDF/image render, no
-  OCR overlay, no in-viewer annotation (annotation types exist in the DB).
-- **No unified notification/alert inbox** — only an update banner + inline toasts.
+### Verified gaps driving this audit *(several resolved since — see §0)*
+- ~~**No Calendar / court-hearings / docketing screen**~~ → ✅ **Resolved:** `/calendar`
+  (`CalendarPage.tsx`) + `/deadlines` (`DeadlineMonitorPage.tsx`).
+- ~~**No document reader**~~ → ✅ **Resolved:** `/documents/:id/read`
+  (`DocumentReader.tsx`) with zoom, OCR overlay, and highlight.
+- ~~**No unified notification/alert inbox**~~ → ✅ **Resolved:** `NotificationBell` +
+  `NotificationPanel`, mounted in `AppShell.tsx`.
 - **`LedgerPage` exists** (payment schedules, ILS, paid/overdue) but is a thin
   accounts-receivable ledger — **not** time-tracking / invoicing / trust accounting — and
   it is **not wired into the router** (orphaned).
@@ -70,8 +112,8 @@ leverage wins.
   verification, agent SSE streaming progress, or GDPR/erasure (`/api/erasure` exists).
 - **No end-user Settings/Preferences** screen (settings == admin pages only).
 - **Minimal responsive design** (8 files use breakpoints); dark-only; no charting library.
-- IA: the sidebar surfaces only 6 primary items; 25+ real routes are reachable only by
-  deep link.
+- ~~IA: the sidebar surfaces only 6 primary items; 25+ real routes are reachable only by
+  deep link.~~ → ✅ **Resolved:** 8-group accordion nav (`nav-config.tsx` + `Sidebar.tsx`).
 
 ---
 
@@ -92,6 +134,9 @@ Wireframes are RTL (Hebrew, right-aligned) to match the product.
 ### 4.1 Missing SCREENS
 
 #### 4.1.1 Calendar & Docketing (court hearings + deadlines) — **P0 · M · [backend ready]**
+> ✅ **SHIPPED** — `/calendar` (`features/calendar/CalendarPage.tsx`) + `/deadlines`
+> (`features/calendar/DeadlineMonitorPage.tsx`). Wireframe kept for reference.
+
 **Why it matters.** Every benchmark practice-management product (Clio/MyCase) is built
 around a calendar. Legal work is deadline-driven; a missed statute or hearing date is
 malpractice. The data already exists (`court_hearings`, traffic statute deadlines,
@@ -118,6 +163,9 @@ printable list. Feed from a new `useCalendarEvents` hook unioning hearings + dea
 milestones + tasks.
 
 #### 4.1.2 Document Reader / Viewer (PDF + image + OCR overlay + annotate) — **P0 · L · [partial backend]**
+> ✅ **SHIPPED** — `/documents/:id/read` (`features/documents/DocumentReader.tsx`): zoom,
+> OCR overlay, highlight. Wireframe kept for reference.
+
 **Why it matters.** A document system whose users cannot *read* the document in-app forces
 them back to Windows Explorer, breaking the workflow loop. Relativity/Notion/M365 all
 center on a strong reading/annotation surface. Annotation types (highlight/note/redline/
@@ -143,6 +191,10 @@ toggle for search-highlight. Right rail merges `DocumentSigningPanel` + insight-
 (`POST /documents/insights/:id/verify`). Replaces the text-only `DocumentDetail`.
 
 #### 4.1.3 Notifications / Alert Inbox — **P0 · S · [backend ready]**
+> ✅ **SHIPPED** — `NotificationBell` + `NotificationPanel`
+> (`components/notifications/*`), mounted in `components/layout/AppShell.tsx`. Wireframe
+> kept for reference.
+
 **Why it matters.** Alerts are generated server-side (statute lapses, Form-5 gaps, due
 tasks, poison-queue items) but evaporate — there is no single place a user checks "what
 needs me today." Linear/M365 set the bar: one inbox, unread state, deep links.
@@ -393,9 +445,9 @@ taxonomy or filter by it.
   (started/completed/failed/stale) is journaled; `JournalPage` is generic. No per-run
   drill-down (inputs, confidence, duration, stale). *Debug AI behavior; audit AI-assisted
   work.*
-- **4.4.3 Deadline/SLA monitor — P1 · S.** No dedicated "what's at risk" board across
-  statute deadlines + milestones. Pairs with the Notification inbox (§4.1.3). *Liability
-  radar.*
+- **4.4.3 Deadline/SLA monitor — P1 · S.** ✅ **SHIPPED** — `/deadlines`
+  (`features/calendar/DeadlineMonitorPage.tsx`), 4 color-coded severity levels. Pairs with the
+  Notification inbox (§4.1.3, also shipped). *Liability radar.*
 
 ---
 
@@ -431,45 +483,61 @@ taxonomy or filter by it.
 
 ### 4.7 Missing LEGAL-WORKFLOW & UX polish
 
-- **4.7.1 Deadline-rules engine UI — P1 · M.** `Rules_Engine` (20 Israeli rules) drives
-  deadlines but is invisible/uneditable. Show how each deadline was computed (rule → date),
-  editable per court. *Defensibility + trust in auto-dates.*
+- **4.7.1 Deadline-rules engine UI — P1 · M.** ✅ **SHIPPED** — `/rules`
+  (`features/legal/RulesEnginePage.tsx`) surfaces the `Rules_Engine` (20 Israeli rules).
+  *Defensibility + trust in auto-dates.*
 - **4.7.2 Document Assembly / generation — P1 · M · [partial: Stens].** `Stens` auto-fill
   exists; extend to one-click generate → preview → e-sign → file for common pleadings.
   *Time savings on routine drafting.*
 - **4.7.3 Client communication log — P2 · S.** A unified per-client/per-case timeline of
   emails (Gmail bridge), WhatsApp summaries, and generated letters. `clients/:id/timeline` +
   `summary/text` exist with no rich view. *Single source of truth per client.*
-- **4.7.4 Responsive / tablet layout — P3 · M.** Only 8 files use breakpoints; attorneys use
-  the desktop in court on smaller screens. *Accessibility of the tool in-session.*
-- **4.7.5 Light mode + density + print styles — P3 · M.** Dark-only; legal docs/reports are
-  often printed. *Court-room readability + printable artifacts.*
-- **4.7.6 Navigation/IA overhaul — P1 · S.** The sidebar exposes 6 of 31+ routes; group into
-  collapsible sections (Workspace / Matters / Documents / Legal Research / Finance / Studies
-  / Admin) so built features stop being orphaned. *Discoverability of what's already built —
-  the highest ROI per hour in this document.*
-- **4.7.7 Empty/loading/error states & onboarding tour — P3 · S.** Systematic skeletons,
-  empty-state CTAs, and a first-run tour. *Polish + activation.*
+- **4.7.4 Responsive / tablet layout — P3 · M.** ⛔ **Still open** (code-verified): no
+  `sm:/md:/lg:` breakpoints in components; the sidebar is a fixed 240px and list tables
+  (e.g. `grid-cols-[2fr_1fr_1fr_auto_1fr]`) don't reflow. Attorneys use the desktop in court
+  on smaller screens. *Accessibility of the tool in-session.*
+- **4.7.5 Light mode + density + print styles — P3 · M.** ⛔ **Still open.** Dark-only;
+  legal docs/reports are often printed. Also fold in **i18n**: UI strings are hardcoded
+  across ~87 `.tsx` files (no i18n library), which blocks a clean light/density/locale switch.
+  *Court-room readability + printable artifacts.*
+- **4.7.6 Navigation/IA overhaul — P1 · S.** ✅ **SHIPPED** — 8-group collapsible accordion
+  (`components/layout/nav-config.tsx` + `Sidebar.tsx`), state persisted via Zustand. Built
+  features are no longer orphaned. *Was the highest ROI per hour in this document.*
+- **4.7.7 Empty/loading/error states, shared components & onboarding tour — P3 · S.**
+  Systematic skeletons, empty-state CTAs, and a first-run tour. Code-verified UI debt to
+  resolve here (≈ WORKPLAN **F-C/F-G**): **no shared form component** (each modal —
+  `BugReportModal`/`StensFormModal`/`NewCaseWizard` — reinvents inputs); **a11y gaps**
+  (modals lack focus-trap/focus-return; some inputs use placeholder-as-label; secondary text
+  `--fg-3` ≈4:1 and placeholders ≈2:1 fail/borderline WCAG). Extract `<AsyncBoundary>`,
+  `<EmptyState>`, `<DeadlineChip>`, `<SourceLink>` into `components/common/`. *Polish +
+  activation.*
 
 ---
 
 ## 5. Prioritized roadmap (phased)
 
 ### Phase 0 — Quick high-leverage wins (≈2–3 weeks)
-Mostly UI over ready backends + IA cleanup.
-1. Navigation/IA overhaul (§4.7.6) — unorphan 25+ routes.
-2. Notifications inbox (§4.1.3).
-3. Document-insight verification (§4.2.1).
-4. Agent SSE streaming (§4.2.4).
-5. Global Quick-Add + palette actions (§4.6.1, §4.6.4).
+Mostly UI over ready backends + IA cleanup. *(Most of this phase is now done — see §0.)*
+1. ✅ Navigation/IA overhaul (§4.7.6) — unorphaned 25+ routes.
+2. ✅ Notifications inbox (§4.1.3).
+3. Document-insight verification (§4.2.1). *(remaining)*
+4. Agent SSE streaming (§4.2.4). *(remaining)*
+5. ✅ Global Quick-Add + palette actions (§4.6.1, §4.6.4) — see
+   `docs/QUICK-ADD-PALETTE-IMPLEMENTATION-PLAN.md`.
 
 ### Phase 1 — Core legal-product parity (≈6–8 weeks)
-6. Calendar & Docketing (§4.1.1) + Deadline/SLA monitor (§4.4.3) + rules-engine surface (§4.7.1).
-7. Document Reader/Viewer + annotation host (§4.1.2).
-8. Insolvency Form 5 (§4.1.6).
-9. Import/Onboarding wizard (§4.1.7) + Review-correction loop (§4.2.2).
-10. Matter intake + conflict check (§4.2.3).
-11. RBAC v2 case assignments (§4.5.1).
+6. ✅ Calendar & Docketing (§4.1.1) + ✅ Deadline/SLA monitor (§4.4.3) + ✅ rules-engine
+   surface (§4.7.1).
+7. ✅ Document Reader/Viewer + annotation host (§4.1.2).
+8. Insolvency Form 5 (§4.1.6). *(remaining)*
+9. Import/Onboarding wizard (§4.1.7) + Review-correction loop (§4.2.2). *(remaining)*
+10. Matter intake + conflict check (§4.2.3). *(remaining)*
+11. RBAC v2 case assignments (§4.5.1). *(remaining)*
+
+> **Net:** Phase 0 is ~80% done and Phase 1's calendar/reader/deadline/rules cluster is
+> shipped. The live front of work is **`WORKPLAN_FRONTEND.md` F-B…F-G** (legal-corpus reader,
+> shared components/i18n, "My Day", AI-approval uniformity, a11y/print) plus the still-unbuilt
+> Phase 1/2 items above (Form 5, import wizard, intake/conflict, RBAC v2, billing/trust).
 
 ### Phase 2 — Practice-management & insight depth (≈6–8 weeks)
 12. Billing/Time/Invoicing/Trust (§4.1.5).
@@ -488,52 +556,57 @@ Mostly UI over ready backends + IA cleanup.
 
 ## 6. At-a-glance priority table
 
-| Gap | Category | Priority | Effort | Backend ready? | Phase |
-|-----|----------|:--------:|:------:|:--------------:|:-----:|
-| Navigation/IA overhaul | Legal/UX | P1 | S | n/a | 0 |
-| Notifications inbox | Screen | P0 | S | ✅ | 0 |
-| Insight verification | Workflow | P0 | S | ✅ | 0 |
-| Agent SSE streaming | Workflow | P2 | S | ✅ | 0 |
-| Global quick-add / palette actions | Productivity | P1/P2 | S | n/a | 0 |
-| Calendar & docketing | Screen | P0 | M | ✅ | 1 |
-| Document reader/viewer | Screen | P0 | L | partial | 1 |
-| Deadline/SLA monitor | Monitoring | P1 | S | ✅ | 1 |
-| Rules-engine surface | Legal | P1 | M | ✅ | 1 |
-| Insolvency Form 5 | Screen | P1 | M | ✅ | 1 |
-| Import/onboarding wizard | Screen | P1 | M | ✅ | 1 |
-| Review-correction loop | Workflow | P1 | M | ✅ | 1 |
-| Matter intake + conflict check | Workflow | P1 | M | partial | 1 |
-| RBAC v2 case assignments | Admin | P1 | M | hook | 1 |
-| Billing/time/invoicing/trust | Screen | P1 | L | partial | 2 |
-| Reporting & analytics | Screen | P1 | M | partial | 2 |
-| Saved views/filters/bulk | Management | P1 | M | n/a | 2 |
-| Kanban board | Management | P2 | M | ✅ | 2 |
-| Citations/case-law workbench | Screen | P2 | M | ✅ | 2 |
-| Document assembly | Legal | P1 | M | partial | 2 |
-| Client comms log | Legal | P2 | S | ✅ | 2 |
-| Settings/preferences | Screen | P2 | S | n/a | 2 |
-| Firm settings | Admin | P2 | S | partial | 2 |
-| Integration manager | Admin | P2 | S | ✅ | 2 |
-| GDPR/erasure UI | Screen | P2 | S | ✅ | 3 |
-| Monitoring trends + agent observability | Monitoring | P2 | S | ✅ | 3 |
-| Tag management | Management | P2 | S | partial | 3 |
-| Keyboard shortcuts | Productivity | P2 | S | n/a | 3 |
-| Inline editing | Productivity | P2 | M | n/a | 3 |
-| Responsive/tablet | UX | P3 | M | n/a | 3 |
-| Light mode/density/print | UX | P3 | M | n/a | 3 |
-| Empty/loading/onboarding | UX | P3 | S | n/a | 3 |
+*Status reflects code as of June 2026 (see §0). ✅ Shipped · 🟡 Partial · ⛔ Remaining.*
+
+| Gap | Category | Priority | Effort | Backend ready? | Phase | Status |
+|-----|----------|:--------:|:------:|:--------------:|:-----:|:------:|
+| Navigation/IA overhaul | Legal/UX | P1 | S | n/a | 0 | ✅ |
+| Notifications inbox | Screen | P0 | S | ✅ | 0 | ✅ |
+| Insight verification | Workflow | P0 | S | ✅ | 0 | ⛔ |
+| Agent SSE streaming | Workflow | P2 | S | ✅ | 0 | ⛔ |
+| Global quick-add / palette actions | Productivity | P1/P2 | S | n/a | 0 | ✅ |
+| Calendar & docketing | Screen | P0 | M | ✅ | 1 | ✅ |
+| Document reader/viewer | Screen | P0 | L | partial | 1 | ✅ |
+| Deadline/SLA monitor | Monitoring | P1 | S | ✅ | 1 | ✅ |
+| Rules-engine surface | Legal | P1 | M | ✅ | 1 | ✅ |
+| Insolvency Form 5 | Screen | P1 | M | ✅ | 1 | ⛔ |
+| Import/onboarding wizard | Screen | P1 | M | ✅ | 1 | ⛔ |
+| Review-correction loop | Workflow | P1 | M | ✅ | 1 | ⛔ |
+| Matter intake + conflict check | Workflow | P1 | M | partial | 1 | ⛔ |
+| RBAC v2 case assignments | Admin | P1 | M | hook | 1 | ⛔ |
+| Billing/time/invoicing/trust | Screen | P1 | L | partial | 2 | ⛔ |
+| Reporting & analytics | Screen | P1 | M | partial | 2 | ⛔ |
+| Saved views/filters/bulk | Management | P1 | M | n/a | 2 | ⛔ |
+| Kanban board | Management | P2 | M | ✅ | 2 | ⛔ |
+| Citations/case-law workbench | Screen | P2 | M | ✅ | 2 | 🟡 |
+| Legal-corpus reader (`/library`, F-B) | Screen | P1 | M | ✅ | 2 | ⛔ |
+| Document assembly | Legal | P1 | M | partial | 2 | ⛔ |
+| Client comms log | Legal | P2 | S | ✅ | 2 | ✅ |
+| Settings/preferences | Screen | P2 | S | n/a | 2 | ⛔ |
+| Firm settings | Admin | P2 | S | partial | 2 | ⛔ |
+| Integration manager | Admin | P2 | S | ✅ | 2 | ⛔ |
+| GDPR/erasure UI | Screen | P2 | S | ✅ | 3 | ⛔ |
+| Monitoring trends + agent observability | Monitoring | P2 | S | ✅ | 3 | ⛔ |
+| Tag management | Management | P2 | S | partial | 3 | ⛔ |
+| Keyboard shortcuts | Productivity | P2 | S | n/a | 3 | ⛔ |
+| Inline editing | Productivity | P2 | M | n/a | 3 | ⛔ |
+| Shared components + i18n (F-C) | UX | P2 | M | n/a | 3 | ⛔ |
+| Responsive/tablet | UX | P3 | M | n/a | 3 | ⛔ |
+| Light mode/density/print | UX | P3 | M | n/a | 3 | ⛔ |
+| Empty/loading/onboarding | UX | P3 | S | n/a | 3 | ⛔ |
 
 ---
 
 ## 7. Business-impact summary
 
-- **Best ROI right now:** Phase 0 items are days-to-weeks and convert already-built backend
-  value into user value. The Navigation/IA overhaul alone makes ~25 orphaned features
-  discoverable.
-- **Largest commercial-parity gaps vs Clio/MyCase:** the **Calendar** (§4.1.1) and **Billing
-  suite** (§4.1.5).
-- **Largest stickiness gap:** the **Document Reader** (§4.1.2) — today users must leave the
-  app to read files.
+- **Already banked (since this audit):** Navigation/IA, Notifications, Calendar, Document
+  Reader, Deadline monitor, Rules-engine, and global Quick-Add — the bulk of Phase 0 and the
+  Phase 1 calendar/reader cluster. See §0.
+- **Best ROI right now:** the **Legal-corpus reader** (`/library`, F-B) — populated statute
+  (#50) and case-law (#52) data is invisible with no screen to read it — and the
+  **shared-components / i18n** cleanup (F-C) that de-duplicates label maps across ~87 files.
+- **Largest commercial-parity gap vs Clio/MyCase still open:** the **Billing suite**
+  (§4.1.5) — `LedgerPage` exists but is unrouted.
 - **Compliance / liability cluster:** conflict check (§4.2.3), RBAC v2 (§4.5.1), rules-engine
   surface (§4.7.1), trust accounting (§4.1.5), and erasure (§4.1.10).
 
