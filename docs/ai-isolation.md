@@ -1,30 +1,78 @@
-# AI Isolation & Hallucination Prevention
+# AI Isolation, Data Firewall & Attorney-Client Privilege — Factum-IL v1.0.0
 
 ## Principles
 
-1. **Regex supremacy** — fields extractable by regex are never overridden by AI
-2. **Context isolation** — each document gets its own prompt context; no cross-document leakage
-3. **Prompt versioning** — prompts are immutable once registered; changes create a new version
-4. **Mandatory validation** — every AI response passes through `AIValidator` before any field is accepted
-5. **Audit trail** — every AI call is logged with a SHA-256 response hash for reproducibility
+1. **No data leaves the machine** — all AI inference runs via Ollama locally at `http://127.0.0.1:11434`. No external API calls with user data are ever made.
+2. **Regex supremacy** — fields extractable by regex are never overridden by AI
+3. **Context isolation** — each document gets its own prompt context; no cross-document leakage
+4. **Prompt versioning** — prompts are immutable once registered; changes create a new version
+5. **Mandatory validation** — every AI response passes through `packages/ai-guardrails` before any field is accepted
+6. **Audit trail** — every AI call is logged with a SHA-256 response hash for reproducibility
+7. **PII sanitization** — all log sinks strip names, ID numbers, and case details before writing
+8. **Data Firewall** — medical/nursing content is blocked at intake (Zero-Root Rule)
 
-## Regex-Authoritative Fields
+---
 
-The following fields are extracted by regex *before* the AI call and cannot be overridden:
+## Data Firewall (Zero-Root Rule)
 
-| Field            | Pattern                                | Example            |
-|------------------|----------------------------------------|--------------------|
-| `id_number`      | 9 consecutive digits                   | `123456782`        |
-| `case_number`    | `\d+/\d{2,4}` (Hebrew court format)   | `1234/24`          |
-| `bar_number`     | `עורך דין מס' \d+`                    | `12345`            |
-| `document_date`  | `dd/mm/yyyy` → ISO 8601                | `2024-01-15`       |
+The Data Firewall is implemented in `packages/pipeline` as a hardcoded invariant. It is not a configuration option — it cannot be disabled.
 
-These values are passed as `regexGroundTruth` to `AIValidator.validate()`. The validator replaces AI-supplied values with regex values for these fields regardless of AI confidence.
+### Blocked Patterns (EXCLUDED_PATTERNS)
 
-## Hallucination Detection
+```
+Hebrew:  /סיעוד/  /רפואה/  /חן/
+English: /Nursing/  /Medical/  /Healthcare/  /Chen/
+Files:   *.סיעוד.pdf  *nursing*  *medical_report*
+System:  node_modules  .git  __MACOSX  System32  Windows\
+```
 
-`AIValidator` maintains a list of patterns that indicate a hallucination or refusal:
+Any file whose path or name matches one of these patterns is rejected at intake with a `DATA_FIREWALL_BLOCKED` event. No processing occurs; no DB row is created.
 
+### Why This Exists
+
+The law firm's principal also operates an associated nursing practice. Medical patient records are subject to different regulatory obligations (Israeli Privacy Protection Law, medical privilege). Commingling medical files with legal files would violate both attorney-client privilege and medical confidentiality. The firewall is enforced at the code level to make commingling structurally impossible.
+
+### Academic Bypass
+
+Files under a path in `ACADEMIC_ROOT` (semicolon-separated env var) are exempt from nursing/medical pattern blocking. These paths serve the Academic Hub (nursing courses, medical law studies). The bypass is path-scoped — it cannot be exploited to route medical client documents through the legal pipeline.
+
+---
+
+## PII Sanitization
+
+`packages/shared/src/logging/sanitizer.ts` is applied to every log sink before writing:
+
+Patterns stripped from log messages:
+- Israeli ID numbers (9-digit Luhn pattern)
+- Phone numbers (Israeli mobile: 05x-xxxxxxx)
+- Email addresses
+- Hebrew names (word sequences in Hebrew Unicode block above a length threshold)
+- Case numbers (all Israeli court formats)
+- File paths containing personal directory names
+
+**No document content is ever logged externally.** Log files contain operational metadata (document ID, processing state, timing, error codes) but never OCR text, client names, or case content.
+
+---
+
+## Attorney-Client Privilege Enforcement
+
+The following invariants are enforced at the architecture level:
+
+1. **No telemetry.** There is no analytics package, no error reporting service, and no network calls during normal operation.
+2. **Document content stays in the database.** OCR text is stored in `Documents.ocr_text` (SQLite, on-device). It is passed to Ollama (local) for enrichment. It is never transmitted over any network.
+3. **AI enrichment context is limited to 2 000 characters.** This prevents prompt injection via malicious OCR content and keeps context windows deterministic.
+4. **Isolation context per document.** The `isolationContext` field in every enrichment request is `doc:{id}:{utcNow()}` — never reused. The model cannot "remember" previous documents in multi-document batches.
+5. **Support diagnostics are PII-scrubbed.** The crash bundle generated by `packages/support-diagnostics` runs every log and metadata field through the PII sanitizer before export.
+
+---
+
+## AI Guardrails Package (packages/ai-guardrails)
+
+Every AI response passes through `ai-guardrails` before any field is accepted. This package implements:
+
+### Hallucination Detection
+
+`AIValidator` rejects any response containing these patterns (case-insensitive):
 - `i cannot determine`
 - `i don't have enough information`
 - `as an ai language model`
@@ -32,47 +80,49 @@ These values are passed as `regexGroundTruth` to `AIValidator.validate()`. The v
 - `based on the context provided`
 - `unable to extract`
 
-If any of these patterns appear anywhere in the AI response (case-insensitive), the entire response is **rejected** and `validate()` returns `null`.
+If any pattern is detected, the entire response is rejected and `validate()` returns `null`. The rejection is logged to `GuardrailsLog` (migration 048).
 
-## Confidence Penalties
+### Regex Supremacy
 
-Even non-null responses are penalised for suspicious signals:
+The following fields are extracted by regex before the AI call and cannot be overridden:
 
-| Signal                          | Penalty |
-|---------------------------------|---------|
-| Each hallucination flag         | −0.10   |
-| Each regex override applied     | −0.05   |
-| Implausible future date (> now) | −0.10   |
+| Field | Pattern | Example |
+|-------|---------|---------|
+| `id_number` | 9 consecutive digits (Luhn validated) | `123456782` |
+| `case_number` | All Israeli court formats | `ע"א 5678/22` |
+| `bar_number` | `עורך דין מס' \d+` | `12345` |
+| `document_date` | `dd/mm/yyyy` → ISO 8601 | `2024-01-15` |
 
-## Prompt Management
+These values are passed as `regexGroundTruth` to `AIValidator.validate()`. AI-supplied values for these fields are replaced regardless of AI confidence.
 
-```typescript
-const pm = new PromptManager(db);
-await pm.registerDefaults();            // seeds classify_document template
+### Confidence Penalties
 
-const prompt = await pm.render('classify_document', {
-  ocr_text: doc.ocrText.slice(0, 2000),
-  language: 'he',
-});
-```
+| Signal | Penalty |
+|--------|---------|
+| Each hallucination flag detected | −0.10 |
+| Each regex override applied | −0.05 |
+| Implausible future date (> now) | −0.10 |
 
-Prompts are stored in `AIPromptVersions`:
+### GuardrailsLog (migration 048)
+
+Every guardrails decision is recorded:
 
 ```sql
-AIPromptVersions (
-  id          INTEGER PRIMARY KEY,
-  prompt_key  TEXT NOT NULL,
-  version     INTEGER NOT NULL,
-  template    TEXT NOT NULL,
-  prompt_hash TEXT NOT NULL UNIQUE,    -- SHA-256 of template
-  is_active   INTEGER NOT NULL DEFAULT 1,
-  created_at  TEXT NOT NULL DEFAULT (datetime('now'))
+GuardrailsLog (
+  id              INTEGER PRIMARY KEY,
+  document_id     INTEGER,
+  agent_name      TEXT,
+  action          TEXT,          -- 'REJECTED' | 'PENALIZED' | 'ACCEPTED'
+  reason          TEXT,          -- human-readable explanation
+  confidence_in   REAL,          -- confidence before guardrails
+  confidence_out  REAL,          -- confidence after penalties
+  created_at      TEXT DEFAULT (datetime('now'))
 )
 ```
 
-Registering an identical template is a no-op (hash match). Registering a changed template deactivates the previous version and inserts a new one.
+---
 
-## Audit Log
+## Audit Log (AIAuditLog, migration 032)
 
 Every enrichment call is recorded:
 
@@ -86,23 +136,67 @@ AIAuditLog (
   response_hash     TEXT NOT NULL,      -- SHA-256 of raw AI response
   hallucination_flags TEXT,             -- JSON array of detected patterns
   regex_overrides   TEXT,               -- JSON array of overridden field names
-  accepted          INTEGER NOT NULL,   -- 1 = passed validation, 0 = rejected
+  accepted          INTEGER NOT NULL,   -- 1 = passed guardrails, 0 = rejected
   created_at        TEXT NOT NULL DEFAULT (datetime('now'))
 )
 ```
 
-`verifyResponseIntegrity(enrichmentId, rawResponse)` re-hashes the response and compares to the stored hash — useful for detecting log tampering.
+`verifyResponseIntegrity(enrichmentId, rawResponse)` re-hashes the response and compares to the stored hash — detects log tampering.
 
-## Context Isolation
+---
 
-Each document is processed with a fresh Ollama context. The `isolationContext` field in `EnrichmentRequest` is set to `doc:{id}:{utcNow()}` and is never reused. This prevents the model from "remembering" previous documents in multi-document batches.
+## Prompt Management
 
-The OCR text passed to the model is capped at **2 000 characters** to keep context windows deterministic and prevent prompt injection via malicious OCR content.
+Prompts are immutable once registered. Changes create a new version; the previous version is deactivated.
 
-## Ollama Model
+```sql
+AIPromptVersions (
+  id          INTEGER PRIMARY KEY,
+  prompt_key  TEXT NOT NULL,
+  version     INTEGER NOT NULL,
+  template    TEXT NOT NULL,
+  prompt_hash TEXT NOT NULL UNIQUE,    -- SHA-256 of template
+  is_active   INTEGER NOT NULL DEFAULT 1,
+  created_at  TEXT NOT NULL DEFAULT (datetime('now'))
+)
+```
 
-Default model: `law-il-E2B` (fine-tuned for Israeli legal documents).
+Registering an identical template (same hash) is a no-op.
 
-Fallback: `mistral` with a system prompt instructing Hebrew legal domain behaviour.
+---
 
-Model availability is checked via `OllamaClient.isAvailable()` before enrichment. If Ollama is unavailable, the pipeline skips enrichment and continues at reduced confidence.
+## Single Model Policy
+
+**Model:** `BrainboxAI/law-il-E2B:Q4_K_M` via Ollama at `http://127.0.0.1:11434`.
+
+This model is non-negotiable in production. It is:
+- Trained on Israeli law, court verdicts, and legal Hebrew
+- Calibrated to produce output in correct formal Israeli legal register
+- The only model for which the evaluation suite (`packages/evals`) has validated results
+
+**No fallback model.** If Ollama is down or the model is not available, the AI step is skipped. The pipeline continues at reduced confidence. A warning is shown in the dashboard. The system never substitutes another model automatically.
+
+---
+
+## Case Isolation (CaseExecutionContext)
+
+Each agent execution is scoped to a single case via `CaseExecutionContext`:
+
+- All database queries include a `case_id` filter — data from other cases cannot be returned
+- Memory (`CaseMemory`) is isolated per case
+- Retrieval (`vec_chunks` KNN search) includes a `case_id` condition
+- Staleness check: if the case has been modified since the context was loaded, the agent reports stale results before presenting its conclusion
+
+**Agent exclusivity:** Only one agent may execute on a case at a time. A second request returns 409 `AGENT_BUSY`. This prevents concurrent agents from producing conflicting results or interfering with each other's memory writes.
+
+---
+
+## No External Data Transmission — Technical Guarantee
+
+The following code-level mechanisms enforce the zero-external-transmission guarantee:
+
+1. **No network calls in packages/ai or packages/model-router** except to `OLLAMA_BASE_URL` (default `http://127.0.0.1:11434` — localhost only)
+2. **Content Security Policy** in the Electron WebView2 shell blocks outbound requests from the UI
+3. **No telemetry package** is installed anywhere in the monorepo
+4. **Update checker** (`packages/update-core`) checks only a version number against a manifest file — it never sends document content or client data
+5. **Gmail Bridge** (`GmailSyncConfig`, migration 020) is disabled by default (`GMAIL_ENABLED=0`). When enabled, only email metadata (subject, sender, date) is stored — email bodies are not stored unless explicitly attached to a case document

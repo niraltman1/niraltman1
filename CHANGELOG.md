@@ -5,6 +5,103 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ---
 
+## [Rules Engine + Entity Graph + Legal Corpus] — 2026-06-03
+PRs #48–#53
+
+### Added
+- Migration 054 — `Rules_Engine` table seeded with 20 Israeli procedural rules across 9 procedure types (תביעה אזרחית, פלילי, עבודה, משפחה, מנהלי, חדלות פירעון, תעבורה, ביטוח לאומי, בג"ץ). Deadline logic is always read from the database — never hardcoded.
+- Migration 055 — `Entities` and `EntityRelations` tables (entity knowledge graph). Entities are populated during RAG enrichment: persons, organizations, court names, statutes, and case identifiers are extracted from each document and linked.
+- Migration 060 — `EntityEnrichmentLog` to track which documents have had entity extraction applied.
+- Migrations 056–059 — Offline legislation corpus: `CorpusDocuments`, `CorpusChunks` (FTS5 + sqlite-vec), `KnessetBills`, `KnessetVersions` (Knesset OData), `WikiSourcePages` (WikiSource), `CitationLinks` (citation graph edges).
+- `packages/retrieval` — hybrid offline legislation corpus ingestion pipeline (Knesset OData × WikiSource); graceful fallback when government endpoints return 403.
+- `/rules` API route — query, filter, and evaluate Israeli procedural rules from `Rules_Engine`.
+- `/citations` route extended — citation graph traversal via `CitationLinks` table.
+
+### Changed
+- RAG Worker now populates `Entities` / `EntityRelations` tables during document enrichment cycle.
+- `EntityEnrichmentLog` tracks enrichment state to avoid re-processing.
+
+---
+
+## [UX Modernization Phase 0+1] — 2026-05-31
+PRs #44–#49
+
+### Added
+- Notifications inbox (`/notifications` API route + dashboard panel) — real-time in-app notifications for pipeline events, agent completions, and deadline alerts.
+- Quick-add palette — keyboard-triggered (Cmd/Ctrl+K) command palette for fast case, client, and document creation.
+- Navigation accordion (8 groups): ראשי, תיקים, לקוחות, מסמכים, לוח שנה, סוכנים, כלים, מערכת.
+- Calendar view (`/calendar` API + dashboard page) — court hearings, deadlines, and reminders drawn from `CourtHearings` table.
+- Document viewer — in-app PDF/image viewer with annotation support; annotations persisted to `Annotations` table (see `/annotations` route).
+- Legal workbench (`/workbench/legal` API + dashboard page) — unified workspace combining document viewer, agent invocation, citation lookup, and annotation tools for a single case.
+
+### Changed
+- Sidebar navigation rebuilt as collapsible accordion with RTL support and active-state indicators.
+- Dashboard landing page updated to surface notifications count, upcoming hearings, and recent agent runs.
+
+---
+
+## [First-Run Fixes + sqlite-vec] — 2026-05-28
+PRs #38–#43
+
+### Added
+- `sqlite-vec.dll` download step added as step 11 of `publish.ps1`; DLL is bundled in `FactumIL_Dist\tools\`.
+- `SQLITE_VEC_PATH` registry entry set by installer at machine level (HKLM); `DatabaseConnection` reads this env var at startup to load the extension before any query runs.
+- `FACTUM_IL_VERSION` registry entry added to installer `[Registry]` section; surfaced at runtime via `/diagnostics` endpoint and in the WPF title bar.
+- Migration runner hardening: PRAGMA statements (`journal_mode`, `foreign_keys`, `auto_vacuum`) are now emitted before `BEGIN TRANSACTION`, fixing failures on SQLite versions that reject PRAGMA inside a transaction.
+- UTF-8 BOM injection (step 12 of `publish.ps1`) extended to cover all PowerShell scripts staged in `FactumIL_Dist\powershell\` — prevents Windows `cmd.exe` garbling Hebrew console output.
+
+### Fixed
+- First-run crash when `_data/` directory does not exist: `mkdirSync` guard added to `packages/api/src/start.ts` before opening the database.
+- sqlite-vec KNN queries failing on fresh installs because `SQLITE_VEC_PATH` was not resolved: now read from environment/registry with a clear error if missing.
+
+---
+
+## [Build Pipeline Round 2] — 2026-05-26
+PRs #29–#37
+
+### Added
+- `OLLAMA_BASE_URL` registry entry: installer writes `http://127.0.0.1:11434` at machine level so the API and desktop shell always agree on the Ollama endpoint without manual configuration.
+- `FACTUM_IL_VERSION` env var: written by installer, read by API at startup, returned in `/diagnostics` response and `X-Factum-Version` response header.
+- `packages/update-core` — auto-update check against GitHub Releases manifest; `UpdateLog` (migration 021) and `UpdateChannels` / `UpdateManifest` (migration 051) tables.
+- `packages/encrypted-backup` — AES-256-GCM scheduled backup pipeline; `BackupManifest` and `RecoveryLog` (migration 052) tables; hourly schedule when `BACKUP_ENCRYPT=1`.
+- `packages/support-diagnostics` — crash reporting, health diagnostics snapshot, safe-mode coordinator; `SupportTickets` and `DiagnosticsSnapshot` (migration 053) tables.
+- RecoveryWindow (`/recovery` route) — available in safe mode (`FACTUM_IL_SAFE_MODE=1`) for guided database restore.
+- Migrations 040–053: EventsLog, ObservabilityMetrics, RBACRoles/Permissions/UserRoles, AgentRuns, CaseExecutionContexts, VectorChunks, RetrievalCache, MemorySnapshots, GuardrailsLog, EvalResults, LitigationScores, UpdateChannels/Manifest, BackupManifest/RecoveryLog, SupportTickets/DiagnosticsSnapshot.
+
+### Fixed
+- `publish.ps1` step ordering corrected so `dotnet publish` (step 7) runs after all TypeScript builds complete.
+- Backend staging (step 8) now prunes devDependencies from `node_modules` before copying to `FactumIL_Dist\backend\`.
+
+---
+
+## [Build Pipeline Round 1] — 2026-05-23
+PRs #19–#22
+
+### Added
+- `publish.ps1` — 12-step staging pipeline replacing the earlier 4-step `apps/desktop/publish.ps1`. Produces the complete `FactumIL_Dist\` layout consumed by `installer.iss`.
+- `installer.iss` rewritten as the canonical Inno Setup 6 production script: `AppId`, `AppName="Factum-IL"`, 8 `[Registry]` entries, `[Run]` section for Ollama install and first-run setup, `[Code]` section for .NET 8 check, WebView2 check, and legal-documents directory wizard page.
+- `packages/events` — in-process typed event bus (publish/subscribe). EventsLog persistence (migration 040).
+- `packages/observability` — structured logging, metrics, PII-safe log sinks. ObservabilityMetrics table (migration 041).
+- `packages/model-router` — Ollama health-check wrapper with graceful degradation.
+- `packages/policy-engine` — RBAC policy evaluation. RBACRoles/Permissions/UserRoles tables (migration 042).
+- `packages/memory` — per-case conversation memory. MemorySnapshots table (migration 047).
+- `packages/retrieval` — sqlite-vec KNN + FTS5 hybrid search. VectorChunks table (migration 045), RetrievalCache (migration 046).
+- `packages/ai-guardrails` — input/output safety filters, PII detection, attorney-client privilege protection. GuardrailsLog table (migration 048).
+- `packages/evals` — AI evaluation harness and regression fixtures. EvalResults table (migration 049).
+- `packages/orchestrator` — multi-agent task orchestration.
+- `packages/agent-core` — base agent interface, tool registry, CaseExecutionContext.
+- `packages/litigation-intelligence` — litigation analytics, deadline risk scoring. LitigationScores table (migration 050).
+- `packages/enterprise-hooks` — extension points for enterprise customization.
+- `packages/legal-ontology` — Israeli legal taxonomy, court hierarchy, procedure type definitions.
+- `packages/sdk` — public TypeScript SDK for external integrations.
+- 5 agent routes: `/agents/summarize`, `/agents/timeline`, `/agents/research`, `/agents/contract-review`, `/agents/discovery`. AgentRuns table (migration 043), CaseExecutionContexts (migration 044).
+
+### Changed
+- `OLLAMA_MODEL` env var now set to `BrainboxAI/law-il-E2B:Q4_K_M` (not `legal-brain` alias). All references to `legal-brain` removed from codebase.
+- AI tier decision (`AI_TIER`) is now `high` only — project uses a single model, no tier-based model switching.
+
+---
+
 ## [Phase 11 — Production Finalization] — 2026-05-20
 
 ### Added

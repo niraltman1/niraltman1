@@ -1,5 +1,56 @@
 # יומן התפתחות הפרויקט — Factum-IL
 
+---
+
+## עדכון תיעוד מקיף — 2026-06-03 (v1.0.0)
+
+### מה בוצע
+
+עדכון תיעוד מקיף — כל קבצי ה-MD בפרויקט עודכנו לשקף את מצב הפרויקט נכון לגרסה v1.0.0.
+
+**קבצים שעודכנו ב-`docs/`:**
+
+| קובץ | מה שונה |
+|------|---------|
+| `setup.md` | 12 שלבי מתקין Inno Setup, פקודת ollama pull עם hf.co/BrainboxAI, sqlite-vec, 8 משתני registry, 60 migrations, רשימת 25 משתני סביבה, רשימת בדיקות first-run |
+| `architecture.md` | 25 חבילות, מבנה מלא, 5 סוכנים, 6 workers, RBAC, שני קבצי DB |
+| `engineering-decisions.md` | SQLite over Postgres, Ollama local over cloud, WAL, FTS5, sqlite-vec, forward-only migrations, RBAC roles, safe mode, single-model policy, Data Firewall, Inno Setup |
+| `production-release-manifest.md` | v1.0.0, 25 חבילות, 60 migrations, sqlite-vec.dll, 8 משתני registry |
+| `pipeline.md` | שלוש נתיבי OCR (טקסט/תמונה/שמע), ffmpeg + Whisper, Data Firewall, FTS5, RAG, agent analysis |
+| `admin-tools.md` | repair endpoints (fts, rag, manifest, integrity, replay), recovery endpoints, safe mode, backup restore, RBAC requirement |
+| `ai-isolation.md` | Data Firewall, PII sanitization, Zero-Root Rule, ai-guardrails package, GuardrailsLog migration 048, single model policy |
+| `recovery.md` | RecoveryWindow endpoints, safe mode activation, backup restore procedure, post-install audit results |
+| `search-scaling.md` | FTS5 Hebrew, sqlite-vec KNN, hybrid search (RRF), RetrievalCache migration 046 |
+| `db-hardening.md` | WAL + busy_timeout, forward-only migrations, SHA-256 checksums, two-DB architecture, integrity check |
+| `chaos-testing.md` | CI integration, agent chaos, safe mode chaos, recovery chaos scenarios |
+| `supervisor.md` | 6 workers, safe mode, RAG worker, backup scheduler, update scheduler, FTS healing |
+| `queue.md` | QueueItems migration 005, WorkerHealth migration 006, poison queue, WAL-safe queue, requeue endpoint |
+| `ocr.md` | Multi-lane (text/image/audio), ffmpeg → Whisper → Hebrew transcript, Document.ocr_text, routing logic |
+| `client-management.md` | RBAC access control, entity graph (Entities table migration 055), timeline endpoint |
+| `action-plan.md` | RBAC (attorney role required for sign), signed_by field, Data Firewall at intake |
+| `office-config.md` | אימות Config.ps1 עדכני, שני קבצי DB, uninstall behaviour |
+
+**קבצים שנוצרו ב-`docs/`:**
+
+| קובץ | תוכן |
+|------|------|
+| `AGENT-SSE-IMPLEMENTATION-PLAN.md` | STATUS: IMPLEMENTED |
+| `IA-NAV-IMPLEMENTATION-PLAN.md` | STATUS: IMPLEMENTED |
+| `INSIGHT-VERIFICATION-IMPLEMENTATION-PLAN.md` | STATUS: IMPLEMENTED |
+| `NOTIFICATIONS-INBOX-IMPLEMENTATION-PLAN.md` | STATUS: IMPLEMENTED |
+| `QUICK-ADD-PALETTE-IMPLEMENTATION-PLAN.md` | STATUS: IMPLEMENTED |
+| `UX-MODERNIZATION-ROADMAP.md` | STATUS: IMPLEMENTED — Phase 0 and Phase 1 complete |
+
+### מתי בוצע
+
+3 ביוני 2026
+
+### למה זה בוצע
+
+הגרסה v1.0.0 שוחררה ב-30 במאי 2026 לאחר סדרת תיקונים. התיעוד נשאר בגרסאות ישנות שתיארו שלבים קודמים (24 migrations, 4 packages, ללא sqlite-vec). עדכון זה מסנכרן את כל קבצי התיעוד עם המציאות הנוכחית.
+
+---
+
 > **למי המסמך הזה מיועד?**
 > מסמך זה נכתב עבור כל מי שרוצה להבין *מה נבנה* ו*למה*, בלי ידע טכני מוקדם.
 > הוא מבוסס על ניתוח מעמיק של כל השינויים שנעשו בקוד מאז ראשית הפרויקט ועד היום.
