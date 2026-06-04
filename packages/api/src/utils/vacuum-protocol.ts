@@ -117,7 +117,7 @@ async function isPdfSafe(filePath: string): Promise<{ valid: boolean; encrypted:
     const encrypted = chunk.includes('/Encrypt');
     
     return { valid: hasEof, encrypted };
-  } catch (e) {
+  } catch {
     return { valid: false, encrypted: false };
   } finally {
     await fh?.close().catch(() => undefined);
@@ -162,7 +162,7 @@ async function isImageSafe(filePath: string): Promise<boolean> {
     const isIco = header[0] === 0x00 && header[1] === 0x00 && header[2] === 0x01;
     
     return isJpeg || isPng || isGif || isBmp || isWebp || isTiff || isSvg || isIco;
-  } catch (e) {
+  } catch {
     return false;
   } finally {
     await fh?.close().catch(() => undefined);
