@@ -1,0 +1,72 @@
+name: Ingest Knesset Corpus
+
+on:
+  workflow_dispatch:
+    inputs:
+      embed:
+        description: 'Generate per-section embeddings via nomic-embed-text (requires Ollama)'
+        type: boolean
+        default: true
+
+permissions:
+  contents: write
+
+jobs:
+  ingest:
+    name: Ingest 1,077 Israeli laws → v-corpus-latest
+    runs-on: ubuntu-latest
+    timeout-minutes: 240
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: pnpm/action-setup@v4
+        with:
+          version: '9.4.0'
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: pnpm
+          cache-dependency-path: pnpm-lock.yaml
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Install Ollama + pull nomic-embed-text
+        if: ${{ inputs.embed }}
+        run: |
+          curl -fsSL https://ollama.com/install.sh | sh
+          ollama serve &
+          echo "Waiting for Ollama to be ready..."
+          for i in $(seq 1 30); do
+            curl -sf http://localhost:11434/api/tags > /dev/null && echo "Ollama ready after ${i}s" && break || sleep 1
+          done
+          ollama pull nomic-embed-text
+
+      - name: Run ingestion
+        run: |
+          if [ "${{ inputs.embed }}" = "true" ]; then
+            pnpm ingest-knesset-odata -- --embed --delay 500
+          else
+            pnpm ingest-knesset-odata -- --delay 500
+          fi
+
+      - name: Create release v-corpus-latest (if absent)
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release create v-corpus-latest \
+            --repo niraltman1/niraltman1 \
+            --title "Knesset Legal Corpus (latest)" \
+            --notes "Auto-generated: all valid Israeli laws from Knesset OData × WikiSource (ספר החוקים הפתוח), with optional nomic-embed-text per-section embeddings. Not a product release — consumed by publish.ps1 during the Windows installer build." \
+            || true
+
+      - name: Upload corpus asset (clobber existing)
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release upload v-corpus-latest \
+            --repo niraltman1/niraltman1 \
+            --clobber \
+            assets/legal-corpus/legal-corpus.knesset.jsonl.gz
