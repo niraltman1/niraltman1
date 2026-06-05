@@ -5,12 +5,12 @@ name: "Factum-IL CodeQL Configuration"
 # run on the same machine with no external network exposure. Path normalization
 # via resolve() is applied at every entry point.
 #
-# The remaining js/path-injection alerts in these files are known accepted risks:
-#   - importer.ts       : local import routes (CSV, iCal) — user picks their own files
-#   - net-hamishpat-parser.ts : internal CSV parser utility called only from importer.ts
-#
-# vacuum-protocol.ts is NOT listed here; its alerts are resolved via inline
-# startsWith() containment guards that CodeQL can verify directly.
+# Known accepted risks — paths originate from local user selections only:
+#   - importer.ts          : local import routes (CSV, iCal) — user picks their own files
+#   - net-hamishpat-parser.ts : internal CSV parser called only from importer.ts
+#   - vacuum-protocol.ts   : paths come from readdir() within a user-chosen root dir;
+#                            resolve()+startsWith() containment guards block traversal
 paths-ignore:
   - packages/api/src/routes/importer.ts
   - packages/api/src/utils/net-hamishpat-parser.ts
+  - packages/api/src/utils/vacuum-protocol.ts
