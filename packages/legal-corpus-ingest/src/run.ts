@@ -41,7 +41,7 @@ function createPool(concurrency: number) {
             queue.shift()?.();
           });
         };
-        active < concurrency ? attempt() : queue.push(attempt);
+        if (active < concurrency) { attempt(); } else { queue.push(attempt); }
       });
     },
   };
