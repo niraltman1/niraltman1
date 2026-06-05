@@ -215,12 +215,7 @@ jobs:
             echo "::error::First batch decompresses to empty content"
             exit 1
           fi
-          if ! echo "$FIRST_LINE" | python3 -c "
-import sys, json
-d = json.load(sys.stdin)
-assert d.get('schemaVersion') == 1, 'missing schemaVersion:1'
-assert 'israelLawId' in d, 'missing israelLawId'
-" 2>/dev/null; then
+          if ! echo "$FIRST_LINE" | python3 -c "import sys,json;d=json.load(sys.stdin);assert d.get('schemaVersion')==1;assert 'israelLawId' in d" 2>/dev/null; then
             echo "::error::First JSONL line is not a valid schemaVersion:1 corpus record"
             exit 1
           fi
