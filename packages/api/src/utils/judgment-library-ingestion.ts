@@ -12,7 +12,7 @@
  */
 
 import { readdirSync, statSync } from 'node:fs';
-import { join, extname, basename, resolve as resolvePath } from 'node:path';
+import { join, sep, extname, basename, resolve as resolvePath } from 'node:path';
 import { execFile } from 'node:child_process';
 import { promisify } from 'node:util';
 import { indexDocument } from '@factum-il/retrieval';
@@ -115,15 +115,16 @@ ${excerpt}`;
   } catch { return null; }
 }
 
-function collectFiles(dir: string): string[] {
+function collectFiles(dir: string, rootDir: string): string[] {
   const results: string[] = [];
-  // Canonicalize each directory before reading to prevent symlink / traversal attacks.
   const canonDir = resolvePath(dir);
+  // Enforce root boundary — prevents escaping via symlinks or .. path components.
+  if (canonDir !== rootDir && !canonDir.startsWith(rootDir + sep)) return [];
   try {
     for (const entry of readdirSync(canonDir, { withFileTypes: true })) {
       const full = join(canonDir, entry.name);
       if (entry.isDirectory()) {
-        results.push(...collectFiles(full));
+        results.push(...collectFiles(full, rootDir));
       } else if (entry.isFile() && SUPPORTED_EXT.has(extname(entry.name).toLowerCase())) {
         results.push(full);
       }
@@ -136,7 +137,8 @@ export async function ingestJudgmentFolder(
   folderPath: string,
   repos:      Repos,
 ): Promise<IngestResult> {
-  const files  = collectFiles(folderPath);
+  const rootDir = resolvePath(folderPath);
+  const files   = collectFiles(rootDir, rootDir);
   const result: IngestResult = { processed: 0, failed: 0, skipped: 0, errors: [] };
 
   for (const filePath of files) {
