@@ -43,7 +43,7 @@ jobs:
         run: pnpm install --frozen-lockfile
 
       - name: Run ingestion (OData + WikiSource, no embeddings)
-        run: pnpm ingest-knesset-odata -- --delay 500
+        run: pnpm ingest-knesset-odata -- --delay 500 --batch-size 100
 
       - name: Upload corpus artifact (always — preserves output even on partial runs)
         if: always()
@@ -51,7 +51,7 @@ jobs:
         with:
           name: legal-corpus-no-embed-${{ github.run_id }}
           path: |
-            assets/legal-corpus/legal-corpus.knesset.jsonl.gz
+            assets/legal-corpus/batches/
             assets/legal-corpus/corpus-manifest.json
           retention-days: 7
           if-no-files-found: error
@@ -136,7 +136,7 @@ jobs:
         with:
           name: legal-corpus-embedded-${{ github.run_id }}
           path: |
-            assets/legal-corpus/legal-corpus.knesset.jsonl.gz
+            assets/legal-corpus/batches/
             assets/legal-corpus/corpus-manifest.json
           retention-days: 7
           if-no-files-found: warn
@@ -185,28 +185,33 @@ jobs:
 
       - name: Validate artifact
         run: |
-          FILE="assets/legal-corpus/legal-corpus.knesset.jsonl.gz"
+          BATCH_DIR="assets/legal-corpus/batches"
 
-          if [ ! -f "$FILE" ]; then
-            echo "::error::Corpus artifact not found at ${FILE}"
+          if [ ! -d "$BATCH_DIR" ]; then
+            echo "::error::Corpus batches directory not found at ${BATCH_DIR}"
             exit 1
           fi
 
-          SIZE=$(stat -c%s "$FILE")
-          echo "Artifact size: ${SIZE} bytes"
-          if [ "$SIZE" -lt 10000 ]; then
-            echo "::error::Artifact is suspiciously small (${SIZE} bytes) — possible empty or failed run"
+          BATCH_COUNT=$(ls "$BATCH_DIR"/batch-*.jsonl.gz 2>/dev/null | wc -l)
+          if [ "$BATCH_COUNT" -eq 0 ]; then
+            echo "::error::No batch files found in ${BATCH_DIR}"
             exit 1
           fi
 
-          if ! gzip -t "$FILE" 2>/dev/null; then
-            echo "::error::Artifact is not a valid gzip file"
-            exit 1
-          fi
+          TOTAL_SIZE=0
+          for f in "$BATCH_DIR"/batch-*.jsonl.gz; do
+            SIZE=$(stat -c%s "$f")
+            TOTAL_SIZE=$((TOTAL_SIZE + SIZE))
+            if ! gzip -t "$f" 2>/dev/null; then
+              echo "::error::Batch file ${f} is not a valid gzip file"
+              exit 1
+            fi
+          done
 
-          FIRST_LINE=$(zcat "$FILE" | head -1)
+          FIRST_FILE=$(ls "$BATCH_DIR"/batch-*.jsonl.gz | sort | head -1)
+          FIRST_LINE=$(zcat "$FIRST_FILE" | head -1)
           if [ -z "$FIRST_LINE" ]; then
-            echo "::error::Artifact decompresses to empty content"
+            echo "::error::First batch decompresses to empty content"
             exit 1
           fi
           if ! echo "$FIRST_LINE" | python3 -c "
@@ -219,8 +224,8 @@ assert 'israelLawId' in d, 'missing israelLawId'
             exit 1
           fi
 
-          LAW_COUNT=$(zcat "$FILE" | wc -l)
-          echo "::notice::Artifact valid — ${SIZE} bytes, ${LAW_COUNT} laws"
+          LAW_COUNT=$(zcat "$BATCH_DIR"/batch-*.jsonl.gz | wc -l)
+          echo "::notice::Artifact valid — ${BATCH_COUNT} batches, ${TOTAL_SIZE} bytes total, ${LAW_COUNT} laws"
 
       - name: Create release v-corpus-latest (idempotent)
         env:
@@ -232,14 +237,14 @@ assert 'israelLawId' in d, 'missing israelLawId'
             --notes "Auto-generated: all valid Israeli laws from Knesset OData × WikiSource (ספר החוקים הפתוח). Not a product release — consumed by publish.ps1 during the Windows installer build." \
             || true
 
-      - name: Upload corpus text artifact
+      - name: Upload corpus batch files
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
           gh release upload v-corpus-latest \
             --repo niraltman1/niraltman1 \
             --clobber \
-            assets/legal-corpus/legal-corpus.knesset.jsonl.gz
+            assets/legal-corpus/batches/batch-*.jsonl.gz
 
       - name: Upload corpus manifest
         if: hashFiles('assets/legal-corpus/corpus-manifest.json') != ''
