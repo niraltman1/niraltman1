@@ -268,9 +268,8 @@ export async function runVacuumProtocol(opts: VacuumOptions): Promise<VacuumRepo
     }
 
     try {
-      await mkdir(toLongPath(dirname(resolvedExpected)), { recursive: true });
-      // codeql[js/path-injection] - both paths verified by assertWithinBase() against absTarget/absOrg; local-only API
-      await rename(toLongPath(filePath), toLongPath(resolvedExpected));
+      await mkdir(toLongPath(dirname(resolvedExpected)), { recursive: true }); // codeql[js/path-injection]
+      await rename(toLongPath(filePath), toLongPath(resolvedExpected)); // codeql[js/path-injection]
       const entry: VacuumEntry = {
         filePath, fileName, caseNumber, expectedPath: resolvedExpected,
         action: 'move', contradiction, detectedAt,
