@@ -49,6 +49,10 @@ function parseArgs(): RunOptions {
 }
 
 runIngestion(parseArgs()).catch((err) => {
-  process.stderr.write(`[knesset] fatal: ${String(err)}\n`);
+  const msg = String(err);
+  if (process.env['GITHUB_ACTIONS'] === 'true') {
+    process.stderr.write(`::error title=Ingestion fatal::${msg}\n`);
+  }
+  process.stderr.write(`[knesset] fatal: ${msg}\n`);
   process.exit(1);
 });

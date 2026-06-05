@@ -1,144 +1,260 @@
-import fs from 'fs';
-import path from 'path';
+name: Ingest Knesset Corpus
 
-// הגדרות ופרמטרים מתוך ה-CLI
-const args = process.argv.slice(2);
-const shouldEmbed = args.includes('--embed');
-const delayArgIndex = args.indexOf('--delay');
-const delayMs = delayArgIndex !== -1 ? parseInt(args[delayArgIndex + 1], 10) : 500;
+on:
+  workflow_dispatch:
+    inputs:
+      embed:
+        description: 'Generate per-section embeddings (only fast on self-hosted GPU runner — will timeout on ubuntu-latest)'
+        type: boolean
+        default: false
 
-// נתיב השמירה - כתיבה תוך כדי ריצה כדי לא לפוצץ את הזיכרון
-const OUTPUT_DIR = path.join(process.cwd(), 'assets', 'legal-corpus');
-const OUTPUT_FILE = path.join(OUTPUT_DIR, 'legal-corpus.knesset.jsonl');
-const OLLAMA_URL = 'http://127.0.0.1:11434/api/embeddings';
+# Only one corpus build runs at a time. cancel-in-progress: false means a queued run waits
+# rather than cancelling the current one (losing 20-40 min of work).
+concurrency:
+  group: knesset-corpus-ingest
+  cancel-in-progress: false
 
-if (!fs.existsSync(OUTPUT_DIR)) {
-  fs.mkdirSync(OUTPUT_DIR, { recursive: true });
-}
+permissions:
+  contents: write
 
-// פונקציית השהייה
-const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
+jobs:
+  # ── Job A: OData + WikiSource, no embeddings (~20-40 min) ──────────────────────────────
+  build-corpus:
+    name: Build corpus (OData + WikiSource)
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    env:
+      NODE_OPTIONS: --max-old-space-size=6144
 
-// משיכת נתונים עם Timeout וניסיונות חוזרים (מגן מפני תקיעות רשת)
-async function fetchWithRetry(url: string, options: any = {}, retries = 3, timeoutMs = 10000): Promise<any> {
-  for (let i = 0; i < retries; i++) {
-    const controller = new AbortController();
-    const id = setTimeout(() => controller.abort(), timeoutMs);
-    try {
-      const response = await fetch(url, {
-        ...options,
-        signal: controller.signal,
-        headers: {
-          'User-Agent': 'Factum-IL-Bot/1.0 (Research Agent Ingestion)',
-          ...options.headers,
-        },
-      });
-      clearTimeout(id);
-      if (!response.ok) throw new Error(`HTTP Error: ${response.status}`);
-      return await response.text();
-    } catch (error: any) {
-      clearTimeout(id);
-      console.warn(`[אזהרה] שגיאה בגישה ל-${url} (ניסיון ${i + 1}/${retries}): ${error.message}`);
-      if (i === retries - 1) throw error;
-      await sleep(2000 * (i + 1)); // Backoff מעריכי
-    }
-  }
-}
+    steps:
+      - uses: actions/checkout@v4
 
-// קידוד וקטורי מול Ollama (עם הגנת קריסה)
-async function getEmbedding(text: string): Promise<number[]> {
-  try {
-    const controller = new AbortController();
-    const id = setTimeout(() => controller.abort(), 15000); // 15 שניות גג לקידוד
-    
-    const response = await fetch(OLLAMA_URL, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ model: 'nomic-embed-text', prompt: text }),
-      signal: controller.signal,
-    });
-    
-    clearTimeout(id);
-    if (!response.ok) throw new Error(`Ollama Error: ${response.status}`);
-    const data = await response.json();
-    return data.embedding;
-  } catch (error: any) {
-    console.error(`[שגיאת Ollama] הקידוד נכשל עבור טקסט באורך ${text.length} תווים: ${error.message}`);
-    return []; // מחזיר מערך ריק במקום לתקוע את התהליך
-  }
-}
+      - uses: pnpm/action-setup@v4
+        with:
+          version: '9.4.0'
 
-// פירוק טקסט ארוך למקטעים קצרים (מונע קריסת Context Window ב-Ollama)
-function chunkTextBySections(rawText: string): string[] {
-  // פיצול גס לפי סימוני פרקים/סעיפים בוויקיטקסט (למשל "== פרק א ==" או "סעיף 1.")
-  const chunks = rawText.split(/(?=== [א-ת])/).map(c => c.trim()).filter(c => c.length > 50);
-  
-  // אם לא נמצאו פרקים, מפצלים לפי פסקאות כדי להבטיח שמירה על גודל הגיוני
-  if (chunks.length <= 1) {
-    return rawText.split(/\n\n/).map(c => c.trim()).filter(c => c.length > 50);
-  }
-  return chunks;
-}
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: pnpm
+          cache-dependency-path: pnpm-lock.yaml
 
-// הפונקציה הראשית
-async function main() {
-  console.log(`[Factum IL] מתחיל ייבוא מאגר חקיקה...`);
-  console.log(`השהייה: ${delayMs}ms | יצירת וקטורים: ${shouldEmbed}`);
-  
-  const writeStream = fs.createWriteStream(OUTPUT_FILE, { flags: 'w' }); // דורס קובץ ישן
-  
-  // כאן אמורה להיות השאילתה שלך ל-OData של הכנסת או ל-JSON שחילצנו מקובץ ה-PDF.
-  // לשם ההדגמה היציבה, אנו מגדירים מערך חוקים (יש להחליף בלולאה המלאה שלך):
-  const mockLawsToIngest = [
-    { id: "1", title: "חוק ההוצאה לפועל", url: "https://he.wikisource.org/w/index.php?title=חוק_ההוצאה_לפועל&action=raw" },
-    { id: "2", title: "פקודת התעבורה", url: "https://he.wikisource.org/w/index.php?title=פקודת_התעבורה&action=raw" }
-  ];
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
 
-  let totalProcessed = 0;
+      - name: Run ingestion (OData + WikiSource, no embeddings)
+        run: pnpm ingest-knesset-odata -- --delay 500
 
-  for (const law of mockLawsToIngest) {
-    try {
-      console.log(`מוריד: ${law.title}...`);
-      const rawText = await fetchWithRetry(law.url);
-      const chunks = chunkTextBySections(rawText);
-      
-      console.log(`> פוצל ל-${chunks.length} סעיפים/מקטעים.`);
+      - name: Upload corpus artifact (always — preserves output even on partial runs)
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: legal-corpus-no-embed-${{ github.run_id }}
+          path: |
+            assets/legal-corpus/legal-corpus.knesset.jsonl.gz
+            assets/legal-corpus/corpus-manifest.json
+          retention-days: 7
+          if-no-files-found: error
 
-      for (let i = 0; i < chunks.length; i++) {
-        const chunkText = chunks[i];
-        let embedding: number[] = [];
-        
-        if (shouldEmbed) {
-          embedding = await getEmbedding(chunkText);
-        }
+  # ── Job B: Embedding enrichment pass (conditional on inputs.embed) ─────────────────────
+  embed-corpus:
+    name: Enrich corpus with embeddings (nomic-embed-text)
+    needs: build-corpus
+    if: ${{ inputs.embed == true }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 300
+    env:
+      NODE_OPTIONS: --max-old-space-size=6144
+      EMBED_MODEL: nomic-embed-text
 
-        const jsonlRecord = {
-          law_id: law.id,
-          law_title: law.title,
-          chunk_index: i,
-          text: chunkText,
-          embedding: embedding,
-          source: "knesset_odata_wikisource",
-          timestamp: new Date().toISOString()
-        };
+    steps:
+      - uses: actions/checkout@v4
 
-        // כתיבה אסינכרונית ומיידית לדיסק - אם הסקריפט נופל, מה שנכתב נשמר!
-        writeStream.write(JSON.stringify(jsonlRecord) + '\n');
-      }
+      - uses: pnpm/action-setup@v4
+        with:
+          version: '9.4.0'
 
-      totalProcessed++;
-      await sleep(delayMs); // כיבוד השרתים החיצוניים כדי לא להיחסם
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: pnpm
+          cache-dependency-path: pnpm-lock.yaml
 
-    } catch (error: any) {
-      console.error(`[שגיאה קריטית] דילוג על "${law.title}" בגלל חריגה: ${error.message}`);
-    }
-  }
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
 
-  writeStream.end();
-  console.log(`\n[הושלם] עובדו בהצלחה ${totalProcessed} חוקים. הקובץ נשמר ב- ${OUTPUT_FILE}`);
-}
+      - name: Download corpus from build-corpus job
+        uses: actions/download-artifact@v4
+        with:
+          name: legal-corpus-no-embed-${{ github.run_id }}
+          path: assets/legal-corpus
 
-main().catch(err => {
-  console.error("קריסה כללית בסקריפט:", err);
-  process.exit(1);
-});
+      - name: Cache Ollama models
+        id: ollama-cache
+        uses: actions/cache@v4
+        with:
+          path: ~/.ollama
+          # Bump -v2 to force re-download if the model needs refreshing.
+          key: ollama-${{ env.EMBED_MODEL }}-v2
+
+      - name: Install Ollama
+        run: curl -fsSL https://ollama.com/install.sh | sh
+
+      - name: Start Ollama server
+        run: ollama serve &
+
+      - name: Wait for Ollama to be ready (up to 120 s)
+        run: |
+          echo "Waiting for Ollama API..."
+          for i in $(seq 1 120); do
+            if curl -sf http://localhost:11434/api/tags > /dev/null 2>&1; then
+              echo "::notice::Ollama ready after ${i}s"
+              break
+            fi
+            if [ "$i" -eq 120 ]; then
+              echo "::error::Ollama did not become ready within 120 seconds"
+              exit 1
+            fi
+            sleep 1
+          done
+
+      - name: Pull nomic-embed-text model (skipped on cache hit)
+        if: steps.ollama-cache.outputs.cache-hit != 'true'
+        run: |
+          ollama pull nomic-embed-text
+          if ! ollama list | grep -q 'nomic-embed-text'; then
+            echo "::error::nomic-embed-text model not available after pull"
+            exit 1
+          fi
+
+      - name: Run embedding enrichment pass
+        run: pnpm enrich-embeddings
+
+      - name: Upload enriched corpus artifact (always — preserves partial work)
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: legal-corpus-embedded-${{ github.run_id }}
+          path: |
+            assets/legal-corpus/legal-corpus.knesset.jsonl.gz
+            assets/legal-corpus/corpus-manifest.json
+          retention-days: 7
+          if-no-files-found: warn
+
+  # ── Job C: Validate + publish to v-corpus-latest ───────────────────────────────────────
+  publish-release:
+    name: Publish to v-corpus-latest
+    needs: [build-corpus, embed-corpus]
+    # Run if build-corpus succeeded, regardless of whether embed-corpus ran.
+    # embed-corpus is 'skipped' when embed=false (not 'failure'), so this covers both paths.
+    if: >-
+      always() &&
+      needs.build-corpus.result == 'success' &&
+      (needs.embed-corpus.result == 'success' ||
+       needs.embed-corpus.result == 'skipped' ||
+       needs.embed-corpus.result == 'failure')
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    steps:
+      - uses: actions/checkout@v4
+
+      # Prefer the embedded artifact; fall back to base when embed-corpus was skipped or failed.
+      - name: Download enriched artifact (preferred)
+        id: dl-embedded
+        uses: actions/download-artifact@v4
+        continue-on-error: true
+        with:
+          name: legal-corpus-embedded-${{ github.run_id }}
+          path: assets/legal-corpus
+
+      - name: Download base artifact (fallback)
+        if: steps.dl-embedded.outcome != 'success'
+        uses: actions/download-artifact@v4
+        with:
+          name: legal-corpus-no-embed-${{ github.run_id }}
+          path: assets/legal-corpus
+
+      - name: Annotate which artifact is being published
+        run: |
+          if [ "${{ steps.dl-embedded.outcome }}" = "success" ]; then
+            echo "::notice::Publishing EMBEDDED corpus artifact (text + nomic-embed-text vectors)"
+          else
+            echo "::notice::Publishing BASE corpus artifact (text only, no embeddings)"
+          fi
+
+      - name: Validate artifact
+        run: |
+          FILE="assets/legal-corpus/legal-corpus.knesset.jsonl.gz"
+
+          if [ ! -f "$FILE" ]; then
+            echo "::error::Corpus artifact not found at ${FILE}"
+            exit 1
+          fi
+
+          SIZE=$(stat -c%s "$FILE")
+          echo "Artifact size: ${SIZE} bytes"
+          if [ "$SIZE" -lt 10000 ]; then
+            echo "::error::Artifact is suspiciously small (${SIZE} bytes) — possible empty or failed run"
+            exit 1
+          fi
+
+          if ! gzip -t "$FILE" 2>/dev/null; then
+            echo "::error::Artifact is not a valid gzip file"
+            exit 1
+          fi
+
+          FIRST_LINE=$(zcat "$FILE" | head -1)
+          if [ -z "$FIRST_LINE" ]; then
+            echo "::error::Artifact decompresses to empty content"
+            exit 1
+          fi
+          if ! echo "$FIRST_LINE" | python3 -c "
+import sys, json
+d = json.load(sys.stdin)
+assert d.get('schemaVersion') == 1, 'missing schemaVersion:1'
+assert 'israelLawId' in d, 'missing israelLawId'
+" 2>/dev/null; then
+            echo "::error::First JSONL line is not a valid schemaVersion:1 corpus record"
+            exit 1
+          fi
+
+          LAW_COUNT=$(zcat "$FILE" | wc -l)
+          echo "::notice::Artifact valid — ${SIZE} bytes, ${LAW_COUNT} laws"
+
+      - name: Create release v-corpus-latest (idempotent)
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release create v-corpus-latest \
+            --repo niraltman1/niraltman1 \
+            --title "Knesset Legal Corpus (latest)" \
+            --notes "Auto-generated: all valid Israeli laws from Knesset OData × WikiSource (ספר החוקים הפתוח). Not a product release — consumed by publish.ps1 during the Windows installer build." \
+            || true
+
+      - name: Upload corpus text artifact
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release upload v-corpus-latest \
+            --repo niraltman1/niraltman1 \
+            --clobber \
+            assets/legal-corpus/legal-corpus.knesset.jsonl.gz
+
+      - name: Upload corpus manifest
+        if: hashFiles('assets/legal-corpus/corpus-manifest.json') != ''
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release upload v-corpus-latest \
+            --repo niraltman1/niraltman1 \
+            --clobber \
+            assets/legal-corpus/corpus-manifest.json
+
+      - name: Annotate release URL
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          URL=$(gh release view v-corpus-latest \
+            --repo niraltman1/niraltman1 --json url -q .url 2>/dev/null || echo "(unavailable)")
+          echo "::notice::Corpus published → ${URL}"
