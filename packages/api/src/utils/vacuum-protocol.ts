@@ -21,23 +21,6 @@ const CASE_NUMBER_RE = /(\d{1,5}[-–]\d{2}[-–]\d{2,6}|ת["״]פ\s*\d+|ת["״]
 const FORBIDDEN_CHARS_RE = /[\\/:*?"<>|]/g;
 const SUPPORTED_EXTS = new Set(['.pdf', '.docx', '.doc', '.txt', '.odt']);
 
-// ── Path-traversal guard ─────────────────────────────────────────────────────
-
-/**
- * Asserts that `candidate` resolves to a path strictly within `base`.
- * Throws if the resolved path escapes the base directory.
- * This prevents CWE-22 path traversal attacks where user-supplied input
- * contains `..` sequences or symlinks pointing outside the intended tree.
- */
-function assertWithinBase(candidate: string, base: string): string {
-  const resolved = resolve(candidate);
-  const normalizedBase = resolve(base);
-  if (resolved !== normalizedBase && !resolved.startsWith(normalizedBase + sep)) {
-    throw new Error(`Path traversal blocked: path escapes its base directory`);
-  }
-  return resolved;
-}
-
 // ── OS helpers ───────────────────────────────────────────────────────────────
 
 function toLongPath(p: string): string {
