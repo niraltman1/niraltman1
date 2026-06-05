@@ -76,8 +76,8 @@ export function importerRouter(repos: Repos): Router {
    */
   router.post('/ical', validate(icalSchema), asyncHandler(async (req, res) => {
     const filePath = resolve((req.body as { filePath: string }).filePath);
-    if (!existsSync(filePath)) { fail(res, 'NOT_FOUND', `קובץ לא נמצא: ${filePath}`, 404); return; } // codeql[js/path-injection]
-    const raw = readFileSync(filePath, 'utf8'); // codeql[js/path-injection]
+    if (!existsSync(filePath)) { fail(res, 'NOT_FOUND', `קובץ לא נמצא: ${filePath}`, 404); return; }
+    const raw = readFileSync(filePath, 'utf8');
     const events = parseIcalEvents(raw);
     let imported = 0;
     let skipped  = 0;

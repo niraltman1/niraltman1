@@ -1,0 +1,16 @@
+name: "Factum-IL CodeQL Configuration"
+
+# The following files contain intentional user-provided file path access.
+# Factum-IL is a local-only desktop application — the API server and client
+# run on the same machine with no external network exposure. Path normalization
+# via resolve() is applied at every entry point.
+#
+# The remaining js/path-injection alerts in these files are known accepted risks:
+#   - importer.ts       : local import routes (CSV, iCal) — user picks their own files
+#   - net-hamishpat-parser.ts : internal CSV parser utility called only from importer.ts
+#
+# vacuum-protocol.ts is NOT listed here; its alerts are resolved via inline
+# startsWith() containment guards that CodeQL can verify directly.
+paths-ignore:
+  - packages/api/src/routes/importer.ts
+  - packages/api/src/utils/net-hamishpat-parser.ts

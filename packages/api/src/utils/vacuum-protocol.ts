@@ -160,12 +160,10 @@ export async function runVacuumProtocol(opts: VacuumOptions): Promise<VacuumRepo
 
   for (let idx = 0; idx < filePaths.length; idx++) {
     const rawFilePath = filePaths[idx]!;
-    // Guard: scanDir already constrains paths to absTarget, but resolve again
-    // so CodeQL sees an explicit containment check before any fs operation.
-    let filePath: string;
-    try {
-      filePath = assertWithinBase(rawFilePath, absTarget);
-    } catch {
+    // Inline containment guard — resolve + startsWith lets CodeQL trace the
+    // sanitization directly without crossing a function-call boundary.
+    const filePath = resolve(rawFilePath);
+    if (filePath !== absTarget && !filePath.startsWith(absTarget + sep)) {
       errors.push(`נתיב חשוד דולג: ${rawFilePath}`);
       continue;
     }
@@ -217,11 +215,9 @@ export async function runVacuumProtocol(opts: VacuumOptions): Promise<VacuumRepo
     const safeFolder  = sanitizeFolderName(caseNumber);
     const expectedPath = join(absOrg, safeFolder, fileName);
 
-    // Guard: verify the constructed destination stays within absOrg.
-    let resolvedExpected: string;
-    try {
-      resolvedExpected = assertWithinBase(expectedPath, absOrg);
-    } catch {
+    // Inline containment guard for the destination path.
+    const resolvedExpected = resolve(expectedPath);
+    if (resolvedExpected !== absOrg && !resolvedExpected.startsWith(absOrg + sep)) {
       errors.push(`נתיב יעד חשוד דולג: ${expectedPath}`);
       continue;
     }
@@ -268,8 +264,8 @@ export async function runVacuumProtocol(opts: VacuumOptions): Promise<VacuumRepo
     }
 
     try {
-      await mkdir(toLongPath(dirname(resolvedExpected)), { recursive: true }); // codeql[js/path-injection]
-      await rename(toLongPath(filePath), toLongPath(resolvedExpected)); // codeql[js/path-injection]
+      await mkdir(toLongPath(dirname(resolvedExpected)), { recursive: true });
+      await rename(toLongPath(filePath), toLongPath(resolvedExpected));
       const entry: VacuumEntry = {
         filePath, fileName, caseNumber, expectedPath: resolvedExpected,
         action: 'move', contradiction, detectedAt,

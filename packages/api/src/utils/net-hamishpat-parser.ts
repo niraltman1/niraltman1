@@ -145,7 +145,7 @@ async function readCSV(filePath: string): Promise<{ headers: string[]; rows: str
   const resolvedPath = resolve(filePath);
   const lines: string[] = [];
   const rl = createInterface({
-    input:     createReadStream(resolvedPath, { encoding: 'utf8' }), // codeql[js/path-injection]
+    input:     createReadStream(resolvedPath, { encoding: 'utf8' }),
     crlfDelay: Infinity,
   });
   for await (const line of rl) {
