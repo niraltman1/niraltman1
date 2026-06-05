@@ -6,6 +6,7 @@ import { getStatus as getResourceStatus, setTurboMode } from '../utils/resource-
 import { seedDemo } from '../utils/seed-demo.js';
 import { runVacuumProtocol } from '../utils/vacuum-protocol.js';
 import { reconfigureWatchFolders, rescanFolder } from '../utils/file-ingestion.js';
+import { ingestJudgmentFolder } from '../utils/judgment-library-ingestion.js';
 import { existsSync, statSync } from 'node:fs';
 import { ValidationError, NotFoundError } from '../errors/api-error.js';
 import type { RagHealingService } from '../utils/rag-healing.js';
@@ -14,6 +15,12 @@ import {
   getSystemMode, setSystemMode,
   assignCaseAccess, revokeCaseAccess, listCaseAssignments,
 } from '@factum-il/agent-core';
+
+function parseJsonArray(raw: unknown): string[] {
+  if (typeof raw !== 'string' || raw.length === 0) return [];
+  try { const v = JSON.parse(raw); return Array.isArray(v) ? v.map(String) : []; }
+  catch { return []; }
+}
 
 export function adminRouter(repos: Repos, healingService: RagHealingService): Router {
   const router = Router();
@@ -355,6 +362,55 @@ export function adminRouter(repos: Repos, healingService: RagHealingService): Ro
     if (!row) throw new NotFoundError(`Assignment ${id}`);
     revokeCaseAccess(row.case_id, row.user_id, me, repos.db as unknown as Parameters<typeof revokeCaseAccess>[3]);
     ok(res, { ok: true });
+  }));
+
+  // ── Judgment Library (ספריית פסקי דין) ──────────────────────────────────────
+  // Ingest court verdicts from a local folder into the retrieval index.
+  router.post('/judgment-library/ingest', requireRole('admin', repos), asyncHandler(async (req, res) => {
+    const { folderPath } = req.body as { folderPath?: string };
+    if (!folderPath || typeof folderPath !== 'string' || !folderPath.trim()) {
+      throw new ValidationError('folderPath שדה חובה');
+    }
+    if (!existsSync(folderPath) || !statSync(folderPath).isDirectory()) {
+      throw new ValidationError(`לא תיקייה תקפה: ${folderPath}`);
+    }
+    const summary = await ingestJudgmentFolder(folderPath.trim(), repos);
+    ok(res, summary);
+  }));
+
+  // List all indexed verdicts with chunk counts and metadata.
+  router.get('/judgment-library', requireRole('admin', repos), asyncHandler((_req, res) => {
+    const rows = repos.db.prepare(`
+      SELECT pd.id, pd.original_filename, pd.source_path, pd.procedure_type,
+             pd.legal_domain, pd.legal_questions, pd.factual_summary, pd.keywords,
+             pd.ingested_at, pd.document_id,
+             (SELECT COUNT(*) FROM DocumentChunks dc WHERE dc.document_id = pd.document_id) AS chunk_count
+      FROM PrecedentDocuments pd
+      ORDER BY pd.ingested_at DESC
+    `).all() as Record<string, unknown>[];
+    ok(res, rows.map((r) => ({
+      ...r,
+      legalQuestions: parseJsonArray(r['legal_questions']),
+      keywords:       parseJsonArray(r['keywords']),
+    })));
+  }));
+
+  // Return the full OCR text of a specific verdict (for reading the original document).
+  router.get('/judgment-library/:id/full-text', requireRole('admin', repos), asyncHandler((req, res) => {
+    const id = Number(req.params['id']);
+    if (isNaN(id)) throw new ValidationError('id must be a number');
+    const record = repos.precedentLibrary.getFullText(id);
+    if (!record) throw new NotFoundError(`Judgment ${id}`);
+    ok(res, record);
+  }));
+
+  // Remove a verdict and its chunks from the index.
+  router.delete('/judgment-library/:id', requireRole('admin', repos), asyncHandler((req, res) => {
+    const id = Number(req.params['id']);
+    if (isNaN(id)) throw new ValidationError('id must be a number');
+    const deleted = repos.precedentLibrary.delete(id);
+    if (!deleted) throw new NotFoundError(`Judgment ${id}`);
+    ok(res, { deleted: true });
   }));
 
   // ── Agent Execution Journal ───────────────────────────────────────────────

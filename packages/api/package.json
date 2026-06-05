@@ -13,6 +13,7 @@
   },
   "dependencies": {
     "@factum-il/agent-core": "workspace:*",
+    "@factum-il/retrieval": "workspace:*",
     "@factum-il/update-core": "workspace:*",
     "@factum-il/ai": "workspace:*",
     "@factum-il/ai-guardrails": "workspace:*",

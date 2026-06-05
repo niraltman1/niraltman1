@@ -31,6 +31,7 @@ import type {
   AnnotationRepository,
   RulesEngineRepository,
   LegalCorpusRepository,
+  PrecedentLibraryRepository,
 } from '@factum-il/database';
 import type { ConfigStore } from './utils/config-store.js';
 
@@ -66,6 +67,7 @@ export interface Repos {
   commTemplates:  CommTemplatesRepository;
   callLogs:       CallLogsRepository;
   annotations:    AnnotationRepository;
-  rules:          RulesEngineRepository;
-  legalCorpus:    LegalCorpusRepository;
+  rules:             RulesEngineRepository;
+  legalCorpus:       LegalCorpusRepository;
+  precedentLibrary:  PrecedentLibraryRepository;
 }
