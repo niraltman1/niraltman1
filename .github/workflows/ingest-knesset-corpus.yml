@@ -43,7 +43,7 @@ jobs:
         run: pnpm install --frozen-lockfile
 
       - name: Run ingestion (OData + WikiSource, no embeddings)
-        run: pnpm ingest-knesset-odata -- --delay 500 --batch-size 100
+        run: pnpm ingest-knesset-odata -- --delay 500 --domain-batches
 
       - name: Upload corpus artifact (always — preserves output even on partial runs)
         if: always()
@@ -53,6 +53,7 @@ jobs:
           path: |
             assets/legal-corpus/batches/
             assets/legal-corpus/corpus-manifest.json
+            assets/legal-corpus/batches/corpus-domain-index.json
           retention-days: 7
           if-no-files-found: error
 
@@ -255,6 +256,16 @@ assert 'israelLawId' in d, 'missing israelLawId'
             --repo niraltman1/niraltman1 \
             --clobber \
             assets/legal-corpus/corpus-manifest.json
+
+      - name: Upload domain index
+        if: hashFiles('assets/legal-corpus/batches/corpus-domain-index.json') != ''
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release upload v-corpus-latest \
+            --repo niraltman1/niraltman1 \
+            --clobber \
+            assets/legal-corpus/batches/corpus-domain-index.json
 
       - name: Annotate release URL
         env:

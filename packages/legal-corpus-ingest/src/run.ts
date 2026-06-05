@@ -3,8 +3,9 @@ import { existsSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { iterateValidLaws, ODATA_BASE, type ValidLaw } from './odata-registry.js';
 import { resolveLaw, type WikiResolution } from './wiki-resolve.js';
-import { structureLaw } from './structure.js';
+import { structureLaw, shortName } from './structure.js';
 import { ArtifactWriter, partialPath, type EmbeddingRec } from './artifact.js';
+import { inferProcedureDomain, ALL_DOMAINS, type LegalDomain } from './domain-classify.js';
 
 const EMBED_MAX_CHARS = 6_000; // keep nomic-embed-text inputs within its context window
 const WIKI_CONCURRENCY = 8;   // parallel WikiSource resolutions (~0.29 req/s at 28s/call, well below Wikimedia limits)
@@ -16,7 +17,8 @@ export interface RunOptions {
   only?:      Set<number> | null; // restrict to specific IsraelLawIDs (smoke testing)
   delayMs?:   number;           // politeness delay between WikiSource requests
   base?:      string;           // OData base URL override
-  batchSize?: number;           // > 0 → batch mode (N laws per file); 0/undefined → single-file
+  batchSize?:    number;           // > 0 → numeric batch mode (N laws per file); 0/undefined → single-file
+  domainBatches?: boolean;         // true → domain-based files (batch-criminal.jsonl.gz etc.)
 }
 
 export interface RunSummary {
@@ -176,7 +178,132 @@ export async function runIngestion(opts: RunOptions): Promise<RunSummary> {
   }
 
   // ────────────────────────────────────────────────────────────────────────────────────────────
-  //  BATCH MODE
+  //  DOMAIN BATCH MODE
+  // ────────────────────────────────────────────────────────────────────────────────────────────
+  if (opts.domainBatches) {
+    const outDir = opts.out;
+    await mkdir(outDir, { recursive: true });
+
+    // Group laws by primary domain, sort each group deterministically.
+    const domainMap = new Map<LegalDomain, ValidLaw[]>();
+    for (const d of ALL_DOMAINS) domainMap.set(d, []);
+    for (const law of allLaws) {
+      domainMap.get(inferProcedureDomain(law.name))!.push(law);
+    }
+    for (const laws of domainMap.values()) {
+      laws.sort((a, b) => a.israelLawId - b.israelLawId);
+    }
+
+    const otherCount = domainMap.get('other')!.length;
+    if (otherCount > 30) {
+      process.stderr.write(
+        `[knesset] WARNING: ${otherCount} laws fell to 'other' domain (>30 threshold). ` +
+        `Update domain-classify.ts to improve coverage.\n`,
+      );
+    }
+
+    process.stdout.write(`[knesset] ${allLaws.length} laws → domain batches · dir: ${outDir}\n`);
+
+    const totals: BatchCounters = { ingested: 0, metadataOnly: 0, sectionTotal: 0, embedded: 0 };
+    let skipped = 0;
+
+    // Build domain index from the classified law list (comprehensive — includes skipped domains).
+    type DomainEntry = { count: number; file: string; laws: Array<{ israelLawId: number; shortName: string }> };
+    const domainEntries: Record<string, DomainEntry> = {};
+    for (const d of ALL_DOMAINS) {
+      const laws = domainMap.get(d)!;
+      if (laws.length === 0) continue;
+      domainEntries[d] = {
+        count: laws.length,
+        file:  `batch-${d}.jsonl.gz`,
+        laws:  laws.map((l) => ({ israelLawId: l.israelLawId, shortName: shortName(l.name) })),
+      };
+    }
+
+    for (const d of ALL_DOMAINS) {
+      const laws = domainMap.get(d)!;
+      if (laws.length === 0) continue;
+
+      const batchPath = join(outDir, `batch-${d}.jsonl.gz`);
+      if (existsSync(batchPath)) {
+        process.stdout.write(`[knesset] domain '${d}' already done (${laws.length} laws) — skipping\n`);
+        skipped += 1;
+        continue;
+      }
+
+      const batchStart = Date.now();
+      process.stdout.write(`[knesset] domain '${d}': processing ${laws.length} laws...\n`);
+
+      const counters: BatchCounters = { ingested: 0, metadataOnly: 0, sectionTotal: 0, embedded: 0 };
+      const writer = new ArtifactWriter(batchPath);
+      await runSlice(laws, writer, counters, { delayMs, embed });
+      await writer.close();
+
+      totals.ingested     += counters.ingested;
+      totals.metadataOnly += counters.metadataOnly;
+      totals.sectionTotal += counters.sectionTotal;
+      totals.embedded     += counters.embedded;
+
+      const elapsed = Math.round((Date.now() - batchStart) / 1000);
+      process.stdout.write(
+        `[knesset] domain '${d}' saved: ${counters.ingested} ingested, ` +
+        `${counters.metadataOnly} metadata-only, ${counters.sectionTotal} sections (${elapsed}s)\n`,
+      );
+      if (process.env['GITHUB_ACTIONS'] === 'true') {
+        process.stdout.write(
+          `::notice title=Domain ${d}::ingested=${counters.ingested} ` +
+          `metadata_only=${counters.metadataOnly} sections=${counters.sectionTotal} elapsed=${elapsed}s\n`,
+        );
+      }
+    }
+
+    const totalWritten = totals.ingested + totals.metadataOnly;
+    const elapsedMs    = Date.now() - startMs;
+    const matchRate    = totalWritten > 0 ? Math.round((totals.ingested / totalWritten) * 1000) / 10 : 0;
+
+    const domainIndexPath = join(outDir, 'corpus-domain-index.json');
+    await writeFile(domainIndexPath, JSON.stringify({
+      schemaVersion: 1,
+      generatedAt:   new Date().toISOString(),
+      totalLaws:     allLaws.length,
+      domains:       domainEntries,
+    }, null, 2) + '\n', 'utf-8');
+    process.stdout.write(`[knesset] domain index: ${domainIndexPath}\n`);
+
+    process.stdout.write(
+      `\n[knesset] done: ${Object.keys(domainEntries).length} domains (${skipped} skipped), ` +
+      `${totalWritten} laws written (${totals.ingested} with text, ${totals.metadataOnly} metadata-only, ` +
+      `${matchRate}% match-rate), ${totals.sectionTotal} sections, ${Math.round(elapsedMs / 1000)}s.\n`,
+    );
+    if (process.env['GITHUB_ACTIONS'] === 'true') {
+      process.stdout.write(
+        `::notice title=Ingestion complete::domains=${Object.keys(domainEntries).length} skipped=${skipped} ` +
+        `laws=${totalWritten} ingested=${totals.ingested} match_rate=${matchRate}% ` +
+        `sections=${totals.sectionTotal} elapsed=${Math.round(elapsedMs / 1000)}s\n`,
+      );
+    }
+
+    const manifestPath = join(outDir, 'corpus-manifest.json');
+    await writeManifest(manifestPath, {
+      lawCount: allLaws.length, ingestedCount: totals.ingested,
+      metadataOnlyCount: totals.metadataOnly, sectionCount: totals.sectionTotal,
+      matchRate, embedded: totals.embedded,
+    });
+    process.stdout.write(`[knesset] manifest: ${manifestPath}\n`);
+
+    return {
+      written:      totalWritten,
+      ingested:     totals.ingested,
+      metadataOnly: totals.metadataOnly,
+      sections:     totals.sectionTotal,
+      embedded:     totals.embedded,
+      matchRate,
+      elapsedMs,
+    };
+  }
+
+  // ────────────────────────────────────────────────────────────────────────────────────────────
+  //  NUMERIC BATCH MODE
   // ────────────────────────────────────────────────────────────────────────────────────────────
   if (batchSize > 0) {
     const outDir = opts.out;

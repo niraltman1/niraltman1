@@ -52,7 +52,7 @@ function resolveBatchDir(): string | null {
   for (const dir of candidates) {
     if (!existsSync(dir)) continue;
     try {
-      const files = readdirSync(dir).filter((f) => /^batch-\d{4}\.jsonl\.gz$/.test(f));
+      const files = readdirSync(dir).filter((f) => /^batch-[a-z0-9_]+\.jsonl\.gz$/.test(f));
       if (files.length > 0) return dir;
     } catch { /* skip unreadable dirs */ }
   }
@@ -78,7 +78,7 @@ function artifactSignature(path: string): string {
 /** Signature for a batch directory: dir path + name:size for every batch file. */
 function batchDirSignature(dir: string): string {
   const files = readdirSync(dir)
-    .filter((f) => /^batch-\d{4}\.jsonl\.gz$/.test(f))
+    .filter((f) => /^batch-[a-z0-9_]+\.jsonl\.gz$/.test(f))
     .sort();
   const parts = files.map((f) => {
     const st = statSync(join(dir, f));
@@ -187,7 +187,7 @@ export async function initLegalCorpus(repos: Repos, overridePath?: string): Prom
     writeStoredSignature(repos, BATCH_SIG_KEY, sig);
 
     const files = readdirSync(batchDir)
-      .filter((f) => /^batch-\d{4}\.jsonl\.gz$/.test(f))
+      .filter((f) => /^batch-[a-z0-9_]+\.jsonl\.gz$/.test(f))
       .sort();
 
     let totalSources = 0, totalSections = 0, totalEmbedded = 0, totalFailed = 0;
