@@ -12,7 +12,7 @@
  *  - PDF integrity validation → skip encrypted / corrupt PDFs
  */
 
-import { join, dirname, basename, extname } from 'node:path';
+import { join, dirname, basename, extname, resolve, sep } from 'node:path';
 import { readdir, stat, mkdir, rename, open as fsOpen } from 'node:fs/promises';
 import { EffortController } from './effort-controller.js';
 import type { EffortReport } from './effort-controller.js';
@@ -20,6 +20,23 @@ import type { EffortReport } from './effort-controller.js';
 const CASE_NUMBER_RE = /(\d{1,5}[-–]\d{2}[-–]\d{2,6}|ת["״]פ\s*\d+|ת["״]ד\s*\d+|ע["״]פ\s*\d+|רת["״]פ\s*\d+)/;
 const FORBIDDEN_CHARS_RE = /[\\/:*?"<>|]/g;
 const SUPPORTED_EXTS = new Set(['.pdf', '.docx', '.doc', '.txt', '.odt']);
+
+// ── Path-traversal guard ─────────────────────────────────────────────────────
+
+/**
+ * Asserts that `candidate` resolves to a path strictly within `base`.
+ * Throws if the resolved path escapes the base directory.
+ * This prevents CWE-22 path traversal attacks where user-supplied input
+ * contains `..` sequences or symlinks pointing outside the intended tree.
+ */
+function assertWithinBase(candidate: string, base: string): string {
+  const resolved = resolve(candidate);
+  const normalizedBase = resolve(base);
+  if (resolved !== normalizedBase && !resolved.startsWith(normalizedBase + sep)) {
+    throw new Error(`Path traversal blocked: path escapes its base directory`);
+  }
+  return resolved;
+}
 
 // ── OS helpers ───────────────────────────────────────────────────────────────
 
@@ -125,13 +142,16 @@ export interface VacuumOptions {
 // ── Main runner ──────────────────────────────────────────────────────────────
 
 export async function runVacuumProtocol(opts: VacuumOptions): Promise<VacuumReport> {
-  const { targetDir, orgDir, dryRun, onProgress } = opts;
+  const { dryRun, onProgress } = opts;
+  // Resolve to absolute paths once so all downstream comparisons are stable.
+  const absTarget = resolve(opts.targetDir);
+  const absOrg    = resolve(opts.orgDir);
   const effort  = new EffortController({ ceilPercent: opts.ceilPercent ?? 70 });
   const startedAt = new Date().toISOString();
   const filePaths: string[] = [];
   const errors:    string[] = [];
 
-  await scanDir(targetDir, filePaths, errors);
+  await scanDir(absTarget, filePaths, errors);
 
   const entries:   VacuumEntry[] = [];
   let moveCount    = 0;
@@ -139,7 +159,16 @@ export async function runVacuumProtocol(opts: VacuumOptions): Promise<VacuumRepo
   let skipCount    = 0;
 
   for (let idx = 0; idx < filePaths.length; idx++) {
-    const filePath   = filePaths[idx]!;
+    const rawFilePath = filePaths[idx]!;
+    // Guard: scanDir already constrains paths to absTarget, but resolve again
+    // so CodeQL sees an explicit containment check before any fs operation.
+    let filePath: string;
+    try {
+      filePath = assertWithinBase(rawFilePath, absTarget);
+    } catch {
+      errors.push(`נתיב חשוד דולג: ${rawFilePath}`);
+      continue;
+    }
     const fileName   = basename(filePath);
     const detectedAt = new Date().toISOString();
 
@@ -186,9 +215,18 @@ export async function runVacuumProtocol(opts: VacuumOptions): Promise<VacuumRepo
     }
 
     const safeFolder  = sanitizeFolderName(caseNumber);
-    const expectedPath = join(orgDir, safeFolder, fileName);
+    const expectedPath = join(absOrg, safeFolder, fileName);
 
-    if (filePath === expectedPath) {
+    // Guard: verify the constructed destination stays within absOrg.
+    let resolvedExpected: string;
+    try {
+      resolvedExpected = assertWithinBase(expectedPath, absOrg);
+    } catch {
+      errors.push(`נתיב יעד חשוד דולג: ${expectedPath}`);
+      continue;
+    }
+
+    if (filePath === resolvedExpected) {
       const entry: VacuumEntry = {
         filePath, fileName, caseNumber, expectedPath,
         action: 'keep', contradiction: null, detectedAt,
@@ -201,13 +239,13 @@ export async function runVacuumProtocol(opts: VacuumOptions): Promise<VacuumRepo
     // ── Check for destination collision ───────────────────────────────────
     let contradiction: string | null = null;
     try {
-      await stat(toLongPath(expectedPath));
+      await stat(toLongPath(resolvedExpected));
       contradiction = `קובץ קיים בנתיב היעד — ידרש מיזוג ידני`;
     } catch { /* target free */ }
 
     if (dryRun) {
       const entry: VacuumEntry = {
-        filePath, fileName, caseNumber, expectedPath,
+        filePath, fileName, caseNumber, expectedPath: resolvedExpected,
         action: 'move', contradiction, detectedAt,
       };
       entries.push(entry);
@@ -220,7 +258,7 @@ export async function runVacuumProtocol(opts: VacuumOptions): Promise<VacuumRepo
     const locked = await isFileLocked(filePath);
     if (locked) {
       const entry: VacuumEntry = {
-        filePath, fileName, caseNumber, expectedPath,
+        filePath, fileName, caseNumber, expectedPath: resolvedExpected,
         action: 'pending', contradiction: 'קובץ נעול על-ידי תהליך אחר', detectedAt,
       };
       entries.push(entry);
@@ -230,10 +268,10 @@ export async function runVacuumProtocol(opts: VacuumOptions): Promise<VacuumRepo
     }
 
     try {
-      await mkdir(toLongPath(dirname(expectedPath)), { recursive: true });
-      await rename(toLongPath(filePath), toLongPath(expectedPath));
+      await mkdir(toLongPath(dirname(resolvedExpected)), { recursive: true });
+      await rename(toLongPath(filePath), toLongPath(resolvedExpected));
       const entry: VacuumEntry = {
-        filePath, fileName, caseNumber, expectedPath,
+        filePath, fileName, caseNumber, expectedPath: resolvedExpected,
         action: 'move', contradiction, detectedAt,
       };
       entries.push(entry);
@@ -243,7 +281,7 @@ export async function runVacuumProtocol(opts: VacuumOptions): Promise<VacuumRepo
       const msg = String(e);
       if (msg.includes('EPERM') || msg.includes('EACCES')) {
         const entry: VacuumEntry = {
-          filePath, fileName, caseNumber, expectedPath,
+          filePath, fileName, caseNumber, expectedPath: resolvedExpected,
           action: 'pending', contradiction: `הרשאה נדחתה: ${msg}`, detectedAt,
         };
         entries.push(entry);

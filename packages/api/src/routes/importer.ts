@@ -1,6 +1,7 @@
 import { Router } from 'express';
 import { z } from 'zod';
 import { readFileSync, existsSync } from 'node:fs';
+import { resolve } from 'node:path';
 import type { Repos } from '../db.js';
 import { asyncHandler } from '../utils/async-handler.js';
 import { ok, fail } from '../utils/response.js';
@@ -74,7 +75,7 @@ export function importerRouter(repos: Repos): Router {
    * Parses court hearing events and cross-matches against active cases.
    */
   router.post('/ical', validate(icalSchema), asyncHandler(async (req, res) => {
-    const { filePath } = req.body as { filePath: string };
+    const filePath = resolve((req.body as { filePath: string }).filePath);
     if (!existsSync(filePath)) { fail(res, 'NOT_FOUND', `קובץ לא נמצא: ${filePath}`, 404); return; }
 
     const raw = readFileSync(filePath, 'utf8');

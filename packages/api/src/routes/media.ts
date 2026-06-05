@@ -1,5 +1,6 @@
 import { Router } from 'express';
 import { z } from 'zod';
+import { resolve } from 'node:path';
 import type { Repos } from '../db.js';
 import { asyncHandler } from '../utils/async-handler.js';
 import { ok } from '../utils/response.js';
@@ -75,7 +76,10 @@ export function mediaRouter(repos: Repos): Router {
   // ── Ingest a file (hash → dedup check → convert if image → register) ──
   router.post('/ingest', validate(ingestSchema), asyncHandler(async (req, res) => {
     const body = req.body as z.infer<typeof ingestSchema>;
-    const ingestOpts: Parameters<typeof pipeline.ingest>[0] = { filePath: body.filePath, clientId: body.clientId ?? null };
+    const ingestOpts: Parameters<typeof pipeline.ingest>[0] = {
+      filePath: resolve(body.filePath), // normalize before any fs operation (CWE-22)
+      clientId: body.clientId ?? null,
+    };
     if (body.caseId     !== undefined) ingestOpts.caseId     = body.caseId;
     if (body.clientName !== undefined) ingestOpts.clientName = body.clientName;
     if (body.outputDir  !== undefined) ingestOpts.outputDir  = body.outputDir;

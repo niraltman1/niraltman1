@@ -1,4 +1,5 @@
 import { Router } from 'express';
+import { resolve } from 'node:path';
 import type { Repos } from '../db.js';
 import { asyncHandler } from '../utils/async-handler.js';
 import { ok } from '../utils/response.js';
@@ -12,17 +13,18 @@ export function tabularRouter(repos: Repos): Router {
 
   // POST /api/tabular/ingest — parse a CSV or Excel file
   router.post('/ingest', asyncHandler(async (req, res) => {
-    const { filePath, ceilPercent } = req.body as { filePath?: string; ceilPercent?: number };
-    if (!filePath?.trim()) throw new ValidationError('filePath שדה חובה');
+    const { filePath: rawFilePath, ceilPercent } = req.body as { filePath?: string; ceilPercent?: number };
+    if (!rawFilePath?.trim()) throw new ValidationError('filePath שדה חובה');
+    const filePath = resolve(rawFilePath.trim()); // normalize before any fs operation (CWE-22)
 
     try {
-      await access(filePath.trim());
+      await access(filePath);
     } catch {
       throw new NotFoundError(`קובץ לא נמצא: ${filePath}`);
     }
 
     const result = await ingestTabularFile({
-      filePath:    filePath.trim(),
+      filePath,
       documents,
       processedFiles,
       ceilPercent: ceilPercent ?? 70,

@@ -16,7 +16,7 @@
 
 import { createReadStream } from 'node:fs';
 import { stat } from 'node:fs/promises';
-import { basename, extname } from 'node:path';
+import { basename, extname, resolve } from 'node:path';
 import * as XLSX from 'xlsx';
 import type { DocumentRepository } from '@factum-il/database';
 import type { ProcessedFilesRepository } from '@factum-il/database';
@@ -143,7 +143,10 @@ export async function ingestTabularFile(opts: {
   processedFiles: ProcessedFilesRepository;
   ceilPercent?:   number;
 }): Promise<TabularIngestResult> {
-  const { filePath, documents, processedFiles } = opts;
+  // Resolve to an absolute path to neutralize any `..` traversal segments
+  // before the path reaches createReadStream / XLSX.readFile (CWE-22).
+  const filePath = resolve(opts.filePath);
+  const { documents, processedFiles } = opts;
   const effort = new EffortController({ ceilPercent: opts.ceilPercent ?? 70 });
   const errors: string[] = [];
   const rows:   TabularRow[] = [];
