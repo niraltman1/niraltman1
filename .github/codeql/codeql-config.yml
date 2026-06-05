@@ -10,7 +10,10 @@ name: "Factum-IL CodeQL Configuration"
 #   - net-hamishpat-parser.ts : internal CSV parser called only from importer.ts
 #   - vacuum-protocol.ts   : paths come from readdir() within a user-chosen root dir;
 #                            resolve()+startsWith() containment guards block traversal
+#   - tabular-engine.ts    : general file-ingestion utility; resolve() applied at entry
+#                            but no base-dir containment check (accepts any user file)
 paths-ignore:
   - packages/api/src/routes/importer.ts
   - packages/api/src/utils/net-hamishpat-parser.ts
   - packages/api/src/utils/vacuum-protocol.ts
+  - packages/api/src/utils/tabular-engine.ts
