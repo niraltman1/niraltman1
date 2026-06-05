@@ -1,9 +1,10 @@
+import { existsSync, readFileSync } from 'node:fs';
 import { mkdir, writeFile } from 'node:fs/promises';
 import { dirname, join } from 'node:path';
 import { iterateValidLaws, ODATA_BASE, type ValidLaw } from './odata-registry.js';
 import { resolveLaw, type WikiResolution } from './wiki-resolve.js';
 import { structureLaw } from './structure.js';
-import { ArtifactWriter, type EmbeddingRec } from './artifact.js';
+import { ArtifactWriter, partialPath, type ArtifactRecord, type EmbeddingRec } from './artifact.js';
 
 const EMBED_MAX_CHARS = 6_000; // keep nomic-embed-text inputs within its context window
 const WIKI_CONCURRENCY = 4;   // parallel WikiSource resolutions (safe: ~4 req/s, well below Wikimedia limits)
@@ -71,6 +72,38 @@ export async function runIngestion(opts: RunOptions): Promise<RunSummary> {
 
   const embed = opts.embed ? await loadEmbed() : null;
 
+  // ── Resume: load partial checkpoint if available ─────────────────────────────────────────
+  const partial = partialPath(opts.out);
+  const skipIds = new Set<number>();
+  let ingested = 0, metadataOnly = 0, sectionTotal = 0, embedded = 0;
+
+  if (existsSync(partial)) {
+    const lines = readFileSync(partial, 'utf-8').split('\n').filter(Boolean);
+    process.stdout.write(`[knesset] found partial checkpoint: ${lines.length} previously processed laws — resuming\n`);
+    // Pre-populate skip set and counters from previous run's records.
+    for (const line of lines) {
+      try {
+        const rec = JSON.parse(line) as ArtifactRecord;
+        skipIds.add(rec.israelLawId);
+        if (rec.status === 'ingested') { ingested++; sectionTotal += rec.sections.length; }
+        else { metadataOnly++; }
+      } catch { /* corrupt line — skip */ }
+    }
+  }
+
+  const writer = new ArtifactWriter(opts.out);
+
+  // Re-write previously processed records into the new gzip stream (fast disk copy, no network).
+  if (skipIds.size > 0) {
+    const lines = readFileSync(partial, 'utf-8').split('\n').filter(Boolean);
+    for (const line of lines) {
+      try { writer.write(JSON.parse(line) as ArtifactRecord); } catch { /* skip corrupt */ }
+    }
+    process.stdout.write(`[knesset] replayed ${writer.written} records from checkpoint\n`);
+  }
+
+  let processed = 0;
+
   // ── Pass 0: collect all valid law IDs from OData (fast — ~11 pages, ~6 s) ────────────────
   process.stdout.write(`[knesset] fetching OData registry...\n`);
   const allLaws: ValidLaw[] = [];
@@ -80,10 +113,10 @@ export async function runIngestion(opts: RunOptions): Promise<RunSummary> {
     if (opts.only && allLaws.length >= opts.only.size) break;
     if (opts.limit != null && allLaws.length >= opts.limit) break;
   }
-  process.stdout.write(`[knesset] ${allLaws.length} laws to process · out: ${opts.out}${embed ? ' · +embeddings' : ''}\n`);
-
-  const writer = new ArtifactWriter(opts.out);
-  let processed = 0, ingested = 0, metadataOnly = 0, sectionTotal = 0, embedded = 0;
+  const remaining = allLaws.filter(l => !skipIds.has(l.israelLawId));
+  process.stdout.write(
+    `[knesset] ${allLaws.length} laws total · ${skipIds.size > 0 ? `${skipIds.size} skipped (checkpoint) · ` : ''}${remaining.length} to fetch · out: ${opts.out}${embed ? ' · +embeddings' : ''}\n`,
+  );
 
   // Structure + (optionally) embed one resolved law, write it, and update counters.
   const processLaw = async (law: ValidLaw, resolved: WikiResolution): Promise<void> => {
@@ -110,12 +143,12 @@ export async function runIngestion(opts: RunOptions): Promise<RunSummary> {
   // ── Pass 1: parallel WikiSource resolution (P=4) ────────────────────────────────────────
   const retryQueue: ValidLaw[] = [];
   const pool = createPool(WIKI_CONCURRENCY);
-  await Promise.all(allLaws.map((law) => pool.run(async () => {
+  await Promise.all(remaining.map((law) => pool.run(async () => {
     const resolved = await resolveLaw(law.israelLawId, law.name, { delayMs });
     processed += 1;
     if (processed % 100 === 0) {
-      const pct = Math.round((processed / allLaws.length) * 100);
-      process.stdout.write(`[knesset] progress: ${processed}/${allLaws.length} (${pct}%) — elapsed ${Math.round((Date.now() - startMs) / 1000)}s\n`);
+      const pct = Math.round(((skipIds.size + processed) / allLaws.length) * 100);
+      process.stdout.write(`[knesset] progress: ${skipIds.size + processed}/${allLaws.length} (${pct}%) — elapsed ${Math.round((Date.now() - startMs) / 1000)}s\n`);
     }
     if (!resolved.matched && resolved.transient) { retryQueue.push(law); }
     else { await processLaw(law, resolved); }

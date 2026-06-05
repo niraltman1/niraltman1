@@ -43,8 +43,35 @@ jobs:
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
 
+      - name: Download partial checkpoint from previous run (enables resume)
+        id: dl-partial
+        continue-on-error: true
+        uses: actions/download-artifact@v4
+        with:
+          name: corpus-partial-checkpoint
+          path: assets/legal-corpus
+
+      - name: Log checkpoint status
+        run: |
+          if [ "${{ steps.dl-partial.outcome }}" = "success" ]; then
+            LINES=$(wc -l < assets/legal-corpus/legal-corpus.knesset.partial.jsonl 2>/dev/null || echo 0)
+            echo "::notice::Resuming from checkpoint — ${LINES} laws already processed"
+          else
+            echo "::notice::No checkpoint found — starting fresh"
+          fi
+
       - name: Run ingestion (OData + WikiSource, no embeddings)
         run: pnpm ingest-knesset-odata -- --delay 200
+
+      - name: Upload partial checkpoint (always — enables resume on next run)
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: corpus-partial-checkpoint
+          path: assets/legal-corpus/legal-corpus.knesset.partial.jsonl
+          retention-days: 30
+          if-no-files-found: ignore
+          overwrite: true
 
       - name: Upload corpus artifact (always — preserves output even on partial runs)
         if: always()
@@ -55,7 +82,7 @@ jobs:
             assets/legal-corpus/legal-corpus.knesset.jsonl.gz
             assets/legal-corpus/corpus-manifest.json
           retention-days: 7
-          if-no-files-found: error
+          if-no-files-found: warn
 
   # ── Job B: Embedding enrichment pass (conditional on inputs.embed) ─────────────────────
   embed-corpus:
