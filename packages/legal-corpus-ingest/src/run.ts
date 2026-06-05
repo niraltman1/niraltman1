@@ -6,7 +6,7 @@ import { structureLaw } from './structure.js';
 import { ArtifactWriter, type EmbeddingRec } from './artifact.js';
 
 const EMBED_MAX_CHARS = 6_000; // keep nomic-embed-text inputs within its context window
-const WIKI_CONCURRENCY = 4;   // parallel WikiSource resolutions (safe: ~4 req/s, well below Wikimedia limits)
+const WIKI_CONCURRENCY = 8;   // parallel WikiSource resolutions (~0.29 req/s at 28s/call, well below Wikimedia limits)
 
 export interface RunOptions {
   out:      string;                 // artifact path (.gz → gzip)
