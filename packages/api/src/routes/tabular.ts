@@ -5,7 +5,6 @@ import { asyncHandler } from '../utils/async-handler.js';
 import { ok } from '../utils/response.js';
 import { ValidationError, NotFoundError } from '../errors/api-error.js';
 import { ingestTabularFile } from '../utils/tabular-engine.js';
-import { access } from 'node:fs/promises';
 
 export function tabularRouter(repos: Repos): Router {
   const router = Router();
@@ -17,17 +16,14 @@ export function tabularRouter(repos: Repos): Router {
     if (!rawFilePath?.trim()) throw new ValidationError('filePath שדה חובה');
     const filePath = resolve(rawFilePath.trim()); // normalize before any fs operation (CWE-22)
 
-    try {
-      await access(filePath);
-    } catch {
-      throw new NotFoundError(`קובץ לא נמצא: ${filePath}`);
-    }
-
     const result = await ingestTabularFile({
       filePath,
       documents,
       processedFiles,
       ceilPercent: ceilPercent ?? 70,
+    }).catch((e) => {
+      if ((e as { code?: string }).code === 'ENOENT') throw new NotFoundError(`קובץ לא נמצא: ${filePath}`);
+      throw e;
     });
 
     ok(res, {

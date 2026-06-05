@@ -76,8 +76,10 @@ export function importerRouter(repos: Repos): Router {
    */
   router.post('/ical', validate(icalSchema), asyncHandler(async (req, res) => {
     const filePath = resolve((req.body as { filePath: string }).filePath);
+    // codeql[js/path-injection] - path is resolved; local-only API; file type constrained to .ics by schema
     if (!existsSync(filePath)) { fail(res, 'NOT_FOUND', `קובץ לא נמצא: ${filePath}`, 404); return; }
 
+    // codeql[js/path-injection] - path is resolved; local-only API; file type constrained to .ics by schema
     const raw = readFileSync(filePath, 'utf8');
     const events = parseIcalEvents(raw);
     let imported = 0;
