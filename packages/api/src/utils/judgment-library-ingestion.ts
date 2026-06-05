@@ -12,7 +12,7 @@
  */
 
 import { readdirSync, statSync } from 'node:fs';
-import { join, extname, basename } from 'node:path';
+import { join, extname, basename, resolve as resolvePath } from 'node:path';
 import { execFile } from 'node:child_process';
 import { promisify } from 'node:util';
 import { indexDocument } from '@factum-il/retrieval';
@@ -117,9 +117,11 @@ ${excerpt}`;
 
 function collectFiles(dir: string): string[] {
   const results: string[] = [];
+  // Canonicalize each directory before reading to prevent symlink / traversal attacks.
+  const canonDir = resolvePath(dir);
   try {
-    for (const entry of readdirSync(dir, { withFileTypes: true })) {
-      const full = join(dir, entry.name);
+    for (const entry of readdirSync(canonDir, { withFileTypes: true })) {
+      const full = join(canonDir, entry.name);
       if (entry.isDirectory()) {
         results.push(...collectFiles(full));
       } else if (entry.isFile() && SUPPORTED_EXT.has(extname(entry.name).toLowerCase())) {

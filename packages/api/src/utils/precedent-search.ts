@@ -29,8 +29,11 @@ function parseArray(raw: unknown): string[] {
 
 /** Strip characters that break FTS5 query syntax while preserving Hebrew Unicode. */
 function sanitizeFtsQuery(q: string): string {
+  // Keep ASCII printable (0x20-0x7E), Hebrew Unicode block (0x0590-0x05FF),
+  // and Hebrew presentation forms (0xFB1D-0xFB4E). Explicit hex escapes avoid
+  // the suspicious-range overlap between \s and the space in a char-class range.
   return q
-    .replace(/[^ -~֐-׿יִ-פֿ\s]/g, ' ')
+    .replace(/[^\x20-\x7E\u0590-\u05FF\uFB1D-\uFB4E]/g, ' ')
     .replace(/["*^()]/g, ' ')
     .trim()
     .split(/\s+/)

@@ -8,6 +8,7 @@ import { runVacuumProtocol } from '../utils/vacuum-protocol.js';
 import { reconfigureWatchFolders, rescanFolder } from '../utils/file-ingestion.js';
 import { ingestJudgmentFolder } from '../utils/judgment-library-ingestion.js';
 import { existsSync, statSync } from 'node:fs';
+import { resolve as resolvePath } from 'node:path';
 import { ValidationError, NotFoundError } from '../errors/api-error.js';
 import type { RagHealingService } from '../utils/rag-healing.js';
 import { requireRole } from '../middleware/auth.js';
@@ -371,10 +372,12 @@ export function adminRouter(repos: Repos, healingService: RagHealingService): Ro
     if (!folderPath || typeof folderPath !== 'string' || !folderPath.trim()) {
       throw new ValidationError('folderPath שדה חובה');
     }
-    if (!existsSync(folderPath) || !statSync(folderPath).isDirectory()) {
-      throw new ValidationError(`לא תיקייה תקפה: ${folderPath}`);
+    // Canonicalize before any FS access to prevent path-traversal via symlinks / ..
+    const safeFolder = resolvePath(folderPath.trim());
+    if (!existsSync(safeFolder) || !statSync(safeFolder).isDirectory()) {
+      throw new ValidationError(`לא תיקייה תקפה: ${safeFolder}`);
     }
-    const summary = await ingestJudgmentFolder(folderPath.trim(), repos);
+    const summary = await ingestJudgmentFolder(safeFolder, repos);
     ok(res, summary);
   }));
 
