@@ -51,6 +51,7 @@ export class EffortController {
   private totalThrottledMs = 0;
   private throttleCount = 0;
   private workUnits = 0;
+  private lastSampleAt = 0;
 
   constructor(opts: EffortOptions = {}) {
     this.ceil = opts.ceilPercent ?? DEFAULT_CEIL_PCT;
@@ -59,7 +60,17 @@ export class EffortController {
   /** Call after each work unit. Inserts an adaptive pause if CPU is over ceiling. */
   async throttle(): Promise<void> {
     this.workUnits++;
+
+    // Rate-limit CPU sampling — sampleCpu() sleeps SAMPLE_INTERVAL_MS each call,
+    // so calling it per file in large batches would stall throughput. Only sample
+    // once per interval wall-clock time.
+    const now = Date.now();
+    if (now - this.lastSampleAt < SAMPLE_INTERVAL_MS) {
+      return;
+    }
+
     const cpu = await sampleCpu();
+    this.lastSampleAt = Date.now();
 
     if (cpu < this.ceil) {
       // Healthy — reset back-off
