@@ -23,7 +23,7 @@ jobs:
   build-corpus:
     name: Build corpus (OData + WikiSource)
     runs-on: ubuntu-latest
-    timeout-minutes: 60
+    timeout-minutes: 150
     env:
       NODE_OPTIONS: --max-old-space-size=6144
 
@@ -44,7 +44,7 @@ jobs:
         run: pnpm install --frozen-lockfile
 
       - name: Run ingestion (OData + WikiSource, no embeddings)
-        run: pnpm ingest-knesset-odata -- --delay 500
+        run: pnpm ingest-knesset-odata -- --delay 200
 
       - name: Upload corpus artifact (always — preserves output even on partial runs)
         if: always()
