@@ -22,7 +22,8 @@ export interface ArtifactRecord {
   israelLawId:   number;
   titleHe:       string;
   shortName:     string;
-  sourceType:    LegalSourceType;
+  sourceType:      LegalSourceType;
+  procedureDomain: string;
   year:          number | null;
   sourceUrl:     string | null;
   lastUpdated:   string | null;

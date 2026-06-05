@@ -1,5 +1,7 @@
 export { runIngestion } from './run.js';
 export type { RunOptions, RunSummary } from './run.js';
+export { inferProcedureDomain, ALL_DOMAINS } from './domain-classify.js';
+export type { LegalDomain } from './domain-classify.js';
 export { parseLawHtml, htmlToText, extractMainContent } from './wiki-parse.js';
 export {
   iterateValidLaws,
