@@ -1790,6 +1790,48 @@ export function useExportWorksheet() {
   });
 }
 
+// ── DOCX Document Generation ──────────────────────────────────────────────────
+
+async function postBlob(path: string, body: unknown): Promise<Blob> {
+  const res = await fetch(path, {
+    method:  'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body:    JSON.stringify(body),
+  });
+  if (!res.ok) throw new Error(`${res.status} ${res.statusText}`);
+  return res.blob();
+}
+
+export function triggerBlobDownload(blob: Blob, filename: string): void {
+  const url = URL.createObjectURL(blob);
+  const a   = document.createElement('a');
+  a.href     = url;
+  a.download = filename;
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  URL.revokeObjectURL(url);
+}
+
+export function useGeneratePowerOfAttorney() {
+  return useMutation({
+    mutationFn: (params: { clientId: number; caseId?: number }) =>
+      postBlob('/api/docx/power-of-attorney', params),
+  });
+}
+
+export function useGenerateFeeAgreement() {
+  return useMutation({
+    mutationFn: (params: {
+      clientId:     number;
+      caseId?:      number;
+      feeAmount?:   string;
+      feeCurrency?: string;
+      successBonus?: string;
+    }) => postBlob('/api/docx/fee-agreement', params),
+  });
+}
+
 // ── Legal Precedents ──────────────────────────────────────────────────────────
 
 export interface PrecedentRecord {
