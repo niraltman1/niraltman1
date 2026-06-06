@@ -75,3 +75,5 @@ export type {
   LegalSectionRow,
   LegalSectionSearchHit,
 } from './queries/legal-corpus.js';
+export { PrecedentLibraryRepository } from './queries/precedent-library.js';
+export type { PrecedentLibraryRow, PrecedentLibraryCreateInput } from './queries/precedent-library.js';

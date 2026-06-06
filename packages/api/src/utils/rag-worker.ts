@@ -29,6 +29,7 @@ import { populateEntityGraph } from './entity-graph.js';
 import { isSystemIdle } from './idle-throttle.js';
 import { withWriteLock } from './write-mutex.js';
 import { emitActivity } from './activity-emitter.js';
+import { searchPrecedentContext, formatPrecedentContext } from './precedent-search.js';
 import { logger } from '@factum-il/shared';
 import type { EventBus } from '@factum-il/events';
 import { selectModel } from '@factum-il/model-router';
@@ -76,14 +77,20 @@ const SYSTEM_PROMPT = `אתה מנתח מסמכים משפטיים ישראלי�
 
 כלל קריטי: אל תמציא נתונים. אם שדה אינו מופיע מפורשות — החזר null.`;
 
-async function extractWithOllama(ocrText: string): Promise<{ extraction: RagExtraction; raw: string } | null> {
+async function extractWithOllama(
+  ocrText:          string,
+  precedentContext?: string,
+): Promise<{ extraction: RagExtraction; raw: string } | null> {
   const excerpt = ocrText.slice(0, 2500);
+  const userPrompt = precedentContext
+    ? `${precedentContext}\n\nכעת נתח את המסמך הבא וחלץ את השדות המבוקשים:\n\n${excerpt}`
+    : `נתח את הטקסט הבא וחלץ את השדות המבוקשים:\n\n${excerpt}`;
   let body: string;
   try {
     body = JSON.stringify({
       model:  OLLAMA_MODEL,
       system: SYSTEM_PROMPT,
-      prompt: `נתח את הטקסט הבא וחלץ את השדות המבוקשים:\n\n${excerpt}`,
+      prompt: userPrompt,
       stream: false,
       options: { temperature: 0.1, repeat_penalty: 1.05, num_predict: 400 },
     });
@@ -245,7 +252,11 @@ async function runCycle(repos: Repos, targetDocumentId?: number): Promise<void> 
 
   for (const doc of pending) {
     try {
-      const result = await extractWithOllama(doc.ocr_text);
+      // Step 0: Retrieve relevant precedent context — inject legal_questions + factual_summary
+      // into the prompt so the model reasons from known similar verdicts.
+      const precedents       = searchPrecedentContext(doc.ocr_text.slice(0, 400), repos.db, 3);
+      const precedentContext = precedents.length > 0 ? formatPrecedentContext(precedents) : undefined;
+      const result = await extractWithOllama(doc.ocr_text, precedentContext);
       if (result) {
         const guardrailResult = runGuardrails(
           {

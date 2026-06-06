@@ -16,13 +16,14 @@ concurrency:
 
 permissions:
   contents: write
+  actions: read    # needed to list/download artifacts from previous runs
 
 jobs:
   # ── Job A: OData + WikiSource, no embeddings (~20-40 min) ──────────────────────────────
   build-corpus:
     name: Build corpus (OData + WikiSource)
     runs-on: ubuntu-latest
-    timeout-minutes: 60
+    timeout-minutes: 360
     env:
       NODE_OPTIONS: --max-old-space-size=6144
 
@@ -42,8 +43,65 @@ jobs:
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
 
+      - name: Find most recent checkpoint artifact (cross-run)
+        id: find-checkpoint
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          # download-artifact@v4 only sees the CURRENT run's artifacts by default.
+          # We query the API to find the latest non-expired corpus-domain-checkpoint
+          # from any previous run, then pass its run-id to the download step.
+          RUN_ID=$(gh api "repos/niraltman1/niraltman1/actions/artifacts?per_page=100&name=corpus-domain-checkpoint" \
+            --jq '[.artifacts[] | select(.expired == false)] | sort_by(.created_at) | reverse | .[0].workflow_run.id // empty' 2>/dev/null || true)
+          if [ -n "$RUN_ID" ] && [ "$RUN_ID" != "null" ]; then
+            echo "run-id=${RUN_ID}" >> "$GITHUB_OUTPUT"
+            echo "::notice::Found corpus-domain-checkpoint from run ${RUN_ID}"
+          else
+            echo "run-id=" >> "$GITHUB_OUTPUT"
+            echo "::notice::No prior corpus-domain-checkpoint artifact found — starting fresh"
+          fi
+
+      - name: Download domain checkpoint from previous run (enables resume)
+        id: dl-checkpoint
+        if: steps.find-checkpoint.outputs.run-id != ''
+        continue-on-error: true
+        uses: actions/download-artifact@v4
+        with:
+          name: corpus-domain-checkpoint
+          run-id: ${{ steps.find-checkpoint.outputs.run-id }}
+          github-token: ${{ github.token }}
+          path: .    # artifact stores files with full workspace-relative path
+
+      - name: Log checkpoint status
+        run: |
+          if [ "${{ steps.dl-checkpoint.outcome }}" = "success" ]; then
+            FILES=$(ls assets/legal-corpus/batches/batch-*.jsonl.gz 2>/dev/null | wc -l)
+            NAMES=$(ls assets/legal-corpus/batches/batch-*.jsonl.gz 2>/dev/null | xargs -I{} basename {} .jsonl.gz | sed 's/batch-//' | tr '\n' ' ')
+            echo "::notice::Resuming from checkpoint — ${FILES} domain(s) already done: ${NAMES}"
+          else
+            echo "::notice::No checkpoint found — starting fresh"
+          fi
+
       - name: Run ingestion (OData + WikiSource, no embeddings)
-        run: pnpm ingest-knesset-odata -- --delay 500 --domain-batches
+        run: pnpm ingest-knesset-odata -- --delay 200 --domain-batches
+
+      - name: Count completed domain files for checkpoint
+        id: checkpoint-count
+        if: always()
+        run: |
+          COUNT=$(ls assets/legal-corpus/batches/batch-*.jsonl.gz 2>/dev/null | wc -l)
+          echo "count=${COUNT}" >> "$GITHUB_OUTPUT"
+          echo "::notice::Checkpoint: ${COUNT} completed domain file(s) to save"
+
+      - name: Upload domain checkpoint (only if files exist — prevents overwriting good checkpoint with empty one)
+        if: always() && steps.checkpoint-count.outputs.count != '0'
+        uses: actions/upload-artifact@v4
+        with:
+          name: corpus-domain-checkpoint
+          path: assets/legal-corpus/batches/batch-*.jsonl.gz
+          retention-days: 7
+          if-no-files-found: warn
+          overwrite: true
 
       - name: Upload corpus artifact (always — preserves output even on partial runs)
         if: always()
@@ -55,7 +113,7 @@ jobs:
             assets/legal-corpus/corpus-manifest.json
             assets/legal-corpus/batches/corpus-domain-index.json
           retention-days: 7
-          if-no-files-found: error
+          if-no-files-found: warn
 
   # ── Job B: Embedding enrichment pass (conditional on inputs.embed) ─────────────────────
   embed-corpus:
@@ -215,12 +273,7 @@ jobs:
             echo "::error::First batch decompresses to empty content"
             exit 1
           fi
-          if ! echo "$FIRST_LINE" | python3 -c "
-import sys, json
-d = json.load(sys.stdin)
-assert d.get('schemaVersion') == 1, 'missing schemaVersion:1'
-assert 'israelLawId' in d, 'missing israelLawId'
-" 2>/dev/null; then
+          if ! echo "$FIRST_LINE" | python3 -c "import sys,json;d=json.load(sys.stdin);assert d.get('schemaVersion')==1;assert 'israelLawId' in d" 2>/dev/null; then
             echo "::error::First JSONL line is not a valid schemaVersion:1 corpus record"
             exit 1
           fi
