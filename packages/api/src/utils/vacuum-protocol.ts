@@ -184,10 +184,12 @@ async function isImageSafe(filePath: string, root: string): Promise<boolean> {
 
 // ── File lock detection ──────────────────────────────────────────────────────
 
-async function isFileLocked(filePath: string): Promise<boolean> {
+async function isFileLocked(filePath: string, root: string): Promise<boolean> {
+  const resolved = resolve(filePath);
+  if (!containsPath(resolved, root)) return true;
   let fh: Awaited<ReturnType<typeof fsOpen>> | null = null;
   try {
-    fh = await fsOpen(toLongPath(filePath), 'r+');
+    fh = await fsOpen(toLongPath(resolved), 'r+');
     await fh.close();
     return false;
   } catch {
@@ -341,6 +343,10 @@ export async function runVacuumProtocol(opts: VacuumOptions): Promise<VacuumRepo
     const fileName   = basename(filePath);
     const detectedAt = new Date().toISOString();
 
+    // Containment re-check: scanDir already validates this, but CodeQL taint
+    // analysis requires an explicit guard before each filesystem operation.
+    if (!containsPath(resolve(filePath), absTarget)) continue;
+
     // Sample CPU after every file to ensure accurate throttling
     await effort.throttle();
 
@@ -409,6 +415,15 @@ export async function runVacuumProtocol(opts: VacuumOptions): Promise<VacuumRepo
     const safeFolder  = sanitizeFolderName(caseNumber);
     const expectedPath = join(absOrg, safeFolder, fileName);
 
+    // Containment guard: expectedPath must be within orgDir.
+    // safeFolder can only contain digits/dashes so traversal is impossible, but
+    // CodeQL requires an explicit check before stat/mkdir/rename on orgDir-derived paths.
+    if (!containsPath(resolve(expectedPath), absOrg)) {
+      errors.push(`נתיב יעד חורג מגבולות orgDir: ${filePath}`);
+      skipCount++;
+      continue;
+    }
+
     if (filePath === expectedPath) {
       const entry: VacuumEntry = {
         filePath, fileName, caseNumber, expectedPath,
@@ -455,7 +470,7 @@ export async function runVacuumProtocol(opts: VacuumOptions): Promise<VacuumRepo
     }
 
     // ── Apply move ────────────────────────────────────────────────────────
-    const locked = await isFileLocked(filePath);
+    const locked = await isFileLocked(filePath, absTarget);
     if (locked) {
       const entry: VacuumEntry = {
         filePath, fileName, caseNumber, expectedPath,
