@@ -48,7 +48,7 @@ jobs:
         uses: actions/download-artifact@v4
         with:
           name: corpus-domain-checkpoint
-          path: assets/legal-corpus/batches
+          path: .    # artifact stores files with full workspace-relative path
 
       - name: Log checkpoint status
         run: |
