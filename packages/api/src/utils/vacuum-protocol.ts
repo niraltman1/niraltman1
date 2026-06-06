@@ -54,6 +54,11 @@ function sanitizeFolderName(name: string): string {
   return name.replace(FORBIDDEN_CHARS_RE, '_').replace(/\s+/g, ' ').trim();
 }
 
+/** Returns true only when `child` is the same path as `root` or a direct descendant of it. */
+function containsPath(child: string, root: string): boolean {
+  return child === root || child.startsWith(root + sep);
+}
+
 /**
  * Validates that a matched case number is actually a valid Israeli court case.
  * Prevents false positives from generic number patterns.
@@ -80,10 +85,14 @@ function isValidIsraeliCaseNumber(caseNumber: string): boolean {
  * 3. Valid PDF footer (%%EOF)
  * 4. Encryption status
  */
-async function isPdfSafe(filePath: string): Promise<{ valid: boolean; encrypted: boolean }> {
+async function isPdfSafe(filePath: string, root: string): Promise<{ valid: boolean; encrypted: boolean }> {
+  const resolved = resolve(filePath);
+  if (!containsPath(resolved, root)) {
+    return { valid: false, encrypted: false };
+  }
   let fh: Awaited<ReturnType<typeof fsOpen>> | null = null;
   try {
-    const longPath = toLongPath(filePath);
+    const longPath = toLongPath(resolved);
     const filestat = await stat(longPath);
     
     // Reject zero-length files
@@ -130,10 +139,14 @@ async function isPdfSafe(filePath: string): Promise<{ valid: boolean; encrypted:
  * Validates image file integrity by checking magic bytes (file signatures).
  * Returns false if file is zero-length or has invalid header.
  */
-async function isImageSafe(filePath: string): Promise<boolean> {
+async function isImageSafe(filePath: string, root: string): Promise<boolean> {
+  const resolved = resolve(filePath);
+  if (!containsPath(resolved, root)) {
+    return false;
+  }
   let fh: Awaited<ReturnType<typeof fsOpen>> | null = null;
   try {
-    const longPath = toLongPath(filePath);
+    const longPath = toLongPath(resolved);
     const filestat = await stat(longPath);
     
     // Reject zero-length files
@@ -195,19 +208,25 @@ async function scanDir(
   dir: string,
   out: string[],
   errors: string[],
+  root: string,
   visited: Map<string, boolean> = new Map()
 ): Promise<void> {
   try {
-    const longPath = toLongPath(dir);
+    const resolved = resolve(dir);
+    if (!containsPath(resolved, root)) {
+      errors.push(`סריקת תיקייה נכשלה: ${dir} — חריגה מגבולות מותרים`);
+      return;
+    }
+    const longPath = toLongPath(resolved);
     const dirstat = await stat(longPath);
-    
+
     // Track inode to prevent symlink loops
     const inode = `${dirstat.dev}:${dirstat.ino}`;
     if (visited.has(inode)) {
       return; // Already scanned this directory (symlink loop detected)
     }
     visited.set(inode, true);
-    
+
     const items = await readdir(longPath, { withFileTypes: true });
     
     // Limit concurrency to 10 concurrent directory operations
@@ -223,7 +242,7 @@ async function scanDir(
       if (item.isDirectory()) {
         const task = (async () => {
           try {
-            await scanDir(full, out, errors, visited);
+            await scanDir(full, out, errors, root, visited);
           } catch (e) {
             errors.push(
               `תיקייה: ${full}, שגיאה: ${(e as NodeJS.ErrnoException).code || 'UNKNOWN'}`
@@ -311,7 +330,7 @@ export async function runVacuumProtocol(opts: VacuumOptions): Promise<VacuumRepo
   const filePaths: string[] = [];
   const errors:    string[] = [];
 
-  await scanDir(absTarget, filePaths, errors);
+  await scanDir(absTarget, filePaths, errors, absTarget);
 
   const entries:   VacuumEntry[] = [];
   let moveCount    = 0;
@@ -337,7 +356,7 @@ export async function runVacuumProtocol(opts: VacuumOptions): Promise<VacuumRepo
 
     // ── Validate file integrity ───────────────────────────────────────────
     if (fileExt === '.pdf') {
-      const { valid, encrypted } = await isPdfSafe(filePath);
+      const { valid, encrypted } = await isPdfSafe(filePath, absTarget);
       if (!valid) {
         const entry: VacuumEntry = {
           filePath, fileName, caseNumber: null, expectedPath: null,
@@ -362,7 +381,7 @@ export async function runVacuumProtocol(opts: VacuumOptions): Promise<VacuumRepo
 
     // Validate image files
     if (['.jpg', '.jpeg', '.png', '.gif', '.bmp', '.webp', '.svg', '.tiff', '.ico'].includes(fileExt)) {
-      const validImage = await isImageSafe(filePath);
+      const validImage = await isImageSafe(filePath, absTarget);
       if (!validImage) {
         const entry: VacuumEntry = {
           filePath, fileName, caseNumber: null, expectedPath: null,
