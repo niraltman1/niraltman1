@@ -16,6 +16,7 @@ concurrency:
 
 permissions:
   contents: write
+  actions: read    # needed to list/download artifacts from previous runs
 
 jobs:
   # ── Job A: OData + WikiSource, no embeddings (~20-40 min) ──────────────────────────────
@@ -42,12 +43,33 @@ jobs:
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
 
+      - name: Find most recent checkpoint artifact (cross-run)
+        id: find-checkpoint
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          # download-artifact@v4 only sees the CURRENT run's artifacts by default.
+          # We query the API to find the latest non-expired corpus-domain-checkpoint
+          # from any previous run, then pass its run-id to the download step.
+          RUN_ID=$(gh api "repos/niraltman1/niraltman1/actions/artifacts?per_page=100&name=corpus-domain-checkpoint" \
+            --jq '[.artifacts[] | select(.expired == false)] | sort_by(.created_at) | reverse | .[0].workflow_run.id // empty' 2>/dev/null || true)
+          if [ -n "$RUN_ID" ] && [ "$RUN_ID" != "null" ]; then
+            echo "run-id=${RUN_ID}" >> "$GITHUB_OUTPUT"
+            echo "::notice::Found corpus-domain-checkpoint from run ${RUN_ID}"
+          else
+            echo "run-id=" >> "$GITHUB_OUTPUT"
+            echo "::notice::No prior corpus-domain-checkpoint artifact found — starting fresh"
+          fi
+
       - name: Download domain checkpoint from previous run (enables resume)
         id: dl-checkpoint
+        if: steps.find-checkpoint.outputs.run-id != ''
         continue-on-error: true
         uses: actions/download-artifact@v4
         with:
           name: corpus-domain-checkpoint
+          run-id: ${{ steps.find-checkpoint.outputs.run-id }}
+          github-token: ${{ github.token }}
           path: .    # artifact stores files with full workspace-relative path
 
       - name: Log checkpoint status
