@@ -22,7 +22,7 @@ jobs:
   build-corpus:
     name: Build corpus (OData + WikiSource)
     runs-on: ubuntu-latest
-    timeout-minutes: 180
+    timeout-minutes: 360
     env:
       NODE_OPTIONS: --max-old-space-size=6144
 
@@ -54,7 +54,8 @@ jobs:
         run: |
           if [ "${{ steps.dl-checkpoint.outcome }}" = "success" ]; then
             FILES=$(ls assets/legal-corpus/batches/batch-*.jsonl.gz 2>/dev/null | wc -l)
-            echo "::notice::Resuming from checkpoint — ${FILES} domain file(s) already done, skipping"
+            NAMES=$(ls assets/legal-corpus/batches/batch-*.jsonl.gz 2>/dev/null | xargs -I{} basename {} .jsonl.gz | sed 's/batch-//' | tr '\n' ' ')
+            echo "::notice::Resuming from checkpoint — ${FILES} domain(s) already done: ${NAMES}"
           else
             echo "::notice::No checkpoint found — starting fresh"
           fi
