@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
-  ShieldWarningIcon, ClockIcon, ScalesIcon, ArrowCounterClockwiseIcon,
+  ShieldWarningIcon, ScalesIcon, ArrowCounterClockwiseIcon,
   CalendarIcon, FileTextIcon,
 } from '@phosphor-icons/react';
 import {
@@ -26,11 +26,9 @@ function RiskBandDot({ band }: { band: string }) {
 
 function VersionRow({
   v,
-  draftId,
   onRestore,
 }: {
   v: DraftVersionRecord;
-  draftId: number;
   onRestore: (n: number) => void;
 }) {
   return (
@@ -180,7 +178,6 @@ export function DraftContextPanel({ draft }: Props) {
               <VersionRow
                 key={v.id}
                 v={v}
-                draftId={draft.id}
                 onRestore={handleRestore}
               />
             ))}

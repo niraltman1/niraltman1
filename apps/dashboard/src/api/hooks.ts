@@ -3134,7 +3134,7 @@ export function useAddDraftCitation() {
 export function useRemoveDraftCitation() {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: ({ draftId, citationId }: { draftId: number; citationId: number }) =>
+    mutationFn: ({ citationId }: { draftId: number; citationId: number }) =>
       deleteJSON<{ deleted: boolean }>(`/api/drafts/citations/${citationId}`),
     onSuccess: (_data, vars) => void qc.invalidateQueries({ queryKey: ['drafts', vars.draftId, 'citations'] }),
   });
@@ -3169,7 +3169,7 @@ export function useAddToShelf() {
 export function useMarkShelfItemInserted() {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: ({ draftId, itemId }: { draftId: number; itemId: number }) =>
+    mutationFn: ({ itemId }: { draftId: number; itemId: number }) =>
       patchJSON<{ inserted: boolean }>(`/api/drafts/shelf/${itemId}/insert`, {}),
     onSuccess: (_data, vars) => void qc.invalidateQueries({ queryKey: ['drafts', vars.draftId, 'shelf'] }),
   });
@@ -3178,7 +3178,7 @@ export function useMarkShelfItemInserted() {
 export function useRemoveFromShelf() {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: ({ draftId, itemId }: { draftId: number; itemId: number }) =>
+    mutationFn: ({ itemId }: { draftId: number; itemId: number }) =>
       deleteJSON<{ deleted: boolean }>(`/api/drafts/shelf/${itemId}`),
     onSuccess: (_data, vars) => void qc.invalidateQueries({ queryKey: ['drafts', vars.draftId, 'shelf'] }),
   });

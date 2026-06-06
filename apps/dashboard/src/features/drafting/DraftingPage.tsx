@@ -6,7 +6,7 @@ import {
 } from '@phosphor-icons/react';
 import {
   useDrafts, useCreateDraft, useForkDraft, useArchiveDraft,
-  useCases, useContacts,
+  useCases,
   type DraftRecord,
 } from '@/api/hooks.js';
 import { useUIStore } from '@/store/index.js';
