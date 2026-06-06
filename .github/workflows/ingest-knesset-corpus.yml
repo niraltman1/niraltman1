@@ -22,7 +22,7 @@ jobs:
   build-corpus:
     name: Build corpus (OData + WikiSource)
     runs-on: ubuntu-latest
-    timeout-minutes: 60
+    timeout-minutes: 120
     env:
       NODE_OPTIONS: --max-old-space-size=6144
 
@@ -42,8 +42,35 @@ jobs:
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
 
+      - name: Download domain checkpoint from previous run (enables resume)
+        id: dl-checkpoint
+        continue-on-error: true
+        uses: actions/download-artifact@v4
+        with:
+          name: corpus-domain-checkpoint
+          path: assets/legal-corpus/batches
+
+      - name: Log checkpoint status
+        run: |
+          if [ "${{ steps.dl-checkpoint.outcome }}" = "success" ]; then
+            FILES=$(ls assets/legal-corpus/batches/batch-*.jsonl.gz 2>/dev/null | wc -l)
+            echo "::notice::Resuming from checkpoint — ${FILES} domain file(s) already done, skipping"
+          else
+            echo "::notice::No checkpoint found — starting fresh"
+          fi
+
       - name: Run ingestion (OData + WikiSource, no embeddings)
         run: pnpm ingest-knesset-odata -- --delay 500 --domain-batches
+
+      - name: Upload domain checkpoint (always — enables resume if next run needed)
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: corpus-domain-checkpoint
+          path: assets/legal-corpus/batches/batch-*.jsonl.gz
+          retention-days: 7
+          if-no-files-found: ignore
+          overwrite: true
 
       - name: Upload corpus artifact (always — preserves output even on partial runs)
         if: always()
@@ -55,7 +82,7 @@ jobs:
             assets/legal-corpus/corpus-manifest.json
             assets/legal-corpus/batches/corpus-domain-index.json
           retention-days: 7
-          if-no-files-found: error
+          if-no-files-found: warn
 
   # ── Job B: Embedding enrichment pass (conditional on inputs.embed) ─────────────────────
   embed-corpus:
