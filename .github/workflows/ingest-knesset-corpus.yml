@@ -62,14 +62,22 @@ jobs:
       - name: Run ingestion (OData + WikiSource, no embeddings)
         run: pnpm ingest-knesset-odata -- --delay 200 --domain-batches
 
-      - name: Upload domain checkpoint (always — enables resume if next run needed)
+      - name: Count completed domain files for checkpoint
+        id: checkpoint-count
         if: always()
+        run: |
+          COUNT=$(ls assets/legal-corpus/batches/batch-*.jsonl.gz 2>/dev/null | wc -l)
+          echo "count=${COUNT}" >> "$GITHUB_OUTPUT"
+          echo "::notice::Checkpoint: ${COUNT} completed domain file(s) to save"
+
+      - name: Upload domain checkpoint (only if files exist — prevents overwriting good checkpoint with empty one)
+        if: always() && steps.checkpoint-count.outputs.count != '0'
         uses: actions/upload-artifact@v4
         with:
           name: corpus-domain-checkpoint
           path: assets/legal-corpus/batches/batch-*.jsonl.gz
           retention-days: 7
-          if-no-files-found: ignore
+          if-no-files-found: warn
           overwrite: true
 
       - name: Upload corpus artifact (always — preserves output even on partial runs)
