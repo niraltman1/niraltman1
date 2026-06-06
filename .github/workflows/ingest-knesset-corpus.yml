@@ -22,7 +22,7 @@ jobs:
   build-corpus:
     name: Build corpus (OData + WikiSource)
     runs-on: ubuntu-latest
-    timeout-minutes: 120
+    timeout-minutes: 180
     env:
       NODE_OPTIONS: --max-old-space-size=6144
 
@@ -60,7 +60,7 @@ jobs:
           fi
 
       - name: Run ingestion (OData + WikiSource, no embeddings)
-        run: pnpm ingest-knesset-odata -- --delay 500 --domain-batches
+        run: pnpm ingest-knesset-odata -- --delay 200 --domain-batches
 
       - name: Upload domain checkpoint (always — enables resume if next run needed)
         if: always()
