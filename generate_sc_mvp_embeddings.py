@@ -19,7 +19,8 @@ TARGET_DISTRIBUTION = {
 
 def main():
     print("Loading dataset from Hugging Face...")
-    dataset = load_dataset("NitzanE/Supreme-Court-of-Israel-Case-Data", split="train")
+    # התיקון כאן: השם המדויק של המאגר הפתוח
+    dataset = load_dataset("LevMuchnik/SupremeCourtOfIsrael", split="train")
     df = dataset.to_pandas()
 
     print("Filtering and sampling cases...")
