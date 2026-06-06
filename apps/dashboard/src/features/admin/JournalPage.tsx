@@ -1,28 +1,6 @@
-import { useState, useCallback } from 'react';
+import { useState } from 'react';
 import { CircleNotchIcon, ArrowsClockwiseIcon, CaretDownIcon, CaretRightIcon } from '@phosphor-icons/react';
-
-// ─────────────────────────────────────────────────────────────────────────────
-//  Types
-// ─────────────────────────────────────────────────────────────────────────────
-
-interface JournalEvent {
-  id:          number;
-  executionId: string;
-  caseId:      number | null;
-  userId:      number | null;
-  eventType:   string;
-  payloadJson: string | null;
-  createdAt:   string;
-}
-
-interface JournalResponse {
-  events: JournalEvent[];
-  count:  number;
-}
-
-// ─────────────────────────────────────────────────────────────────────────────
-//  Event type badge colours
-// ─────────────────────────────────────────────────────────────────────────────
+import { useAgentEvents, type AgentExecutionEvent } from '@/api/hooks.js';
 
 const EVENT_COLOURS: Record<string, string> = {
   execution_started:    '#4A9EFF',
@@ -46,11 +24,7 @@ function EventBadge({ type }: { type: string }) {
   );
 }
 
-// ─────────────────────────────────────────────────────────────────────────────
-//  Payload accordion row
-// ─────────────────────────────────────────────────────────────────────────────
-
-function EventRow({ event }: { event: JournalEvent }) {
+function EventRow({ event }: { event: AgentExecutionEvent }) {
   const [expanded, setExpanded] = useState(false);
 
   let pretty: string | null = null;
@@ -107,10 +81,6 @@ function EventRow({ event }: { event: JournalEvent }) {
   );
 }
 
-// ─────────────────────────────────────────────────────────────────────────────
-//  Filter bar
-// ─────────────────────────────────────────────────────────────────────────────
-
 const EVENT_TYPES = [
   '',
   'execution_started',
@@ -122,37 +92,18 @@ const EVENT_TYPES = [
   'retrieval_fallback',
 ];
 
-// ─────────────────────────────────────────────────────────────────────────────
-//  Page
-// ─────────────────────────────────────────────────────────────────────────────
-
 export function JournalPage() {
-  const [caseId,    setCaseId]    = useState('');
-  const [eventType, setEventType] = useState('');
-  const [limit,     setLimit]     = useState('50');
-  const [loading,   setLoading]   = useState(false);
-  const [data,      setData]      = useState<JournalResponse | null>(null);
-  const [error,     setError]     = useState<string | null>(null);
+  const [caseIdInput, setCaseIdInput] = useState('');
+  const [eventType,   setEventType]   = useState('');
+  const [limit,       setLimit]       = useState('50');
 
-  const load = useCallback(async () => {
-    setLoading(true);
-    setError(null);
-    try {
-      const params = new URLSearchParams();
-      if (caseId.trim())    params.set('caseId',    caseId.trim());
-      if (eventType.trim()) params.set('eventType', eventType.trim());
-      if (limit.trim())     params.set('limit',     limit.trim());
+  const caseId = caseIdInput.trim() ? Number(caseIdInput.trim()) : null;
 
-      const res  = await fetch(`/api/admin/journal?${params.toString()}`);
-      const body = await res.json() as { success: boolean; data: JournalResponse; error?: { message: string } };
-      if (!body.success) throw new Error(body.error?.message ?? 'שגיאה לא ידועה');
-      setData(body.data);
-    } catch (e) {
-      setError(e instanceof Error ? e.message : String(e));
-    } finally {
-      setLoading(false);
-    }
-  }, [caseId, eventType, limit]);
+  const { data, isFetching, isError, error, refetch } = useAgentEvents({
+    ...(caseId !== null ? { caseId } : {}),
+    ...(eventType       ? { eventType } : {}),
+    limit: Number(limit) || 50,
+  });
 
   return (
     <div className="space-y-6" dir="rtl">
@@ -184,8 +135,8 @@ export function JournalPage() {
           <label className="text-xs text-parchment/40">מספר תיק</label>
           <input
             type="number"
-            value={caseId}
-            onChange={(e) => setCaseId(e.target.value)}
+            value={caseIdInput}
+            onChange={(e) => setCaseIdInput(e.target.value)}
             placeholder="הכל"
             dir="ltr"
             className="bg-navy-900/50 border border-parchment/10 rounded px-2 py-1.5
@@ -209,27 +160,25 @@ export function JournalPage() {
         </div>
 
         <button
-          onClick={() => void load()}
-          disabled={loading}
+          onClick={() => void refetch()}
+          disabled={isFetching}
           className="px-4 py-1.5 bg-gold/20 hover:bg-gold/30 text-gold text-xs rounded
                      transition-colors disabled:opacity-50 flex items-center gap-1.5
                      border border-gold/30"
         >
-          {loading
+          {isFetching
             ? <CircleNotchIcon size={12} className="animate-spin" />
             : <ArrowsClockwiseIcon size={12} />}
           רענן
         </button>
       </div>
 
-      {/* Error */}
-      {error && (
+      {isError && (
         <div className="bg-red-900/20 border border-red-700/30 rounded px-4 py-2 text-red-400 text-xs">
-          {error}
+          {error instanceof Error ? error.message : 'שגיאה'}
         </div>
       )}
 
-      {/* Table */}
       <div className="bg-navy-100 border border-parchment/10 rounded-lg overflow-hidden">
         <div className="flex items-center justify-between px-4 py-3 border-b border-parchment/10">
           <h2 className="text-sm font-semibold text-parchment">אירועים</h2>
@@ -238,20 +187,20 @@ export function JournalPage() {
           )}
         </div>
 
-        {loading && (
+        {isFetching && (
           <div className="flex items-center justify-center gap-2 py-12 text-parchment/30 text-sm">
             <CircleNotchIcon size={16} className="animate-spin" />
             טוען…
           </div>
         )}
 
-        {!loading && data && data.events.length === 0 && (
+        {!isFetching && data && data.events.length === 0 && (
           <div className="text-center py-12 text-parchment/30 text-sm">
             אין אירועים להצגה
           </div>
         )}
 
-        {!loading && data && data.events.length > 0 && (
+        {!isFetching && data && data.events.length > 0 && (
           <div className="overflow-x-auto">
             <table className="w-full text-right">
               <thead>
@@ -273,9 +222,9 @@ export function JournalPage() {
           </div>
         )}
 
-        {!loading && !data && (
+        {!isFetching && !data && !isError && (
           <div className="text-center py-12 text-parchment/30 text-sm">
-            לחץ על "רענן" כדי לטעון נתונים
+            טוען נתונים…
           </div>
         )}
       </div>

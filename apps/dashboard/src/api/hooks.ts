@@ -3208,21 +3208,34 @@ export function useDraftsUsingSection(sectionKey: string | null) {
   });
 }
 
-// ── Agent Execution Events (Journal fix) ─────────────────────────────────────
+// ── Agent Execution Events (Journal) ─────────────────────────────────────────
 
 export interface AgentExecutionEvent {
-  id:              number;
-  agent_type:      string;
-  trigger_kind:    string | null;
-  status:          string;
-  payload_summary: string | null;
-  created_at:      string;
+  id:          number;
+  executionId: string;
+  caseId:      number | null;
+  userId:      number | null;
+  eventType:   string;
+  payloadJson: string | null;
+  createdAt:   string;
 }
 
-export function useAgentEvents(limit = 50) {
+export function useAgentEvents(opts: {
+  caseId?:    number | null;
+  eventType?: string;
+  limit?:     number;
+} = {}) {
+  const { caseId, eventType, limit = 50 } = opts;
   return useQuery({
-    queryKey: ['agent-events', limit],
-    queryFn:  () => fetchJSON<AgentExecutionEvent[]>(`/api/admin/agent-events?limit=${limit}`),
+    queryKey: ['agent-events', caseId, eventType, limit],
+    queryFn: () => {
+      const params = new URLSearchParams({ limit: String(limit) });
+      if (caseId)     params.set('caseId',    String(caseId));
+      if (eventType)  params.set('eventType', eventType);
+      return fetchJSON<{ events: AgentExecutionEvent[]; count: number }>(
+        `/api/admin/journal?${params.toString()}`,
+      );
+    },
     staleTime: 30_000,
     retry: false,
   });
