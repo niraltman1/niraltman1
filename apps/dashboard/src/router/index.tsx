@@ -59,6 +59,11 @@ const AgentsWorkspacePage = lz(() => import('@/features/agents/AgentsWorkspacePa
 const ContactsPage       = lz(() => import('@/features/contacts/ContactsPage.js'),    'ContactsPage');
 const PrecedentsPage     = lz(() => import('@/features/precedents/PrecedentsPage.js'), 'PrecedentsPage');
 const JudgmentLibraryPage = lz(() => import('@/features/judgment-library/JudgmentLibraryPage.js'), 'JudgmentLibraryPage');
+const LedgerPage         = lz(() => import('@/features/ledger/LedgerPage.js'),        'LedgerPage');
+const LegalCorpusPage    = lz(() => import('@/features/legal/LegalCorpusPage.js'),    'LegalCorpusPage');
+const DraftingPage       = lz(() => import('@/features/drafting/DraftingPage.js'),    'DraftingPage');
+const DraftEditorPage    = lz(() => import('@/features/drafting/DraftEditorPage.js'), 'DraftEditorPage');
+const InsolvencyPage     = lz(() => import('@/features/insolvency/InsolvencyPage.js'), 'InsolvencyPage');
 
 // ── Router ───────────────────────────────────────────────────────────────────
 
@@ -107,8 +112,13 @@ export const router: RemixRouter = createBrowserRouter([
       { path: 'mail',              element: <MailWorkspacePage />    },
       { path: 'agents',             element: <AgentsWorkspacePage />  },
       { path: 'contacts',          element: <ContactsPage />         },
-      { path: 'precedents',         element: <PrecedentsPage />        },
+      { path: 'precedents',        element: <PrecedentsPage />       },
       { path: 'judgment-library',  element: <JudgmentLibraryPage />  },
+      { path: 'ledger',            element: <LedgerPage />           },
+      { path: 'legal-corpus',      element: <LegalCorpusPage />      },
+      { path: 'drafting',          element: <DraftingPage />         },
+      { path: 'drafting/:id',      element: <DraftEditorPage />      },
+      { path: 'insolvency',        element: <InsolvencyPage />       },
       { path: 'entities',          element: <EntitiesPage />         },
       { path: 'entities/:type/:name', element: <EntityDetailPage />  },
       { path: 'canvas/:id',        element: <CanvasPage />           },

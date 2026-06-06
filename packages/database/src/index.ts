@@ -84,3 +84,10 @@ export type {
   VerdictSearchHit,
   VerdictCorpusStats,
 } from './queries/verdict-corpus.js';
+export { DraftsRepository } from './queries/drafts.js';
+export type {
+  DraftRecord,
+  DraftVersionRecord,
+  DraftCitationRecord,
+  EvidenceShelfItemRecord,
+} from './queries/drafts.js';

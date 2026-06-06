@@ -15,6 +15,7 @@ interface UIState {
   selectedDocumentId: number | null;
   selectedClientId: number | null;
   selectedCaseId: number | null;
+  selectedDraftId: number | null;
 }
 
 interface UIActions {
@@ -28,6 +29,7 @@ interface UIActions {
   selectDocument: (id: number | null) => void;
   selectClient: (id: number | null) => void;
   selectCase: (id: number | null) => void;
+  selectDraft: (id: number | null) => void;
 }
 
 export const useUIStore = create<UIState & UIActions>()(
@@ -41,6 +43,7 @@ export const useUIStore = create<UIState & UIActions>()(
         selectedDocumentId: null,
         selectedClientId:   null,
         selectedCaseId:     null,
+        selectedDraftId:    null,
 
         toggleSidebar: () =>
           set((s) => ({ sidebarCollapsed: !s.sidebarCollapsed }), false, 'toggleSidebar'),
@@ -85,6 +88,9 @@ export const useUIStore = create<UIState & UIActions>()(
 
         selectCase: (id) =>
           set({ selectedCaseId: id }, false, 'selectCase'),
+
+        selectDraft: (id) =>
+          set({ selectedDraftId: id }, false, 'selectDraft'),
       }),
       {
         name: 'factum-il-ui',

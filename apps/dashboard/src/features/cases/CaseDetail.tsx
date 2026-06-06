@@ -11,20 +11,7 @@ import { AgentOutputPanel } from '@/components/common/AgentOutputPanel.js';
 import { CaseRiskPanel } from './CaseRiskPanel.js';
 import { CaseTimeline } from './CaseTimeline.js';
 import { CaseCitations } from './CaseCitations.js';
-
-const STATUS_LABELS: Record<string, string> = {
-  open:      'פתוח',
-  closed:    'סגור',
-  suspended: 'מושהה',
-  archived:  'ארכיון',
-};
-
-const PROC_LABELS: Record<string, string> = {
-  civil:                  'אזרחי',
-  traffic_administrative: 'תעבורה - מנהלי',
-  traffic_criminal:       'תעבורה - פלילי',
-  academic:               'אקדמי',
-};
+import { procedureTypeLabel, CASE_STATUS_LABELS as STATUS_LABELS } from '@/lib/legal-terms.js';
 
 const STATUS_CLS: Record<string, string> = {
   open:      'badge badge-gold',
@@ -109,7 +96,7 @@ export function CaseDetail() {
           <div className="flex items-center gap-2">
             {procedureType && (
               <span className="badge badge-neutral text-xs">
-                {PROC_LABELS[procedureType] ?? procedureType}
+                {procedureTypeLabel(procedureType)}
               </span>
             )}
             <Link

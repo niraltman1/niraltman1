@@ -251,7 +251,7 @@ export function useRules(procedureType?: string) {
 
 /** Canonical search-hit contract returned by `GET /api/search` (see SearchEngine.SearchHit). */
 export interface SearchHit {
-  entityType: 'document' | 'client' | 'case';
+  entityType: 'document' | 'client' | 'case' | 'legislation' | 'draft' | 'precedent';
   id:         number;
   rank:       number;
   snippet:    string;
@@ -2892,6 +2892,338 @@ export function useJudgmentLibrary() {
       }));
     },
     staleTime: 60_000,
+    retry: false,
+  });
+}
+
+// ── Legal Corpus ──────────────────────────────────────────────────────────────
+
+export interface LegalSourceRecord {
+  id:            number;
+  source_key:    string;
+  title_he:      string;
+  short_name:    string | null;
+  citation:      string | null;
+  source_type:   string;
+  procedure_domain: string | null;
+  source_url:    string | null;
+  year:          number | null;
+  section_count: number;
+  is_active:     number;
+}
+
+export interface LegalSectionRecord {
+  id:               number;
+  source_id:        number;
+  section_label:    string;
+  heading_he:       string | null;
+  verbatim_text_he: string | null;
+  order_index:      number;
+  parent_label:     string | null;
+}
+
+export interface LegalSectionSearchHit {
+  id:               number;
+  source_key:       string;
+  source_title_he:  string;
+  section_label:    string;
+  heading_he:       string | null;
+  verbatim_text_he: string | null;
+  rank:             number;
+}
+
+export function useLegalSources() {
+  return useQuery({
+    queryKey: ['legal-corpus', 'sources'],
+    queryFn:  () => fetchJSON<{ stats: Record<string, unknown>; sources: LegalSourceRecord[] }>('/api/legal-corpus/sources'),
+    staleTime: 5 * 60_000,
+    retry: false,
+  });
+}
+
+export function useLegalSource(key: string | null) {
+  return useQuery({
+    queryKey: ['legal-corpus', 'source', key],
+    queryFn:  () => fetchJSON<{ source: LegalSourceRecord; sections: LegalSectionRecord[] }>(`/api/legal-corpus/sources/${key}`),
+    enabled:  Boolean(key),
+    staleTime: 5 * 60_000,
+    retry: false,
+  });
+}
+
+export function useLegalCorpusSearch(query: string, sourceKey?: string) {
+  const qs = new URLSearchParams({ q: query });
+  if (sourceKey) qs.set('source', sourceKey);
+  return useQuery({
+    queryKey: ['legal-corpus', 'search', query, sourceKey ?? ''],
+    queryFn:  () => fetchJSON<LegalSectionSearchHit[]>(`/api/legal-corpus/search?${qs}`),
+    enabled:  query.trim().length >= 2,
+    staleTime: 30_000,
+    retry: false,
+  });
+}
+
+// ── Legal Drafts ──────────────────────────────────────────────────────────────
+
+export interface DraftRecord {
+  id:             number;
+  title:          string;
+  content_json:   string | null;
+  content_html:   string | null;
+  matter_id:      number | null;
+  client_id:      number | null;
+  document_type:  string;
+  status:         string;
+  word_count:     number;
+  parent_draft_id: number | null;
+  fork_reason:    string | null;
+  created_by:     string | null;
+  is_active:      number;
+  created_at:     string;
+  updated_at:     string;
+}
+
+export interface DraftVersionRecord {
+  id:             number;
+  draft_id:       number;
+  version_number: number;
+  content_json:   string;
+  content_html:   string | null;
+  word_count:     number;
+  change_reason:  string | null;
+  is_ai_generated: number;
+  ai_operation:   string | null;
+  created_by:     string | null;
+  created_at:     string;
+}
+
+export interface DraftCitationRecord {
+  id:           number;
+  draft_id:     number;
+  citation_ref: string;
+  entity_type:  string;
+  entity_id:    number | null;
+  node_id:      string | null;
+  inserted_at:  string;
+}
+
+export interface EvidenceShelfItemRecord {
+  id:          number;
+  draft_id:    number;
+  shelf_type:  string;
+  title:       string;
+  content_he:  string | null;
+  source_ref:  string | null;
+  entity_id:   number | null;
+  entity_type: string | null;
+  is_inserted: number;
+  inserted_at: string | null;
+  created_at:  string;
+}
+
+export function useDrafts(filters?: { matterId?: number; clientId?: number; status?: string }) {
+  const qs = new URLSearchParams();
+  if (filters?.matterId) qs.set('matterId', String(filters.matterId));
+  if (filters?.clientId) qs.set('clientId', String(filters.clientId));
+  if (filters?.status)   qs.set('status',   filters.status);
+  const query = qs.toString();
+  return useQuery({
+    queryKey: ['drafts', 'list', query],
+    queryFn:  () => fetchJSON<DraftRecord[]>(`/api/drafts${query ? `?${query}` : ''}`),
+    staleTime: 10_000,
+    retry: false,
+  });
+}
+
+export function useDraft(id: number | null) {
+  return useQuery({
+    queryKey: ['drafts', id],
+    queryFn:  () => fetchJSON<DraftRecord>(`/api/drafts/${id}`),
+    enabled:  id !== null && id > 0,
+    staleTime: 10_000,
+    retry: false,
+  });
+}
+
+export function useCreateDraft() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (body: {
+      title?: string;
+      matterId?: number;
+      clientId?: number;
+      documentType?: string;
+      contentJson?: string;
+      parentDraftId?: number;
+      forkReason?: string;
+    }) => postJSON<DraftRecord>('/api/drafts', body),
+    onSuccess: () => void qc.invalidateQueries({ queryKey: ['drafts'] }),
+  });
+}
+
+export function useUpdateDraft() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: ({ id, ...body }: { id: number; title?: string; contentJson?: string; contentHtml?: string; wordCount?: number; status?: string; changeReason?: string; isAiGenerated?: boolean; aiOperation?: string }) =>
+      patchJSON<DraftRecord>(`/api/drafts/${id}`, body),
+    onSuccess: (_data, vars) => {
+      void qc.invalidateQueries({ queryKey: ['drafts', vars.id] });
+      void qc.invalidateQueries({ queryKey: ['drafts', 'list'] });
+    },
+  });
+}
+
+export function useForkDraft() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: ({ id, forkReason }: { id: number; forkReason?: string }) =>
+      postJSON<DraftRecord>(`/api/drafts/${id}/fork`, { forkReason }),
+    onSuccess: () => void qc.invalidateQueries({ queryKey: ['drafts'] }),
+  });
+}
+
+export function useArchiveDraft() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (id: number) => deleteJSON<{ archived: boolean }>(`/api/drafts/${id}`),
+    onSuccess: () => void qc.invalidateQueries({ queryKey: ['drafts'] }),
+  });
+}
+
+export function useDraftVersions(draftId: number | null) {
+  return useQuery({
+    queryKey: ['drafts', draftId, 'versions'],
+    queryFn:  () => fetchJSON<DraftVersionRecord[]>(`/api/drafts/${draftId}/versions`),
+    enabled:  draftId !== null && draftId > 0,
+    staleTime: 10_000,
+    retry: false,
+  });
+}
+
+export function useRestoreDraftVersion() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: ({ draftId, versionNumber }: { draftId: number; versionNumber: number }) =>
+      postJSON<DraftRecord>(`/api/drafts/${draftId}/restore/${versionNumber}`, {}),
+    onSuccess: (_data, vars) => {
+      void qc.invalidateQueries({ queryKey: ['drafts', vars.draftId] });
+      void qc.invalidateQueries({ queryKey: ['drafts', vars.draftId, 'versions'] });
+    },
+  });
+}
+
+export function useDraftCitations(draftId: number | null) {
+  return useQuery({
+    queryKey: ['drafts', draftId, 'citations'],
+    queryFn:  () => fetchJSON<DraftCitationRecord[]>(`/api/drafts/${draftId}/citations`),
+    enabled:  draftId !== null && draftId > 0,
+    staleTime: 10_000,
+    retry: false,
+  });
+}
+
+export function useAddDraftCitation() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: ({ draftId, ...body }: { draftId: number; citationRef: string; entityType?: string; entityId?: number; nodeId?: string }) =>
+      postJSON<DraftCitationRecord>(`/api/drafts/${draftId}/citations`, body),
+    onSuccess: (_data, vars) => void qc.invalidateQueries({ queryKey: ['drafts', vars.draftId, 'citations'] }),
+  });
+}
+
+export function useRemoveDraftCitation() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: ({ draftId, citationId }: { draftId: number; citationId: number }) =>
+      deleteJSON<{ deleted: boolean }>(`/api/drafts/citations/${citationId}`),
+    onSuccess: (_data, vars) => void qc.invalidateQueries({ queryKey: ['drafts', vars.draftId, 'citations'] }),
+  });
+}
+
+export function useDraftShelf(draftId: number | null) {
+  return useQuery({
+    queryKey: ['drafts', draftId, 'shelf'],
+    queryFn:  () => fetchJSON<EvidenceShelfItemRecord[]>(`/api/drafts/${draftId}/shelf`),
+    enabled:  draftId !== null && draftId > 0,
+    staleTime: 10_000,
+    retry: false,
+  });
+}
+
+export function useAddToShelf() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: ({ draftId, ...body }: {
+      draftId:     number;
+      shelfType:   'case' | 'legislation' | 'precedent' | 'note' | 'ai_output' | 'excerpt' | 'document';
+      title:       string;
+      contentHe?:  string;
+      sourceRef?:  string;
+      entityId?:   number;
+      entityType?: string;
+    }) => postJSON<EvidenceShelfItemRecord>(`/api/drafts/${draftId}/shelf`, body),
+    onSuccess: (_data, vars) => void qc.invalidateQueries({ queryKey: ['drafts', vars.draftId, 'shelf'] }),
+  });
+}
+
+export function useMarkShelfItemInserted() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: ({ draftId, itemId }: { draftId: number; itemId: number }) =>
+      patchJSON<{ inserted: boolean }>(`/api/drafts/shelf/${itemId}/insert`, {}),
+    onSuccess: (_data, vars) => void qc.invalidateQueries({ queryKey: ['drafts', vars.draftId, 'shelf'] }),
+  });
+}
+
+export function useRemoveFromShelf() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: ({ draftId, itemId }: { draftId: number; itemId: number }) =>
+      deleteJSON<{ deleted: boolean }>(`/api/drafts/shelf/${itemId}`),
+    onSuccess: (_data, vars) => void qc.invalidateQueries({ queryKey: ['drafts', vars.draftId, 'shelf'] }),
+  });
+}
+
+export function useDraftsUsingCitation(citationRef: string | null) {
+  return useQuery({
+    queryKey: ['drafts', 'knowledge', 'citation', citationRef],
+    queryFn:  () => fetchJSON<{ id: number; title: string; matter_id: number | null; created_at: string }[]>(
+      `/api/drafts/knowledge/by-citation?ref=${encodeURIComponent(citationRef ?? '')}`,
+    ),
+    enabled:  Boolean(citationRef),
+    staleTime: 60_000,
+    retry: false,
+  });
+}
+
+export function useDraftsUsingSection(sectionKey: string | null) {
+  return useQuery({
+    queryKey: ['drafts', 'knowledge', 'section', sectionKey],
+    queryFn:  () => fetchJSON<{ id: number; title: string; created_at: string }[]>(
+      `/api/drafts/knowledge/by-section?key=${encodeURIComponent(sectionKey ?? '')}`,
+    ),
+    enabled:  Boolean(sectionKey),
+    staleTime: 60_000,
+    retry: false,
+  });
+}
+
+// ── Agent Execution Events (Journal fix) ─────────────────────────────────────
+
+export interface AgentExecutionEvent {
+  id:              number;
+  agent_type:      string;
+  trigger_kind:    string | null;
+  status:          string;
+  payload_summary: string | null;
+  created_at:      string;
+}
+
+export function useAgentEvents(limit = 50) {
+  return useQuery({
+    queryKey: ['agent-events', limit],
+    queryFn:  () => fetchJSON<AgentExecutionEvent[]>(`/api/admin/agent-events?limit=${limit}`),
+    staleTime: 30_000,
     retry: false,
   });
 }
