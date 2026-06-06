@@ -54,10 +54,6 @@ function sanitizeFolderName(name: string): string {
   return name.replace(FORBIDDEN_CHARS_RE, '_').replace(/\s+/g, ' ').trim();
 }
 
-/** Returns true only when `child` is the same path as `root` or a direct descendant of it. */
-function containsPath(child: string, root: string): boolean {
-  return child === root || child.startsWith(root + sep);
-}
 
 /**
  * Validates that a matched case number is actually a valid Israeli court case.
@@ -87,7 +83,7 @@ function isValidIsraeliCaseNumber(caseNumber: string): boolean {
  */
 async function isPdfSafe(filePath: string, root: string): Promise<{ valid: boolean; encrypted: boolean }> {
   const resolved = resolve(filePath);
-  if (!containsPath(resolved, root)) {
+  if (resolved !== root && !resolved.startsWith(root + sep)) {
     return { valid: false, encrypted: false };
   }
   let fh: Awaited<ReturnType<typeof fsOpen>> | null = null;
@@ -141,7 +137,7 @@ async function isPdfSafe(filePath: string, root: string): Promise<{ valid: boole
  */
 async function isImageSafe(filePath: string, root: string): Promise<boolean> {
   const resolved = resolve(filePath);
-  if (!containsPath(resolved, root)) {
+  if (resolved !== root && !resolved.startsWith(root + sep)) {
     return false;
   }
   let fh: Awaited<ReturnType<typeof fsOpen>> | null = null;
@@ -186,7 +182,7 @@ async function isImageSafe(filePath: string, root: string): Promise<boolean> {
 
 async function isFileLocked(filePath: string, root: string): Promise<boolean> {
   const resolved = resolve(filePath);
-  if (!containsPath(resolved, root)) return true;
+  if (resolved !== root && !resolved.startsWith(root + sep)) return true;
   let fh: Awaited<ReturnType<typeof fsOpen>> | null = null;
   try {
     fh = await fsOpen(toLongPath(resolved), 'r+');
@@ -215,7 +211,7 @@ async function scanDir(
 ): Promise<void> {
   try {
     const resolved = resolve(dir);
-    if (!containsPath(resolved, root)) {
+    if (resolved !== root && !resolved.startsWith(root + sep)) {
       errors.push(`סריקת תיקייה נכשלה: ${dir} — חריגה מגבולות מותרים`);
       return;
     }
@@ -343,9 +339,10 @@ export async function runVacuumProtocol(opts: VacuumOptions): Promise<VacuumRepo
     const fileName   = basename(filePath);
     const detectedAt = new Date().toISOString();
 
-    // Containment re-check: scanDir already validates this, but CodeQL taint
-    // analysis requires an explicit guard before each filesystem operation.
-    if (!containsPath(resolve(filePath), absTarget)) continue;
+    // Containment re-check: scanDir already validates this, but CodeQL requires
+    // an explicit resolve + startsWith guard visible at the call site.
+    const resolvedFp = resolve(filePath);
+    if (resolvedFp !== absTarget && !resolvedFp.startsWith(absTarget + sep)) continue;
 
     // Sample CPU after every file to ensure accurate throttling
     await effort.throttle();
@@ -417,8 +414,9 @@ export async function runVacuumProtocol(opts: VacuumOptions): Promise<VacuumRepo
 
     // Containment guard: expectedPath must be within orgDir.
     // safeFolder can only contain digits/dashes so traversal is impossible, but
-    // CodeQL requires an explicit check before stat/mkdir/rename on orgDir-derived paths.
-    if (!containsPath(resolve(expectedPath), absOrg)) {
+    // CodeQL requires an explicit resolve + startsWith guard at the call site.
+    const resolvedExpected = resolve(expectedPath);
+    if (resolvedExpected !== absOrg && !resolvedExpected.startsWith(absOrg + sep)) {
       errors.push(`נתיב יעד חורג מגבולות orgDir: ${filePath}`);
       skipCount++;
       continue;
