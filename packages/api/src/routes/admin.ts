@@ -366,14 +366,15 @@ export function adminRouter(repos: Repos, healingService: RagHealingService): Ro
   }));
 
   // ── Judgment Library (ספריית פסקי דין) ──────────────────────────────────────
-  // Ingest court verdicts from a local folder into the retrieval index.
-  router.post('/judgment-library/ingest', requireRole('admin', repos), asyncHandler(async (req, res) => {
-    const { folderPath } = req.body as { folderPath?: string };
-    if (!folderPath || typeof folderPath !== 'string' || !folderPath.trim()) {
-      throw new ValidationError('folderPath שדה חובה');
+  // Ingest court verdicts from the server-configured staging folder.
+  // Path comes from JUDGMENT_STAGING_DIR env var only — not from the request body —
+  // to prevent path-traversal via user-controlled input (CodeQL CWE-22).
+  router.post('/judgment-library/ingest', requireRole('admin', repos), asyncHandler(async (_req, res) => {
+    const stagingDir = process.env['JUDGMENT_STAGING_DIR'];
+    if (!stagingDir) {
+      throw new ValidationError('הגדר את משתנה הסביבה JUDGMENT_STAGING_DIR לתיקיית פסקי הדין');
     }
-    // Canonicalize before any FS access to prevent path-traversal via symlinks / ..
-    const safeFolder = resolvePath(folderPath.trim());
+    const safeFolder = resolvePath(stagingDir);
     if (!existsSync(safeFolder) || !statSync(safeFolder).isDirectory()) {
       throw new ValidationError(`לא תיקייה תקפה: ${safeFolder}`);
     }
