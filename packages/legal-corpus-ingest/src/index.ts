@@ -16,3 +16,10 @@ export type { WikiResolution } from './wiki-resolve.js';
 export { structureLaw, inferSourceType, shortName } from './structure.js';
 export { ArtifactWriter } from './artifact.js';
 export type { ArtifactRecord, EmbeddingRec } from './artifact.js';
+export { ingestSupremeCourtCorpus, parseJudges } from './supreme-court-ingest.js';
+export type {
+  SupremeCourtSourceRecord,
+  IngestSupremeCourtOptions,
+  IngestSupremeCourtSummary,
+  IngestDbHandle,
+} from './supreme-court-ingest.js';
