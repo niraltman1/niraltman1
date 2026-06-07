@@ -1942,6 +1942,64 @@ export function usePatchPaymentSchedule() {
   });
 }
 
+// ── Time Entries (§4.1.5 — billing/time-tracking foundation) ──────────────
+
+export interface TimeEntry {
+  id:             number;
+  case_id:        number;
+  description_he: string;
+  entry_date:     string;
+  hours:          number;
+  rate:           number;
+  billable:       0 | 1;
+  notes:          string | null;
+  created_at:     string;
+  updated_at:     string;
+}
+
+export interface TimeEntrySummary {
+  totalHours:    number;
+  billableHours: number;
+  totalAmount:   number;
+}
+
+export function useTimeEntries(caseId: number | null) {
+  return useQuery({
+    queryKey: ['time-entries', caseId],
+    queryFn:  () => fetchJSON<{ entries: TimeEntry[]; summary: TimeEntrySummary }>(
+      `/api/time-entries?caseId=${caseId}`,
+    ),
+    enabled:   caseId !== null,
+    staleTime: 30_000,
+  });
+}
+
+export function useCreateTimeEntry() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (body: unknown) => postJSON<TimeEntry>('/api/time-entries', body),
+    onSuccess: () => void qc.invalidateQueries({ queryKey: ['time-entries'] }),
+  });
+}
+
+export function useUpdateTimeEntry() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: ({ id, body }: { id: number; body: unknown }) =>
+      patchJSON<TimeEntry>(`/api/time-entries/${id}`, body),
+    onSuccess: () => void qc.invalidateQueries({ queryKey: ['time-entries'] }),
+  });
+}
+
+export function useDeleteTimeEntry() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: ({ id }: { id: number; caseId: number }) =>
+      deleteJSON<{ deleted: boolean }>(`/api/time-entries/${id}`),
+    onSuccess: () => void qc.invalidateQueries({ queryKey: ['time-entries'] }),
+  });
+}
+
 // ── Insolvency Module ─────────────────────────────────────────────────────
 
 export interface InsolvencyFiling {

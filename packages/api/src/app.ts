@@ -39,6 +39,7 @@ import { vacuumRouter }      from './routes/vacuum.js';
 import { eventsRouter }      from './routes/events.js';
 import { precedentsRouter }  from './routes/precedents.js';
 import { ledgerRouter }      from './routes/ledger.js';
+import { timeEntriesRouter } from './routes/time-entries.js';
 import { insolvencyRouter }  from './routes/insolvency.js';
 import { caseLawRouter }     from './routes/case-law.js';
 import { citationsRouter }   from './routes/citations.js';
@@ -160,6 +161,7 @@ export function createApp(
   app.use('/api/events',       eventsRouter());
   app.use('/api/precedents',   precedentsRouter(repos));
   app.use('/api/ledger',       ledgerRouter(repos));
+  app.use('/api/time-entries', timeEntriesRouter(repos));
   app.use('/api/insolvency',   insolvencyRouter(repos));
   app.use('/api/case-law',     caseLawRouter(repos));
   app.use('/api/verdict-corpus', verdictCorpusRouter(repos));
