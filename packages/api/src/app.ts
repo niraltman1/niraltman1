@@ -61,6 +61,7 @@ import { rulesRouter } from './routes/rules.js';
 import { legalCorpusRouter } from './routes/legal-corpus.js';
 import { verdictCorpusRouter } from './routes/verdict-corpus.js';
 import { draftsRouter }      from './routes/drafts.js';
+import { legalBrainRouter }  from './routes/legal-brain.js';
 import { recordActivity }    from './utils/resource-controller.js';
 import { RagHealingService } from './utils/rag-healing.js';
 import { logWhisperHealthAtStartup } from './modules/transcription/whisper.js';
@@ -185,6 +186,7 @@ export function createApp(
   app.use('/api/rules',         rulesRouter(repos));
   app.use('/api/legal-corpus',  legalCorpusRouter(repos));
   app.use('/api/drafts',        draftsRouter(repos));
+  app.use('/api/legal-brain',   legalBrainRouter(repos));
 
   // Track activity for Day/Night resource controller
   app.use((_req, _res, next) => { recordActivity(); next(); });
