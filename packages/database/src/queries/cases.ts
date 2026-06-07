@@ -89,12 +89,13 @@ export class CaseRepository {
 
   create(input: CaseCreateInput): Case {
     const result = this.db.prepare(`
-      INSERT INTO Cases (case_number, case_type, title_he, title_en, client_id,
+      INSERT INTO Cases (case_number, case_type, procedure_type, title_he, title_en, client_id,
                          lead_lawyer_id, judge_id, court_name, opened_date, status, notes)
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     `).run(
       input.caseNumber,
       input.caseType       ?? 'civil',
+      input.procedureType  ?? null,
       input.titleHe,
       input.titleEn        ?? null,
       input.clientId,

@@ -4,15 +4,16 @@ const caseTypeEnum   = z.enum(['civil', 'criminal', 'family', 'labour', 'adminis
 const caseStatusEnum = z.enum(['open', 'closed', 'suspended', 'archived']);
 
 export const createCaseSchema = z.object({
-  caseNumber:   z.string().min(1),
-  caseType:     caseTypeEnum.optional(),
-  titleHe:      z.string().min(1),
-  titleEn:      z.string().optional(),
-  clientId:     z.number().int().positive(),
-  courtName:    z.string().optional(),
-  openedDate:   z.string().optional(),
-  status:       caseStatusEnum.optional(),
-  notes:        z.string().optional(),
+  caseNumber:    z.string().min(1),
+  caseType:      caseTypeEnum.optional(),
+  procedureType: z.string().optional(),
+  titleHe:       z.string().min(1),
+  titleEn:       z.string().optional(),
+  clientId:      z.number().int().positive(),
+  courtName:     z.string().optional(),
+  openedDate:    z.string().optional(),
+  status:        caseStatusEnum.optional(),
+  notes:         z.string().optional(),
 }).strict();
 
 export const updateCaseSchema = z.object({
