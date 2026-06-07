@@ -26,6 +26,7 @@ import { buildDocumentName } from './file-namer.js';
 import { scanForRejection } from './rejection-scanner.js';
 import { discoverFields, type DiscoveredFields } from './field-discovery.js';
 import { processAudio, AUDIO_EXTENSIONS } from './audio-pipeline.js';
+import { runOCRInWorker } from '@factum-il/pipeline';
 import { EvidenceLocker } from '../modules/evidence/evidence-locker.js';
 import { runPreflightIdentityResolution, type EssenceClassification, type ResolvedParty } from './preflight-agent.js';
 
@@ -320,9 +321,27 @@ export class MediaPipeline {
         } else if (ocrText.length > 0) {
           this.pipelineLogs?.create({ fileHash, fileName: originalName, status: 'ocr_success' });
         } else {
-          const emptyMsg = `PDF עובד ללא טקסט שחולץ — ייתכן PDF מבוסס תמונה או מוצפן חלקית: ${originalName}`;
-          console.warn(`[MediaPipeline] ${emptyMsg}`);
-          this.pipelineLogs?.create({ fileHash, fileName: originalName, status: 'failed_ocr', errorMessage: emptyMsg });
+          // pdftotext returned nothing — likely a scanned/image-based PDF with no text layer.
+          // Fall back to worker-thread OCR (Tesseract via OCRService) so the document is still
+          // searchable. Runs off the main event loop — see docs/ocr.md "Known Gap" → now closed.
+          console.warn(`[MediaPipeline] PDF עובד ללא טקסט שחולץ — מנסה נפילה חזרה ל-OCR: ${originalName}`);
+          try {
+            const ocrFallback = await runOCRInWorker({ filePath, fileHash, dbPath: null });
+            ocrText = ocrFallback.text;
+            if (ocrText.length > 0) {
+              this.pipelineLogs?.create({
+                fileHash, fileName: originalName, status: 'ocr_success',
+                errorMessage: `נחלץ טקסט בנפילה חזרה ל-OCR (PDF מבוסס תמונה), ביטחון ${ocrFallback.confidence.toFixed(2)}`,
+              });
+            } else {
+              const emptyMsg = `PDF מבוסס תמונה — גם נפילה חזרה ל-OCR לא הניבה טקסט: ${originalName}`;
+              this.pipelineLogs?.create({ fileHash, fileName: originalName, status: 'failed_ocr', errorMessage: emptyMsg });
+            }
+          } catch (e) {
+            const fallbackErr = `נפילה חזרה ל-OCR נכשלה עבור ${originalName}: ${String(e)}`;
+            console.warn(`[MediaPipeline] ${fallbackErr}`);
+            this.pipelineLogs?.create({ fileHash, fileName: originalName, status: 'failed_ocr', errorMessage: fallbackErr });
+          }
         }
       }
       this.processedFiles.updateStatus(fileHash, 'complete', {

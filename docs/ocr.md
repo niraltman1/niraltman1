@@ -7,8 +7,9 @@
 > its own unit tests. The live pipeline is `MediaPipeline`
 > (`packages/api/src/utils/media-pipeline.ts`), which uses a simpler, async
 > (`execFile`-based, non-blocking) toolchain described below. See
-> "Known Gap — Scanned/Image-Based PDFs" for the practical consequence of
-> this drift and what `OCRService` could be used for if wired up.
+> "Scanned / Image-Based PDFs — OCR Fallback" below for how `OCRService`
+> was subsequently wired in (2026-06-07) as the fallback for that lane —
+> it is no longer orphaned, just not the primary pipeline.
 
 ## Overview
 
@@ -58,7 +59,7 @@ Input native PDF
       ├─ empty text              → log 'failed_ocr'
       │                             ("PDF processed without extracted text —
       │                              possibly an image-based or partially
-      │                              encrypted PDF") — see Known Gap below
+      │                              encrypted PDF") — falls back to OCR (see below)
       └─ pdftotext error/ENOENT  → log 'failed_ocr' with the underlying error
 ```
 
@@ -94,26 +95,35 @@ image. There is also **no `OCRCache` lookup** — every file is processed fresh
 
 ---
 
-## Known Gap — Scanned / Image-Based PDFs
+## Scanned / Image-Based PDFs — OCR Fallback (closed 2026-06-07)
 
-A PDF whose pages are scanned images (no embedded text layer) will produce
-**empty output from `pdftotext`**. The live text lane does *not* fall through
-to an image-OCR step for this case — it logs `failed_ocr` with the message
-*"PDF processed without extracted text — possibly image-based or partially
-encrypted"* and leaves `Documents.ocr_text` empty. The document is still
-registered and can be opened, but it will not be full-text searchable until
-manually re-processed.
+A PDF whose pages are scanned images (no embedded text layer) produces
+**empty output from `pdftotext`**. The live text lane now falls through to a
+worker-thread OCR pass for exactly this case: when `extractPdfText` returns
+empty text for a `.pdf`, `MediaPipeline` calls `runOCRInWorker` (Tesseract via
+`OCRService`, wrapped in `node:worker_threads` so the event loop stays
+responsive — see `packages/pipeline/src/ocr-runner.ts`). The result:
 
-`packages/pipeline/src/ocr-service.ts` (`OCRService`) implements exactly the
-missing piece — Ghostscript rasterisation → preprocessing → rotation
-correction → Tesseract OCR → quality scoring → `OCRCache` (migration 035) —
-and `packages/pipeline/src/ocr-runner.ts` (`runOCRInWorker`) already wraps it
-in a `node:worker_threads` worker with a promise-based API (fully unit-tested
-in `__tests__/ocr-runner.test.ts`). **Neither is currently invoked from
-`MediaPipeline`.** Wiring `runOCRInWorker` in as the image-based-PDF fallback
-— triggered when `extractPdfText` returns empty text for a `.pdf` — would close
-this gap using infrastructure that already exists and is already tested. This
-is tracked as a follow-up item (see `reports/דוח-חוב-טכני.md`, item CT1).
+- **Fallback succeeds** → `ocrText` is populated from the OCR pass, the
+  document is registered as fully searchable, and `PipelineLogs` records
+  `ocr_success` with a note that the text came from the OCR fallback
+  (including the OCR confidence score).
+- **Fallback also yields no text** (e.g. blank/corrupt pages) → `PipelineLogs`
+  records `failed_ocr`; the document is still registered (openable, just not
+  full-text searchable) — same graceful-degradation behavior as before.
+- **Fallback throws** (e.g. Tesseract binary missing) → caught and logged as
+  `failed_ocr` with the underlying error; ingestion is never blocked, per
+  CLAUDE.md "AI steps must fail gracefully".
+
+Implementation: `packages/api/src/utils/media-pipeline.ts` (`.pdf` branch of
+`MediaPipeline.ingest`), tested in `media-pipeline.test.ts`. The fallback runs
+with `dbPath: null` (no `OCRCache` wiring — this is a rare path for
+already-mis-OCR'd scanned PDFs, so caching was intentionally left out of scope
+to avoid threading a raw DB path through `MediaPipeline`'s constructor across
+its three call sites).
+
+This closes the gap previously tracked as a CT1 follow-up in
+`reports/דוח-חוב-טכני.md`.
 
 ---
 
@@ -181,8 +191,9 @@ After processing:
 
 Note: `Documents.ocr_quality`, `Documents.page_count`, and
 `Documents.is_audio_transcript` referenced in earlier drafts of this document
-are part of the `OCRService` design (see Known Gap above) and are **not**
-populated by the live pipeline.
+are part of the `OCRService` design and are **not** populated by the live
+pipeline (the OCR fallback above consumes `OCRService`'s result but does not
+persist these extra fields back to `Documents`).
 
 ---
 
@@ -195,8 +206,8 @@ if (AUDIO_EXTENSIONS.has(ext)) {
 } else if (isImageExtension(ext)) {
   // → convertImageToPdf() — ImageMagick (HEIC only) + Tesseract
 } else if (ext === '.pdf') {
-  // → extractPdfText() — pdftotext (Poppler); empty result is logged,
-  //   NOT retried via image OCR (see Known Gap)
+  // → extractPdfText() — pdftotext (Poppler); empty result (scanned/
+  //   image-based PDF) falls back to runOCRInWorker (Tesseract via OCRService)
 }
 // .docx / .doc / .odt → registered without an OCR step (native text)
 ```
@@ -207,7 +218,7 @@ if (AUDIO_EXTENSIONS.has(ext)) {
 
 | Symptom | Cause | Fix |
 |---------|-------|-----|
-| `failed_ocr` / empty text from a scanned PDF | No image-OCR fallback for image-based PDFs (Known Gap above) | Re-export the PDF as images and re-ingest via the image lane, or wait for the `OCRService` fallback to be wired in |
+| `failed_ocr` / empty text from a scanned PDF | OCR fallback also failed (e.g. Tesseract missing, or pages too degraded for OCR) | Check `PipelineLogs.error_message` for the underlying cause; verify Tesseract + `heb.traineddata` are installed (`.\START-HERE.ps1 -Mode Repair`), or re-export the PDF as higher-quality images and re-ingest via the image lane |
 | `pdftotext binary not found` | `PDFTOTEXT_EXE` not set / Poppler not installed | Set `PDFTOTEXT_EXE` to the correct path, or run `.\START-HERE.ps1 -Mode Repair` |
 | Empty/garbled OCR text from images | Missing `heb.traineddata` | Run `.\START-HERE.ps1 -Mode Repair` |
 | Arabic chars in output | Wrong Tesseract language flags | Use `-l heb+eng` only |
