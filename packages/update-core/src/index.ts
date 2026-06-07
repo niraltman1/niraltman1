@@ -14,6 +14,8 @@ export { UpdateValidator }       from './UpdateValidator.js';
 export { UpdateStateStore }      from './UpdateStateStore.js';
 export { UpdateDownloader }      from './UpdateDownloader.js';
 export type { DownloadProgress } from './UpdateDownloader.js';
+export { restoreFromRollback }   from './UpdateRollback.js';
+export type { RollbackResult }   from './UpdateRollback.js';
 
 export {
   cleanOrphanedFiles,

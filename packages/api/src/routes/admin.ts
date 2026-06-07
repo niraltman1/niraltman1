@@ -1,6 +1,8 @@
 import { Router } from 'express';
+import { z } from 'zod';
 import type { Repos } from '../db.js';
 import { asyncHandler } from '../utils/async-handler.js';
+import { validate } from '../middleware/validate.js';
 import { ok } from '../utils/response.js';
 import { getStatus as getResourceStatus, setTurboMode } from '../utils/resource-controller.js';
 import { seedDemo } from '../utils/seed-demo.js';
@@ -22,6 +24,40 @@ function parseJsonArray(raw: unknown): string[] {
   try { const v = JSON.parse(raw); return Array.isArray(v) ? v.map(String) : []; }
   catch { return []; }
 }
+
+const watchFoldersSchema = z.object({
+  folders: z.array(z.string()),
+}).strict();
+
+const rescanSchema = z.object({
+  folder: z.string().min(1),
+}).strict();
+
+const turboSchema = z.object({
+  enabled: z.boolean().optional(),
+}).strict();
+
+const settingsSchema = z.object({
+  orgDirectory: z.string().min(1),
+}).strict();
+
+const backfillOcrSchema = z.object({
+  limit: z.number().optional(),
+}).strict();
+
+const vacuumSchema = z.object({
+  targetDir: z.string().optional(),
+}).strict();
+
+const systemModeSchema = z.object({
+  mode: z.enum(['single', 'multi']),
+}).strict();
+
+const caseAssignmentSchema = z.object({
+  caseId: z.number(),
+  userId: z.number(),
+  role:   z.string(),
+}).strict();
 
 export function adminRouter(repos: Repos, healingService: RagHealingService): Router {
   const router = Router();
@@ -54,12 +90,8 @@ export function adminRouter(repos: Repos, healingService: RagHealingService): Ro
 
   // Replace the watched-folder set; validates each path is an existing directory,
   // persists to ConfigStore, and hot-reconfigures the live watcher.
-  router.put('/ingestion/folders', requireRole('admin', repos), asyncHandler((req, res) => {
-    const body = req.body as { folders?: unknown };
-    if (!Array.isArray(body.folders) || !body.folders.every((f) => typeof f === 'string')) {
-      throw new ValidationError('folders must be an array of strings');
-    }
-    const folders = body.folders as string[];
+  router.put('/ingestion/folders', requireRole('admin', repos), validate(watchFoldersSchema), asyncHandler((req, res) => {
+    const { folders } = req.body as z.infer<typeof watchFoldersSchema>;
     for (const f of folders) {
       if (!existsSync(f) || !statSync(f).isDirectory()) {
         throw new ValidationError(`לא תיקייה תקפה: ${f}`);
@@ -71,9 +103,8 @@ export function adminRouter(repos: Repos, healingService: RagHealingService): Ro
   }));
 
   // Enqueue every supported file already present under a folder (one-shot bulk ingest).
-  router.post('/ingestion/rescan', requireRole('admin', repos), asyncHandler((req, res) => {
-    const { folder } = req.body as { folder?: string };
-    if (!folder || typeof folder !== 'string') throw new ValidationError('folder is required');
+  router.post('/ingestion/rescan', requireRole('admin', repos), validate(rescanSchema), asyncHandler((req, res) => {
+    const { folder } = req.body as z.infer<typeof rescanSchema>;
     if (!existsSync(folder) || !statSync(folder).isDirectory()) {
       throw new ValidationError(`לא תיקייה תקפה: ${folder}`);
     }
@@ -178,8 +209,8 @@ export function adminRouter(repos: Repos, healingService: RagHealingService): Ro
     ok(res, getResourceStatus());
   }));
 
-  router.post('/system/turbo', asyncHandler((req, res) => {
-    const enabled = !!(req.body as { enabled?: boolean }).enabled;
+  router.post('/system/turbo', validate(turboSchema), asyncHandler((req, res) => {
+    const enabled = !!(req.body as z.infer<typeof turboSchema>).enabled;
     setTurboMode(enabled);
     ok(res, getResourceStatus());
   }));
@@ -189,9 +220,9 @@ export function adminRouter(repos: Repos, healingService: RagHealingService): Ro
     ok(res, config.toJSON());
   }));
 
-  router.post('/settings', asyncHandler((req, res) => {
-    const { orgDirectory } = req.body as { orgDirectory?: string };
-    if (!orgDirectory || typeof orgDirectory !== 'string' || !orgDirectory.trim()) {
+  router.post('/settings', validate(settingsSchema), asyncHandler((req, res) => {
+    const { orgDirectory } = req.body as z.infer<typeof settingsSchema>;
+    if (!orgDirectory.trim()) {
       throw new ValidationError('orgDirectory שדה חובה');
     }
     config.setOrgDirectory(orgDirectory.trim());
@@ -240,10 +271,10 @@ export function adminRouter(repos: Repos, healingService: RagHealingService): Ro
   }));
 
   // ── OCR Backfill — extract text from existing PDFs via pdftotext ──────────
-  router.post('/backfill-ocr', asyncHandler(async (req, res) => {
+  router.post('/backfill-ocr', validate(backfillOcrSchema), asyncHandler(async (req, res) => {
     const { execFile } = await import('node:child_process');
     const PDFTOTEXT = process.env['PDFTOTEXT_EXE'] ?? 'C:\\poppler-24.08.0\\Library\\bin\\pdftotext.exe';
-    const limit = Number((req.body as { limit?: number }).limit ?? 200);
+    const limit = (req.body as z.infer<typeof backfillOcrSchema>).limit ?? 200;
 
     const rows = db.prepare(`
       SELECT id, storage_path, original_path FROM Documents
@@ -281,8 +312,8 @@ export function adminRouter(repos: Repos, healingService: RagHealingService): Ro
   }));
 
   // ── Vacuum Protocol — dry-run simulation ─────────────────────────────────
-  router.post('/vacuum/simulate', asyncHandler(async (req, res) => {
-    const { targetDir } = req.body as { targetDir?: string };
+  router.post('/vacuum/simulate', validate(vacuumSchema), asyncHandler(async (req, res) => {
+    const { targetDir } = req.body as z.infer<typeof vacuumSchema>;
     const orgDir = config.orgDirectory;
     const scanDir = targetDir?.trim() || orgDir;
     if (!scanDir) throw new ValidationError('targetDir שדה חובה');
@@ -296,8 +327,8 @@ export function adminRouter(repos: Repos, healingService: RagHealingService): Ro
   }));
 
   // ── Vacuum Protocol — global apply ───────────────────────────────────────
-  router.post('/vacuum/apply', asyncHandler(async (req, res) => {
-    const { targetDir } = req.body as { targetDir?: string };
+  router.post('/vacuum/apply', validate(vacuumSchema), asyncHandler(async (req, res) => {
+    const { targetDir } = req.body as z.infer<typeof vacuumSchema>;
     const orgDir = config.orgDirectory;
     const scanDir = targetDir?.trim() || orgDir;
     if (!scanDir) throw new ValidationError('targetDir שדה חובה');
@@ -316,11 +347,8 @@ export function adminRouter(repos: Repos, healingService: RagHealingService): Ro
     ok(res, { mode });
   }));
 
-  router.post('/system-mode', requireRole('admin', repos), asyncHandler((req, res) => {
-    const { mode } = req.body as { mode?: unknown };
-    if (mode !== 'single' && mode !== 'multi') {
-      throw new ValidationError('mode must be "single" or "multi"');
-    }
+  router.post('/system-mode', requireRole('admin', repos), validate(systemModeSchema), asyncHandler((req, res) => {
+    const { mode } = req.body as z.infer<typeof systemModeSchema>;
     setSystemMode(mode, repos.db as unknown as Parameters<typeof setSystemMode>[1]);
     ok(res, { mode });
   }));
@@ -343,11 +371,8 @@ export function adminRouter(repos: Repos, healingService: RagHealingService): Ro
     ok(res, { assignments: rows });
   }));
 
-  router.post('/case-assignments', requireRole('admin', repos), asyncHandler((req, res) => {
-    const { caseId, userId, role } = req.body as Record<string, unknown>;
-    if (typeof caseId !== 'number' || typeof userId !== 'number' || typeof role !== 'string') {
-      throw new ValidationError('caseId (number), userId (number), role (string) required');
-    }
+  router.post('/case-assignments', requireRole('admin', repos), validate(caseAssignmentSchema), asyncHandler((req, res) => {
+    const { caseId, userId, role } = req.body as z.infer<typeof caseAssignmentSchema>;
     const me = (req as unknown as { userId?: number }).userId ?? 0;
     assignCaseAccess(caseId, userId, role, me, repos.db as unknown as Parameters<typeof assignCaseAccess>[4]);
     ok(res, { ok: true });

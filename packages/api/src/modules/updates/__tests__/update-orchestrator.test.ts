@@ -57,6 +57,14 @@ const currentState = {
   pendingManifest:  undefined,
 };
 
+const rollbackMetadata = {
+  previousVersion:   '1.0.0',
+  installedAt:       '2026-01-01T00:00:00.000Z',
+  installerPath:     '/data/backups/installer-1.0.0.exe',
+  dbBackupPath:      '/data/backups/pre-update-abc123.db',
+  rollbackAvailable: true,
+};
+
 function makeStateStore(): UpdateStateStore {
   mockRead.mockResolvedValue(currentState);
   mockWrite.mockResolvedValue(undefined);
@@ -155,7 +163,7 @@ describe('startUpdateFlow — validation & happy path', () => {
 
   it('happy path → callbacks fire in correct order, success=true', async () => {
     mockValidate.mockReturnValue({ valid: true, errors: [] });
-    mockPrepareRollback.mockResolvedValue(undefined);
+    mockPrepareRollback.mockResolvedValue(rollbackMetadata);
     mockDownload.mockResolvedValue({ filePath: '/data/updates/installer-2.0.0.exe', verified: true });
     mockExecFile.mockImplementation((_f: unknown, _a: unknown, cb: (e: null) => void) => cb(null));
 
@@ -172,7 +180,23 @@ describe('startUpdateFlow — validation & happy path', () => {
     expect(onVerified).toHaveBeenCalledWith(manifest.sha256);
     expect(onLaunching).toHaveBeenCalledOnce();
     expect(mockWrite).toHaveBeenCalledWith({ updateInProgress: true });
+    expect(mockWrite).toHaveBeenCalledWith({ rollback: rollbackMetadata });
     expect(mockWrite).toHaveBeenCalledWith({ pendingManifest: manifest });
+  });
+
+  it('persists the rollback metadata returned by prepareRollback (not discarded)', async () => {
+    mockValidate.mockReturnValue({ valid: true, errors: [] });
+    mockPrepareRollback.mockResolvedValue(rollbackMetadata);
+    mockDownload.mockResolvedValue({ filePath: '/data/updates/installer-2.0.0.exe', verified: true });
+    mockExecFile.mockImplementation((_f: unknown, _a: unknown, cb: (e: null) => void) => cb(null));
+
+    await startUpdateFlow(manifest, makeStateStore(), '/data', '/data/db.sqlite');
+
+    expect(mockPrepareRollback).toHaveBeenCalledWith('1.0.0', '/data/db.sqlite', '/data');
+    // Regression guard: the metadata returned from prepareRollback must reach
+    // the state store so a later rollback can locate and verify the snapshot —
+    // previously it was computed and silently discarded.
+    expect(mockWrite).toHaveBeenCalledWith({ rollback: rollbackMetadata });
   });
 
   it('prepareRollback throws → updateInProgress reset, error returned', async () => {
@@ -210,7 +234,7 @@ describe('Chaos Scenarios', () => {
     vi.clearAllMocks();
     setupHappyPhase0();
     mockValidate.mockReturnValue({ valid: true, errors: [] });
-    mockPrepareRollback.mockResolvedValue(undefined);
+    mockPrepareRollback.mockResolvedValue(rollbackMetadata);
   });
 
   it('Chaos-1: network drop mid-download cleans up state', async () => {

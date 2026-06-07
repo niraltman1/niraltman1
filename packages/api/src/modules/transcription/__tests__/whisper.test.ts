@@ -1,6 +1,6 @@
-import { describe, it, expect, beforeEach, afterEach } from 'vitest';
+import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import { DatabaseConnection, CommunicationsRepository } from '@factum-il/database';
-import { transcribeCommMessage, TranscriptionUnavailableError } from '../whisper.js';
+import { transcribeCommMessage, TranscriptionUnavailableError, probeWhisper } from '../whisper.js';
 import type { Repos } from '../../../db.js';
 
 const SCHEMA = `
@@ -44,5 +44,30 @@ describe('transcribeCommMessage (injected transcriber — no model needed)', () 
     const r = repos.communications.routeInbound({ channel: 'telegram', externalId: 'tg-1', body: 'טקסט' });
     const id = repos.communications.listMessages(r.conversationId!)[0]!.id;
     await expect(transcribeCommMessage(repos, id, async () => 'x')).rejects.toBeInstanceOf(TranscriptionUnavailableError);
+  });
+});
+
+describe('probeWhisper — startup health check (GH/integration audit)', () => {
+  const ORIGINAL_CMD = process.env['WHISPER_CMD'];
+
+  afterEach(() => {
+    if (ORIGINAL_CMD === undefined) delete process.env['WHISPER_CMD'];
+    else process.env['WHISPER_CMD'] = ORIGINAL_CMD;
+    vi.unstubAllEnvs();
+  });
+
+  it('resolves false when WHISPER_CMD is not configured', async () => {
+    delete process.env['WHISPER_CMD'];
+    await expect(probeWhisper()).resolves.toBe(false);
+  });
+
+  it('resolves false when the configured binary does not exist', async () => {
+    process.env['WHISPER_CMD'] = '/no/such/whisper-binary-xyz --lang he';
+    await expect(probeWhisper(2_000)).resolves.toBe(false);
+  });
+
+  it('resolves true when the configured binary runs successfully', async () => {
+    process.env['WHISPER_CMD'] = 'node --version';
+    await expect(probeWhisper(5_000)).resolves.toBe(true);
   });
 });

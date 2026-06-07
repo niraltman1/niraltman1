@@ -1,5 +1,51 @@
 # Factum-IL — Task Tracker
 
+## 🗓️ Session handoff — audit ממוקד-פערים + תיקון חוב טכני (2026-06-07)
+
+### הושלם הפעם
+
+- ✅ **אימות דוח החוב הטכני (`reports/דוח-חוב-טכני.md`)** מול הקוד הנוכחי —
+  7/9 מהפריטים שדורגו "פתוחים" התבררו **כבר-מתוקנים** (GH1, GH3, GH4, GH5,
+  GH6, BN1, וגם CT1 — שהתברר כדריפט-תיעוד ולא כבאג חי). הדוח עודכן עם ראיות
+  file:line לכל פריט, ועם רשימת-מעקב מתוקנת ל-31 קבצי routes שנותרו ל-GH2.
+- ✅ **CT2 — OTA rollback** — `RollbackMetadata` שהיה מושלך כעת נשמר ב-
+  `UpdateStateStore`; נוסף `restoreFromRollback()` (`UpdateRollback.ts`) +
+  `POST /api/updates/rollback`. 14 בדיקות חדשות. (הושלם בתחילת הסשן.)
+- ✅ **CT1 — תיקון דריפט-תיעוד** — `docs/ocr.md` נכתב מחדש לתאר את ה-pipeline
+  החי (`MediaPipeline`/`image-to-pdf.ts`, async `execFile`) במקום `OCRService`
+  היתום; נוספה הערת-header ל-`ocr-service.ts` המתעדת שהוא לא-מחובר-לייצור
+  אך נשמר כתשתית פוטנציאלית ל-OCR fallback (פריט-מעקב #1).
+- ✅ **GH2 — Zod validation** נוסף ל-3 קבצי routes בעלי-blast-radius-גבוה:
+  `agents.ts`, `admin.ts`, `erasure.ts` (PII/מחיקת-מידע) — סכמות `z.object().strict()`
+  + middleware `validate()`, מחליפות `req.body as {}`. 29 בדיקות חדשות
+  (agents: 9, admin: 14, erasure: 6) — כולן ירוקות. 31 קבצים נוספים תועדו
+  כרשימת-מעקב מפורשת בדוח החוב הטכני.
+- ✅ **`PERFORMANCE_REPORT.md`** (חדש, שורש) — benchmark DB אמיתי
+  (`scripts/benchmark-db.ts`, מריץ 67 migrations + 36K שורות נתונים עבריים
+  סינתטיים): lookup לפי PK/FK <0.15ms p95, חיפוש FTS5 BM25 ~5-6ms p95 על
+  30K מסמכים — **אין בעיית ביצועי-DB**. גודל bundle ה-frontend: chunk יחיד
+  1.1MB/270KB-gzip — מתועד כהזדמנות ל-code-splitting (פריט-מעקב #6).
+  Ollama/AI latency מתועד כ-out-of-scope (דורש מודל מקומי שאינו זמין כאן).
+- ✅ **`INTEGRATION_AUDIT.md`** (חדש, שורש) — תיעוד מצב Telegram (✅ מחובר,
+  health-check ב-`getMe()`), Whisper (שני נתיבים — `audio-pipeline.ts` תקין,
+  `whisper.ts`/`WHISPER_CMD` **חסר probe**), WhatsApp (✅ stub מתועד, כפי
+  שהוחלט ב-2026-06-03 — לא נדרשת פעולה). **תוקן הפער שנמצא**: נוסף
+  `probeWhisper()`/`logWhisperHealthAtStartup()` ב-`whisper.ts` (אותה תבנית
+  כמו `RagHealingService.probeOllama()` — async, timeout, fail-soft, +3
+  בדיקות), מחובר ב-`app.ts` ליד healing-service. גם זוהה ותועד פער חדש:
+  **אין שלב תיוג-AI על הודעות נכנסות** (Telegram routing הוא SQL טהור) —
+  פריט-מעקב #5 חדש בדוח החוב הטכני.
+
+### נותר לעבודה עתידית (תועד ב-`reports/דוח-חוב-טכני.md` § "נותר לעבודה עתידית")
+1. OCR fallback ל-PDF סרוקים (חיווט `runOCRInWorker`)
+2. CT2 — אימות-בריאות אוטומטי לאחר עדכון (auto-rollback trigger), P2
+3. GH2 — 31 קבצי routes נוספים ללא Zod validation (רשימה מפורשת בדוח)
+4. `OCRService`/`ocr-runner.ts` — החלטת disposition (לשמור/למחוק)
+5. **חדש:** תיוג-AI על הודעות נכנסות — מעולם לא חובר ל-`routeInbound`
+6. **חדש:** code-splitting ל-bundle ה-frontend (chunk 1.1MB → `React.lazy()`)
+
+---
+
 ## 🗓️ Session handoff — עדכון תיעוד מקיף (2026-06-04)
 
 ### הושלם הפעם

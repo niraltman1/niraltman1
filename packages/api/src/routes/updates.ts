@@ -5,12 +5,12 @@ import { existsSync } from 'node:fs';
 import { z } from 'zod';
 import type { Repos } from '../db.js';
 import { asyncHandler } from '../utils/async-handler.js';
-import { ok } from '../utils/response.js';
+import { ok, fail } from '../utils/response.js';
 import { validate } from '../middleware/validate.js';
 import { fetchContentBundle, applyContentBundle } from '../modules/updates/content-updater.js';
 import { startUpdateFlow } from '../modules/updates/update-orchestrator.js';
 import {
-  VersionManifestParser, UpdateChannelManager, UpdateStateStore,
+  VersionManifestParser, UpdateChannelManager, UpdateStateStore, restoreFromRollback,
 } from '@factum-il/update-core';
 
 const CURRENT_VERSION = process.env['FACTUM_IL_VERSION'] ?? '1.0.0';
@@ -181,6 +181,23 @@ export function updatesRouter(repos: Repos): Router {
       pendingVersion:   state.pendingManifest?.latestVersion ?? null,
       channel:          state.channel,
     });
+  }));
+
+  // POST /api/updates/rollback — restore the pre-update database snapshot and
+  // relaunch the previous version's installer (the safe undo path for a failed update)
+  router.post('/rollback', asyncHandler(async (_req, res) => {
+    const state  = await stateStore.read();
+    const dbPath = process.env['FACTUM_IL_DB_PATH'] ?? '';
+
+    const result = await restoreFromRollback(state.rollback, dbPath);
+
+    if (!result.restored) {
+      fail(res, 'ROLLBACK_UNAVAILABLE', result.reason ?? 'שחזור הגרסה הקודמת נכשל', 409);
+      return;
+    }
+
+    await stateStore.write({ rollback: null, updateInProgress: false });
+    ok(res, result);
   }));
 
   // POST /api/updates/abort — cancel in-progress update and delete pending installer

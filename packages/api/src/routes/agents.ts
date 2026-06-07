@@ -1,6 +1,8 @@
 import { Router, type Response } from 'express';
+import { z } from 'zod';
 import { asyncHandler } from '../utils/async-handler.js';
 import { requireAuth } from '../middleware/auth.js';
+import { validate } from '../middleware/validate.js';
 import { ok } from '../utils/response.js';
 import { ValidationError, NotFoundError } from '../errors/api-error.js';
 import { summarizeCase } from '../modules/agents/case-summarizer.js';
@@ -25,6 +27,19 @@ function guardMeta(req: object): { traceId: string; caseStateHash: string; usern
 
 // Check if the case state is still valid and build the isStale metadata.
 // Returns { isStale, staleReason } — never throws.
+const caseIdSchema = z.object({
+  caseId: z.number(),
+}).strict();
+
+const researchSchema = z.object({
+  question: z.string().min(1),
+  caseId:   z.number().optional(),
+}).strict();
+
+const contractReviewSchema = z.object({
+  documentId: z.number(),
+}).strict();
+
 function staleMeta(
   caseId:        number,
   caseStateHash: string,
@@ -50,10 +65,10 @@ export function agentsRouter(repos: Repos): Router {
 
   // POST /api/agents/summarize  { caseId: number }
   router.post('/summarize',
+    validate(caseIdSchema),
     withCaseExecutionGuard('case-summarizer', repos),
     asyncHandler(async (req, res) => {
-      const { caseId } = req.body as { caseId?: unknown };
-      if (typeof caseId !== 'number') throw new ValidationError('caseId (number) required');
+      const { caseId } = req.body as z.infer<typeof caseIdSchema>;
 
       const caseRow = repos.db.prepare('SELECT id FROM Cases WHERE id = ?').get(caseId);
       if (!caseRow) throw new NotFoundError(`Case ${caseId} not found`);
@@ -77,10 +92,10 @@ export function agentsRouter(repos: Repos): Router {
 
   // POST /api/agents/timeline  { caseId: number }
   router.post('/timeline',
+    validate(caseIdSchema),
     withCaseExecutionGuard('timeline-builder', repos),
     asyncHandler(async (req, res) => {
-      const { caseId } = req.body as { caseId?: unknown };
-      if (typeof caseId !== 'number') throw new ValidationError('caseId (number) required');
+      const { caseId } = req.body as z.infer<typeof caseIdSchema>;
 
       const caseRow = repos.db.prepare('SELECT id FROM Cases WHERE id = ?').get(caseId);
       if (!caseRow) throw new NotFoundError(`Case ${caseId} not found`);
@@ -104,10 +119,11 @@ export function agentsRouter(repos: Repos): Router {
 
   // POST /api/agents/research  { question: string; caseId?: number }
   router.post('/research',
+    validate(researchSchema),
     withCaseExecutionGuard('research-agent', repos),
     asyncHandler(async (req, res) => {
-      const { question, caseId } = req.body as { question?: unknown; caseId?: unknown };
-      if (typeof question !== 'string' || !question.trim()) {
+      const { question, caseId } = req.body as z.infer<typeof researchSchema>;
+      if (!question.trim()) {
         throw new ValidationError('question (string) required');
       }
 
@@ -137,10 +153,10 @@ export function agentsRouter(repos: Repos): Router {
 
   // POST /api/agents/contract-review  { documentId: number }
   router.post('/contract-review',
+    validate(contractReviewSchema),
     withCaseExecutionGuard('contract-reviewer', repos),
     asyncHandler(async (req, res) => {
-      const { documentId } = req.body as { documentId?: unknown };
-      if (typeof documentId !== 'number') throw new ValidationError('documentId (number) required');
+      const { documentId } = req.body as z.infer<typeof contractReviewSchema>;
 
       const docRow = repos.db.prepare('SELECT id FROM Documents WHERE id = ?').get(documentId);
       if (!docRow) throw new NotFoundError(`Document ${documentId} not found`);
@@ -163,10 +179,10 @@ export function agentsRouter(repos: Repos): Router {
 
   // POST /api/agents/discovery  { caseId: number }
   router.post('/discovery',
+    validate(caseIdSchema),
     withCaseExecutionGuard('discovery-agent', repos),
     asyncHandler(async (req, res) => {
-      const { caseId } = req.body as { caseId?: unknown };
-      if (typeof caseId !== 'number') throw new ValidationError('caseId (number) required');
+      const { caseId } = req.body as z.infer<typeof caseIdSchema>;
 
       const caseRow = repos.db.prepare('SELECT id FROM Cases WHERE id = ?').get(caseId);
       if (!caseRow) throw new NotFoundError(`Case ${caseId} not found`);
