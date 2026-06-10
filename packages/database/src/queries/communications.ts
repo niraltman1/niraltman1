@@ -41,6 +41,8 @@ export interface CommMessage {
   transcript:     string | null;
   createdAt:      string;
   sentAt:         string | null;
+  aiUrgency:      'urgent' | 'normal' | 'low' | null;
+  aiTags:         string[];
 }
 
 export interface CommEvidenceRow {
@@ -125,6 +127,8 @@ function mapMessage(r: Record<string, unknown>): CommMessage {
     transcript:     (r['transcript'] as string | null) ?? null,
     createdAt:      r['created_at'] as string,
     sentAt:         (r['sent_at'] as string | null) ?? null,
+    aiUrgency:      (r['ai_urgency'] as 'urgent' | 'normal' | 'low' | null | undefined) ?? null,
+    aiTags:         r['ai_tags'] ? (JSON.parse(r['ai_tags'] as string) as string[]) : [],
   };
 }
 
@@ -495,6 +499,29 @@ export class CommunicationsRepository {
   getMessage(messageId: number): CommMessage | null {
     const r = this.db.prepare('SELECT * FROM CommMessages WHERE id = ?').get(messageId) as Record<string, unknown> | undefined;
     return r ? mapMessage(r) : null;
+  }
+
+  getUnknownInboxRow(id: number): UnknownInboxRow | null {
+    const r = this.db.prepare(
+      `SELECT id, channel, external_id, display_name, body, media_kind, resolved, created_at FROM CommUnknownInbox WHERE id = ?`,
+    ).get(id) as Record<string, unknown> | undefined;
+    if (!r) return null;
+    return {
+      id:          r['id'] as number,
+      channel:     r['channel'] as CommChannel,
+      externalId:  r['external_id'] as string,
+      displayName: (r['display_name'] as string | null) ?? null,
+      body:        (r['body'] as string | null) ?? null,
+      mediaKind:   (r['media_kind'] as string | null) ?? null,
+      resolved:    Number(r['resolved']) === 1,
+      createdAt:   r['created_at'] as string,
+    };
+  }
+
+  markUnknownResolved(id: number, resolvedAs: 'client' | 'contact', resolvedRef: number): void {
+    this.db.prepare(
+      `UPDATE CommUnknownInbox SET resolved = 1, resolved_as = ?, resolved_ref = ? WHERE id = ?`,
+    ).run(resolvedAs, resolvedRef, id);
   }
 
   /** Unknown-sender inbox (C8 routing target). Defaults to unresolved only. */

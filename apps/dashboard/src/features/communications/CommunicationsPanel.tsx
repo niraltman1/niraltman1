@@ -320,6 +320,20 @@ function MessageBubble({ msg, conversationId }: { msg: CommMessage; conversation
           </p>
         )}
 
+        {/* AI urgency + tags (C7 — set after fire-and-forget classify; inbound only) */}
+        {msg.direction === 'inbound' && (msg.aiUrgency || msg.aiTags?.length) ? (
+          <div className="flex flex-wrap items-center gap-1 mt-1">
+            {msg.aiUrgency === 'urgent' && (
+              <span className="inline-flex items-center gap-0.5 text-[9px] font-medium text-red-300 bg-red-500/15 rounded px-1.5 py-0.5">
+                <WarningCircleIcon size={10} weight="fill" /> דחוף
+              </span>
+            )}
+            {msg.aiTags?.map((tag) => (
+              <span key={tag} className="text-[9px] text-parchment/50 bg-parchment/8 rounded px-1.5 py-0.5">{tag}</span>
+            ))}
+          </div>
+        ) : null}
+
         <div className="flex items-center gap-2 mt-1">
           <span className="text-[10px] text-parchment/35 flex-1 text-left">{commTime(msg.createdAt)}</span>
 

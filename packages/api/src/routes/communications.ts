@@ -325,6 +325,44 @@ export function communicationsRouter(repos: Repos): Router {
     ok(res, comm.listUnknownInbox(req.query['all'] === 'true'));
   }));
 
+  // ── C8: Unknown inbox → lead conversion ──────────────────────────────────
+  const convertUnknownSchema = z.object({
+    nameHe:           z.string().optional(),
+    phone:            z.string().optional(),
+    existingClientId: z.number().optional(),
+  }).strict();
+
+  router.post('/unknown/:id/convert', validate(convertUnknownSchema), asyncHandler((req, res) => {
+    const inboxId = Number(req.params['id']);
+    const { nameHe, phone, existingClientId } = req.body as z.infer<typeof convertUnknownSchema>;
+
+    const row = comm.getUnknownInboxRow(inboxId);
+    if (!row) throw new NotFoundError('unknown sender not found');
+    if (row.resolved) throw new ConflictError('already resolved');
+
+    let clientId: number;
+    if (existingClientId !== undefined) {
+      clientId = existingClientId;
+    } else {
+      if (!nameHe?.trim()) throw new ValidationError('nameHe required when creating a new client');
+      const client = repos.clients.create({
+        nameHe: nameHe.trim(),
+        ...(phone ? { phone } : {}),
+      });
+      clientId = client.id;
+    }
+
+    comm.linkIdentity({
+      channel: row.channel, externalId: row.externalId,
+      displayName: row.displayName ?? undefined,
+      clientId,
+    });
+    comm.markUnknownResolved(inboxId, 'client', clientId);
+    comm.audit({ conversationId: null, messageId: null, userId: userIdOf(req), channel: row.channel, action: 'unknown_resolved', detail: `client:${clientId}` });
+
+    ok(res, { clientId, linked: true });
+  }));
+
   // ── Smart templates (C4) ──────────────────────────────────────────────────
   // All active templates (admin/management view).
   router.get('/templates', asyncHandler((_req, res) => {
