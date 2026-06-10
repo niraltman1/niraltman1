@@ -260,3 +260,56 @@ describe('communicationsRouter — call documentation (C6)', () => {
       .send({ audioBase64: Buffer.from('x').toString('base64'), mimeType: 'audio/webm' }).expect(409);
   });
 });
+
+// ── Telegram set-webhook validation (GH2) ───────────────────────────────────
+describe('communicationsRouter — telegram set-webhook validation (GH2)', () => {
+  let db: DatabaseConnection;
+  let app: express.Express;
+  let adminTok: string;
+
+  beforeEach(() => {
+    db = new DatabaseConnection({ path: ':memory:' });
+    db.exec(SCHEMA);
+    db.prepare("INSERT INTO Clients (id, name_he) VALUES (1, 'לקוח')").run();
+    adminTok = tokenFor(db, 'admin1', 'admin');
+
+    const repos = {
+      db,
+      communications: new CommunicationsRepository(db),
+      commTemplates:  new CommTemplatesRepository(db),
+    } as unknown as Repos;
+    app = express();
+    app.use(express.json());
+    app.use('/api/communications', communicationsRouter(repos));
+    app.use(errorHandler);
+  });
+
+  afterEach(() => db.close());
+
+  it('rejects a malformed body (non-string url) with 4xx', async () => {
+    const res = await request(app).post('/api/communications/telegram/set-webhook')
+      .set('Authorization', `Bearer ${adminTok}`)
+      .send({ url: 12345 });
+    expect(res.status).toBeGreaterThanOrEqual(400);
+    expect(res.status).toBeLessThan(500);
+  });
+
+  it('rejects unknown extra keys (.strict()) with 4xx', async () => {
+    const res = await request(app).post('/api/communications/telegram/set-webhook')
+      .set('Authorization', `Bearer ${adminTok}`)
+      .send({ url: 'https://example.com/hook', extra: 'nope' });
+    expect(res.status).toBeGreaterThanOrEqual(400);
+    expect(res.status).toBeLessThan(500);
+  });
+
+  it('accepts a well-formed body, passes validation, and surfaces telegram_not_connected (409)', async () => {
+    // No CommChannels row for telegram → getTelegramToken returns null → ConflictError (409).
+    // Reaching this business-logic error (rather than a 4xx from validation) proves the
+    // schema accepted the well-formed payload.
+    const res = await request(app).post('/api/communications/telegram/set-webhook')
+      .set('Authorization', `Bearer ${adminTok}`)
+      .send({ url: 'https://example.com/hook' });
+    expect(res.status).toBe(409);
+    expect(res.body.error.message).toContain('telegram_not_connected');
+  });
+});

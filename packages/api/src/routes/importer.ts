@@ -39,7 +39,7 @@ export function importerRouter(repos: Repos): Router {
    * Imports court case data from a Net HaMishpat CSV export.
    */
   router.post('/net-hamishpat', validate(importSchema), asyncHandler(async (req, res) => {
-    const { filePath } = req.body as { filePath: string };
+    const { filePath } = req.body as z.infer<typeof importSchema>;
     const result = await importNetHaMishpatCSV(repos, filePath);
     ok(res, result);
   }));
@@ -51,7 +51,7 @@ export function importerRouter(repos: Repos): Router {
    * through the Vacuum Protocol (dedup + OCR + field discovery).
    */
   router.post('/archive-mine', validate(archiveSchema), asyncHandler(async (req, res) => {
-    const body = req.body as { rootDir: string; limit?: number; outputDir?: string; force?: boolean };
+    const body = req.body as z.infer<typeof archiveSchema>;
     const result = await mineArchive(repos, body);
     ok(res, result);
   }));
@@ -62,7 +62,7 @@ export function importerRouter(repos: Repos): Router {
    * Fuzzy-maps Excel/CSV columns via law-il-E2B and upserts records incrementally.
    */
   router.post('/excel', validate(excelSchema), asyncHandler(async (req, res) => {
-    const { filePath, sourceType } = req.body as { filePath: string; sourceType: 'net_hamishpat'|'execution_office'|'generic' };
+    const { filePath, sourceType } = req.body as z.infer<typeof excelSchema>;
     if (!existsSync(filePath)) { fail(res, 'NOT_FOUND', `קובץ לא נמצא: ${filePath}`, 404); return; }
     const filename = filePath.split('/').pop() ?? filePath;
     const result = await importExcelFile(repos, filePath, sourceType, filename);
@@ -75,7 +75,7 @@ export function importerRouter(repos: Repos): Router {
    * Parses court hearing events and cross-matches against active cases.
    */
   router.post('/ical', validate(icalSchema), asyncHandler(async (req, res) => {
-    const filePath = resolve((req.body as { filePath: string }).filePath);
+    const filePath = resolve((req.body as z.infer<typeof icalSchema>).filePath); // normalize before any fs operation (CWE-22)
     if (!existsSync(filePath)) { fail(res, 'NOT_FOUND', `קובץ לא נמצא: ${filePath}`, 404); return; }
     const raw = readFileSync(filePath, 'utf8');
     const events = parseIcalEvents(raw);

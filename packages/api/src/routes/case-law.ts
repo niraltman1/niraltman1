@@ -53,9 +53,9 @@ export function caseLawRouter(repos: Repos): Router {
 
   // GET /api/case-law
   router.get('/', validate(listQuerySchema, 'query'), asyncHandler(async (req, res) => {
-    const q = req.query as { source?: string; search?: string; page: string; pageSize: string };
-    const page     = Number(q.page);
-    const pageSize = Number(q.pageSize);
+    const q = req.query as unknown as z.infer<typeof listQuerySchema>;
+    const page     = q.page;
+    const pageSize = q.pageSize;
     const offset   = (page - 1) * pageSize;
 
     const conditions: string[] = [];
@@ -120,7 +120,7 @@ export function caseLawRouter(repos: Repos): Router {
   // POST /api/case-law/:id/test
   router.post('/:id/test', validate(testSchema), asyncHandler(async (req, res) => {
     const lawId = Number(req.params['id']);
-    const { caseId } = req.body as { caseId: number };
+    const { caseId } = req.body as z.infer<typeof testSchema>;
 
     const lawRow = repos.db.prepare('SELECT * FROM global_case_law WHERE id = ?')
       .get(lawId) as CaseLawRow | undefined;

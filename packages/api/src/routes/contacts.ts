@@ -75,7 +75,7 @@ export function contactsRouter(repos: Repos): Router {
   // These are also accessible here for completeness
   router.post('/link/:caseId', validate(linkSchema), asyncHandler((req, res) => {
     const caseId = Number(req.params['caseId']);
-    const { contactId, roleInCase } = req.body as { contactId: number; roleInCase?: string | null };
+    const { contactId, roleInCase } = req.body as z.infer<typeof linkSchema>;
     contacts.linkToCase(caseId, contactId, roleInCase);
     ok(res, { linked: true });
   }));

@@ -1,7 +1,9 @@
 import { Router, type Request, type Response } from 'express';
+import { z } from 'zod';
 import * as path from 'node:path';
 import * as os from 'node:os';
 import type { Repos } from '../db.js';
+import { validate } from '../middleware/validate.js';
 
 /**
  * Recovery-mode API routes.
@@ -16,6 +18,15 @@ import type { Repos } from '../db.js';
 
 const ALLOWED_SEVERITIES = new Set(['info', 'warn', 'critical']);
 const STALE_THRESHOLD_MS = 10 * 60 * 1_000; // 10 minutes
+
+const recordEventSchema = z.object({
+  event_type: z.string().min(1),
+  source:     z.string().optional(),
+  severity:   z.enum(['info', 'warn', 'critical']).optional(),
+  message:    z.string().min(1),
+  // Free-form structured payload persisted as JSON — shape varies by event source.
+  details:    z.record(z.unknown()).optional(),
+}).strict();
 
 export function recoveryRouter(repos: Repos): Router {
   const router = Router();
@@ -73,23 +84,9 @@ export function recoveryRouter(repos: Repos): Router {
   });
 
   // POST /api/recovery/event — record a system event
-  router.post('/event', (req: Request, res: Response) => {
-    const { event_type, source, severity, message, details } = req.body as {
-      event_type?: unknown;
-      source?:     unknown;
-      severity?:   unknown;
-      message?:    unknown;
-      details?:    unknown;
-    };
-
-    if (typeof event_type !== 'string' || !event_type.trim()) {
-      res.status(400).json({ error: 'event_type (string) is required' });
-      return;
-    }
-    if (typeof message !== 'string' || !message.trim()) {
-      res.status(400).json({ error: 'message (string) is required' });
-      return;
-    }
+  router.post('/event', validate(recordEventSchema), (req: Request, res: Response) => {
+    const { event_type, source, severity, message, details } =
+      req.body as z.infer<typeof recordEventSchema>;
 
     const resolvedSeverity =
       typeof severity === 'string' && ALLOWED_SEVERITIES.has(severity) ? severity : 'info';
@@ -106,7 +103,7 @@ export function recoveryRouter(repos: Repos): Router {
         typeof source === 'string' ? source.slice(0, 50) : 'api',
         resolvedSeverity,
         message.slice(0, 1000),
-        JSON.stringify(typeof details === 'object' && details !== null ? details : {}),
+        JSON.stringify(details ?? {}),
       );
       res.json({ ok: true, event_id: id });
     } catch {

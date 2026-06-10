@@ -10,7 +10,6 @@ import {
   signSchema,
   listActionPlanQuerySchema,
 } from '../validation/action-plan.js';
-import type { ActionPlanStatus } from '@factum-il/shared';
 import { basename } from 'node:path';
 import { executeEntries } from '../utils/file-executor.js';
 
@@ -21,25 +20,25 @@ export function actionPlanRouter(repos: Repos): Router {
   const { actionPlan } = repos;
 
   router.get('/', validate(listActionPlanQuerySchema, 'query'), asyncHandler((req, res) => {
-    const query = req.query as { status?: ActionPlanStatus; limit?: number };
+    const query = req.query as z.infer<typeof listActionPlanQuerySchema>;
     const entries = actionPlan.list(query.status, query.limit);
     ok(res, entries);
   }));
 
   router.post('/approve', validate(approveSchema), asyncHandler((req, res) => {
-    const { planIds } = req.body as { planIds: string[] };
+    const { planIds } = req.body as z.infer<typeof approveSchema>;
     actionPlan.approve(planIds);
     ok(res, { approved: planIds.length });
   }));
 
   router.post('/reject', validate(rejectSchema), asyncHandler((req, res) => {
-    const { planIds } = req.body as { planIds: string[] };
+    const { planIds } = req.body as z.infer<typeof rejectSchema>;
     actionPlan.reject(planIds);
     ok(res, { rejected: planIds.length });
   }));
 
   router.post('/sign', validate(signSchema), asyncHandler((req, res) => {
-    const { planIds } = req.body as { planIds: string[] };
+    const { planIds } = req.body as z.infer<typeof signSchema>;
     actionPlan.approve(planIds);
     const signed = actionPlan.getSignedPlan(planIds);
 
@@ -59,7 +58,7 @@ export function actionPlanRouter(repos: Repos): Router {
 
   // ── Execute: physically move/rename files on disk ──────────────────────────
   router.post('/execute', validate(executeSchema), asyncHandler(async (req, res) => {
-    const { planIds } = req.body as { planIds: string[] };
+    const { planIds } = req.body as z.infer<typeof executeSchema>;
 
     // Fetch only APPROVED entries from the provided list
     const entries = planIds

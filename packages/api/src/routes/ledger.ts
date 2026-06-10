@@ -63,7 +63,7 @@ export function ledgerRouter(repos: Repos): Router {
 
   // GET /api/ledger?clientId=N
   router.get('/', validate(querySchema, 'query'), asyncHandler(async (req, res) => {
-    const { clientId } = req.query as { clientId?: string };
+    const { clientId } = req.query as z.infer<typeof querySchema>;
 
     // Sweep overdue rows first
     repos.db.prepare(`
@@ -76,7 +76,7 @@ export function ledgerRouter(repos: Repos): Router {
 
     const rows = (clientId
       ? repos.db.prepare('SELECT * FROM client_payment_schedules WHERE client_id = ? ORDER BY due_date ASC')
-          .all(Number(clientId))
+          .all(clientId)
       : repos.db.prepare('SELECT * FROM client_payment_schedules ORDER BY due_date ASC')
           .all()
     ) as ScheduleRow[];

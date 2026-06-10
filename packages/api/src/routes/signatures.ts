@@ -1,7 +1,9 @@
 import { createHash } from 'node:crypto';
 import { Router } from 'express';
+import { z } from 'zod';
 import { asyncHandler } from '../utils/async-handler.js';
 import { requireAuth } from '../middleware/auth.js';
+import { validate } from '../middleware/validate.js';
 import { ok } from '../utils/response.js';
 import { ValidationError, NotFoundError } from '../errors/api-error.js';
 import type { Repos } from '../db.js';
@@ -13,15 +15,28 @@ function computeSignatureHash(documentHash: string, signerId: number, signedAt: 
     .digest('hex');
 }
 
+const signatureRequestSchema = z.object({
+  documentId: z.number(),
+}).strict();
+
+const signatureSignSchema = z.object({
+  signatureId: z.number(),
+  notes:       z.string().optional(),
+}).strict();
+
+const signatureRejectSchema = z.object({
+  signatureId: z.number(),
+  notes:       z.string().min(1),
+}).strict();
+
 export function signaturesRouter(repos: Repos): Router {
   const router = Router();
   router.use(requireAuth(repos));
 
   // POST /api/signatures/request  { documentId: number }
   // Creates a pending signature row for the currently logged-in user.
-  router.post('/request', asyncHandler((req, res) => {
-    const { documentId } = req.body as { documentId?: unknown };
-    if (typeof documentId !== 'number') throw new ValidationError('documentId (number) required');
+  router.post('/request', validate(signatureRequestSchema), asyncHandler((req, res) => {
+    const { documentId } = req.body as z.infer<typeof signatureRequestSchema>;
 
     const doc = repos.db.prepare('SELECT id, file_hash FROM Documents WHERE id = ?').get(documentId) as
       { id: number; file_hash: string } | undefined;
@@ -49,9 +64,8 @@ export function signaturesRouter(repos: Repos): Router {
   }));
 
   // POST /api/signatures/sign  { signatureId: number, notes?: string }
-  router.post('/sign', asyncHandler((req, res) => {
-    const { signatureId, notes } = req.body as { signatureId?: unknown; notes?: unknown };
-    if (typeof signatureId !== 'number') throw new ValidationError('signatureId (number) required');
+  router.post('/sign', validate(signatureSignSchema), asyncHandler((req, res) => {
+    const { signatureId, notes } = req.body as z.infer<typeof signatureSignSchema>;
 
     const userId = (req as unknown as { userId: number }).userId;
 
@@ -74,7 +88,7 @@ export function signaturesRouter(repos: Repos): Router {
     `).run({
       sigHash,
       signedAt,
-      notes: typeof notes === 'string' ? notes : null,
+      notes: notes ?? null,
       id:    signatureId,
     });
 
@@ -82,10 +96,9 @@ export function signaturesRouter(repos: Repos): Router {
   }));
 
   // POST /api/signatures/reject  { signatureId: number, notes: string }
-  router.post('/reject', asyncHandler((req, res) => {
-    const { signatureId, notes } = req.body as { signatureId?: unknown; notes?: unknown };
-    if (typeof signatureId !== 'number') throw new ValidationError('signatureId (number) required');
-    if (typeof notes !== 'string' || !notes.trim()) throw new ValidationError('notes (string) required for rejection');
+  router.post('/reject', validate(signatureRejectSchema), asyncHandler((req, res) => {
+    const { signatureId, notes } = req.body as z.infer<typeof signatureRejectSchema>;
+    if (!notes.trim()) throw new ValidationError('notes (string) required for rejection');
 
     const userId = (req as unknown as { userId: number }).userId;
 

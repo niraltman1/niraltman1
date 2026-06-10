@@ -44,7 +44,7 @@ export function mediaRouter(repos: Repos): Router {
 
   // ── Registry list ──────────────────────────────────────────────────────
   router.get('/registry', validate(listQuerySchema, 'query'), asyncHandler((req, res) => {
-    const q    = req.query as { page?: number; pageSize?: number; status?: string };
+    const q    = req.query as z.infer<typeof listQuerySchema>;
     const opts: { page?: number; pageSize?: number; status?: string } = {};
     if (q.page     !== undefined) opts.page     = q.page;
     if (q.pageSize !== undefined) opts.pageSize = q.pageSize;

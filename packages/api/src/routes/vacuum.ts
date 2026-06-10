@@ -7,7 +7,6 @@ import { asyncHandler } from '../utils/async-handler.js';
 import { validate } from '../middleware/validate.js';
 import { ok } from '../utils/response.js';
 import { NotFoundError } from '../errors/api-error.js';
-import type { VacuumStatus } from '@factum-il/database';
 
 const SCRIPTS_DIR = join(process.cwd(), 'powershell', 'scripts');
 
@@ -34,7 +33,7 @@ export function vacuumRouter(repos: Repos): Router {
   const { vacuum } = repos;
 
   router.post('/start', validate(startSchema), asyncHandler((req, res) => {
-    const { targetPath } = req.body as { targetPath: string };
+    const { targetPath } = req.body as z.infer<typeof startSchema>;
 
     const session = vacuum.create(targetPath);
 
@@ -82,12 +81,7 @@ export function vacuumRouter(repos: Repos): Router {
     const id = Number(req.params['id']);
     if (!Number.isFinite(id)) throw new NotFoundError('vacuum session');
 
-    const { status, progress, message, logLine } = req.body as {
-      status:   VacuumStatus;
-      progress: number;
-      message:  string;
-      logLine?: string;
-    };
+    const { status, progress, message, logLine } = req.body as z.infer<typeof progressSchema>;
 
     if (status === 'failed') {
       vacuum.markFailed(id, message);

@@ -163,7 +163,7 @@ export function insolvencyRouter(repos: Repos): Router {
   // PATCH /api/insolvency/:caseId/phase
   router.patch('/:caseId/phase', validate(phaseSchema), asyncHandler(async (req, res) => {
     const caseId = Number(req.params['caseId']);
-    const { phase } = req.body as { phase: string };
+    const { phase } = req.body as z.infer<typeof phaseSchema>;
 
     const filing = repos.db.prepare('SELECT * FROM insolvency_filings WHERE case_id = ?')
       .get(caseId) as FilingRow | undefined;

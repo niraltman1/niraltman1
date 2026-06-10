@@ -29,14 +29,14 @@ export function citationsRouter(repos: Repos): Router {
 
   // GET /api/citations
   router.get('/', validate(listQuerySchema, 'query'), asyncHandler(async (req, res) => {
-    const q        = req.query as { caseId?: string; status?: string; type?: string; page: string; pageSize: string };
-    const page     = Number(q.page);
-    const pageSize = Number(q.pageSize);
+    const q        = req.query as z.infer<typeof listQuerySchema>;
+    const page     = q.page;
+    const pageSize = q.pageSize;
     const offset   = (page - 1) * pageSize;
 
     const conditions: string[] = [];
     const params: unknown[] = [];
-    if (q.caseId) { conditions.push('case_id = ?');         params.push(Number(q.caseId)); }
+    if (q.caseId) { conditions.push('case_id = ?');         params.push(q.caseId); }
     if (q.status) { conditions.push('status = ?');           params.push(q.status); }
     if (q.type)   { conditions.push('citation_type = ?');    params.push(q.type); }
 
@@ -103,7 +103,7 @@ export function citationsRouter(repos: Repos): Router {
   // PATCH /api/citations/:id/link
   router.patch('/:id/link', validate(linkSchema), asyncHandler(async (req, res) => {
     const id        = Number(req.params['id']);
-    const { caseLawId } = req.body as { caseLawId: number };
+    const { caseLawId } = req.body as z.infer<typeof linkSchema>;
 
     const existing = repos.db.prepare('SELECT id FROM citation_registry WHERE id = ?')
       .get(id) as { id: number } | undefined;
