@@ -64,7 +64,7 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: FactumIL-Beta-Installer
-          path: dist-package\FactumIL_v1.0.0_Setup.exe
+          path: Factum-IL-Setup.exe
           retention-days: 30
 
       - name: Create GitHub Release (on tag push)
@@ -76,7 +76,7 @@ jobs:
             ## Factum IL Beta — ${{ github.ref_name }}
 
             ### התקנה
-            1. הורד את `FactumIL_Beta_Installer.exe`
+            1. הורד את `Factum-IL-Setup.exe`
             2. הרץ כמנהל מערכת
             3. עקוב אחר אשף ההתקנה
 
@@ -91,4 +91,4 @@ jobs:
             - כל הנתונים נשמרים מקומית בלבד
           draft: false
           prerelease: true
-          files: dist-package\FactumIL_v1.0.0_Setup.exe
+          files: Factum-IL-Setup.exe

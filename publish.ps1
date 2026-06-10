@@ -539,47 +539,59 @@ foreach ($f in @("Config.ps1", "IdentifierParser.ps1")) {
 Write-Host "  ✓ Legal Registry and PowerShell helpers staged" -ForegroundColor Green
 
 # Bundled legislation corpus (offline KB)
-$CorpusDst = Join-Path $OutDir "legal-corpus"
-New-Item -ItemType Directory -Force -Path $CorpusDst | Out-Null
-$CorpusSrc = Join-Path $RepoRoot "assets\legal-corpus\legal-corpus.knesset.jsonl.gz"
+# The v-corpus-latest release contains batch files: batch-<domain>.jsonl.gz + corpus-domain-index.json
+# The runtime loader (legal-corpus-loader.ts) prefers legal-corpus/batches/ directory layout.
+$CorpusDst        = Join-Path $OutDir "legal-corpus"
+$CorpusBatchesDst = Join-Path $CorpusDst "batches"
+New-Item -ItemType Directory -Force -Path $CorpusBatchesDst | Out-Null
 
-# Auto-download from GitHub Release v-corpus-latest when not built locally.
-if (-not (Test-Path $CorpusSrc)) {
-    Write-Host "  Trying to download legal corpus from GitHub Release v-corpus-latest..." -ForegroundColor Gray
-    $ApiHeaders = @{ 'User-Agent' = 'Factum-IL-Build' }
-    if ($env:GH_TOKEN) { $ApiHeaders['Authorization'] = "Bearer $($env:GH_TOKEN)" }
-    try {
-        $rel = Invoke-RestMethod `
-            -Uri "https://api.github.com/repos/niraltman1/niraltman1/releases/tags/v-corpus-latest" `
-            -Headers $ApiHeaders -UseBasicParsing -ErrorAction Stop
-        $asset = $rel.assets |
-            Where-Object { $_.name -eq 'legal-corpus.knesset.jsonl.gz' } |
-            Select-Object -First 1
-        if ($asset) {
-            New-Item -ItemType Directory -Force -Path (Split-Path $CorpusSrc) | Out-Null
-            $DlHeaders = @{
-                'User-Agent' = 'Factum-IL-Build'
-                'Accept'     = 'application/octet-stream'
-            }
-            if ($env:GH_TOKEN) { $DlHeaders['Authorization'] = "Bearer $($env:GH_TOKEN)" }
-            if (DownloadWithRetry $asset.url $CorpusSrc 300 2) {
-                $corpusSize = [math]::Round((Get-Item $CorpusSrc).Length/1MB,1)
-                Write-Host "  ✓ Legal corpus: $corpusSize MB" -ForegroundColor Green
-            }
-        } else {
-            Write-Host "  ⚠ Release v-corpus-latest found but no corpus asset attached yet." -ForegroundColor DarkYellow
-        }
-    } catch {
-        Write-Host "  ⚠ Corpus auto-download failed: $_ — falling back to local build." -ForegroundColor DarkYellow
+$ApiHeaders = @{ 'User-Agent' = 'Factum-IL-Build' }
+if ($env:GH_TOKEN) { $ApiHeaders['Authorization'] = "Bearer $($env:GH_TOKEN)" }
+
+$corpusBatchCount = 0
+Write-Host "  Trying to download legal corpus batches from GitHub Release v-corpus-latest..." -ForegroundColor Gray
+try {
+    $rel = Invoke-RestMethod `
+        -Uri "https://api.github.com/repos/niraltman1/niraltman1/releases/tags/v-corpus-latest" `
+        -Headers $ApiHeaders -UseBasicParsing -ErrorAction Stop
+
+    $DlHeaders = @{
+        'User-Agent' = 'Factum-IL-Build'
+        'Accept'     = 'application/octet-stream'
     }
-} else {
-    $corpusSize = [math]::Round((Get-Item $CorpusSrc).Length/1MB,1)
-    Copy-Item -Force $CorpusSrc $CorpusDst
-    Write-Host "  ✓ Legal corpus: $corpusSize MB" -ForegroundColor Green
+    if ($env:GH_TOKEN) { $DlHeaders['Authorization'] = "Bearer $($env:GH_TOKEN)" }
+
+    # Download all batch-*.jsonl.gz files into batches/ subdirectory.
+    foreach ($asset in $rel.assets) {
+        if ($asset.name -match '^batch-.+\.jsonl\.gz$') {
+            $dst = Join-Path $CorpusBatchesDst $asset.name
+            if (DownloadWithRetry $asset.url $dst 300 2) {
+                $corpusBatchCount++
+                Write-Host "    ✓ $($asset.name)" -ForegroundColor Gray
+            }
+        }
+    }
+
+    # Download corpus-domain-index.json into batches/ subdirectory.
+    $indexAsset = $rel.assets | Where-Object { $_.name -eq 'corpus-domain-index.json' } | Select-Object -First 1
+    if ($indexAsset) {
+        $indexDst = Join-Path $CorpusBatchesDst 'corpus-domain-index.json'
+        DownloadWithRetry $indexAsset.url $indexDst 30 2 | Out-Null
+        Write-Host "    ✓ corpus-domain-index.json" -ForegroundColor Gray
+    }
+
+    if ($corpusBatchCount -gt 0) {
+        $totalMB = [math]::Round((Get-ChildItem $CorpusBatchesDst -Filter '*.jsonl.gz' | Measure-Object -Property Length -Sum).Sum / 1MB, 1)
+        Write-Host "  ✓ Legal corpus: $corpusBatchCount batch(es), ${totalMB} MB" -ForegroundColor Green
+    } else {
+        Write-Host "  ⚠ Release v-corpus-latest found but no batch assets attached yet." -ForegroundColor DarkYellow
+    }
+} catch {
+    Write-Host "  ⚠ Corpus auto-download failed: $_ — App will boot without bundled legislation." -ForegroundColor DarkYellow
 }
 
-if (-not (Test-Path $CorpusSrc)) {
-    Write-Host "  ⚠ WARNING: legal-corpus artifact not found. App will boot without bundled legislation." -ForegroundColor Yellow
+if ($corpusBatchCount -eq 0) {
+    Write-Host "  ⚠ WARNING: legal-corpus batches not found. App will boot without bundled legislation." -ForegroundColor Yellow
     Write-Host "    Run: pnpm ingest-knesset-odata -- --embed" -ForegroundColor Yellow
 }
 
