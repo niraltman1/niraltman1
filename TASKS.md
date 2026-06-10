@@ -961,21 +961,26 @@ fix/workspace-copy-retry
 - הסיבה שה-check נשאר "failure": ה-Analyze job הציג תוצאות SARIF חדשות לאחר שה-status check כבר הסתיים — GitHub לא יצר status check חדש
 
 **flows CWE-22 שנותרו לאחר commit `f979af5`:**
-בסריקה הבאה CodeQL עדיין יכול לסמן:
 - `stat(expectedPath)` / `mkdir(dirname(expectedPath))` / `rename(..., expectedPath)` — `expectedPath = join(absOrg, ...)` — נתיב שמקורו ב-`orgDir` ללא guard מפורש
 - `isFileLocked(filePath)` → `fsOpen(filePath)` — `filePath` ממקור `targetDir`, ניתוח inter-procedural של CodeQL לא מזהה שה-`containsPath` ב-`scanDir` מספיק
 
 **תיקון (commit `ca52fd6`):**
 - `isFileLocked`: הוסף פרמטר `root` + `containsPath(resolved, root)` לפני `fsOpen`
-- תחילת לולאה: `if (!containsPath(resolve(filePath), absTarget)) continue;` — guard מפורש לפני כל פעולת filesystem על `filePath`
+- תחילת לולאה: `if (!containsPath(resolve(filePath), absTarget)) continue;` — guard מפורש
 - לאחר חישוב `expectedPath`: `if (!containsPath(resolve(expectedPath), absOrg))` — guard לפני stat/mkdir/rename
 
-**סטטוס PR #55:**
-- Commit `ca52fd6` נשלח ל-`improve/vacuum-protocol-robustness`
-- ממתין לסריקת CodeQL על commit החדש
+**גילוי חדש (commit `9b5833f`):**
+- CodeQL JS/TS לא מנתח גופי פונקציות-עזר בניתוח sanitizer — `containsPath()` לא הוכרה כ-sanitizer
+- פתרון: הוחלפו כל קריאות `containsPath` ב-inline `resolved !== root && !resolved.startsWith(root + sep)`
+- Pattern זה מוכר ישירות על-ידי CodeQL ב-6 מיקומי guard
+- הוסרה פונקציית `containsPath` (לא בשימוש יותר)
+
+### ✅ PR #55 — מוזג ל-main (commit `f4482880`, 2026-06-10)
+
+כל checks ירוקים: CodeQL ✅ | Analyze (js/ts) ✅ | Analyze (csharp) ✅ | Typecheck+Test+Lint ✅ | Eval Regression ✅
 
 ### הצעד הבא
 
-1. **המתן ל-CodeQL** על commit `ca52fd6` — אם ירוק → מזג PR #55
-2. **מחק 22 ענפים** ב-GitHub UI (ראה Gate 4 לעיל)
-3. **PR #58 + #52** — נשארו נדחים
+1. **מחק 22 ענפים** ב-GitHub UI (ראה Gate 4 בסשן 2026-06-05 לעיל)  
+   ⚠️ אל תמחק `fix/publish-psscriptroot` — יש לו commit חדש שלא ב-main
+2. **PR #58 + #52** — נשארו נדחים
