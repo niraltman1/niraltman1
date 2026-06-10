@@ -1,53 +1,76 @@
 import { createBrowserRouter, Navigate } from 'react-router-dom';
+import { lazy, Suspense, type ComponentType, type LazyExoticComponent } from 'react';
 import type { Router as RemixRouter } from '@remix-run/router';
-import { AppShell }        from '@/components/layout/AppShell.js';
-import { SetupWizard }     from '@/features/setup/SetupWizard.js';
-import { DashboardPage }   from '@/features/documents/DashboardPage.js';
-import { DocumentsPage }   from '@/features/documents/DocumentsPage.js';
-import { DocumentDetail }  from '@/features/documents/DocumentDetail.js';
-import { DocumentReader }  from '@/features/documents/DocumentReader.js';
-import { ClientsPage }     from '@/features/clients/ClientsPage.js';
-import { ClientCard }      from '@/features/clients/ClientCard.js';
-import { CasesPage }       from '@/features/cases/CasesPage.js';
-import { CaseDetail }      from '@/features/cases/CaseDetail.js';
-import { HearingPrepPage } from '@/features/cases/HearingPrepPage.js';
-import { MatterWorkbench } from '@/features/cases/MatterWorkbench.js';
-import { EntitiesPage }    from '@/features/entities/EntitiesPage.js';
-import { EntityDetailPage } from '@/features/entities/EntityDetailPage.js';
-import { SmartCollectionsPage } from '@/features/documents/SmartCollectionsPage.js';
-import { RulesEnginePage }  from '@/features/legal/RulesEnginePage.js';
-import { ActionPlanPage }  from '@/features/action-plan/ActionPlanPage.js';
-import { SearchPage }      from '@/features/search/SearchPage.js';
-import { QueueMonitor }    from '@/features/queue/QueueMonitor.js';
-import { ActionQueue }     from '@/features/documents/ActionQueue.js';
-import { CalendarPage }    from '@/features/calendar/CalendarPage.js';
-import { DeadlineMonitorPage } from '@/features/calendar/DeadlineMonitorPage.js';
-import { DiagnosticsPage }    from '@/features/admin/DiagnosticsPage.js';
-import { MissionControlPage } from '@/features/admin/MissionControlPage.js';
-import { BackupSettingsPage } from '@/features/admin/BackupSettingsPage.js';
-import { RecoveryPage }       from '@/features/admin/RecoveryPage.js';
-import { JournalPage }        from '@/features/admin/JournalPage.js';
-import { RBACManagePage }     from '@/features/admin/RBACManagePage.js';
-import { ActivityFeedPage }   from '@/features/activity/ActivityFeedPage.js';
-import { TasksPage }       from '@/features/tasks/TasksPage.js';
-import { TemplatesPage }      from '@/features/legal-engine/TemplatesPage.js';
-import { MediaRegistryPage }  from '@/features/media/MediaRegistryPage.js';
-import { TrafficAlertsPage }  from '@/features/traffic/TrafficAlertsPage.js';
-import { StudiesPage }        from '@/features/studies/StudiesPage.js';
-import { EvidenceLockerPage } from '@/features/evidence/EvidenceLockerPage.js';
-import { StensLibraryPage }   from '@/features/stens/StensLibraryPage.js';
-import { CanvasPage }         from '@/features/canvas/CanvasPage.js';
-import { CommunicationsInboxPage } from '@/features/communications/CommunicationsInboxPage.js';
-import { GmailBridgePage }    from '@/features/gmail/GmailBridgePage.js';
-import { MailWorkspacePage }  from '@/features/mail/MailWorkspacePage.js';
-import { AgentsWorkspacePage } from '@/features/agents/AgentsWorkspacePage.js';
-import { ContactsPage }       from '@/features/contacts/ContactsPage.js';
-import { PrecedentsPage }     from '@/features/precedents/PrecedentsPage.js';
-import { NotFoundPage }       from '@/components/common/NotFoundPage.js';
+import { AppShell }    from '@/components/layout/AppShell.js';
+import { NotFoundPage } from '@/components/common/NotFoundPage.js';
+
+// ── Lazy-load helper ─────────────────────────────────────────────────────────
+// React.lazy requires a module with a `default` export; our pages use named
+// exports. This wrapper converts a named export to the required shape without
+// `any` casts by constraining T to the inferred module type.
+function lz<T extends Record<string, ComponentType>>(
+  importer: () => Promise<T>,
+  name: keyof T & string,
+): LazyExoticComponent<ComponentType> {
+  return lazy(() => importer().then((m) => ({ default: m[name] as ComponentType })));
+}
+
+// ── Page components (lazy-loaded per route) ──────────────────────────────────
+const SetupWizard    = lz(() => import('@/features/setup/SetupWizard.js'),            'SetupWizard');
+const DashboardPage  = lz(() => import('@/features/documents/DashboardPage.js'),      'DashboardPage');
+const DocumentsPage  = lz(() => import('@/features/documents/DocumentsPage.js'),      'DocumentsPage');
+const DocumentDetail = lz(() => import('@/features/documents/DocumentDetail.js'),     'DocumentDetail');
+const DocumentReader = lz(() => import('@/features/documents/DocumentReader.js'),     'DocumentReader');
+const SmartCollectionsPage = lz(() => import('@/features/documents/SmartCollectionsPage.js'), 'SmartCollectionsPage');
+const ActionQueue    = lz(() => import('@/features/documents/ActionQueue.js'),        'ActionQueue');
+const ClientsPage    = lz(() => import('@/features/clients/ClientsPage.js'),          'ClientsPage');
+const ClientCard     = lz(() => import('@/features/clients/ClientCard.js'),           'ClientCard');
+const CasesPage      = lz(() => import('@/features/cases/CasesPage.js'),              'CasesPage');
+const CaseDetail     = lz(() => import('@/features/cases/CaseDetail.js'),             'CaseDetail');
+const HearingPrepPage = lz(() => import('@/features/cases/HearingPrepPage.js'),       'HearingPrepPage');
+const MatterWorkbench = lz(() => import('@/features/cases/MatterWorkbench.js'),       'MatterWorkbench');
+const EntitiesPage   = lz(() => import('@/features/entities/EntitiesPage.js'),        'EntitiesPage');
+const EntityDetailPage = lz(() => import('@/features/entities/EntityDetailPage.js'),  'EntityDetailPage');
+const RulesEnginePage = lz(() => import('@/features/legal/RulesEnginePage.js'),       'RulesEnginePage');
+const ActionPlanPage = lz(() => import('@/features/action-plan/ActionPlanPage.js'),   'ActionPlanPage');
+const SearchPage     = lz(() => import('@/features/search/SearchPage.js'),            'SearchPage');
+const QueueMonitor   = lz(() => import('@/features/queue/QueueMonitor.js'),           'QueueMonitor');
+const CalendarPage   = lz(() => import('@/features/calendar/CalendarPage.js'),        'CalendarPage');
+const DeadlineMonitorPage = lz(() => import('@/features/calendar/DeadlineMonitorPage.js'), 'DeadlineMonitorPage');
+const DiagnosticsPage    = lz(() => import('@/features/admin/DiagnosticsPage.js'),    'DiagnosticsPage');
+const MissionControlPage = lz(() => import('@/features/admin/MissionControlPage.js'), 'MissionControlPage');
+const BackupSettingsPage = lz(() => import('@/features/admin/BackupSettingsPage.js'), 'BackupSettingsPage');
+const RecoveryPage       = lz(() => import('@/features/admin/RecoveryPage.js'),       'RecoveryPage');
+const JournalPage        = lz(() => import('@/features/admin/JournalPage.js'),        'JournalPage');
+const RBACManagePage     = lz(() => import('@/features/admin/RBACManagePage.js'),     'RBACManagePage');
+const ActivityFeedPage   = lz(() => import('@/features/activity/ActivityFeedPage.js'), 'ActivityFeedPage');
+const TasksPage          = lz(() => import('@/features/tasks/TasksPage.js'),          'TasksPage');
+const TemplatesPage      = lz(() => import('@/features/legal-engine/TemplatesPage.js'), 'TemplatesPage');
+const MediaRegistryPage  = lz(() => import('@/features/media/MediaRegistryPage.js'),  'MediaRegistryPage');
+const TrafficAlertsPage  = lz(() => import('@/features/traffic/TrafficAlertsPage.js'), 'TrafficAlertsPage');
+const StudiesPage        = lz(() => import('@/features/studies/StudiesPage.js'),      'StudiesPage');
+const EvidenceLockerPage = lz(() => import('@/features/evidence/EvidenceLockerPage.js'), 'EvidenceLockerPage');
+const StensLibraryPage   = lz(() => import('@/features/stens/StensLibraryPage.js'),   'StensLibraryPage');
+const CanvasPage         = lz(() => import('@/features/canvas/CanvasPage.js'),        'CanvasPage');
+const CommunicationsInboxPage = lz(() => import('@/features/communications/CommunicationsInboxPage.js'), 'CommunicationsInboxPage');
+const GmailBridgePage    = lz(() => import('@/features/gmail/GmailBridgePage.js'),    'GmailBridgePage');
+const MailWorkspacePage  = lz(() => import('@/features/mail/MailWorkspacePage.js'),   'MailWorkspacePage');
+const AgentsWorkspacePage = lz(() => import('@/features/agents/AgentsWorkspacePage.js'), 'AgentsWorkspacePage');
+const ContactsPage       = lz(() => import('@/features/contacts/ContactsPage.js'),    'ContactsPage');
+const PrecedentsPage     = lz(() => import('@/features/precedents/PrecedentsPage.js'), 'PrecedentsPage');
+
+// ── Router ───────────────────────────────────────────────────────────────────
 
 export const router: RemixRouter = createBrowserRouter([
-  // Setup wizard lives outside AppShell — accessible before first login
-  { path: 'setup', element: <SetupWizard /> },
+  // Setup wizard lives outside AppShell — wrapped in its own Suspense
+  {
+    path: 'setup',
+    element: (
+      <Suspense fallback={null}>
+        <SetupWizard />
+      </Suspense>
+    ),
+  },
   {
     path:    '/',
     element: <AppShell />,

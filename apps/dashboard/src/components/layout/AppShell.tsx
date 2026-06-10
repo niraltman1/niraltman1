@@ -1,3 +1,4 @@
+import { Suspense } from 'react';
 import { Outlet } from 'react-router-dom';
 import { Sidebar } from './Sidebar.js';
 import { SpotlightSearch } from '@/components/common/SpotlightSearch.js';
@@ -26,7 +27,13 @@ export function AppShell() {
         <UpdateNotificationBanner />
         <ReviewRequiredBanner />
         <div className="flex-1 p-6">
-          <Outlet />
+          <Suspense fallback={
+            <div className="flex items-center justify-center h-full text-sm" style={{ color: 'var(--fg-3)' }}>
+              טוען…
+            </div>
+          }>
+            <Outlet />
+          </Suspense>
         </div>
 
         {/* Status bar */}
