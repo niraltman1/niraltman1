@@ -4,7 +4,7 @@ import {
   GavelIcon, FolderOpenIcon, UsersIcon, CheckSquareIcon, ScalesIcon,
   LockIcon, FileDashedIcon, BookOpenIcon, RobotIcon, WarningCircleIcon,
   ShieldIcon, FileTextIcon, CalendarIcon, WarningIcon, MagnifyingGlassIcon,
-  ChatCircleIcon, FolderIcon, ArrowRightIcon, BrainIcon, ClockIcon,
+  ChatCircleIcon, FolderIcon, ArrowRightIcon, BrainIcon,
   BellIcon, FilesIcon,
 } from '@phosphor-icons/react';
 import type { IconWeight } from '@phosphor-icons/react';
