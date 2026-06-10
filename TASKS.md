@@ -1,5 +1,25 @@
 # Factum-IL — Task Tracker
 
+## 🗓️ Session handoff — beta-readiness F-B (2026-06-10 המשך)
+
+### הושלם הפעם
+
+#### Phase 3 — Frontend gaps
+- ✅ **F-B** — `/library` route עם שני טאבים: *חקיקה* (`LegalCorpusPage`) + *פסיקה* (`JudgmentLibraryPage`). סרגל צד מעודכן. 4 בדיקות חדשות. PR #76 פתוח/ממתין למיזוג.
+- ✅ **F-D** — covered by #70 dashboard redesign (today's agenda/deadlines)
+- ✅ **F-E** — `MatterWorkbench` קיים ב-`apps/dashboard/src/features/cases/MatterWorkbench.tsx` — done
+- ✅ **F-F** — `AiApprovalBar` משותף (done in previous session)
+- ✅ **F-G** — print stylesheet, skip link, a11y (done in previous session)
+
+### PR פתוח
+- **PR #76** `claude/factum-il-beta-readiness-fzz4ky` — F-B unified library page — CI רץ
+
+### נותר
+- **Phase 6 Trigger** — ראה פרטים בסעיף הקודם (trigger ידני נדרש)
+- **C2 (WhatsApp)** — חסום-סביבה; מתועד כהגבלת-beta
+
+---
+
 ## 🗓️ Session handoff — beta-readiness Phase 4/F-G (2026-06-10 המשך)
 
 ### הושלם הפעם (המשך אותה פגישה)

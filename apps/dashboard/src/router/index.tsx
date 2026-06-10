@@ -61,6 +61,7 @@ const PrecedentsPage     = lz(() => import('@/features/precedents/PrecedentsPage
 const JudgmentLibraryPage = lz(() => import('@/features/judgment-library/JudgmentLibraryPage.js'), 'JudgmentLibraryPage');
 const LedgerPage         = lz(() => import('@/features/ledger/LedgerPage.js'),        'LedgerPage');
 const LegalCorpusPage    = lz(() => import('@/features/legal/LegalCorpusPage.js'),    'LegalCorpusPage');
+const LegalLibraryPage   = lz(() => import('@/features/legal/LegalLibraryPage.js'),   'LegalLibraryPage');
 const DraftingPage       = lz(() => import('@/features/drafting/DraftingPage.js'),    'DraftingPage');
 const DraftEditorPage    = lz(() => import('@/features/drafting/DraftEditorPage.js'), 'DraftEditorPage');
 const InsolvencyPage     = lz(() => import('@/features/insolvency/InsolvencyPage.js'), 'InsolvencyPage');
@@ -113,6 +114,7 @@ export const router: RemixRouter = createBrowserRouter([
       { path: 'agents',             element: <AgentsWorkspacePage />  },
       { path: 'contacts',          element: <ContactsPage />         },
       { path: 'precedents',        element: <PrecedentsPage />       },
+      { path: 'library',            element: <LegalLibraryPage />     },
       { path: 'judgment-library',  element: <JudgmentLibraryPage />  },
       { path: 'ledger',            element: <LedgerPage />           },
       { path: 'legal-corpus',      element: <LegalCorpusPage />      },

@@ -333,7 +333,7 @@ export function JudgmentLibraryPage() {
   }, [items, selectedId]);
 
   return (
-    <div className="h-full flex flex-col -m-6" dir="rtl">
+    <div className="h-full flex flex-col" dir="rtl">
       {/* Page header */}
       <div
         className="flex items-center gap-3 px-6 py-4 border-b shrink-0"

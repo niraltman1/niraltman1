@@ -67,14 +67,13 @@ export const NAV_GROUPS: NavGroup[] = [
   {
     id: 'research', label: 'מחקר משפטי', Icon: MagnifyingGlassIcon, defaultOpen: false,
     items: [
-      { to: '/legal-corpus',     label: 'מאגר חקיקה',        Icon: BookOpenIcon },
-      { to: '/precedents',       label: 'תקדימים',            Icon: GavelIcon },
-      { to: '/judgment-library', label: 'ספריית פסקי דין',   Icon: GavelIcon },
-      { to: '/stens',            label: 'טפסים (Stens)',      Icon: NoteIcon },
-      { to: '/templates',        label: 'תבניות הליך',        Icon: StackIcon },
-      { to: '/rules',            label: 'כללי סדרי דין',     Icon: ScalesIcon },
-      { to: '/entities',         label: 'ישויות',             Icon: AddressBookIcon },
-      { to: '/insolvency',       label: 'הליכי חדלות',       Icon: ScalesIcon },
+      { to: '/templates',        label: 'תבניות הליך',          Icon: StackIcon },
+      { to: '/rules',            label: 'כללי סדרי דין',       Icon: ScalesIcon },
+      { to: '/stens',            label: 'טפסים (Stens)',        Icon: NoteIcon },
+      { to: '/precedents',       label: 'תקדימים',              Icon: GavelIcon },
+      { to: '/library',          label: 'ספריית חקיקה ופסיקה', Icon: BookOpenIcon },
+      { to: '/entities',         label: 'ישויות',               Icon: AddressBookIcon },
+      { to: '/insolvency',       label: 'הליכי חדלות',          Icon: ScalesIcon },
     ],
   },
   {
