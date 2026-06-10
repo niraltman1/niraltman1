@@ -4,18 +4,28 @@ on:
   workflow_dispatch:
     inputs:
       embed:
-        description: 'Generate per-section embeddings via nomic-embed-text (requires Ollama)'
+        description: 'Generate per-section embeddings (only fast on self-hosted GPU runner — will timeout on ubuntu-latest)'
         type: boolean
-        default: true
+        default: false
+
+# Only one corpus build runs at a time. cancel-in-progress: false means a queued run waits
+# rather than cancelling the current one (losing 20-40 min of work).
+concurrency:
+  group: knesset-corpus-ingest
+  cancel-in-progress: false
 
 permissions:
   contents: write
+  actions: read    # needed to list/download artifacts from previous runs
 
 jobs:
-  ingest:
-    name: Ingest 1,077 Israeli laws → v-corpus-latest
+  # ── Job A: OData + WikiSource, no embeddings (~20-40 min) ──────────────────────────────
+  build-corpus:
+    name: Build corpus (OData + WikiSource)
     runs-on: ubuntu-latest
-    timeout-minutes: 240
+    timeout-minutes: 360
+    env:
+      NODE_OPTIONS: --max-old-space-size=6144
 
     steps:
       - uses: actions/checkout@v4
@@ -33,40 +43,287 @@ jobs:
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
 
-      - name: Install Ollama + pull nomic-embed-text
-        if: ${{ inputs.embed }}
+      - name: Find most recent checkpoint artifact (cross-run)
+        id: find-checkpoint
+        env:
+          GH_TOKEN: ${{ github.token }}
         run: |
-          curl -fsSL https://ollama.com/install.sh | sh
-          ollama serve &
-          echo "Waiting for Ollama to be ready..."
-          for i in $(seq 1 30); do
-            curl -sf http://localhost:11434/api/tags > /dev/null && echo "Ollama ready after ${i}s" && break || sleep 1
-          done
-          ollama pull nomic-embed-text
-
-      - name: Run ingestion
-        run: |
-          if [ "${{ inputs.embed }}" = "true" ]; then
-            pnpm ingest-knesset-odata -- --embed --delay 500
+          # download-artifact@v4 only sees the CURRENT run's artifacts by default.
+          # We query the API to find the latest non-expired corpus-domain-checkpoint
+          # from any previous run, then pass its run-id to the download step.
+          RUN_ID=$(gh api "repos/niraltman1/niraltman1/actions/artifacts?per_page=100&name=corpus-domain-checkpoint" \
+            --jq '[.artifacts[] | select(.expired == false)] | sort_by(.created_at) | reverse | .[0].workflow_run.id // empty' 2>/dev/null || true)
+          if [ -n "$RUN_ID" ] && [ "$RUN_ID" != "null" ]; then
+            echo "run-id=${RUN_ID}" >> "$GITHUB_OUTPUT"
+            echo "::notice::Found corpus-domain-checkpoint from run ${RUN_ID}"
           else
-            pnpm ingest-knesset-odata -- --delay 500
+            echo "run-id=" >> "$GITHUB_OUTPUT"
+            echo "::notice::No prior corpus-domain-checkpoint artifact found — starting fresh"
           fi
 
-      - name: Create release v-corpus-latest (if absent)
+      - name: Download domain checkpoint from previous run (enables resume)
+        id: dl-checkpoint
+        if: steps.find-checkpoint.outputs.run-id != ''
+        continue-on-error: true
+        uses: actions/download-artifact@v4
+        with:
+          name: corpus-domain-checkpoint
+          run-id: ${{ steps.find-checkpoint.outputs.run-id }}
+          github-token: ${{ github.token }}
+          path: .    # artifact stores files with full workspace-relative path
+
+      - name: Log checkpoint status
+        run: |
+          if [ "${{ steps.dl-checkpoint.outcome }}" = "success" ]; then
+            FILES=$(ls assets/legal-corpus/batches/batch-*.jsonl.gz 2>/dev/null | wc -l)
+            NAMES=$(ls assets/legal-corpus/batches/batch-*.jsonl.gz 2>/dev/null | xargs -I{} basename {} .jsonl.gz | sed 's/batch-//' | tr '\n' ' ')
+            echo "::notice::Resuming from checkpoint — ${FILES} domain(s) already done: ${NAMES}"
+          else
+            echo "::notice::No checkpoint found — starting fresh"
+          fi
+
+      - name: Run ingestion (OData + WikiSource, no embeddings)
+        run: pnpm ingest-knesset-odata -- --delay 200 --domain-batches
+
+      - name: Count completed domain files for checkpoint
+        id: checkpoint-count
+        if: always()
+        run: |
+          COUNT=$(ls assets/legal-corpus/batches/batch-*.jsonl.gz 2>/dev/null | wc -l)
+          echo "count=${COUNT}" >> "$GITHUB_OUTPUT"
+          echo "::notice::Checkpoint: ${COUNT} completed domain file(s) to save"
+
+      - name: Upload domain checkpoint (only if files exist — prevents overwriting good checkpoint with empty one)
+        if: always() && steps.checkpoint-count.outputs.count != '0'
+        uses: actions/upload-artifact@v4
+        with:
+          name: corpus-domain-checkpoint
+          path: assets/legal-corpus/batches/batch-*.jsonl.gz
+          retention-days: 7
+          if-no-files-found: warn
+          overwrite: true
+
+      - name: Upload corpus artifact (always — preserves output even on partial runs)
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: legal-corpus-no-embed-${{ github.run_id }}
+          path: |
+            assets/legal-corpus/batches/
+            assets/legal-corpus/corpus-manifest.json
+            assets/legal-corpus/batches/corpus-domain-index.json
+          retention-days: 7
+          if-no-files-found: warn
+
+  # ── Job B: Embedding enrichment pass (conditional on inputs.embed) ─────────────────────
+  embed-corpus:
+    name: Enrich corpus with embeddings (nomic-embed-text)
+    needs: build-corpus
+    if: ${{ inputs.embed == true }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 300
+    env:
+      NODE_OPTIONS: --max-old-space-size=6144
+      EMBED_MODEL: nomic-embed-text
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: pnpm/action-setup@v4
+        with:
+          version: '9.4.0'
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: pnpm
+          cache-dependency-path: pnpm-lock.yaml
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Download corpus from build-corpus job
+        uses: actions/download-artifact@v4
+        with:
+          name: legal-corpus-no-embed-${{ github.run_id }}
+          path: assets/legal-corpus
+
+      - name: Cache Ollama models
+        id: ollama-cache
+        uses: actions/cache@v4
+        with:
+          path: ~/.ollama
+          # Bump -v2 to force re-download if the model needs refreshing.
+          key: ollama-${{ env.EMBED_MODEL }}-v2
+
+      - name: Install Ollama
+        run: curl -fsSL https://ollama.com/install.sh | sh
+
+      - name: Start Ollama server
+        run: ollama serve &
+
+      - name: Wait for Ollama to be ready (up to 120 s)
+        run: |
+          echo "Waiting for Ollama API..."
+          for i in $(seq 1 120); do
+            if curl -sf http://localhost:11434/api/tags > /dev/null 2>&1; then
+              echo "::notice::Ollama ready after ${i}s"
+              break
+            fi
+            if [ "$i" -eq 120 ]; then
+              echo "::error::Ollama did not become ready within 120 seconds"
+              exit 1
+            fi
+            sleep 1
+          done
+
+      - name: Pull nomic-embed-text model (skipped on cache hit)
+        if: steps.ollama-cache.outputs.cache-hit != 'true'
+        run: |
+          ollama pull nomic-embed-text
+          if ! ollama list | grep -q 'nomic-embed-text'; then
+            echo "::error::nomic-embed-text model not available after pull"
+            exit 1
+          fi
+
+      - name: Run embedding enrichment pass
+        run: pnpm enrich-embeddings
+
+      - name: Upload enriched corpus artifact (always — preserves partial work)
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: legal-corpus-embedded-${{ github.run_id }}
+          path: |
+            assets/legal-corpus/batches/
+            assets/legal-corpus/corpus-manifest.json
+          retention-days: 7
+          if-no-files-found: warn
+
+  # ── Job C: Validate + publish to v-corpus-latest ───────────────────────────────────────
+  publish-release:
+    name: Publish to v-corpus-latest
+    needs: [build-corpus, embed-corpus]
+    # Run if build-corpus succeeded, regardless of whether embed-corpus ran.
+    # embed-corpus is 'skipped' when embed=false (not 'failure'), so this covers both paths.
+    if: >-
+      always() &&
+      needs.build-corpus.result == 'success' &&
+      (needs.embed-corpus.result == 'success' ||
+       needs.embed-corpus.result == 'skipped' ||
+       needs.embed-corpus.result == 'failure')
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    steps:
+      - uses: actions/checkout@v4
+
+      # Prefer the embedded artifact; fall back to base when embed-corpus was skipped or failed.
+      - name: Download enriched artifact (preferred)
+        id: dl-embedded
+        uses: actions/download-artifact@v4
+        continue-on-error: true
+        with:
+          name: legal-corpus-embedded-${{ github.run_id }}
+          path: assets/legal-corpus
+
+      - name: Download base artifact (fallback)
+        if: steps.dl-embedded.outcome != 'success'
+        uses: actions/download-artifact@v4
+        with:
+          name: legal-corpus-no-embed-${{ github.run_id }}
+          path: assets/legal-corpus
+
+      - name: Annotate which artifact is being published
+        run: |
+          if [ "${{ steps.dl-embedded.outcome }}" = "success" ]; then
+            echo "::notice::Publishing EMBEDDED corpus artifact (text + nomic-embed-text vectors)"
+          else
+            echo "::notice::Publishing BASE corpus artifact (text only, no embeddings)"
+          fi
+
+      - name: Validate artifact
+        run: |
+          BATCH_DIR="assets/legal-corpus/batches"
+
+          if [ ! -d "$BATCH_DIR" ]; then
+            echo "::error::Corpus batches directory not found at ${BATCH_DIR}"
+            exit 1
+          fi
+
+          BATCH_COUNT=$(ls "$BATCH_DIR"/batch-*.jsonl.gz 2>/dev/null | wc -l)
+          if [ "$BATCH_COUNT" -eq 0 ]; then
+            echo "::error::No batch files found in ${BATCH_DIR}"
+            exit 1
+          fi
+
+          TOTAL_SIZE=0
+          for f in "$BATCH_DIR"/batch-*.jsonl.gz; do
+            SIZE=$(stat -c%s "$f")
+            TOTAL_SIZE=$((TOTAL_SIZE + SIZE))
+            if ! gzip -t "$f" 2>/dev/null; then
+              echo "::error::Batch file ${f} is not a valid gzip file"
+              exit 1
+            fi
+          done
+
+          FIRST_FILE=$(ls "$BATCH_DIR"/batch-*.jsonl.gz | sort | head -1)
+          FIRST_LINE=$(zcat "$FIRST_FILE" | head -1)
+          if [ -z "$FIRST_LINE" ]; then
+            echo "::error::First batch decompresses to empty content"
+            exit 1
+          fi
+          if ! echo "$FIRST_LINE" | python3 -c "import sys,json;d=json.load(sys.stdin);assert d.get('schemaVersion')==1;assert 'israelLawId' in d" 2>/dev/null; then
+            echo "::error::First JSONL line is not a valid schemaVersion:1 corpus record"
+            exit 1
+          fi
+
+          LAW_COUNT=$(zcat "$BATCH_DIR"/batch-*.jsonl.gz | wc -l)
+          echo "::notice::Artifact valid — ${BATCH_COUNT} batches, ${TOTAL_SIZE} bytes total, ${LAW_COUNT} laws"
+
+      - name: Create release v-corpus-latest (idempotent)
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
           gh release create v-corpus-latest \
             --repo niraltman1/niraltman1 \
             --title "Knesset Legal Corpus (latest)" \
-            --notes "Auto-generated: all valid Israeli laws from Knesset OData × WikiSource (ספר החוקים הפתוח), with optional nomic-embed-text per-section embeddings. Not a product release — consumed by publish.ps1 during the Windows installer build." \
+            --notes "Auto-generated: all valid Israeli laws from Knesset OData × WikiSource (ספר החוקים הפתוח). Not a product release — consumed by publish.ps1 during the Windows installer build." \
             || true
 
-      - name: Upload corpus asset (clobber existing)
+      - name: Upload corpus batch files
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
           gh release upload v-corpus-latest \
             --repo niraltman1/niraltman1 \
             --clobber \
-            assets/legal-corpus/legal-corpus.knesset.jsonl.gz
+            assets/legal-corpus/batches/batch-*.jsonl.gz
+
+      - name: Upload corpus manifest
+        if: hashFiles('assets/legal-corpus/corpus-manifest.json') != ''
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release upload v-corpus-latest \
+            --repo niraltman1/niraltman1 \
+            --clobber \
+            assets/legal-corpus/corpus-manifest.json
+
+      - name: Upload domain index
+        if: hashFiles('assets/legal-corpus/batches/corpus-domain-index.json') != ''
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release upload v-corpus-latest \
+            --repo niraltman1/niraltman1 \
+            --clobber \
+            assets/legal-corpus/batches/corpus-domain-index.json
+
+      - name: Annotate release URL
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          URL=$(gh release view v-corpus-latest \
+            --repo niraltman1/niraltman1 --json url -q .url 2>/dev/null || echo "(unavailable)")
+          echo "::notice::Corpus published → ${URL}"

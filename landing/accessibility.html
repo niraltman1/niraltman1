@@ -1,0 +1,110 @@
+<!DOCTYPE html>
+<html lang="he" dir="rtl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>הצהרת נגישות | Factum-IL</title>
+<link href="https://fonts.googleapis.com/css2?family=Assistant:wght@400;600;700&family=Heebo:wght@700;900&display=swap" rel="stylesheet">
+<style>
+:root { --bg:#060913; --surface:#10162A; --accent:#E2C47A; --text:#FFFFFF; --muted:#94A3B8; --border:rgba(255,255,255,0.08); }
+* { box-sizing:border-box; margin:0; padding:0; }
+body { font-family:'Assistant',sans-serif; background:var(--bg); color:var(--text); line-height:1.8; }
+header { position:sticky; top:0; background:rgba(6,9,19,0.9); backdrop-filter:blur(16px); border-bottom:1px solid var(--border); padding:0 5%; height:64px; display:flex; align-items:center; justify-content:space-between; z-index:10; }
+.logo { font-family:'Heebo',sans-serif; font-size:20px; font-weight:900; color:var(--text); text-decoration:none; }
+.logo span { color:var(--accent); }
+.back-link { font-size:14px; color:var(--muted); text-decoration:none; transition:.2s; }
+.back-link:hover { color:var(--accent); }
+main { max-width:820px; margin:0 auto; padding:60px 5% 100px; }
+h1 { font-family:'Heebo',sans-serif; font-size:36px; font-weight:900; margin-bottom:8px; }
+.updated { font-size:14px; color:var(--muted); margin-bottom:48px; }
+h2 { font-family:'Heebo',sans-serif; font-size:20px; font-weight:700; color:var(--accent); margin:40px 0 12px; }
+p { font-size:16px; color:rgba(255,255,255,0.75); margin-bottom:16px; }
+ul { padding-right:24px; margin-bottom:16px; }
+li { font-size:16px; color:rgba(255,255,255,0.75); margin-bottom:8px; }
+.highlight-box { background:var(--surface); border:1px solid var(--border); border-right:3px solid var(--accent); padding:20px 24px; border-radius:6px; margin:32px 0; }
+.highlight-box p { color:rgba(255,255,255,0.85); margin:0; }
+.contact-card { background:var(--surface); border:1px solid var(--border); border-radius:8px; padding:24px; margin-top:32px; }
+.contact-card p { margin-bottom:8px; }
+.contact-card p:last-child { margin-bottom:0; }
+a { color:var(--accent); }
+footer { text-align:center; padding:32px 5%; border-top:1px solid var(--border); font-size:13px; color:var(--muted); }
+</style>
+</head>
+<body>
+
+<header>
+  <a href="index.html" class="logo">Factum<span>IL</span></a>
+  <a href="index.html" class="back-link">← חזרה לדף הבית</a>
+</header>
+
+<main>
+  <h1>הצהרת נגישות</h1>
+  <div class="updated">עדכון אחרון: יוני 2026</div>
+
+  <div class="highlight-box">
+    <p>Factum-IL מחויבת לנגישות דיגיטלית ולהנגשת המוצר לאנשים עם מוגבלויות, בהתאם לחוק שוויון זכויות לאנשים עם מוגבלות, התשנ"ח–1998, ותקנות הנגישות לשירות.</p>
+  </div>
+
+  <h2>1. מצב הנגישות</h2>
+  <p>אנו עובדים לעמוד בדרישות תקן WCAG 2.1 ברמה AA. אתר הנחיתה של Factum-IL עומד בחלקו בדרישות אלה, ואנו ממשיכים לשפר את הנגישות באופן שוטף.</p>
+
+  <h2>2. התאמות נגישות קיימות</h2>
+  <ul>
+    <li>כל הדפים מוגדרים עם <code>lang="he"</code> ו-<code>dir="rtl"</code> לתמיכה מלאה בעברית וכיווניות RTL</li>
+    <li>ניגודיות צבעים עומדת בדרישות WCAG AA (יחס של לפחות 4.5:1 לטקסט רגיל)</li>
+    <li>כל האלמנטים האינטראקטיביים נגישים למקלדת</li>
+    <li>תגיות סמנטיות HTML5 (<code>header</code>, <code>main</code>, <code>footer</code>, <code>nav</code>) בשימוש לאורך כל הדפים</li>
+    <li>גופנים בגודל קריא (בסיס 16px ומעלה)</li>
+    <li>ריווח מספק בין אלמנטים קליקביליים</li>
+    <li>אין תוכן מהבהב בתדירות שעלולה לגרום להתקפים אפילפטיים</li>
+  </ul>
+
+  <h2>3. אפליקציית שולחן העבודה</h2>
+  <p>אפליקציית Factum-IL לשולחן העבודה (Electron/WebView2) מיועדת לעורכי דין ומשרדי עורכי דין. אנו עובדים על שיפורי נגישות לאפליקציה, כולל:</p>
+  <ul>
+    <li>תמיכה בקוראי מסך (NVDA, JAWS) עבור ממשק המשתמש הראשי</li>
+    <li>ניווט מלא באמצעות מקלדת בכל פעולות הליבה</li>
+    <li>הגדלת טקסט ללא שבירת פריסה (עד 200%)</li>
+    <li>תמיכה במצב ניגודיות גבוהה של Windows</li>
+  </ul>
+
+  <h2>4. חסמי נגישות ידועים</h2>
+  <p>להלן חסמי נגישות ידועים בהם אנו עובדים לטפל:</p>
+  <ul>
+    <li>חלק מהגרפים והוויזואליזציות בלוח הבקרה אינם מנגישים עדיין לקוראי מסך — בטיפול</li>
+    <li>ממשק העלאת קבצים עדיין לא מוצהר במלואו ל-ARIA — בטיפול</li>
+    <li>כמה הודעות שגיאה אינן מכריזות עצמן אוטומטית לקורא מסך — בטיפול</li>
+  </ul>
+
+  <h2>5. טכנולוגיות נגישות נתמכות</h2>
+  <p>המוצר נבדק ומיועד לעבוד עם:</p>
+  <ul>
+    <li>דפדפנים: Chrome, Edge (גרסאות עדכניות)</li>
+    <li>קוראי מסך: NVDA עם Firefox, JAWS עם Chrome</li>
+    <li>הגדלת מסך: Windows Magnifier, ZoomText</li>
+    <li>ניווט מקלדת: Tab, Shift+Tab, Enter, Space, Arrow keys</li>
+  </ul>
+
+  <h2>6. פנייה בנושא נגישות</h2>
+  <p>אם נתקלתם בבעיית נגישות או שהמוצר אינו נגיש לכם, אנא פנו אלינו. אנו מתחייבים להגיב תוך 5 ימי עסקים ולטפל בבעיה בהקדם האפשרי.</p>
+
+  <div class="contact-card">
+    <p><strong>רכז/ת נגישות:</strong> עו"ד ניר אלטמן</p>
+    <p><strong>דוא"ל:</strong> <a href="mailto:altman.adv@gmail.com">altman.adv@gmail.com</a></p>
+    <p><strong>כתובת:</strong> אפרים 18, קרית ביאליק</p>
+    <p><strong>שעות מענה:</strong> ימים א'–ה', 09:00–18:00</p>
+  </div>
+
+  <h2>7. בקשות לתכנים חלופיים</h2>
+  <p>אם אתם זקוקים לתוכן כלשהו באתר זה בפורמט נגיש יותר, אנא פנו אלינו בדוא"ל ונשמח לסייע.</p>
+
+  <h2>8. עדכון ההצהרה</h2>
+  <p>הצהרה זו עודכנה לאחרונה ביוני 2026. אנו בוחנים ומעדכנים את הצהרת הנגישות אחת לשנה לפחות, או בעת ביצוע שינויים משמעותיים במוצר.</p>
+</main>
+
+<footer>
+  © 2026 Factum-IL | <a href="index.html" style="color:var(--muted);text-decoration:none;">דף הבית</a> | <a href="terms.html" style="color:var(--muted);text-decoration:none;">תנאי שימוש</a>
+</footer>
+
+</body>
+</html>

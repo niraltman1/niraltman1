@@ -1,5 +1,39 @@
 # Factum-IL — Task Tracker
 
+## 🗓️ Session handoff — עדכון תיעוד מקיף (2026-06-04)
+
+### הושלם הפעם
+
+- ✅ **PR #59 — עדכון תיעוד מקיף לגרסה v1.0.0** — מוזג ל-main.
+  **קבצי שורש (5):** `README.md`, `DEVELOPMENT.md`, `ARCHITECTURE.md`, `BUILD.md`, `CHANGELOG.md` —
+  עודכנו לשקף 25 packages, 60 migrations, 5 agents, 6 workers, RBAC, sqlite-vec, Data Firewall,
+  installer 12 שלבים + 8 registry env vars + תיקון `FACTUM_IL_VERSION`.
+  **docs/ (24 קבצים):** 18 עדכונים + 6 חדשים (תוכניות-מימוש מסומנות כ-IMPLEMENTED):
+  `setup`, `architecture`, `engineering-decisions`, `production-release-manifest`, `pipeline`,
+  `admin-tools`, `ai-isolation`, `recovery`, `search-scaling`, `db-hardening`, `chaos-testing`,
+  `supervisor`, `queue`, `ocr`, `client-management`, `action-plan`, `office-config`,
+  `PROJECT-EVOLUTION-LOG` + כל 6 קבצי ה-IMPLEMENTATION-PLAN.
+
+- ✅ **סנכרון main** — main מעודכן לאחרונה. נמצאו ב-main שינויים חדשים (ממישורי-עבודה אחרים):
+  - 4 migrations חדשות: `063_communications`, `064_comm_templates`, `065_comm_evidence`, `066_call_logs`
+  - מודול תקשורת מלא: `packages/api/src/routes/communications.ts`, Telegram, Whisper transcription
+  - דפי נחיתה: `landing/index.html`, `accessibility.html`, `terms.html`
+  - `WORKPLAN_BACKEND.md`, `WORKPLAN_COMMUNICATIONS.md`, `WORKPLAN_FRONTEND.md`
+  - `.github/workflows/codeql.yml` + `ingest-knesset-corpus.yml`
+  - עדכון גדול ל-`publish.ps1`
+
+### סלוטי Migration
+- **001–066 תפוסים.** הבא הפנוי: **067**
+
+### הצעד הבא
+- בניית installer מ-main ← גרסת v1.0.0 מלאה עם מודול-תקשורת
+- בדיקת-התקנה מאפס (fresh install): ווידוא 66 migrations עוברות, FACTUM_IL_VERSION מדווח, sqlite-vec נטען
+- (אופציונלי) F-B: דפדפן קורפוס חקיקה/פסיקה לקריאה מילולית
+- (אופציונלי) F-D: Dashboard "היום שלי" מבוסס-משימות
+- (חסומי-סביבה) C1 Telegram מסירה-חיה (דורש allowlist) · C5/C6 Whisper מקומי
+
+---
+
 ## 🗓️ Session handoff — תכנון + audit (2026-06-03)
 **הושלם הפעם:**
 - שלוש תוכניות-עבודה מתואמות נדחפו ל-PR #54 (ענף `claude/lucid-johnson-D3EzR`):

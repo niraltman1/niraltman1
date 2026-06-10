@@ -1,4 +1,5 @@
-﻿#Requires -Version 5.1
+#!/usr/bin/env pwsh
+#Requires -Version 5.1
 <#
 .SYNOPSIS
     Factum IL v1.0.0  -  Production Build & Stage Script
@@ -25,16 +26,26 @@
 .EXAMPLE
     .\publish.ps1
     .\publish.ps1 -OutDir "C:\Build\FactumIL_Dist" -NodeVersion "22.13.1"
+    .\publish.ps1 -SkipTests  # Emergency rebuild only
+    .\publish.ps1 -SkipGGUF   # Skip large GGUF download
 #>
 [CmdletBinding()]
 param(
-    [string] $OutDir      = "",
-    [string] $NodeVersion = "22.13.1",
-    [switch] $SkipTests
+    [string] $OutDir           = "",
+    [string] $NodeVersion      = "22.13.1",
+    [switch] $SkipTests,
+    [switch] $SkipGGUF,
+    [int]    $MaxDownloadRetries = 3,
+    [int]    $DownloadTimeoutSec = 1800
 )
 
 Set-StrictMode -Version Latest
 $ErrorActionPreference = 'Stop'
+$VerbosePreference = 'Continue'
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# CONFIGURATION & UTILITIES
+# ═══════════════════════════════════════════════════════════════════════════════
 
 # When invoked via pnpm/npm, $PSScriptRoot may be empty - resolve from invocation path
 if (-not $PSScriptRoot) {
@@ -46,10 +57,19 @@ if (-not $OutDir) {
 
 $RepoRoot    = $PSScriptRoot
 $DesktopDir  = Join-Path $RepoRoot "FactumIL.Desktop"
-$TotalSteps  = 12
+$TotalSteps  = 13  # Incremented: added "Validating staged artifacts"
 $Step        = 0
 $LogFile     = Join-Path $PSScriptRoot "Deployment-Log.txt"
 $BuildId     = [datetime]::UtcNow.ToString('yyyy-MM-ddTHH-mm-ssZ')
+
+# Single source of truth for workspace packages (used in both build and staging)
+$WorkspacePackages = @(
+    'shared', 'database', 'legal-ontology', 'events', 'observability',
+    'model-router', 'memory', 'retrieval', 'ai', 'ai-guardrails',
+    'citation-engine', 'pipeline', 'evals', 'orchestrator', 'policy-engine',
+    'agent-core', 'support-diagnostics', 'update-core',
+    'enterprise-hooks', 'encrypted-backup', 'litigation-intelligence'
+)
 
 function Log([string]$msg) {
     Add-Content -Path $LogFile -Value "[$BuildId] $msg" -Encoding UTF8
@@ -58,9 +78,17 @@ function Log([string]$msg) {
 
 function Step([string]$msg) {
     $script:Step++
+    $script:StepStartTime = Get-Date
     Write-Host ""
     Write-Host "[$script:Step/$TotalSteps] $msg" -ForegroundColor Cyan
     Log "[$script:Step/$TotalSteps] $msg"
+}
+
+function StepElapsed() {
+    if ($script:StepStartTime) {
+        $elapsed = ((Get-Date) - $script:StepStartTime).TotalSeconds
+        Write-Host "  ⏱ Completed in $($elapsed.ToString('F1'))s" -ForegroundColor DarkGray
+    }
 }
 
 function CheckExe([string]$name) {
@@ -69,7 +97,105 @@ function CheckExe([string]$name) {
     }
 }
 
-# ── Prerequisite check ─────────────────────────────────────────────
+function ValidateArtifact([string]$Path, [string]$Type) {
+    <#
+    .SYNOPSIS
+        Validates staged artifacts for integrity.
+    .PARAMETER Type
+        Type of artifact: 'exe', 'gguf', 'sql', 'dll', 'generic'
+    #>
+    if (-not (Test-Path $Path)) { return $false }
+    
+    switch ($Type) {
+        "exe" { 
+            # Basic validity: file exists, is readable, has reasonable size
+            $size = (Get-Item $Path -ErrorAction SilentlyContinue).Length
+            return $size -gt 100KB  # Sanity check: EXEs should be >100KB
+        }
+        "gguf" { 
+            # GGUF files have 4-byte magic: 0x67 0x67 0x75 0x66 (gguF)
+            try {
+                [byte[]]$magic = @(0x67, 0x67, 0x75, 0x66)
+                $bytes = [System.IO.File]::ReadAllBytes($Path)
+                if ($bytes.Length -lt 4) { return $false }
+                for ($i = 0; $i -lt 4; $i++) {
+                    if ($bytes[$i] -ne $magic[$i]) { return $false }
+                }
+                # Also verify reasonable size (at least 100MB for quantized model)
+                return $bytes.Length -gt 100MB
+            } catch {
+                Log "  WARN: GGUF validation error: $_"
+                return $false
+            }
+        }
+        "sql" { 
+            $content = Get-Content $Path -Raw -ErrorAction SilentlyContinue
+            return $content -match "^[\s]*(CREATE|ALTER|INSERT|UPDATE|DELETE)"
+        }
+        "dll" {
+            # DLL files start with "MZ" header
+            try {
+                [byte[]]$mz = Get-Content $Path -Encoding Byte -TotalCount 2
+                return ($mz[0] -eq 0x4D) -and ($mz[1] -eq 0x5A)
+            } catch {
+                return $false
+            }
+        }
+        default { return Test-Path $Path }
+    }
+}
+
+function DownloadWithRetry([string]$Uri, [string]$OutFile, [int]$TimeoutSec, [int]$MaxRetries) {
+    <#
+    .SYNOPSIS
+        Downloads a file with automatic retry and detailed diagnostics.
+    #>
+    $RetryCount = 0
+    $Downloaded = $false
+    $LastError = $null
+
+    while ($RetryCount -lt $MaxRetries -and -not $Downloaded) {
+        try {
+            Write-Host "  Downloading $(Split-Path $OutFile -Leaf) (Attempt $($RetryCount+1)/$MaxRetries) ..." -ForegroundColor Gray
+            Invoke-WebRequest -Uri $Uri `
+                -OutFile $OutFile `
+                -UseBasicParsing `
+                -TimeoutSec $TimeoutSec `
+                -ErrorAction Stop
+            $Downloaded = $true
+            $size = [math]::Round((Get-Item $OutFile).Length / 1MB, 1)
+            Write-Host "  ✓ Downloaded ($size MB)" -ForegroundColor Green
+        } catch {
+            $LastError = $_
+            $RetryCount++
+            if ($RetryCount -lt $MaxRetries) {
+                Write-Host "  ⚠ Download attempt $RetryCount failed. Retrying in 5 seconds..." -ForegroundColor Yellow
+                Start-Sleep -Seconds 5
+            }
+        }
+    }
+
+    if (-not $Downloaded) {
+        Write-Host "  ✗ Download failed after $MaxRetries attempts: $LastError" -ForegroundColor Red
+        return $false
+    }
+    return $true
+}
+
+# Rotate old log files if size exceeds 10MB
+if (Test-Path $LogFile) {
+    $logSize = (Get-Item $LogFile).Length
+    if ($logSize -gt 10MB) {
+        $rotatedName = "Deployment-Log-$(Get-Date -Format 'yyyyMMdd-HHmmss').txt"
+        Rename-Item $LogFile -NewName $rotatedName
+        Write-Host "  ℹ Rotated old log: $rotatedName" -ForegroundColor DarkGray
+    }
+}
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# [1/13] Prerequisite check
+# ═══════════════════════════════════════════════════════════════════════════════
+
 Step "Verifying prerequisites"
 CheckExe "pnpm"
 CheckExe "dotnet"
@@ -81,43 +207,63 @@ Write-Host "  node   : $(node --version)"   -ForegroundColor Gray
 # Winget pre-flight checks (non-fatal)
 if (Get-Command winget -ErrorAction SilentlyContinue) {
     if (winget list --id OpenJS.NodeJS.LTS 2>$null | Select-String "22\.") {
-        Log "  Node 22 LTS: confirmed via winget"
+        Log "  ✓ Node 22 LTS: confirmed via winget"
     } else {
-        Log "  WARN: Node 22 LTS not confirmed - install: winget install OpenJS.NodeJS.LTS"
+        Log "  ⚠ Node 22 LTS not confirmed - install: winget install OpenJS.NodeJS.LTS"
     }
     if (winget list --id JRSoftware.InnoSetup 2>$null | Select-String "InnoSetup") {
-        Log "  Inno Setup: confirmed via winget"
+        Log "  ✓ Inno Setup: confirmed via winget"
     } else {
-        Log "  WARN: Inno Setup not found - install: winget install JRSoftware.InnoSetup"
+        Log "  ⚠ Inno Setup not found - install: winget install JRSoftware.InnoSetup"
     }
 } else {
-    Log "  INFO: winget not available - skipping tool version checks"
+    Log "  ℹ winget not available - skipping tool version checks"
 }
 $wv2Key = "HKLM:\SOFTWARE\WOW6432Node\Microsoft\EdgeUpdate\Clients\{F3017226-FE2A-4295-8BDF-00C3A9A7E4C5}"
-if (Test-Path $wv2Key) { Log "  WebView2 Runtime: present" }
-else { Log "  WARN: WebView2 Runtime not installed - installer will handle silent install" }
+if (Test-Path $wv2Key) { Log "  ✓ WebView2 Runtime: present" }
+else { Log "  ⚠ WebView2 Runtime not installed - installer will handle silent install" }
 
-# ── Clean output directory ────────────────────────────────────────────
+StepElapsed
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# [2/13] Clean output directory
+# ═══════════════════════════════════════════════════════════════════════════════
+
 Step "Cleaning output directory"
 if (Test-Path $OutDir) { Remove-Item -Recurse -Force $OutDir }
 New-Item -ItemType Directory -Force -Path $OutDir | Out-Null
 Write-Host "  Cleaned: $OutDir" -ForegroundColor Gray
 
-# ── Install dependencies ──────────────────────────────────────────────
+StepElapsed
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# [3/13] Install dependencies
+# ═══════════════════════════════════════════════════════════════════════════════
+
 Step "Installing dependencies (pnpm install --frozen-lockfile)"
 Push-Location $RepoRoot
 pnpm install --frozen-lockfile
 if ($LASTEXITCODE -ne 0) { throw "pnpm install failed" }
 Pop-Location
 
-# ── Typecheck all packages ────────────────────────────────────────────
+StepElapsed
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# [4/13] Typecheck all packages
+# ═══════════════════════════════════════════════════════════════════════════════
+
 Step "Typechecking all packages (pnpm -r typecheck)"
 Push-Location $RepoRoot
 pnpm -r typecheck
 if ($LASTEXITCODE -ne 0) { throw "TypeScript typecheck failed  -  fix errors before packaging" }
 Pop-Location
 
-# ── Optional: run tests ───────────────────────────────────────────────
+StepElapsed
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# [5/13] Optional: run tests
+# ═══════════════════════════════════════════════════════════════════════════════
+
 if (-not $SkipTests) {
     Step "Running test suite (pnpm -r test)"
     Push-Location $RepoRoot
@@ -126,36 +272,47 @@ if (-not $SkipTests) {
     Pop-Location
 } else {
     Step "Skipping tests (-SkipTests flag set)"
-    Write-Host "  WARNING: Skipping tests. Only use this for emergency rebuilds." -ForegroundColor Yellow
+    Write-Host "  ⚠ WARNING: Skipping tests. Only use this for emergency rebuilds." -ForegroundColor Yellow
 }
 
-# ── Build all TypeScript packages (dependency order) ───────────────────────
+StepElapsed
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# [6/13] Build all TypeScript packages (dependency order)
+# ═══════════════════════════════════════════════════════════════════════════════
+
 Step "Building all TypeScript packages"
 
-$PackageBuildOrder = @(
-    'shared', 'database', 'legal-ontology', 'events', 'observability',
-    'model-router', 'policy-engine', 'memory', 'retrieval', 'ai', 'ai-guardrails',
-    'citation-engine', 'pipeline', 'evals', 'orchestrator',
-    'agent-core', 'support-diagnostics', 'update-core',
-    'litigation-intelligence', 'enterprise-hooks', 'encrypted-backup', 'api'
-)
+# Build order mirrors WorkspacePackages (single source of truth)
+$PackageBuildOrder = $WorkspacePackages
 
 Push-Location $RepoRoot
+$builtCount = 0
+$skippedCount = 0
+
 foreach ($pkg in $PackageBuildOrder) {
     $pkgDir = Join-Path $RepoRoot "packages\$pkg"
     if (-not (Test-Path $pkgDir)) {
-        Write-Host "  SKIP: packages\$pkg (not found)" -ForegroundColor Yellow
+        Write-Host "  ⊘ SKIP: packages\$pkg (not found)" -ForegroundColor Yellow
+        $skippedCount++
         continue
     }
     $pkgJson = Get-Content (Join-Path $pkgDir "package.json") | ConvertFrom-Json
     if ($pkgJson.PSObject.Properties['scripts'] -and $pkgJson.scripts.PSObject.Properties['build']) {
         Write-Host "  Building @factum-il/$pkg ..." -ForegroundColor Gray
         Push-Location $pkgDir
-        pnpm build
-        if ($LASTEXITCODE -ne 0) { throw "@factum-il/$pkg build failed" }
+        try {
+            pnpm build
+            if ($LASTEXITCODE -ne 0) { throw "@factum-il/$pkg build failed" }
+            $builtCount++
+        } catch {
+            Log "  ERROR in @factum-il/$pkg build (CWD: $(Get-Location))"
+            throw
+        }
         Pop-Location
     } else {
-        Write-Host "  SKIP: @factum-il/$pkg (no build script)" -ForegroundColor DarkGray
+        Write-Host "  ⊘ SKIP: @factum-il/$pkg (no build script)" -ForegroundColor DarkGray
+        $skippedCount++
     }
 }
 
@@ -163,45 +320,60 @@ foreach ($pkg in $PackageBuildOrder) {
 Write-Host "  Building dashboard (React/Vite)..." -ForegroundColor Gray
 pnpm --filter dashboard build
 if ($LASTEXITCODE -ne 0) { throw "Dashboard build failed" }
-Pop-Location
 
-# ── Publish WPF shell ─────────────────────────────────────────────────────
+Pop-Location
+Write-Host "  Built: $builtCount packages, Skipped: $skippedCount" -ForegroundColor Green
+
+StepElapsed
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# [7/13] Publish WPF shell
+# ═══════════════════════════════════════════════════════════════════════════════
+
 Step "Publishing WPF shell (dotnet publish, win-x64, no-self-contained)"
 $ShellOut = Join-Path $OutDir "shell"
 Push-Location $DesktopDir
-dotnet publish FactumIL.Desktop.csproj `
-    --configuration Release `
-    --runtime win-x64 `
-    --output $ShellOut `
-    --no-self-contained `
-    /p:PublishSingleFile=false `
-    /p:DebugType=None `
-    /p:DebugSymbols=false
-if ($LASTEXITCODE -ne 0) { throw "dotnet publish failed" }
+try {
+    dotnet publish FactumIL.Desktop.csproj `
+        --configuration Release `
+        --runtime win-x64 `
+        --output $ShellOut `
+        --no-self-contained `
+        /p:PublishSingleFile=false `
+        /p:DebugType=None `
+        /p:DebugSymbols=false
+    if ($LASTEXITCODE -ne 0) { throw "dotnet publish failed" }
+} catch {
+    Log "  ERROR: dotnet publish failed in $DesktopDir"
+    throw
+}
 Pop-Location
-Write-Host "  Shell staged: $ShellOut" -ForegroundColor Gray
+Write-Host "  ✓ Shell staged: $ShellOut" -ForegroundColor Green
 
-# ── Stage backend (artifact copy + pnpm install --prod, flat node_modules) ────
+StepElapsed
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# [8/13] Stage backend (artifact copy + pnpm install --prod, flat node_modules)
+# ═══════════════════════════════════════════════════════════════════════════════
+
 Step "Staging API backend (artifact copy + pnpm install --prod --node-linker=hoisted)"
 
 $BackendOut = Join-Path $OutDir "backend"
 
 # 8.0  Kill node.exe — releases VS Code TS-server locks on packages\*\dist\*.d.ts
 Write-Host "  Stopping node.exe processes (releasing file locks) ..." -ForegroundColor Gray
-Get-Process -Name "node" -ErrorAction SilentlyContinue | ForEach-Object {
-    try { $_.Kill(); $_.WaitForExit(3000) } catch {}
+$NodeProcesses = Get-Process -Name "node" -ErrorAction SilentlyContinue
+if ($NodeProcesses) {
+    Write-Host "  Found $(($NodeProcesses | Measure-Object).Count) node.exe process(es):" -ForegroundColor Yellow
+    $NodeProcesses | ForEach-Object { Write-Host "    - PID $($_.Id): $($_.StartTime)" -ForegroundColor DarkYellow }
+    Write-Host "  Terminating (5 second grace period)..." -ForegroundColor Yellow
+    Start-Sleep -Seconds 5
+    
+    $NodeProcesses | ForEach-Object {
+        try { $_.Kill(); $_.WaitForExit(3000) } catch { $null }
+    }
 }
 Start-Sleep -Milliseconds 300
-
-# 8.1  Single authoritative workspace package list
-#      litigation-intelligence ADDED — @factum-il/api depends on it (workspace:*)
-$WorkspacePackages = @(
-    'shared', 'database', 'legal-ontology', 'events', 'observability',
-    'model-router', 'memory', 'retrieval', 'ai', 'ai-guardrails',
-    'citation-engine', 'pipeline', 'evals', 'orchestrator', 'policy-engine',
-    'agent-core', 'support-diagnostics', 'update-core',
-    'enterprise-hooks', 'encrypted-backup', 'litigation-intelligence'
-)
 
 # 8.2  Create backend/ and copy API dist/
 New-Item -ItemType Directory -Force -Path "$BackendOut\dist" | Out-Null
@@ -244,15 +416,9 @@ foreach ($pkg in $WorkspacePackages) {
     type         = "module"
     dependencies = [PSCustomObject]$MergedDeps
 } | ConvertTo-Json -Depth 10 | Set-Content "$BackendOut\package.json" -Encoding UTF8
-Write-Host "  Merged package.json written ($($MergedDeps.Count) third-party deps)." -ForegroundColor Gray
+Write-Host "  ✓ Merged package.json written ($($MergedDeps.Count) third-party deps)." -ForegroundColor Green
 
 # 8.4  .npmrc + pnpm-workspace.yaml — flat hoisted layout; isolated from repo workspace
-#      node-linker=hoisted: no deep .pnpm/ symlink tree (fixes Windows MAX_PATH issues)
-#
-#      pnpm-workspace.yaml overrides — mirrors the root override so ^11 is resolved in this
-#      isolated install (no lockfile, no root workspace). better-sqlite3 v9 has no Node-22
-#      prebuilt; ^11 does. (Build-script approval is handled in step 8.5 via --ignore-scripts
-#      + npm rebuild, because pnpm reads onlyBuiltDependencies from the workspace ROOT.)
 @"
 node-linker=hoisted
 shamefully-hoist=true
@@ -264,27 +430,39 @@ overrides:
 "@ | Set-Content "$BackendOut\pnpm-workspace.yaml" -Encoding UTF8
 
 # 8.5  Install all third-party prod deps — flat layout, no lockfile, prefer local cache
-#      --ignore-scripts skips pnpm's ERR_PNPM_IGNORED_BUILDS security check entirely;
-#      npm rebuild better-sqlite3 then downloads the correct Node-22 prebuilt binary.
-#      (pnpm reads onlyBuiltDependencies from the workspace ROOT, not the generated
-#       pnpm-workspace.yaml inside FactumIL_Dist\, so the setting has no effect.)
 Push-Location $BackendOut
 pnpm install --prod --no-lockfile --node-linker=hoisted --prefer-offline --ignore-scripts
 if ($LASTEXITCODE -ne 0) { throw "pnpm install --prod failed in backend/" }
+
+# Rebuild native modules with better diagnostics
+Write-Host "  Rebuilding better-sqlite3 native binding..." -ForegroundColor Gray
 npm rebuild better-sqlite3
 if ($LASTEXITCODE -ne 0) { throw "npm rebuild better-sqlite3 failed — check Node ABI / network in $BackendOut" }
+
 # Verify the native binding loads against the build host's Node (same major as bundled runtime)
-node -e "const D=require('better-sqlite3'); const db=new D(':memory:'); db.exec('CREATE TABLE _p(x)'); db.close(); console.log('  better-sqlite3 native binding OK (v'+require('./node_modules/better-sqlite3/package.json').version+')');"
-if ($LASTEXITCODE -ne 0) { throw "better-sqlite3 native binding failed — check Node ABI in $BackendOut" }
+Write-Host "  Verifying better-sqlite3 native binding..." -ForegroundColor Gray
+$nodeVersion = node -e "console.log(process.version)"
+$nodeArch = node -e "console.log(process.arch)"
+$nodeAbi = node -e "console.log(process.versions.modules)"
+
+Write-Host "    Node: $nodeVersion | Arch: $nodeArch | ABI: $nodeAbi" -ForegroundColor DarkGray
+
+node -e "const D=require('better-sqlite3'); const db=new D(':memory:'); db.exec('CREATE TABLE _p(x)'); db.close(); console.log('  ✓ better-sqlite3 native binding OK (v'+require('./node_modules/better-sqlite3/package.json').version+')')" 2>&1
+if ($LASTEXITCODE -ne 0) { 
+    Write-Host "  ERROR: better-sqlite3 native binding failed. Diagnostics:" -ForegroundColor Red
+    Write-Host "    • Node ABI: $nodeAbi (check Arch: $nodeArch)" -ForegroundColor Red
+    Write-Host "    • Disk space: $(cmd /c "wmic logicaldisk get freespace" 2>$null | Select-String '\d+' | ForEach-Object {$_.Matches[0].Value})" -ForegroundColor Red
+    throw "better-sqlite3 native binding failed — check Node ABI in $BackendOut"
+}
+
 Pop-Location
-Write-Host "  pnpm install --prod complete." -ForegroundColor Gray
+Write-Host "  ✓ pnpm install --prod complete." -ForegroundColor Green
 
 # 8.6  Plant workspace package dist/ + patched package.json
-#      No retry loops needed — node.exe was killed in 8.0
 foreach ($pkg in $WorkspacePackages) {
     $SrcDist = Join-Path $RepoRoot "packages\$pkg\dist"
     if (-not (Test-Path $SrcDist)) {
-        Write-Host "  SKIP: @factum-il/$pkg (no dist/ — not built?)" -ForegroundColor Yellow
+        Write-Host "  ⊘ SKIP: @factum-il/$pkg (no dist/ — not built?)" -ForegroundColor Yellow
         continue
     }
     $DstPkgDir = Join-Path $BackendOut "node_modules\@factum-il\$pkg"
@@ -307,44 +485,45 @@ foreach ($pkg in $WorkspacePackages) {
         }
         $pkgJson | ConvertTo-Json -Depth 10 | Set-Content "$DstPkgDir\package.json" -Encoding UTF8
     }
-    Write-Host "    OK: @factum-il/$pkg" -ForegroundColor DarkGray
+    Write-Host "    ✓ @factum-il/$pkg" -ForegroundColor DarkGray
 }
-Write-Host "  Workspace packages staged." -ForegroundColor Gray
+Write-Host "  ✓ Workspace packages staged." -ForegroundColor Green
 
 # 8.7  Rebuild native modules for Windows x64 (paths are now flat — no deep .pnpm tree)
-if (-not (Test-Path variable:IsWindows)) { $IsWindows = $true }  # guard: undefined in PS 5.1 strict mode
+if (-not (Test-Path variable:IsWindows)) { $IsWindows = $true }
 if ($IsWindows) {
     Write-Host "  Rebuilding native modules for win-x64 ..." -ForegroundColor Gray
     Push-Location $BackendOut
     if (Test-Path "node_modules\.bin\node-gyp-build") {
         node node_modules\.bin\node-gyp-build 2>$null; $true
     }
-    # better-sqlite3 ships prebuilds; this fetches better_sqlite3.node (Win32/x64)
-    # into node_modules\better-sqlite3\build\Release\, bundled by installer.iss glob.
     if (Test-Path "node_modules\better-sqlite3\scripts\download-prebuilt.js") {
         node node_modules\better-sqlite3\scripts\download-prebuilt.js `
              --platform win32 --arch x64 2>$null; $true
     }
     Pop-Location
 }
-Write-Host "  Backend staged: $BackendOut" -ForegroundColor Gray
+Write-Host "  ✓ Backend staged: $BackendOut" -ForegroundColor Green
 
-# ── Stage dashboard + migrations ──────────────────────────────────────────────
+StepElapsed
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# [9/13] Stage dashboard + migrations
+# ═══════════════════════════════════════════════════════════════════════════════
+
 Step "Staging dashboard and migrations"
 
-# The API entry (app/api/dist/start.js) resolves the dashboard via:
-#   join(__dirname, '..', '..', 'dashboard', 'dist')
-# So from {app}\app\api\dist\ it looks for {app}\app\dashboard\dist\
-# We preserve the "dist\" subfolder level during staging.
 $DashboardDst = Join-Path $OutDir "dashboard\dist"
 New-Item -ItemType Directory -Force -Path $DashboardDst | Out-Null
 Copy-Item -Recurse -Force "$RepoRoot\apps\dashboard\dist\*" $DashboardDst
-Write-Host "  Dashboard: $DashboardDst ($((Get-ChildItem $DashboardDst -Recurse -File).Count) files)" -ForegroundColor Gray
+$dashboardFileCount = (Get-ChildItem $DashboardDst -Recurse -File -ErrorAction SilentlyContinue | Measure-Object).Count
+Write-Host "  ✓ Dashboard: $dashboardFileCount files" -ForegroundColor Green
 
 $MigrationsDst = Join-Path $OutDir "migrations"
 New-Item -ItemType Directory -Force -Path $MigrationsDst | Out-Null
-Copy-Item -Force "$RepoRoot\migrations\*.sql" $MigrationsDst
-Write-Host "  Migrations: $((Get-ChildItem $MigrationsDst -Filter *.sql).Count) SQL files" -ForegroundColor Gray
+Copy-Item -Force "$RepoRoot\migrations\*.sql" $MigrationsDst -ErrorAction Stop
+$sqlFileCount = (Get-ChildItem $MigrationsDst -Filter *.sql -ErrorAction SilentlyContinue | Measure-Object).Count
+Write-Host "  ✓ Migrations: $sqlFileCount SQL files" -ForegroundColor Green
 
 # Stage Legal Registry + PowerShell helpers
 $LibSrc = Join-Path $RepoRoot "powershell\lib"
@@ -357,17 +536,14 @@ foreach ($f in @("Config.ps1", "IdentifierParser.ps1")) {
     $src = Join-Path $LibSrc $f
     if (Test-Path $src) { Copy-Item $src $LibDst -Force }
 }
+Write-Host "  ✓ Legal Registry and PowerShell helpers staged" -ForegroundColor Green
 
-# Bundled legislation corpus (offline KB) — generated locally by `pnpm ingest-knesset-odata`
-# or downloaded automatically from the GitHub Release v-corpus-latest. The API's first-run
-# loader imports {app}\app\legal-corpus\*.jsonl.gz into SQLite on first boot. App boots fine
-# without it (loader is graceful), so a missing corpus is a warning, not a hard failure.
+# Bundled legislation corpus (offline KB)
 $CorpusDst = Join-Path $OutDir "legal-corpus"
 New-Item -ItemType Directory -Force -Path $CorpusDst | Out-Null
 $CorpusSrc = Join-Path $RepoRoot "assets\legal-corpus\legal-corpus.knesset.jsonl.gz"
 
 # Auto-download from GitHub Release v-corpus-latest when not built locally.
-# Set GH_TOKEN env var for private-repo access; unauthenticated works on public repos.
 if (-not (Test-Path $CorpusSrc)) {
     Write-Host "  Trying to download legal corpus from GitHub Release v-corpus-latest..." -ForegroundColor Gray
     $ApiHeaders = @{ 'User-Agent' = 'Factum-IL-Build' }
@@ -375,7 +551,7 @@ if (-not (Test-Path $CorpusSrc)) {
     try {
         $rel = Invoke-RestMethod `
             -Uri "https://api.github.com/repos/niraltman1/niraltman1/releases/tags/v-corpus-latest" `
-            -Headers $ApiHeaders -UseBasicParsing
+            -Headers $ApiHeaders -UseBasicParsing -ErrorAction Stop
         $asset = $rel.assets |
             Where-Object { $_.name -eq 'legal-corpus.knesset.jsonl.gz' } |
             Select-Object -First 1
@@ -386,24 +562,33 @@ if (-not (Test-Path $CorpusSrc)) {
                 'Accept'     = 'application/octet-stream'
             }
             if ($env:GH_TOKEN) { $DlHeaders['Authorization'] = "Bearer $($env:GH_TOKEN)" }
-            Invoke-WebRequest -Uri $asset.url -OutFile $CorpusSrc -Headers $DlHeaders -UseBasicParsing
-            Write-Host "  Legal corpus: downloaded ($([math]::Round((Get-Item $CorpusSrc).Length/1MB,1)) MB)" -ForegroundColor Gray
+            if (DownloadWithRetry $asset.url $CorpusSrc 300 2) {
+                $corpusSize = [math]::Round((Get-Item $CorpusSrc).Length/1MB,1)
+                Write-Host "  ✓ Legal corpus: $corpusSize MB" -ForegroundColor Green
+            }
         } else {
-            Write-Host "  Release v-corpus-latest found but no corpus asset attached yet." -ForegroundColor DarkYellow
+            Write-Host "  ⚠ Release v-corpus-latest found but no corpus asset attached yet." -ForegroundColor DarkYellow
         }
     } catch {
-        Write-Host "  Corpus auto-download failed: $_ — falling back to local build." -ForegroundColor DarkYellow
+        Write-Host "  ⚠ Corpus auto-download failed: $_ — falling back to local build." -ForegroundColor DarkYellow
     }
-}
-
-if (Test-Path $CorpusSrc) {
-    Copy-Item -Force $CorpusSrc $CorpusDst
-    Write-Host "  Legal corpus: staged ($([math]::Round((Get-Item $CorpusSrc).Length/1MB,1)) MB)" -ForegroundColor Gray
 } else {
-    Write-Host "  WARNING: legal-corpus artifact not found — run 'pnpm ingest-knesset-odata -- --embed' or trigger the 'Ingest Knesset Corpus' GitHub Actions workflow. App will boot without bundled legislation." -ForegroundColor Yellow
+    $corpusSize = [math]::Round((Get-Item $CorpusSrc).Length/1MB,1)
+    Copy-Item -Force $CorpusSrc $CorpusDst
+    Write-Host "  ✓ Legal corpus: $corpusSize MB" -ForegroundColor Green
 }
 
-# ── Download portable Node.js ──────────────────────────────────────────────────
+if (-not (Test-Path $CorpusSrc)) {
+    Write-Host "  ⚠ WARNING: legal-corpus artifact not found. App will boot without bundled legislation." -ForegroundColor Yellow
+    Write-Host "    Run: pnpm ingest-knesset-odata -- --embed" -ForegroundColor Yellow
+}
+
+StepElapsed
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# [10/13] Download portable Node.js
+# ═══════════════════════════════════════════════════════════════════════════════
+
 Step "Downloading portable Node.js v$NodeVersion"
 $RuntimeDst = Join-Path $OutDir "runtime"
 New-Item -ItemType Directory -Force -Path $RuntimeDst | Out-Null
@@ -414,87 +599,109 @@ $NodeExtract = "$TempDir\node-v$NodeVersion-win-x64-extract"
 
 if (-not (Test-Path $NodeZip)) {
     $NodeUrl = "https://nodejs.org/dist/v$NodeVersion/node-v$NodeVersion-win-x64.zip"
-    Write-Host "  Downloading $NodeUrl ..." -ForegroundColor Gray
-    try {
-        Invoke-WebRequest -Uri $NodeUrl -OutFile $NodeZip -UseBasicParsing
-    } catch {
-        Write-Host "  WARNING: Could not download Node.js — place node-v$NodeVersion-win-x64.zip in $env:TEMP manually." -ForegroundColor Yellow
+    if (DownloadWithRetry $NodeUrl $NodeZip $DownloadTimeoutSec $MaxDownloadRetries) {
+        # Proceed to extract
+    } else {
+        Write-Host "  ⚠ Node.js download failed. Continuing without Node.exe." -ForegroundColor Yellow
     }
 } else {
-    Write-Host "  Using cached: $NodeZip" -ForegroundColor Gray
+    Write-Host "  ✓ Using cached: $(Split-Path $NodeZip -Leaf)" -ForegroundColor Green
 }
 
-if (-not (Test-Path $NodeZip)) {
-    Write-Host "  SKIP: node.exe not staged (zip missing). runtime\node.exe will be absent." -ForegroundColor Yellow
-} else {
+if ((Test-Path $NodeZip) -and (ValidateArtifact $NodeZip "generic")) {
     if (Test-Path $NodeExtract) { Remove-Item -Recurse -Force $NodeExtract -ErrorAction SilentlyContinue }
     Expand-Archive -Path $NodeZip -DestinationPath $NodeExtract
-    Copy-Item -Force "$NodeExtract\node-v$NodeVersion-win-x64\node.exe" "$RuntimeDst\node.exe"
-    Write-Host "  node.exe staged: $RuntimeDst\node.exe" -ForegroundColor Gray
+    if (Test-Path "$NodeExtract\node-v$NodeVersion-win-x64\node.exe") {
+        Copy-Item -Force "$NodeExtract\node-v$NodeVersion-win-x64\node.exe" "$RuntimeDst\node.exe"
+        Write-Host "  ✓ node.exe staged" -ForegroundColor Green
+    } else {
+        Write-Host "  ✗ node.exe not found in archive!" -ForegroundColor Red
+    }
+} else {
+    Write-Host "  ⚠ SKIP: node.exe not staged (zip missing or invalid)." -ForegroundColor Yellow
 }
 
-# ── Download Ollama, WebView2, and AI model GGUF ──────────────────────────────────
+StepElapsed
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# [11/13] Download Ollama, WebView2, and AI model GGUF
+# ═══════════════════════════════════════════════════════════════════════════════
+
 Step "Downloading Ollama, WebView2, and AI model GGUF"
 $ToolsDst   = Join-Path $OutDir "tools"
 New-Item -ItemType Directory -Force -Path $ToolsDst | Out-Null
 
-# Ollama — download from official Ollama releases (always latest stable)
+# Ollama
 $OllamaExe = Join-Path $ToolsDst "OllamaSetup.exe"
-try {
-    Write-Host "  Downloading OllamaSetup.exe ..." -ForegroundColor Gray
-    Invoke-WebRequest -Uri "https://ollama.com/download/OllamaSetup.exe" -OutFile $OllamaExe -UseBasicParsing -TimeoutSec 120
-    Write-Host "  OllamaSetup.exe staged ($([math]::Round((Get-Item $OllamaExe).Length/1MB,1)) MB)" -ForegroundColor Gray
-} catch {
-    Write-Host "  WARNING: Could not download OllamaSetup.exe  -  place it manually in: $ToolsDst" -ForegroundColor Yellow
+if (-not (Test-Path $OllamaExe)) {
+    if (DownloadWithRetry "https://ollama.com/download/OllamaSetup.exe" $OllamaExe 120 $MaxDownloadRetries) {
+        Write-Host "  ✓ OllamaSetup.exe staged" -ForegroundColor Green
+    }
+} else {
+    Write-Host "  ✓ OllamaSetup.exe already staged" -ForegroundColor Green
 }
 
-# WebView2 bootstrapper — Microsoft evergreen bootstrapper (always current)
+# WebView2 bootstrapper
 $WV2Exe = Join-Path $ToolsDst "MicrosoftEdgeWebview2Setup.exe"
-try {
-    Write-Host "  Downloading MicrosoftEdgeWebview2Setup.exe ..." -ForegroundColor Gray
-    Invoke-WebRequest -Uri "https://go.microsoft.com/fwlink/p/?LinkId=2124703" -OutFile $WV2Exe -UseBasicParsing -TimeoutSec 60
-    Write-Host "  WebView2 bootstrapper staged ($([math]::Round((Get-Item $WV2Exe).Length/1KB,0)) KB)" -ForegroundColor Gray
-} catch {
-    Write-Host "  WARNING: Could not download WebView2 bootstrapper  -  place MicrosoftEdgeWebview2Setup.exe in: $ToolsDst" -ForegroundColor Yellow
+if (-not (Test-Path $WV2Exe)) {
+    if (DownloadWithRetry "https://go.microsoft.com/fwlink/p/?LinkId=2124703" $WV2Exe 60 $MaxDownloadRetries) {
+        Write-Host "  ✓ WebView2 bootstrapper staged" -ForegroundColor Green
+    }
+} else {
+    Write-Host "  ✓ WebView2 bootstrapper already staged" -ForegroundColor Green
 }
 
-# AI model GGUF  -  bundled so first launch works without internet
+# AI model GGUF (can be skipped with -SkipGGUF)
 $GgufDst = Join-Path $OutDir "models"
 New-Item -ItemType Directory -Force -Path $GgufDst | Out-Null
 $GgufFile = Join-Path $GgufDst "law-il-E2B-Q4_K_M.gguf"
-try {
+
+if (-not $SkipGGUF -and -not (Test-Path $GgufFile)) {
     Write-Host "  Downloading law-il-E2B-Q4_K_M.gguf (~1.3 GB) ..." -ForegroundColor Gray
-    Invoke-WebRequest -Uri "https://huggingface.co/BrainboxAI/law-il-E2B-GGUF/resolve/main/law-il-E2B-Q4_K_M.gguf" -OutFile $GgufFile -UseBasicParsing -TimeoutSec 1800
-    Write-Host "  GGUF staged ($([math]::Round((Get-Item $GgufFile).Length/1GB,2)) GB)" -ForegroundColor Gray
-} catch {
-    Write-Host "  WARNING: Could not download GGUF  -  model will be pulled from Ollama Hub on first launch." -ForegroundColor Yellow
+    if (DownloadWithRetry "https://huggingface.co/BrainboxAI/law-il-E2B-GGUF/resolve/main/law-il-E2B-Q4_K_M.gguf" $GgufFile $DownloadTimeoutSec $MaxDownloadRetries) {
+        if (ValidateArtifact $GgufFile "gguf") {
+            $ggufSize = [math]::Round((Get-Item $GgufFile).Length/1GB,2)
+            Write-Host "  ✓ GGUF: $ggufSize GB (validated)" -ForegroundColor Green
+        } else {
+            Write-Host "  ✗ GGUF validation failed - file may be corrupted" -ForegroundColor Red
+            Remove-Item $GgufFile -Force -ErrorAction SilentlyContinue
+        }
+    }
+} elseif ($SkipGGUF) {
+    Write-Host "  ⊘ SKIP: GGUF download (-SkipGGUF flag set)" -ForegroundColor Yellow
+} elseif (Test-Path $GgufFile) {
+    Write-Host "  ✓ GGUF already staged" -ForegroundColor Green
 }
 
-# sqlite-vec  -  native KNN extension for SQLite (enables migration 052 + fast vector search)
+# sqlite-vec  -  native KNN extension for SQLite
 $VecVersion = "v0.1.7"
 $VecZip     = "$TempDir\sqlite-vec.zip"
 $VecDll     = "$ToolsDst\sqlite-vec.dll"
 if (-not (Test-Path $VecDll)) {
     $VecUrl = "https://github.com/asg017/sqlite-vec/releases/download/$VecVersion/sqlite-vec-$VecVersion-loadable-windows-x86_64.zip"
-    try {
-        Write-Host "  Downloading sqlite-vec $VecVersion ..." -ForegroundColor Gray
-        Invoke-WebRequest -Uri $VecUrl -OutFile $VecZip -UseBasicParsing -TimeoutSec 60
-        Expand-Archive $VecZip -DestinationPath "$TempDir\sqlite-vec-extract" -Force
-        $ExtractedDll = Get-ChildItem "$TempDir\sqlite-vec-extract" -Recurse -Filter "vec0.dll" | Select-Object -First 1
-        if ($ExtractedDll) {
-            Copy-Item $ExtractedDll.FullName $VecDll
-            Write-Host "  sqlite-vec $VecVersion staged ($(([math]::Round((Get-Item $VecDll).Length/1KB,0))) KB)" -ForegroundColor Gray
+    if (DownloadWithRetry $VecUrl $VecZip 60 2) {
+        Expand-Archive $VecZip -DestinationPath "$TempDir\sqlite-vec-extract" -Force -ErrorAction SilentlyContinue
+        $ExtractedDll = Get-ChildItem "$TempDir\sqlite-vec-extract" -Recurse -Filter "vec0.dll" -ErrorAction SilentlyContinue | Select-Object -First 1
+        if ($ExtractedDll -and (ValidateArtifact $ExtractedDll.FullName "dll")) {
+            Copy-Item $ExtractedDll.FullName $VecDll -ErrorAction Stop
+            $vecSize = [math]::Round((Get-Item $VecDll).Length/1KB,0)
+            Write-Host "  ✓ sqlite-vec $VecVersion: $vecSize KB" -ForegroundColor Green
         } else {
-            Write-Host "  WARNING: vec0.dll not found in archive  -  KNN search will use JS fallback." -ForegroundColor Yellow
+            Write-Host "  ⚠ vec0.dll not found or invalid in archive  -  KNN search will use JS fallback." -ForegroundColor Yellow
         }
-    } catch {
-        Write-Host "  WARNING: Could not download sqlite-vec  -  KNN search will use JS fallback." -ForegroundColor Yellow
+    } else {
+        Write-Host "  ⚠ Could not download sqlite-vec  -  KNN search will use JS fallback." -ForegroundColor Yellow
     }
 } else {
-    Write-Host "  sqlite-vec already staged." -ForegroundColor Gray
+    Write-Host "  ✓ sqlite-vec already staged" -ForegroundColor Green
 }
 
-# ── Inject UTF-8 BOMs into staged PowerShell scripts ───────────────────────────────
+StepElapsed
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# [12/13] Inject UTF-8 BOMs into staged PowerShell scripts
+# ═══════════════════════════════════════════════════════════════════════════════
+
 Step "Injecting UTF-8 BOMs into staged PowerShell scripts"
 $AddBomScript = Join-Path $RepoRoot "scripts\add-bom-to-dist.ts"
 if (Test-Path $AddBomScript) {
@@ -502,27 +709,95 @@ if (Test-Path $AddBomScript) {
     node --experimental-strip-types "$AddBomScript" "$OutDir"
     if ($LASTEXITCODE -ne 0) { throw "add-bom-to-dist.ts failed — check staged file encoding" }
     Pop-Location
-    Write-Host "  BOM injection complete." -ForegroundColor Gray
+    Write-Host "  ✓ BOM injection complete." -ForegroundColor Green
 } else {
-    Write-Host "  SKIP: scripts\add-bom-to-dist.ts not found" -ForegroundColor Yellow
+    Write-Host "  ⊘ SKIP: scripts\add-bom-to-dist.ts not found" -ForegroundColor Yellow
 }
 
-# ── Summary ───────────────────────────────────────────────────────────────────
+StepElapsed
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# [13/13] Validate staged artifacts
+# ═══════════════════════════════════════════════════════════════════════════════
+
+Step "Validating staged artifacts"
+
+$ValidationResults = @()
+
+# Define artifacts to validate (Path, Type, Name)
+$ArtifactsToValidate = @(
+    @{ Path = "$OutDir\shell\FactumIL.Desktop.exe"; Type = "exe"; Name = "WPF Shell" }
+    @{ Path = "$OutDir\backend\dist\start.js"; Type = "generic"; Name = "API Entry Point" }
+    @{ Path = "$OutDir\dashboard\dist\index.html"; Type = "generic"; Name = "Dashboard Entry" }
+    @{ Path = "$OutDir\runtime\node.exe"; Type = "exe"; Name = "Node.exe Runtime" }
+    @{ Path = "$OutDir\tools\OllamaSetup.exe"; Type = "exe"; Name = "Ollama" }
+    @{ Path = "$OutDir\tools\sqlite-vec.dll"; Type = "dll"; Name = "SQLite-Vec" }
+)
+
+# Validate SQL files
+$migrationFiles = Get-ChildItem "$OutDir\migrations" -Filter "*.sql" -ErrorAction SilentlyContinue
+foreach ($file in $migrationFiles) {
+    if (ValidateArtifact $file.FullName "sql") {
+        $ValidationResults += @{ File = $file.Name; Valid = $true }
+    } else {
+        $ValidationResults += @{ File = $file.Name; Valid = $false }
+    }
+}
+
+$validCount = 0
+$missingCount = 0
+$invalidCount = 0
+
+foreach ($artifact in $ArtifactsToValidate) {
+    $isValid = ValidateArtifact $artifact.Path $artifact.Type
+    
+    if ($isValid) {
+        Write-Host "  ✓ $($artifact.Name)" -ForegroundColor Green
+        $validCount++
+    } elseif (Test-Path $artifact.Path) {
+        Write-Host "  ⚠ $($artifact.Name): File exists but validation failed" -ForegroundColor Yellow
+        $invalidCount++
+    } else {
+        Write-Host "  ✗ $($artifact.Name): MISSING" -ForegroundColor Red
+        $missingCount++
+    }
+}
+
 Write-Host ""
-Write-Host "=" * 70 -ForegroundColor Green
-Write-Host " BUILD COMPLETE  -  Factum IL v1.0.0" -ForegroundColor Green
-Write-Host "=" * 70 -ForegroundColor Green
+Write-Host "  Validation Summary: $validCount valid, $invalidCount invalid, $missingCount missing" -ForegroundColor $(if ($missingCount -eq 0) { 'Green' } else { 'Yellow' })
+
+if ($missingCount -gt 0) {
+    Write-Host "  ⚠ Build completed with warnings. Some artifacts are missing." -ForegroundColor Yellow
+}
+
+StepElapsed
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# Summary
+# ═══════════════════════════════════════════════════════════════════════════════
+
 Write-Host ""
-Write-Host "  Staged to: $OutDir" -ForegroundColor White
+Write-Host ("=" * 70) -ForegroundColor Green
+Write-Host " ✓ BUILD COMPLETE  -  Factum IL v1.0.0" -ForegroundColor Green
+Write-Host ("=" * 70) -ForegroundColor Green
 Write-Host ""
-Write-Host "  shell\FactumIL.Desktop.exe        $(if (Test-Path "$OutDir\shell\FactumIL.Desktop.exe") {'✓'} else {'MISSING'})" -ForegroundColor White
-Write-Host "  runtime\node.exe                  $(if (Test-Path "$OutDir\runtime\node.exe") {'✓'} else {'MISSING'})" -ForegroundColor White
-Write-Host "  backend\dist\start.js             $(if (Test-Path "$OutDir\backend\dist\start.js") {'✓'} else {'MISSING'})" -ForegroundColor White
-Write-Host "  dashboard\dist\index.html         $(if (Test-Path "$OutDir\dashboard\dist\index.html") {'✓'} else {'MISSING'})" -ForegroundColor White
-Write-Host "  migrations\                        $((Get-ChildItem "$OutDir\migrations" -Filter *.sql -ErrorAction SilentlyContinue).Count) SQL files" -ForegroundColor White
-Write-Host "  tools\OllamaSetup.exe             $(if (Test-Path "$OutDir\tools\OllamaSetup.exe") {'✓'} else {'missing  -  add manually'})" -ForegroundColor White
-Write-Host "  tools\sqlite-vec.dll              $(if (Test-Path "$OutDir\tools\sqlite-vec.dll") {'✓'} else {'missing  -  JS cosine fallback active'})" -ForegroundColor White
-Write-Host "  models\law-il-E2B-Q4_K_M.gguf    $(if (Test-Path "$OutDir\models\law-il-E2B-Q4_K_M.gguf") {'✓'} else {'missing  -  will pull from Ollama Hub on first launch'})" -ForegroundColor White
+Write-Host "  📦 Staged to: $OutDir" -ForegroundColor White
+Write-Host ""
+Write-Host "  Core artifacts:" -ForegroundColor Cyan
+Write-Host "    shell\FactumIL.Desktop.exe        $(if (Test-Path "$OutDir\shell\FactumIL.Desktop.exe") {'✓'} else {'✗ MISSING'})" -ForegroundColor White
+Write-Host "    runtime\node.exe                  $(if (Test-Path "$OutDir\runtime\node.exe") {'✓'} else {'⚠ MISSING (optional)'})" -ForegroundColor White
+Write-Host "    backend\dist\start.js             $(if (Test-Path "$OutDir\backend\dist\start.js") {'✓'} else {'✗ MISSING'})" -ForegroundColor White
+Write-Host "    dashboard\dist\index.html         $(if (Test-Path "$OutDir\dashboard\dist\index.html") {'✓'} else {'✗ MISSING'})" -ForegroundColor White
+Write-Host ""
+Write-Host "  Database & Migrations:" -ForegroundColor Cyan
+Write-Host "    migrations\                        $((Get-ChildItem "$OutDir\migrations" -Filter *.sql -ErrorAction SilentlyContinue | Measure-Object).Count) SQL files" -ForegroundColor White
+Write-Host ""
+Write-Host "  Optional components:" -ForegroundColor Cyan
+Write-Host "    tools\OllamaSetup.exe             $(if (Test-Path "$OutDir\tools\OllamaSetup.exe") {'✓'} else {'⚠ missing (manual install)'})" -ForegroundColor White
+Write-Host "    tools\sqlite-vec.dll              $(if (Test-Path "$OutDir\tools\sqlite-vec.dll") {'✓'} else {'⚠ missing (JS fallback)'})" -ForegroundColor White
+Write-Host "    models\law-il-E2B-Q4_K_M.gguf    $(if (Test-Path "$OutDir\models\law-il-E2B-Q4_K_M.gguf") {'✓'} else {'⚠ missing (Ollama Hub on first launch)'})" -ForegroundColor White
+Write-Host ""
+Write-Host "  📝 Build log: $LogFile" -ForegroundColor Gray
 Write-Host ""
 Write-Host "  Next step:" -ForegroundColor Yellow
 Write-Host "    ISCC.exe installer.iss" -ForegroundColor Yellow

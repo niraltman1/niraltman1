@@ -16,6 +16,7 @@
 
 import { createReadStream, existsSync } from 'node:fs';
 import { createInterface } from 'node:readline';
+import { resolve } from 'node:path';
 import type { Repos } from '../db.js';
 import { lookupPrefix, tagManualReview, tagMapped } from './legal-registry-loader.js';
 
@@ -141,9 +142,10 @@ function parseCSVLine(line: string): string[] {
 }
 
 async function readCSV(filePath: string): Promise<{ headers: string[]; rows: string[][] }> {
+  const resolvedPath = resolve(filePath);
   const lines: string[] = [];
   const rl = createInterface({
-    input:     createReadStream(filePath, { encoding: 'utf8' }),
+    input:     createReadStream(resolvedPath, { encoding: 'utf8' }),
     crlfDelay: Infinity,
   });
   for await (const line of rl) {

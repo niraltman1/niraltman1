@@ -1,168 +1,73 @@
-# Factum IL — Production Release Manifest
+# Factum-IL — Production Release Manifest
 
-**Branch:** `claude/factum-il-phase-1-init-0EkMh`  
-**Date:** 2026-05-16  
-**Migrations applied:** 001–024  
-**TypeScript errors:** 0 (API + Dashboard)
-
----
-
-## What Was Built (Session Log)
-
-### Phase 1 — Vacuum Protocol Lifecycle
-End-to-end wiring of the 4-phase document ingestion orchestrator:
-
-| Component | File | Description |
-|-----------|------|-------------|
-| DB table | `migrations/023_vacuum_sessions.sql` | `VacuumSessions` with 7-state CHECK, progress_percentage, raw_logs (append-only), session_uuid |
-| Repository | `packages/database/src/queries/vacuum.ts` | `VacuumRepository`: create, findById, updateProgress (raw_logs append), markFailed, listRecent |
-| API routes | `packages/api/src/routes/vacuum.ts` | POST /start, GET /session/:id, GET /sessions, POST /progress/:id (localhost-only) |
-| PowerShell | `powershell/scripts/Invoke-VacuumProtocol.ps1` | 4-phase orchestrator; POSTs progress back to API; uses `-LiteralPath` throughout |
-| Hooks | `apps/dashboard/src/api/hooks.ts` | `useStartVacuum`, `useVacuumStatus` (adaptive polling, stops on terminal state) |
-| UI | `apps/dashboard/src/features/admin/DiagnosticsPage.tsx` | `VacuumProtocolPanel`: path input, gold progress bar, green-on-black log terminal |
-
-**Security:** `POST /progress/:id` checks `req.socket.remoteAddress` against `{127.0.0.1, ::1, ::ffff:127.0.0.1}` — external calls return 403.
+**Version:** 1.0.0
+**Release date:** 2026-06-03
+**Installer:** Inno Setup 6 (built via `publish.ps1`, 12-step staging)
+**Migrations applied:** 001–060 (60 total)
+**TypeScript errors:** 0 (all packages)
 
 ---
 
-### Phase 2 — Unified Autonomous Legal Engine & Active Learning
-Wired the missing Entity Router layer: pipeline extractions now create live DB rows.
+## Installer Contents
 
-#### New Migration
-- `024_learning_feedback.sql` — `LearningFeedback(document_id, field_name, original_value, corrected_value, corrected_by, created_at)` with indexes on `document_id` and `field_name`
+### Bundled Packages (25 total)
 
-#### New Module: `entity-router.ts`
+| Package | Description |
+|---------|-------------|
+| `apps/dashboard` | React 19 + Vite + Tailwind — primary UI (RTL Hebrew) |
+| `apps/FactumIL.Desktop` | C# WPF + WebView2 — Windows desktop shell |
+| `packages/shared` | Types, state machine, PII sanitizer, utils |
+| `packages/database` | SQLite connection, repositories, migration runner |
+| `packages/legal-ontology` | Israeli court taxonomy, citation types, Hebrew synonyms |
+| `packages/events` | Internal event bus |
+| `packages/observability` | Metrics, logging, health probes |
+| `packages/model-router` | Ollama client, health check, 5-step reasoning chain |
+| `packages/policy-engine` | RBAC — 5 roles |
+| `packages/memory` | Per-case memory, session persistence |
+| `packages/retrieval` | RAG retrieval, hybrid FTS5 + sqlite-vec |
+| `packages/ai` | AI orchestration, OllamaClient, ConfidenceCalculator |
+| `packages/ai-guardrails` | Hallucination detection, PII strip, confidence thresholds |
+| `packages/citation-engine` | Nevo 2021 citation parser |
+| `packages/pipeline` | Document processing pipeline |
+| `packages/evals` | Golden-set AI accuracy evaluation suite |
+| `packages/orchestrator` | Agent coordination, policy enforcement |
+| `packages/agent-core` | 5 AI agents |
+| `packages/support-diagnostics` | Crash bundle, PII-scrubbed diagnostic reports |
+| `packages/update-core` | Update check, version manifest |
+| `packages/litigation-intelligence` | Deadline risk scoring, procedural completeness |
+| `packages/enterprise-hooks` | Plugin framework |
+| `packages/encrypted-backup` | AES-256-GCM hourly backup scheduler |
+| `packages/sdk` | Public SDK |
+| `packages/api` | Express API — all HTTP routes |
 
-The connective tissue that was completely missing. Called after every `rag-worker` enrichment and every `media/ingest`. Operations:
+### Bundled Tools
 
-1. **Client auto-creation** — for each Luhn-validated Israeli ID in `DiscoveredFields.israeliIds`, find existing `Clients` row by `id_number` or create stub (`nameHe: "לקוח <id>"`, `idType: 'personal'`). Writes `Documents.client_id`.
-2. **Case auto-creation** — if `caseNumber` extracted and no matching `Cases` row exists AND `clientId` is known, creates stub case (`titleHe: "תיק <num>"`, `status: 'open'`). Writes `Documents.case_id`.
-3. **Contact auto-population** — creates `Contacts` row for extracted prosecution entity (`role: 'prosecutor'`) and judge names (`role: 'court_clerk'`), links to case via `CaseContacts`.
+| File | Location in installer | Purpose |
+|------|-----------------------|---------|
+| `sqlite-vec.dll` | `{app}\tools\sqlite-vec.dll` | KNN vector search SQLite extension |
+| `whisper-fast.exe` | `{app}\tools\whisper-fast.exe` | Hebrew speech-to-text |
+| `ffmpeg.exe` | `{app}\tools\ffmpeg.exe` | Audio format conversion |
+| `OllamaSetup.exe` | `{app}\tools\OllamaSetup.exe` | Ollama installer (run during install) |
 
-Each section is independently try/catch wrapped so one failure never blocks others.
+### Registry Environment Variables Written at Install Time
 
-#### New API Endpoints
-| Method | Path | File |
-|--------|------|------|
-| GET | `/api/documents/:id/insights` | `routes/documents.ts` |
-| GET | `/api/cases/:id/insights` | `routes/cases.ts` |
-| GET | `/api/queue/review-pending` | `routes/queue.ts` |
-| POST | `/api/queue/approve/:id` | `routes/queue.ts` |
-| POST | `/api/queue/correct/:id` | `routes/queue.ts` |
-
-#### Frontend Wiring
-| Surface | Before | After |
-|---------|--------|-------|
-| `ActionQueue.tsx` | `MOCK_ITEMS = []`, no API calls | Live `useReviewPendingItems()`, split-screen OCR + editable AI fields, correct-then-approve |
-| `DocumentDetail.tsx` | Placeholder text | Real `useDocumentInsights()` rendering case number, court, judge, offense, hearing date |
-| `CaseDetail.tsx` insights tab | Static "coming soon" | Live `useCaseInsights()` with per-document extraction cards |
-| `/contacts` route | Missing | `ContactsPage.tsx` with RTL Hebrew FTS search |
-
----
-
-### Phase A — Windows Path & Fault-Tolerance Hardening
-
-#### `Invoke-VacuumProtocol.ps1`
-- Added `[ValidateNotNullOrEmpty()]` to `$SessionId` and `$TargetPath` params
-- Added `Set-StrictMode -Version Latest`
-- Added pre-flight `Test-Path -LiteralPath` check; reports structured failure to API before `exit 1`
-- `Get-ChildItem` already used `-LiteralPath "$dir"` (explicit quoting added for clarity)
-- `ConvertTo-Json -Compress` handles all Unicode/backslash escaping for `filePath` in HTTP body
-- Added per-file error catch in Phase 2 loop — individual file failure is logged, not fatal
-
-#### `vacuum.ts` spawn call
-- Added `resolve()` around the PS1 file path (absolute, no trailing separator)
-- Added `-NonInteractive` flag to prevent PowerShell from blocking on stdin prompts
-
-#### `entity-router.ts`
-- Wrapped client-creation block, case-creation block, and each contact operation in independent try/catch
-- Errors logged as `[EntityRouter] … failed doc=<id>:` warnings; engine continues regardless
-
----
-
-## Isolated Client Deployment Requirements
-
-### Hardware
-- Windows 10 22H2+ or Windows 11 (x64)
-- 8 GB RAM minimum; 16 GB recommended for simultaneous OCR + AI
-- 20 GB free disk (Ollama model: ~3 GB, SQLite + documents: variable)
-
-### Runtime Dependencies (all local, no internet required after setup)
-
-| Tool | Version | Purpose | Default Location |
-|------|---------|---------|-----------------|
-| Node.js | 20 LTS | API server + dashboard build | `C:\Program Files\nodejs\` |
-| pnpm | 9.x | Package manager | installed via `npm i -g pnpm` |
-| Ollama | latest | Local AI inference | `C:\Users\<user>\AppData\Local\Programs\Ollama\` |
-| Tesseract OCR | 5.x | Image → searchable PDF | `C:\Program Files\Tesseract-OCR\` |
-| FFmpeg | 6.x | Audio format conversion | must be on `PATH` |
-| whisper-fast.exe | any | Hebrew speech-to-text | `<FACTUM_IL_ROOT>\tools\whisper-fast.exe` |
-| SQLite | bundled | Database (via better-sqlite3) | `_data\factum-il.db` |
-
-### AI Model Setup
-```powershell
-# Step 1 — Pull base model (requires internet, one-time)
-ollama pull hf.co/BrainboxAI/law-il-E2B:Q4_K_M
-
-# Step 2 — Create local alias with system prompt
-ollama create law-il-E2B -f .\Modelfile
-```
-
-### Environment Variables
-| Variable | Default | Notes |
-|----------|---------|-------|
-| `OLLAMA_MODEL` | `law-il-E2B` | Must match the alias created in Step 2 |
-| `OLLAMA_BASE_URL` | `http://127.0.0.1:11434` | Do not change unless Ollama port differs |
-| `WHISPER_EXE` | `<FACTUM_IL_ROOT>\tools\whisper-fast.exe` | Absolute path, supports Hebrew/space in path |
-| `FFMPEG_EXE` | `ffmpeg` | Must be on PATH or set to absolute path |
-| `WHISPER_MODEL` | `medium` | Options: tiny, base, small, medium, large |
-| `FACTUM_IL_ROOT` | `process.cwd()` | Set explicitly if running from a different directory |
-| `FACTUM_IL_DB_PATH` | `_data\factum-il.db` | Directory must exist before first run |
-| `ACADEMIC_ROOT` | _(empty)_ | Semicolon-separated paths for academic bypass |
-| `BACKUP_ENCRYPT` | `0` | Set `1` to enable AES-256-GCM backup encryption |
-| `BACKUP_ENCRYPT_KEY` | _(empty)_ | 64-char hex key; derived via scrypt if absent |
-| `EVIDENCE_AUTO_LOCK` | `0` | Set `1` to auto-lock ingested files to evidence locker |
-
-### First-Run Sequence
-```powershell
-# 1. Install dependencies
-pnpm install
-
-# 2. Start the API server (runs migrations on startup)
-pnpm --filter @factum-il/api dev
-
-# 3. In a second terminal, start the dashboard
-pnpm --filter dashboard dev
-
-# 4. Open browser: http://localhost:5173
-```
-
-Migrations 001–024 run automatically on first server start. Each runs exactly once (tracked in `_migrations` table, wrapped in a transaction).
-
-### Windows Path Constraints
-- The application supports Windows profiles with spaces and Hebrew characters (e.g., `C:\Users\עורך דין\מסמכים`).
-- PowerShell scripts use `-LiteralPath` exclusively — no glob expansion.
-- The `spawn()` call in `vacuum.ts` uses `shell: false`; each argument is a separate `argv` element, so spaces in `targetPath` are safe.
-- `ConvertTo-Json -Compress` handles Unicode and backslash escaping in HTTP bodies.
-
-### Data Firewall
-The following path segments are **permanently blocked** from ingestion. This is a hardcoded invariant and must never be overridden:
-
-```
-Hebrew:  /סיעוד/  /רפואה/  /חן/
-English: /Nursing/  /Medical/  /Healthcare/  /Chen/
-Files:   *.סיעוד.pdf  *nursing*  *medical_report*
-System:  node_modules  .git  __MACOSX  System32  Windows\
-```
-
-Academic bypass: set `ACADEMIC_ROOT` to allow nursing/medical terms only in designated academic study paths.
+| Variable | Value |
+|----------|-------|
+| `FACTUM_IL_ROOT` | `{app}` |
+| `WHISPER_EXE` | `{app}\tools\whisper-fast.exe` |
+| `FFMPEG_EXE` | `{app}\tools\ffmpeg.exe` |
+| `OLLAMA_MODEL` | `BrainboxAI/law-il-E2B:Q4_K_M` |
+| `AI_TIER` | `local` |
+| `SQLITE_VEC_PATH` | `{app}\tools\sqlite-vec.dll` |
+| `OLLAMA_BASE_URL` | `http://127.0.0.1:11434` |
+| `FACTUM_IL_VERSION` | `1.0.0` |
 
 ---
 
-## Database Schema Summary (Migrations 001–024)
+## Database Schema Summary (Migrations 001–060)
 
-| Migration | Table(s) |
-|-----------|---------|
+| Migration | Table(s) / Change |
+|-----------|-------------------|
 | 001 | Clients, Cases, Documents, Lawyers, Judges |
 | 002 | fts_documents, fts_clients (FTS5) |
 | 003 | ActionLog |
@@ -176,25 +81,101 @@ Academic bypass: set `ACADEMIC_ROOT` to allow nursing/medical terms only in desi
 | 011 | ProcessedFiles |
 | 012 | TrafficCases |
 | 013 | Contacts, CaseContacts, fts_contacts |
-| 014 | Cases.judge_name, .procedure_type, .statute_deadline; Documents.ai_enriched |
+| 014 | Cases.judge_name, procedure_type, statute_deadline; Documents.ai_enriched |
 | 015 | DocumentInsights |
 | 016 | AcademicSubjects, AcademicCourses, StudyQuestions, GraphNodes, fts_study_questions |
-| 017 | Documents.is_court_receipt, .is_signed_pdf, .court_receipt_detected_at |
+| 017 | Documents.is_court_receipt, is_signed_pdf, court_receipt_detected_at |
 | 018 | EvidenceItems, fts_evidence |
 | 019 | StensTemplates, StensSubmissions |
 | 020 | GmailSyncConfig, GmailSyncLog |
-| 021 | BackupSnapshots.is_encrypted, .encryption_iv, .encryption_tag, .key_derivation |
+| 021 | BackupSnapshots.is_encrypted, encryption_iv, encryption_tag, key_derivation |
 | 022 | UpdateLog |
 | 023 | VacuumSessions |
 | 024 | LearningFeedback |
+| 025 | WorkerHealth |
+| 026 | Locks, LockAuditLog |
+| 027 | TransactionJournal |
+| 028 | CalendarEvents, CourtHearings |
+| 029 | Notifications |
+| 030 | CaseAssignments (attorney-to-case RBAC v2) |
+| 031 | CanvasDocuments, CanvasTasks |
+| 032 | AIAuditLog |
+| 033 | SearchRankingCache |
+| 034 | SearchMeta (materialised search index) |
+| 035 | OCRCache |
+| 036 | ManifestSnapshots |
+| 037 | DocumentVersions |
+| 038 | DocumentTags |
+| 039 | CaseBrief |
+| 040 | Metrics (updated schema — renamed columns) |
+| 041 | WALCheckpoints |
+| 042 | RecoveryLog |
+| 043 | AgentExecutionLog |
+| 044 | AgentResults |
+| 045 | CaseMemory |
+| 046 | RetrievalCache |
+| 047 | PolicyRules |
+| 048 | GuardrailsLog |
+| 049 | EvidenceChainOfCustody |
+| 050 | EvidenceLockLog |
+| 051 | UpdateManifest |
+| 052 | vec_chunks (sqlite-vec KNN table, in data_store) |
+| 053 | Rules_Engine (20 Israeli procedural rules, 9 procedure types) |
+| 054 | Rules_Engine — procedure type expansion |
+| 055 | Entities, EntityRelations (entity graph) |
+| 056 | LegalCorpus (offline Knesset OData legislation) |
+| 057 | LegalCorpusFTS (FTS5 over LegalCorpus) |
+| 058 | WikiSourceLegislation |
+| 059 | WikiSourceFTS |
+| 060 | _migrations SHA-256 checksums backfill |
 
 ---
 
-## Known Constraints & Operational Notes
+## Runtime Dependencies (all local, no internet after install)
 
-1. **Ollama must be running before the API starts.** The RAG worker fails silently if Ollama is unreachable — documents remain `ai_enriched = 0` until the next 60-second cycle.
-2. **whisper-fast.exe is Windows-only.** On Linux/macOS development machines, audio files are registered without transcripts (graceful degradation).
-3. **Documents.case_id is set asynchronously.** The entity router runs after ingest; immediately after calling `POST /media/ingest`, the `case_id` may still be null. The document will be linked within the same request cycle (fire-and-forget `.catch(() => {})`).
-4. **Stub clients are created with `is_active = 1`.** They appear in the clients list immediately. Review and update the `nameHe` field once the client's actual name is known.
-5. **The `LearningFeedback` table is write-only from the UI.** No UI currently reads correction history — this is a data collection layer for future model fine-tuning.
-6. **Gmail OAuth integration** is schema-ready (migration 020) but the OAuth flow requires `googleapis` package installation and a GCP project — not enabled by default.
+| Tool | Version | Default location |
+|------|---------|-----------------|
+| Node.js | 20 LTS | `C:\Program Files\nodejs\` |
+| pnpm | 9.x | via npm global |
+| Ollama | latest | `%LOCALAPPDATA%\Programs\Ollama\` |
+| Tesseract OCR | 5.x | `C:\Program Files\Tesseract-OCR\` |
+| Ghostscript | 10+ | `C:\Program Files\gs\` |
+| ffmpeg | 6.x | `{app}\tools\ffmpeg.exe` |
+| whisper-fast.exe | any | `{app}\tools\whisper-fast.exe` |
+| sqlite-vec.dll | bundled | `{app}\tools\sqlite-vec.dll` |
+| WebView2 | system | Pre-installed on Windows 10 1903+ |
+
+---
+
+## Hardware Requirements
+
+| Component | Minimum | Recommended |
+|-----------|---------|-------------|
+| OS | Windows 10 22H2+ | Windows 11 |
+| CPU | x64 | x64, 4+ cores |
+| RAM | 8 GB | 16 GB |
+| Disk | 10 GB free | 20 GB free |
+
+---
+
+## Operational Notes
+
+1. **Ollama must be running before the API starts.** The RAG worker fails gracefully if Ollama is unreachable — documents remain `ai_enriched = 0` until the next cycle. A health check warning is logged.
+
+2. **sqlite-vec.dll is required for vector search.** If absent, the system falls back to FTS5 keyword search only. Migration 052 (`vec_chunks`) will be skipped.
+
+3. **`_data.db` must exist before the first run.** It is created automatically by migration 052 if `SQLITE_VEC_PATH` is set.
+
+4. **Audio transcription is Windows-only.** `whisper-fast.exe` is a Windows binary. On non-Windows machines, audio files are registered without transcripts (graceful degradation).
+
+5. **`Documents.case_id` is set asynchronously.** The entity router runs after ingest. Immediately after `POST /media/ingest`, `case_id` may be null — it is linked within the same request cycle.
+
+6. **Stub clients are created with `is_active = 1`.** Review and update `nameHe` once the client's actual name is confirmed.
+
+7. **`FACTUM_IL_VERSION` must match the installed version.** The update checker reads this registry value. If it is missing, the checker defaults to `1.0.0`.
+
+8. **Backup encryption key.** If `BACKUP_ENCRYPT=1` and `BACKUP_ENCRYPT_KEY` is absent, a key is derived via scrypt from the machine GUID. Store the key in a secure location — without it, encrypted backups cannot be restored.
+
+9. **User data is not removed on uninstall.** `%LOCALAPPDATA%\FactumIL\` (database, backups, logs) is preserved. Only the application files are removed.
+
+10. **Safe mode.** Set `FACTUM_IL_SAFE_MODE=1` in the registry to disable all 6 background workers for maintenance.

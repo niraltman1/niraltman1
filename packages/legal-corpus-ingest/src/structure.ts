@@ -4,6 +4,7 @@ import type { ValidLaw } from './odata-registry.js';
 import type { WikiResolution } from './wiki-resolve.js';
 import type { ArtifactRecord } from './artifact.js';
 import { parseLawHtml } from './wiki-parse.js';
+import { inferProcedureDomain } from './domain-classify.js';
 
 /** Infer the corpus source_type CHECK value from the Hebrew law-name prefix. */
 export function inferSourceType(name: string): LegalSourceType {
@@ -39,7 +40,8 @@ export function structureLaw(law: ValidLaw, resolved: WikiResolution): ArtifactR
     israelLawId: law.israelLawId,
     titleHe:     law.name,
     shortName:   shortName(law.name),
-    sourceType:  inferSourceType(law.name),
+    sourceType:      inferSourceType(law.name),
+    procedureDomain: inferProcedureDomain(law.name),
     year:        law.year,
     lastUpdated: law.lastUpdated,
     magarId:     resolved.magarId ?? null,
