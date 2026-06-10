@@ -1,5 +1,5 @@
 export type LogLevel = 'DEBUG' | 'INFO' | 'WARN' | 'ERROR' | 'FATAL';
-export type LogCategory = 'system' | 'ocr' | 'ai' | 'migration' | 'rollback' | 'installer';
+export type LogCategory = 'system' | 'ocr' | 'ai' | 'migration' | 'rollback' | 'installer' | 'startup';
 
 export interface LogEntry {
   readonly timestamp: string;

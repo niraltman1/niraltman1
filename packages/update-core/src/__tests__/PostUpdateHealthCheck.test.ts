@@ -83,7 +83,7 @@ describe('runPostUpdateHealthCheck', () => {
   it('triggers rollback when integrity_check fails', async () => {
     const rollback: RollbackMetadata = {
       rollbackAvailable: true, dbBackupPath: '/bak.db', installerPath: '/old.exe',
-      previousVersion: '0.9.0', createdAt: '2026-01-01T00:00:00Z',
+      previousVersion: '0.9.0', installedAt: '2026-01-01T00:00:00Z',
     };
     const store = makeStateStore({ updateInProgress: true, rollback });
     const db    = makeDb('*** corruption detected ***');

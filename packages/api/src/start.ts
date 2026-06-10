@@ -112,7 +112,17 @@ const __dirname = dirname(fileURLToPath(import.meta.url));
 
 const REQUESTED_PORT = Number(process.env['PORT'] ?? 3001);
 const { default: getPort, portNumbers } = await import('get-port');
-const PORT = await getPort({ port: portNumbers(REQUESTED_PORT, REQUESTED_PORT + 20) });
+const PORT = await Promise.race([
+  getPort({ port: portNumbers(REQUESTED_PORT, REQUESTED_PORT + 20) }),
+  new Promise<number>((resolve) =>
+    setTimeout(() => {
+      logger.warn('[startup] getPort timed out after 5s — using requested port as fallback', {
+        category: 'startup', agentSource: 'StartupManager',
+      });
+      resolve(REQUESTED_PORT);
+    }, 5_000),
+  ),
+]);
 const DB_PATH = process.env['FACTUM_IL_DB_PATH']
   ?? (process.env['NODE_ENV'] === 'production'
       ? join(

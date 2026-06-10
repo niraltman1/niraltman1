@@ -4,6 +4,23 @@ interface DbHandle {
   prepare(sql: string): { run(...args: unknown[]): unknown };
 }
 
+// Prepared-statement cache keyed by db handle — avoids re-compiling the query
+// on every journalEvent() call in high-throughput agent pipelines (BN6).
+const stmtCache = new WeakMap<object, ReturnType<DbHandle['prepare']>>();
+
+function getInsertStmt(db: DbHandle): ReturnType<DbHandle['prepare']> {
+  let stmt = stmtCache.get(db as object);
+  if (!stmt) {
+    stmt = db.prepare(
+      `INSERT INTO AgentExecutionEvents
+         (execution_id, case_id, user_id, event_type, payload_json)
+       VALUES (?, ?, ?, ?, ?)`,
+    );
+    stmtCache.set(db as object, stmt);
+  }
+  return stmt;
+}
+
 export type JournalEventType =
   | 'execution_started'
   | 'execution_completed'
@@ -26,11 +43,7 @@ export function journalEvent(
   payload?:    Record<string, unknown>,
 ): void {
   try {
-    db.prepare(
-      `INSERT INTO AgentExecutionEvents
-         (execution_id, case_id, user_id, event_type, payload_json)
-       VALUES (?, ?, ?, ?, ?)`,
-    ).run(
+    getInsertStmt(db).run(
       executionId,
       caseId,
       userId,
