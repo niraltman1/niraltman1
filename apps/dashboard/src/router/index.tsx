@@ -17,7 +17,7 @@ function lz<T extends Record<string, ComponentType>>(
 
 // ── Page components (lazy-loaded per route) ──────────────────────────────────
 const SetupWizard    = lz(() => import('@/features/setup/SetupWizard.js'),            'SetupWizard');
-const DashboardPage  = lz(() => import('@/features/documents/DashboardPage.js'),      'DashboardPage');
+const DashboardPage  = lz(() => import('@/features/dashboard/DashboardPage.js'),      'DashboardPage');
 const DocumentsPage  = lz(() => import('@/features/documents/DocumentsPage.js'),      'DocumentsPage');
 const DocumentDetail = lz(() => import('@/features/documents/DocumentDetail.js'),     'DocumentDetail');
 const DocumentReader = lz(() => import('@/features/documents/DocumentReader.js'),     'DocumentReader');

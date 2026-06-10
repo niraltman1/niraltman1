@@ -108,7 +108,7 @@ export function Sidebar() {
                   <Icon size={16} weight="duotone" className="shrink-0" />
                 </NavLink>
               ))}
-              {group.id === 'admin' && (
+              {group.id === 'system' && (
                 <button
                   type="button"
                   className="sidebar-item w-full"
@@ -150,7 +150,7 @@ export function Sidebar() {
                     {group.items.map((item) => (
                       <GroupItem key={item.to} item={item} />
                     ))}
-                    {group.id === 'admin' && (
+                    {group.id === 'system' && (
                       <button
                         type="button"
                         className="sidebar-item w-full"
