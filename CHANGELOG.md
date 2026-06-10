@@ -5,6 +5,36 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ---
 
+## [Beta Readiness — v1.0.0-beta.1 candidate] — 2026-06-10
+PRs #52, #55, #58, #63, #67, #68, #70–#74, #76
+
+### Added
+- Migration 068 — `ai_urgency` / `ai_tags` columns on `CommMessages`; smart triage of inbound messages via local law-il-E2B (Ollama-graceful), urgency badge + AI tag pills in `MessageBubble` (C7).
+- Migration 069 — verdict-corpus KB foundation: verbatim Israeli case-law tables (#52).
+- Migration 070 — enhanced precedent library; `JudgmentLibraryPage` (ספריית פסקי דין) with categorized sidebar, full-text viewer, and selection citation context menu (#67).
+- Migrations 071–072 — unified legal drafting workspace: `DraftsRepository`, 18 API endpoints, TipTap `DraftEditor`, shelf system, `InsolvencyPage`; shared `legal-terms.ts` dictionary + `SharedComponents` (F-C) (#68).
+- Migrations 073–077 — legal-brain Phase 1: conversational research assistant with SSE streaming, session persistence, Ollama-graceful fallback (#71).
+- `POST /api/communications/unknown/:id/convert` — unknown-sender → client conversion: creates/links client, links channel identity, marks inbox row resolved, audited; inline pre-filled conversion form in `CommunicationsInboxPage` (C8).
+- `/library` route — unified legal library with two tabs: חקיקה (`LegalCorpusPage`) and פסיקה (`JudgmentLibraryPage`) (F-B) (#76).
+- Dashboard-first UX: new `DashboardPage` daily workbench (today's agenda, deadlines-at-risk, requires-attention tiers, active cases, KPI strip) + business-domain navigation (8 groups) (#70 + follow-up).
+- Shared `AiApprovalBar` (אשר/דחה/עריכה) across `WorkbenchInsights`, `DocumentDetail`, `AgentOutputPanel` (F-F) (#73).
+- Print stylesheet (`@media print`), skip-link, aria-labels (F-G a11y) (#74).
+- `LegalSectionEmbeddings` wired into hybrid search + research agent (B1) (#58).
+- 45 CodeQL path-traversal fixes (CWE-22) (#63).
+- Dashboard test coverage expanded from 4 to 15+ test files.
+
+### Changed
+- Notification policy locked: in-app only via `NotificationsRepository`; `notification-service.ts` console.log stub replaced with silent no-op (B3) (#73).
+- `build-installer.yml` — artifact/release path fixed to `Factum-IL-Setup.exe`; `publish.ps1` step 9 now downloads all `batch-*.jsonl.gz` + `corpus-domain-index.json` from release `v-corpus-latest` into `FactumIL_Dist\legal-corpus\batches\` (#73).
+- Vacuum-protocol robustness: image support, Israeli case validation, collision detection (#55).
+
+### Known beta limitations
+- WhatsApp manual-send (C2) requires self-hosted `whatsapp-web.js` with local WebView2/Edge `executablePath` — environment-blocked, documented caveat.
+- C7 SLA orphan-message radar and C8 professional-contact path deferred post-beta.
+- Telegram live delivery and local Whisper transcription require user-machine verification.
+
+---
+
 ## [Rules Engine + Entity Graph + Legal Corpus] — 2026-06-03
 PRs #48–#53
 

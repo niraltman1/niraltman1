@@ -1,6 +1,25 @@
 # Factum-IL v1.0.0 — Commercial Beta Readiness Report
 
-Generated: 2026-05-26
+Generated: 2026-05-26 · **Updated: 2026-06-10 (beta-readiness completion pass)**
+
+---
+
+## 2026-06-10 Status Update — READY FOR BETA BUILD
+
+All beta-readiness work is merged to `main` (PRs #52, #55, #58, #63, #67, #68, #70–#74, #76). CI and CodeQL are green. Corrected inventory:
+
+| Item | Value (was → now) |
+|------|-------------------|
+| Database migrations | 53 → **76 files (001–077; 067 intentionally skipped)** |
+| Installer output | `FactumIL_v1.0.0_Setup.exe` (NSIS) → **`Factum-IL-Setup.exe` (Inno Setup 6)** |
+| Installer pipeline | untested → **`build-installer.yml` + `publish.ps1` fixed and verified; awaiting first `workflow_dispatch` dry run** |
+| Legal corpus | not bundled → **bundled at build time from release `v-corpus-latest` (batch files) into `legal-corpus/batches/`** |
+| Workplan gaps (F-A…F-G, B1, B3, C7, C8) | open → **closed** (C2 WhatsApp manual-send remains a documented beta caveat) |
+| Dashboard tests | 4 files → **15+ files** |
+
+**Remaining user action:** trigger GitHub Actions → "Build Beta Installer" → branch `main`, version `1.0-beta.1`; when green, push tag `v1.0.0-beta.1` to publish the prerelease with `Factum-IL-Setup.exe`.
+
+The sections below reflect the original 2026-05-26 assessment and are retained for historical context.
 
 ---
 
