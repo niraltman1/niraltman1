@@ -6,7 +6,7 @@ import { DatabaseConnection } from '../connection.js';
 import { VerdictCorpusRepository, type VerdictInput } from './verdict-corpus.js';
 
 const here = dirname(fileURLToPath(import.meta.url));
-const MIGRATION = readFileSync(join(here, '../../../../migrations/067_verdict_corpus.sql'), 'utf-8');
+const MIGRATION = readFileSync(join(here, '../../../../migrations/069_verdict_corpus.sql'), 'utf-8');
 
 function sampleVerdict(over: Partial<VerdictInput> = {}): VerdictInput {
   return {
