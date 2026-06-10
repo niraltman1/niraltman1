@@ -4,8 +4,8 @@ interface AiApprovalBarProps {
   onApprove: () => void;
   onReject: () => void;
   onEdit?: () => void;
-  state?: string;
-  isPending?: boolean;
+  state?: string | undefined;
+  isPending?: boolean | undefined;
 }
 
 /**
