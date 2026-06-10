@@ -1,9 +1,17 @@
 import { Router } from 'express';
+import { z } from 'zod';
 import type { Repos } from '../db.js';
 import { asyncHandler } from '../utils/async-handler.js';
 import { ok } from '../utils/response.js';
+import { validate } from '../middleware/validate.js';
 import { getAuthUrl, exchangeCode } from '../modules/gmail/gmail-oauth.js';
 import { runGmailSync } from '../modules/gmail/gmail-syncer.js';
+
+const callbackSchema = z.object({
+  code:          z.string().min(1),
+  gmail_address: z.string().min(1),
+  label_filter:  z.string().optional(),
+}).strict();
 
 function gmailDisabled(res: import('express').Response): boolean {
   if (process.env['GMAIL_ENABLED'] !== 'true') {
@@ -21,15 +29,9 @@ export function gmailRouter(repos: Repos): Router {
     ok(res, { url: getAuthUrl() });
   }));
 
-  router.post('/callback', asyncHandler(async (req, res) => {
+  router.post('/callback', validate(callbackSchema), asyncHandler(async (req, res) => {
     if (gmailDisabled(res)) return;
-    const { code, gmail_address, label_filter } = req.body as {
-      code: string; gmail_address: string; label_filter?: string;
-    };
-    if (!code || !gmail_address) {
-      res.status(400).json({ success: false, error: { code: 'BAD_REQUEST', message: 'code and gmail_address required' } });
-      return;
-    }
+    const { code, gmail_address, label_filter } = req.body as z.infer<typeof callbackSchema>;
     const tokenStore = await exchangeCode(code);
     const configId = repos.gmail.createConfig({
       gmail_address,

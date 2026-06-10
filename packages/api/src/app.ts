@@ -60,16 +60,25 @@ import { rulesRouter } from './routes/rules.js';
 import { legalCorpusRouter } from './routes/legal-corpus.js';
 import { recordActivity }    from './utils/resource-controller.js';
 import { RagHealingService } from './utils/rag-healing.js';
+import { logWhisperHealthAtStartup } from './modules/transcription/whisper.js';
 
-export function createApp(repos: Repos, dbPath?: string): express.Express {
+export function createApp(
+  repos: Repos,
+  dbPath?: string,
+  healingService?: RagHealingService,
+): express.Express {
   const app = express();
 
-  const healingService = new RagHealingService(
+  const svc = healingService ?? new RagHealingService(
     repos.db,
     process.env['OLLAMA_BASE_URL'] ?? 'http://127.0.0.1:11434',
   );
   // Non-blocking startup check — repairs FTS5 if corrupt and begins Ollama probe loop if needed
-  void healingService.runHealingCycle();
+  void svc.runHealingCycle();
+
+  // Non-blocking startup check — logs whether local Whisper transcription is reachable
+  // (fails gracefully: transcription requests still 503 cleanly if it isn't, per CLAUDE.md)
+  void logWhisperHealthAtStartup();
 
   // Security headers
   app.use(helmet({

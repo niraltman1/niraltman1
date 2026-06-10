@@ -485,6 +485,13 @@ export class CommunicationsRepository {
     this.db.prepare('UPDATE CommMessages SET transcript = ? WHERE id = ?').run(transcript, messageId);
   }
 
+  /** Persist AI urgency/tag classification on an inbound message (set after fire-and-forget classify). */
+  setAITags(messageId: number, urgency: 'urgent' | 'normal' | 'low', tags: string[]): void {
+    this.db.prepare(
+      `UPDATE CommMessages SET ai_urgency = ?, ai_tags = ?, ai_classified_at = strftime('%Y-%m-%dT%H:%M:%fZ','now') WHERE id = ?`,
+    ).run(urgency, JSON.stringify(tags), messageId);
+  }
+
   getMessage(messageId: number): CommMessage | null {
     const r = this.db.prepare('SELECT * FROM CommMessages WHERE id = ?').get(messageId) as Record<string, unknown> | undefined;
     return r ? mapMessage(r) : null;

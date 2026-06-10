@@ -1,20 +1,31 @@
 import { Router } from 'express';
+import { z } from 'zod';
 import { existsSync } from 'node:fs';
 import { extname, resolve } from 'node:path';
 import type { Repos } from '../db.js';
 import { asyncHandler } from '../utils/async-handler.js';
 import { ok } from '../utils/response.js';
+import { validate } from '../middleware/validate.js';
 import { parsePagination } from '../utils/pagination.js';
 import { NotFoundError, ValidationError } from '../errors/api-error.js';
 import { emitActivity } from '../utils/activity-emitter.js';
 import { logAuditEvent } from '../middleware/audit-logger.js';
 import { mimeFromExtension } from '../utils/file-hash.js';
 
+const listDocumentsQuerySchema = z.object({
+  page:     z.coerce.number().int().min(1).optional(),
+  pageSize: z.coerce.number().int().min(1).max(200).optional(),
+}).strict();
+
+const verifyInsightSchema = z.object({
+  state: z.enum(['approved', 'rejected']),
+}).strict();
+
 export function documentsRouter(repos: Repos): Router {
   const router = Router();
   const { documents, db } = repos;
 
-  router.get('/', asyncHandler((req, res) => {
+  router.get('/', validate(listDocumentsQuerySchema, 'query'), asyncHandler((req, res) => {
     const { page, pageSize } = parsePagination(req.query as Record<string, unknown>);
     const result = documents.list({ page, pageSize });
     ok(res, result);
@@ -67,14 +78,11 @@ export function documentsRouter(repos: Repos): Router {
   }));
 
   // Verify (approve/reject) an insight
-  router.post('/insights/:id/verify', asyncHandler((req, res) => {
+  router.post('/insights/:id/verify', validate(verifyInsightSchema), asyncHandler((req, res) => {
     const insightId = Number(req.params['id']);
     if (!Number.isFinite(insightId)) throw new ValidationError('invalid id');
 
-    const { state } = req.body as { state?: string };
-    if (state !== 'approved' && state !== 'rejected') {
-      throw new ValidationError("state must be 'approved' or 'rejected'");
-    }
+    const { state } = req.body as z.infer<typeof verifyInsightSchema>;
 
     const insight = db.prepare(
       'SELECT id, document_id FROM DocumentInsights WHERE id = ?',

@@ -2,6 +2,7 @@ import { spawn } from 'node:child_process';
 import { writeFile, unlink, mkdtemp } from 'node:fs/promises';
 import { join } from 'node:path';
 import { tmpdir } from 'node:os';
+import { logger } from '@factum-il/shared';
 import type { Repos } from '../../db.js';
 
 /**
@@ -42,6 +43,51 @@ export const localWhisperTranscriber: Transcriber = (audioRef: string) => {
     });
   });
 };
+
+/**
+ * Startup health probe for the WHISPER_CMD transcription path (mirrors RagHealingService.probeOllama —
+ * non-blocking, fail-soft: logs a clear warning and lets the app continue if Whisper is unavailable,
+ * per CLAUDE.md "AI steps must fail gracefully"). Spawns the configured binary with `--help` and
+ * resolves `false` on ENOENT/timeout without ever touching real audio.
+ */
+export function probeWhisper(timeoutMs = 5_000): Promise<boolean> {
+  const cmd = process.env['WHISPER_CMD'];
+  if (!cmd) return Promise.resolve(false);
+
+  const parts = cmd.split(/\s+/);
+  const bin = parts[0]!;
+  return new Promise<boolean>((resolve) => {
+    let settled = false;
+    const finish = (ok: boolean): void => {
+      if (settled) return;
+      settled = true;
+      resolve(ok);
+    };
+    try {
+      const proc = spawn(bin, ['--help']);
+      const timer = setTimeout(() => { proc.kill(); finish(false); }, timeoutMs);
+      proc.on('error', () => { clearTimeout(timer); finish(false); });
+      proc.on('exit', () => { clearTimeout(timer); finish(true); });
+    } catch {
+      finish(false);
+    }
+  });
+}
+
+/** Runs `probeWhisper` once and logs the result — call at API startup, never blocks it. */
+export async function logWhisperHealthAtStartup(): Promise<void> {
+  const cmd = process.env['WHISPER_CMD'];
+  if (!cmd) {
+    logger.info('[startup] WHISPER_CMD not configured — local transcription disabled (audio messages will fail gracefully on demand)', { category: 'ai' });
+    return;
+  }
+  const available = await probeWhisper();
+  if (available) {
+    logger.info(`[startup] Whisper transcription healthy — WHISPER_CMD="${cmd}"`, { category: 'ai' });
+  } else {
+    logger.warn(`[startup] WHISPER_CMD="${cmd}" did not respond to --help — transcription requests will fail until this is fixed`, { category: 'ai' });
+  }
+}
 
 /**
  * Transcribe a voice/audio comm message locally and persist the transcript on the message.

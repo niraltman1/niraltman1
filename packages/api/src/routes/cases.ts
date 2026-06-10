@@ -69,20 +69,26 @@ const linkContactSchema = z.object({
   roleInCase: z.string().nullish(),
 }).strict();
 
+const listCasesQuerySchema = z.object({
+  clientId:        z.coerce.number().int().positive().optional(),
+  registry_status: z.string().optional(),
+  page:            z.coerce.number().int().min(1).optional(),
+  pageSize:        z.coerce.number().int().min(1).max(200).optional(),
+}).strict();
+
 export function casesRouter(repos: Repos): Router {
   const router = Router();
   const { cases, contacts, calendar, citations, db } = repos;
 
-  router.get('/', asyncHandler((req, res) => {
-    const query = req.query as Record<string, unknown>;
-    if (query['clientId']) {
-      const clientId = Number(query['clientId']);
-      const result = cases.findByClientId(clientId);
+  router.get('/', validate(listCasesQuerySchema, 'query'), asyncHandler((req, res) => {
+    const query = req.query as z.infer<typeof listCasesQuerySchema>;
+    if (query.clientId) {
+      const result = cases.findByClientId(query.clientId);
       ok(res, result);
       return;
     }
-    if (query['registry_status']) {
-      const registryStatus = String(query['registry_status']);
+    if (query.registry_status) {
+      const registryStatus = query.registry_status;
       const { page, pageSize } = parsePagination(query);
       const offset = (page - 1) * pageSize;
       const rows = db.prepare(`
@@ -120,7 +126,7 @@ export function casesRouter(repos: Repos): Router {
   router.post('/:id/contacts', validate(linkContactSchema), asyncHandler((req, res) => {
     const caseId = Number(req.params['id']);
     if (!cases.findById(caseId)) throw new NotFoundError('Case');
-    const { contactId, roleInCase } = req.body as { contactId: number; roleInCase?: string | null };
+    const { contactId, roleInCase } = req.body as z.infer<typeof linkContactSchema>;
     contacts.linkToCase(caseId, contactId, roleInCase);
     ok(res, { linked: true });
   }));

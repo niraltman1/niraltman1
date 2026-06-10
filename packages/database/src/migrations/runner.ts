@@ -33,8 +33,16 @@ export class MigrationRunner {
       return;
     }
 
+    const t0 = Date.now();
     for (const file of pending) {
       this.applyMigration(file, applied);
+    }
+    const elapsed = Date.now() - t0;
+    if (elapsed > 5_000) {
+      logger.warn(
+        `[migration] ${pending.length} migration(s) applied in ${elapsed}ms — a migration may be blocking startup`,
+        { category: 'migration', agentSource: 'DataArchitect', elapsed, count: pending.length },
+      );
     }
   }
 

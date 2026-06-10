@@ -1,18 +1,25 @@
 import { Router } from 'express';
+import { z } from 'zod';
 import { resolve } from 'node:path';
 import type { Repos } from '../db.js';
 import { asyncHandler } from '../utils/async-handler.js';
 import { ok } from '../utils/response.js';
+import { validate } from '../middleware/validate.js';
 import { ValidationError, NotFoundError } from '../errors/api-error.js';
 import { ingestTabularFile } from '../utils/tabular-engine.js';
+
+const ingestSchema = z.object({
+  filePath:    z.string().optional(),
+  ceilPercent: z.number().optional(),
+}).strict();
 
 export function tabularRouter(repos: Repos): Router {
   const router = Router();
   const { documents, processedFiles } = repos;
 
   // POST /api/tabular/ingest — parse a CSV or Excel file
-  router.post('/ingest', asyncHandler(async (req, res) => {
-    const { filePath: rawFilePath, ceilPercent } = req.body as { filePath?: string; ceilPercent?: number };
+  router.post('/ingest', validate(ingestSchema), asyncHandler(async (req, res) => {
+    const { filePath: rawFilePath, ceilPercent } = req.body as z.infer<typeof ingestSchema>;
     if (!rawFilePath?.trim()) throw new ValidationError('filePath שדה חובה');
     const filePath = resolve(rawFilePath.trim()); // normalize before any fs operation (CWE-22)
 

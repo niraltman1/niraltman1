@@ -1,4 +1,5 @@
 import { Router } from 'express';
+import { z } from 'zod';
 import { join, dirname } from 'node:path';
 import { readFile, mkdir } from 'node:fs/promises';
 import { createWriteStream, readFileSync } from 'node:fs';
@@ -6,6 +7,7 @@ import { fileURLToPath } from 'node:url';
 import archiver from 'archiver';
 import type { Repos } from '../db.js';
 import { asyncHandler } from '../utils/async-handler.js';
+import { validate } from '../middleware/validate.js';
 
 const _dir = dirname(fileURLToPath(import.meta.url));
 const versionInfo = JSON.parse(
@@ -91,14 +93,16 @@ function getDbMigrationVersion(repos: Repos): number {
   }
 }
 
+const bugReportSchema = z.object({
+  activeRoute:      z.string().optional(),
+  userDescription:  z.string().optional(),
+}).strict();
+
 export function bugReportRouter(repos: Repos): Router {
   const router = Router();
 
-  router.post('/', asyncHandler(async (req, res) => {
-    const { activeRoute, userDescription } = req.body as {
-      activeRoute?:    string;
-      userDescription?: string;
-    };
+  router.post('/', validate(bugReportSchema), asyncHandler(async (req, res) => {
+    const { activeRoute, userDescription } = req.body as z.infer<typeof bugReportSchema>;
 
     const ts         = isoTimestamp();
     const zipName    = `FactumIL_Beta_Bug_${ts}.zip`;

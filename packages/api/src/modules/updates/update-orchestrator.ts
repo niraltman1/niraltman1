@@ -89,8 +89,12 @@ export async function startUpdateFlow(
   await stateStore.write({ updateInProgress: true });
 
   try {
-    // Phase 3: Prepare rollback backup
-    await UpdateValidator.prepareRollback(state.currentVersion, dbPath, dataPath);
+    // Phase 3: Prepare rollback backup — persist the metadata so a later
+    // POST /api/updates/rollback can find and verify the snapshot. Discarding
+    // it here would leave `rollbackAvailable` permanently false even though
+    // the backup was taken.
+    const rollback = await UpdateValidator.prepareRollback(state.currentVersion, dbPath, dataPath);
+    await stateStore.write({ rollback });
 
     // Phase 4: Download + verify
     const downloader = new UpdateDownloader(dataPath);

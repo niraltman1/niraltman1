@@ -1,4 +1,5 @@
 import { Router } from 'express';
+import { z } from 'zod';
 import type { Repos } from '../db.js';
 import { asyncHandler } from '../utils/async-handler.js';
 import { ok } from '../utils/response.js';
@@ -12,7 +13,6 @@ import {
   updateProcedureSchema,
   listTemplatesQuerySchema,
 } from '../validation/legal-engine.js';
-import type { CreateMilestoneInput } from '@factum-il/shared';
 
 export function legalEngineRouter(repos: Repos): Router {
   const router = Router();
@@ -20,8 +20,8 @@ export function legalEngineRouter(repos: Repos): Router {
 
   // ─── Check if a case type has a template (called on case creation) ─────────
   router.get('/templates', validate(listTemplatesQuerySchema, 'query'), asyncHandler((req, res) => {
-    const q = req.query as Record<string, unknown>;
-    const templates = legalEngine.listTemplates(q['status'] as string | undefined);
+    const q = req.query as z.infer<typeof listTemplatesQuerySchema>;
+    const templates = legalEngine.listTemplates(q.status);
     ok(res, templates);
   }));
 
@@ -48,7 +48,7 @@ export function legalEngineRouter(repos: Repos): Router {
   // ─── Learning Mode: Ollama parsing ─────────────────────────────────────────
   // Returns a draft skeleton — does NOT persist anything yet.
   router.post('/learn', validate(learnSchema), asyncHandler(async (req, res) => {
-    const body = req.body as { caseType: string; legalBasis: string; sourceText: string; sourceUrl?: string | null };
+    const body = req.body as z.infer<typeof learnSchema>;
     const skeleton = await parseRegulationIntoMilestones(
       body.caseType,
       body.legalBasis,
@@ -59,16 +59,7 @@ export function legalEngineRouter(repos: Repos): Router {
 
   // ─── Save approved template + milestones ───────────────────────────────────
   router.post('/templates', validate(saveTemplateSchema), asyncHandler((req, res) => {
-    const body = req.body as {
-      caseType:    string;
-      nameHe:      string;
-      nameEn?:     string | null;
-      legalBasis?: string | null;
-      sourceUrl?:  string | null;
-      sourceText?: string | null;
-      aiGenerated?: boolean;
-      milestones:  CreateMilestoneInput[];
-    };
+    const body = req.body as z.infer<typeof saveTemplateSchema>;
 
     const tpl = legalEngine.createTemplate({
       caseType:    body.caseType,
@@ -103,7 +94,7 @@ export function legalEngineRouter(repos: Repos): Router {
   // ─── Apply template to a case (creates Tasks for each milestone) ───────────
   router.post('/cases/:caseId/apply-template', validate(applyTemplateSchema), asyncHandler((req, res) => {
     const caseId   = Number(req.params['caseId']);
-    const body     = req.body as { templateId: number; anchorDate: string };
+    const body     = req.body as z.infer<typeof applyTemplateSchema>;
     const theCase  = cases.findById(caseId);
     if (!theCase) throw new NotFoundError('Case');
 

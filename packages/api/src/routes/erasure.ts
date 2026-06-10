@@ -1,23 +1,31 @@
 import { Router } from 'express';
+import { z } from 'zod';
 import type { Repos } from '../db.js';
 import { asyncHandler } from '../utils/async-handler.js';
+import { validate } from '../middleware/validate.js';
 import { ok } from '../utils/response.js';
 import { NotFoundError } from '../errors/api-error.js';
 import { requireRole } from '../middleware/auth.js';
 import { logAuditEvent } from '../middleware/audit-logger.js';
 
+const erasureRequestSchema = z.object({
+  requesterName: z.string().min(1),
+  resourceType:  z.string().min(1),
+  resourceId:    z.number(),
+  reason:        z.string().optional(),
+}).strict();
+
+const erasureRejectSchema = z.object({
+  reason: z.string().optional(),
+}).strict();
+
 export function erasureRouter(repos: Repos): Router {
   const router = Router();
 
   // Submit an erasure request (any authenticated user can request)
-  router.post('/request', asyncHandler((req, res) => {
+  router.post('/request', validate(erasureRequestSchema), asyncHandler((req, res) => {
     const { requesterName, resourceType, resourceId, reason } =
-      req.body as { requesterName?: string; resourceType?: string; resourceId?: number; reason?: string };
-
-    if (!requesterName || !resourceType || resourceId == null) {
-      res.status(422).json({ success: false, error: { code: 'VALIDATION_ERROR', message: 'requesterName, resourceType, resourceId required' } });
-      return;
-    }
+      req.body as z.infer<typeof erasureRequestSchema>;
 
     const result = repos.db.prepare(`
       INSERT INTO erasure_requests (requester_name, resource_type, resource_id, reason)
@@ -85,9 +93,9 @@ export function erasureRouter(repos: Repos): Router {
   }));
 
   // Reject an erasure request (admin only)
-  router.post('/:id/reject', requireRole('admin', repos), asyncHandler((req, res) => {
+  router.post('/:id/reject', requireRole('admin', repos), validate(erasureRejectSchema), asyncHandler((req, res) => {
     const id     = Number(req.params['id']);
-    const reason = (req.body as { reason?: string }).reason ?? 'No reason provided';
+    const reason = (req.body as z.infer<typeof erasureRejectSchema>).reason ?? 'No reason provided';
     if (!Number.isFinite(id)) throw new NotFoundError('erasure request');
 
     const request = repos.db.prepare('SELECT id FROM erasure_requests WHERE id = ?').get(id);

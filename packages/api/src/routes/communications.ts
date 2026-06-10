@@ -1,8 +1,10 @@
 import { Router } from 'express';
+import { z } from 'zod';
 import type { Repos } from '../db.js';
 import type { CommChannel, ConversationStatus } from '@factum-il/database';
 import { asyncHandler } from '../utils/async-handler.js';
 import { ok } from '../utils/response.js';
+import { validate } from '../middleware/validate.js';
 import { ValidationError, NotFoundError, ConflictError } from '../errors/api-error.js';
 import { requireRole } from '../middleware/auth.js';
 import { storeEncryptedField } from '../modules/security/index.js';
@@ -11,9 +13,99 @@ import { transcribeCommMessage, transcribeAudioData, TranscriptionUnavailableErr
 import { TelegramClient } from '../modules/telegram/telegram-client.js';
 import { handleTelegramUpdate, getTelegramToken, type TelegramUpdate } from '../modules/telegram/telegram-inbound.js';
 import { sendTelegramText } from '../modules/telegram/telegram-outbound.js';
+import { classifyInboundMessage } from '@factum-il/ai';
 
 const CHANNELS: CommChannel[] = ['telegram', 'whatsapp', 'email', 'phone'];
 const STATUSES: ConversationStatus[] = ['open', 'closed', 'triage'];
+
+// ── Validation schemas (GH2) ──────────────────────────────────────────────────
+const upsertChannelSchema = z.object({
+  channel:    z.string().optional(),
+  label:      z.string().optional(),
+  identifier: z.string().optional(),
+  credential: z.string().optional(),
+  status:     z.enum(['connected', 'disconnected', 'error']).optional(),
+}).strict();
+
+const sendMessageSchema = z.object({
+  body:      z.string().optional(),
+  mediaKind: z.string().optional(),
+  mediaRef:  z.string().optional(),
+}).strict();
+
+const inboundSchema = z.object({
+  channel:          z.string().optional(),
+  externalId:       z.string().optional(),
+  body:             z.string().optional(),
+  displayName:      z.string().optional(),
+  mediaKind:        z.string().optional(),
+  mediaRef:         z.string().optional(),
+  externalThreadId: z.string().optional(),
+}).strict();
+
+const consentSchema = z.object({
+  clientId: z.number().optional(),
+  channel:  z.string().optional(),
+  granted:  z.boolean().optional(),
+  source:   z.string().optional(),
+}).strict();
+
+const renderTemplateSchema = z.object({
+  caseId: z.number().optional(),
+}).strict();
+
+const actionItemSchema = z.object({
+  title:    z.string(),
+  dueDate:  z.string().optional(),
+  priority: z.string().optional(),
+}).strict();
+
+const createCallSchema = z.object({
+  clientId:        z.number().optional(),
+  caseId:          z.number().nullish(),
+  direction:       z.string().optional(),
+  subject:         z.string().optional(),
+  summary:         z.string().optional(),
+  occurredAt:      z.string().optional(),
+  durationMinutes: z.number().optional(),
+  participants:    z.array(z.string()).optional(),
+  tags:            z.array(z.string()).optional(),
+  actionItems:     z.array(actionItemSchema).optional(),
+}).strict();
+
+// Patch shape is dynamic (forwarded as-is to repos.callLogs.update); the repo only
+// reads known keys and ignores the rest, so we validate the recognised subset.
+const updateCallSchema = z.object({
+  subject:         z.string().nullish(),
+  summary:         z.string().nullish(),
+  direction:       z.string().optional(),
+  occurredAt:      z.string().optional(),
+  durationMinutes: z.number().nullish(),
+  participants:    z.array(z.string()).optional(),
+  tags:            z.array(z.string()).optional(),
+}).strict();
+
+const saveCallEvidenceSchema = z.object({
+  caseId: z.number().optional(),
+}).strict();
+
+const transcribeAudioSchema = z.object({
+  audioBase64: z.string().optional(),
+  mimeType:    z.string().optional(),
+}).strict();
+
+const telegramConnectSchema = z.object({
+  token: z.string().optional(),
+}).strict();
+
+const telegramSetWebhookSchema = z.object({
+  url: z.string().optional(),
+}).strict();
+
+// Telegram inbound webhook payloads come from an external service and are highly
+// dynamic/nested (message, edited_message, callback_query, etc.) — validated structurally
+// downstream by handleTelegramUpdate, so we accept any object shape here.
+const telegramWebhookSchema = z.record(z.unknown());
 
 function userIdOf(req: unknown): number | null {
   return (req as { userId?: number }).userId ?? null;
@@ -89,10 +181,9 @@ export function communicationsRouter(repos: Repos): Router {
   }));
 
   // Register/update a channel and encrypt its secret at rest (AES-256-GCM via field-cipher).
-  router.post('/channels', requireRole('admin', repos), asyncHandler(async (req, res) => {
-    const { channel, label, identifier, credential, status } = req.body as {
-      channel?: string; label?: string; identifier?: string; credential?: string; status?: string;
-    };
+  router.post('/channels', requireRole('admin', repos), validate(upsertChannelSchema), asyncHandler(async (req, res) => {
+    const { channel, label, identifier, credential, status } =
+      req.body as z.infer<typeof upsertChannelSchema>;
     if (!channel || !CHANNELS.includes(channel as CommChannel)) {
       throw new ValidationError('channel must be one of: ' + CHANNELS.join(', '));
     }
@@ -139,9 +230,9 @@ export function communicationsRouter(repos: Repos): Router {
   // Send an outbound message — human-initiated (HITL), consent-gated, audited.
   // Blocked sends return 409. For Telegram the recorded message is also transmitted
   // (best-effort); recording is never blocked by a transport failure.
-  router.post('/conversations/:id/send', asyncHandler(async (req, res) => {
+  router.post('/conversations/:id/send', validate(sendMessageSchema), asyncHandler(async (req, res) => {
     const id = Number(req.params['id']);
-    const { body, mediaKind, mediaRef } = req.body as { body?: string; mediaKind?: string; mediaRef?: string };
+    const { body, mediaKind, mediaRef } = req.body as z.infer<typeof sendMessageSchema>;
     if (!body && !mediaRef) throw new ValidationError('body or mediaRef required');
     const result = comm.sendOutbound({
       conversationId: id, userId: userIdOf(req),
@@ -167,9 +258,8 @@ export function communicationsRouter(repos: Repos): Router {
 
   // ── Inbound ingestion (operational) ───────────────────────────────────────
   // Manual/test ingestion point; channel webhooks (C1+) call the repo directly.
-  router.post('/inbound', asyncHandler((req, res) => {
-    const b = req.body as { channel?: string; externalId?: string; body?: string; displayName?: string;
-      mediaKind?: string; mediaRef?: string; externalThreadId?: string };
+  router.post('/inbound', validate(inboundSchema), asyncHandler((req, res) => {
+    const b = req.body as z.infer<typeof inboundSchema>;
     if (!b.channel || !CHANNELS.includes(b.channel as CommChannel)) throw new ValidationError('invalid channel');
     if (!b.externalId) throw new ValidationError('externalId required');
     const result = comm.routeInbound({
@@ -216,10 +306,8 @@ export function communicationsRouter(repos: Repos): Router {
   }));
 
   // ── Consent (operational; recorded + audited) ─────────────────────────────
-  router.post('/consent', asyncHandler((req, res) => {
-    const { clientId, channel, granted, source } = req.body as {
-      clientId?: number; channel?: string; granted?: boolean; source?: string;
-    };
+  router.post('/consent', validate(consentSchema), asyncHandler((req, res) => {
+    const { clientId, channel, granted, source } = req.body as z.infer<typeof consentSchema>;
     if (!clientId) throw new ValidationError('clientId required');
     if (!channel || !CHANNELS.includes(channel as CommChannel)) throw new ValidationError('invalid channel');
     comm.recordConsent(Number(clientId), channel as CommChannel, granted !== false, source);
@@ -278,9 +366,9 @@ export function communicationsRouter(repos: Repos): Router {
   }));
 
   // Render a template for a case — mints real secure links for sign/upload placeholders.
-  router.post('/templates/:id/render', asyncHandler((req, res) => {
+  router.post('/templates/:id/render', validate(renderTemplateSchema), asyncHandler((req, res) => {
     const id = Number(req.params['id']);
-    const { caseId } = req.body as { caseId?: number };
+    const { caseId } = req.body as z.infer<typeof renderTemplateSchema>;
     const tpl = repos.commTemplates.getTemplate(id);
     if (!tpl) throw new NotFoundError('template not found');
     if (caseId === undefined) {
@@ -294,13 +382,8 @@ export function communicationsRouter(repos: Repos): Router {
 
   // ── Call documentation (C6) ───────────────────────────────────────────────
   // Log a phone call (no live recording). Optional action items become linked Tasks.
-  router.post('/calls', asyncHandler((req, res) => {
-    const b = req.body as {
-      clientId?: number; caseId?: number | null; direction?: string; subject?: string;
-      summary?: string; occurredAt?: string; durationMinutes?: number;
-      participants?: string[]; tags?: string[];
-      actionItems?: Array<{ title: string; dueDate?: string; priority?: string }>;
-    };
+  router.post('/calls', validate(createCallSchema), asyncHandler((req, res) => {
+    const b = req.body as z.infer<typeof createCallSchema>;
     if (!b.clientId) throw new ValidationError('clientId required');
     if (b.direction && !['inbound', 'outbound'].includes(b.direction)) throw new ValidationError('invalid direction');
 
@@ -340,15 +423,15 @@ export function communicationsRouter(repos: Repos): Router {
     throw new ValidationError('clientId or caseId required');
   }));
 
-  router.patch('/calls/:id', asyncHandler((req, res) => {
-    const updated = repos.callLogs.update(Number(req.params['id']), req.body as Record<string, never>);
+  router.patch('/calls/:id', validate(updateCallSchema), asyncHandler((req, res) => {
+    const updated = repos.callLogs.update(Number(req.params['id']), req.body as z.infer<typeof updateCallSchema>);
     if (!updated) throw new NotFoundError('call log not found');
     ok(res, updated);
   }));
 
   // Promote a call into a case timeline (the "save as evidence" bridge).
-  router.post('/calls/:id/save-evidence', asyncHandler((req, res) => {
-    const { caseId } = req.body as { caseId?: number };
+  router.post('/calls/:id/save-evidence', validate(saveCallEvidenceSchema), asyncHandler((req, res) => {
+    const { caseId } = req.body as z.infer<typeof saveCallEvidenceSchema>;
     if (!caseId) throw new ValidationError('caseId required');
     const updated = repos.callLogs.saveAsEvidence(Number(req.params['id']), Number(caseId));
     if (!updated) throw new NotFoundError('call log not found');
@@ -357,8 +440,8 @@ export function communicationsRouter(repos: Repos): Router {
   }));
 
   // Dictation: transcribe an audio blob locally (Whisper). 409 when no local transcriber.
-  router.post('/transcribe-audio', asyncHandler(async (req, res) => {
-    const { audioBase64, mimeType } = req.body as { audioBase64?: string; mimeType?: string };
+  router.post('/transcribe-audio', validate(transcribeAudioSchema), asyncHandler(async (req, res) => {
+    const { audioBase64, mimeType } = req.body as z.infer<typeof transcribeAudioSchema>;
     if (!audioBase64) throw new ValidationError('audioBase64 required');
     try {
       const transcript = await transcribeAudioData(audioBase64, mimeType ?? 'audio/webm');
@@ -372,8 +455,8 @@ export function communicationsRouter(repos: Repos): Router {
   // ── Telegram (C1) ─────────────────────────────────────────────────────────
   // Connect the firm bot: store the token encrypted, verify via getMe, mark connected.
   // Requires api.telegram.org to be reachable (runtime network allowlist).
-  router.post('/telegram/connect', requireRole('admin', repos), asyncHandler(async (req, res) => {
-    const { token } = req.body as { token?: string };
+  router.post('/telegram/connect', requireRole('admin', repos), validate(telegramConnectSchema), asyncHandler(async (req, res) => {
+    const { token } = req.body as z.infer<typeof telegramConnectSchema>;
     if (!token) throw new ValidationError('token required');
     let me;
     try {
@@ -393,7 +476,7 @@ export function communicationsRouter(repos: Repos): Router {
 
   // Inbound webhook. Public (no Bearer), but verified via Telegram's secret-token header.
   // Set COMM_TELEGRAM_WEBHOOK_SECRET to enable verification.
-  router.post('/telegram/webhook', asyncHandler(async (req, res) => {
+  router.post('/telegram/webhook', validate(telegramWebhookSchema), asyncHandler(async (req, res) => {
     const secret = process.env['COMM_TELEGRAM_WEBHOOK_SECRET'];
     if (secret && req.headers['x-telegram-bot-api-secret-token'] !== secret) {
       throw new ConflictError('invalid webhook secret');
@@ -401,11 +484,22 @@ export function communicationsRouter(repos: Repos): Router {
     const result = handleTelegramUpdate(repos, req.body as TelegramUpdate);
     // Always 200 so Telegram does not retry indefinitely on non-routable updates.
     ok(res, { handled: result !== null, ...(result ? { routing: result } : {}) });
+
+    // Fire-and-forget AI classification — never delays the webhook response.
+    // Graceful per CLAUDE.md: if Ollama is down classifyInboundMessage returns null silently.
+    const msgBody = (req.body as TelegramUpdate).message?.text ?? (req.body as TelegramUpdate).message?.caption;
+    if (result?.messageId && msgBody) {
+      void classifyInboundMessage(msgBody).then((classification) => {
+        if (classification) {
+          repos.communications.setAITags(result.messageId!, classification.urgency, classification.tags);
+        }
+      }).catch(() => { /* never surfaces to the client */ });
+    }
   }));
 
   // Register the webhook URL with Telegram (admin).
-  router.post('/telegram/set-webhook', requireRole('admin', repos), asyncHandler(async (req, res) => {
-    const { url } = req.body as { url?: string };
+  router.post('/telegram/set-webhook', requireRole('admin', repos), validate(telegramSetWebhookSchema), asyncHandler(async (req, res) => {
+    const { url } = req.body as z.infer<typeof telegramSetWebhookSchema>;
     if (!url) throw new ValidationError('url required');
     const token = await getTelegramToken(repos);
     if (!token) throw new ConflictError('telegram_not_connected');

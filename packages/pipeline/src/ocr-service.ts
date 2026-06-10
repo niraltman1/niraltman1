@@ -23,6 +23,17 @@ export interface OCRResult {
  * Node.js OCR service that orchestrates Tesseract and Ghostscript.
  * Checks the OCRCache before running OCR.
  * Supports PDF rasterisation, image preprocessing, and multi-language output.
+ *
+ * NOT the primary document pipeline: the live ingestion path
+ * (`packages/api/src/utils/media-pipeline.ts`) uses a simpler async
+ * `execFile`-based toolchain for native PDFs/images — see `docs/ocr.md`.
+ *
+ * This class IS wired into production, though, as the **OCR fallback for
+ * scanned/image-based PDFs**: when `extractPdfText` returns empty text for a
+ * `.pdf` (no embedded text layer), `MediaPipeline` calls `runOCRInWorker`
+ * (`ocr-runner.ts`), which runs this service inside a `node:worker_threads`
+ * worker so the blocking `execFileSync` calls below never touch the main
+ * event loop. See `docs/ocr.md` § "Scanned / Image-Based PDFs — OCR Fallback".
  */
 export class OCRService {
   private readonly hasher = new HashService();

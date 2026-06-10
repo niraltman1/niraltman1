@@ -1,4 +1,5 @@
 import { Router } from 'express';
+import type { z } from 'zod';
 import type { Repos } from '../db.js';
 import { asyncHandler } from '../utils/async-handler.js';
 import { ok, fail } from '../utils/response.js';
@@ -59,12 +60,7 @@ export function mailRouter(repos: Repos): Router {
     '/generate-reply',
     validate(generateReplySchema),
     asyncHandler(async (req, res) => {
-      const { emailId, caseId, tone, emailBody } = req.body as {
-        emailId?: string;
-        caseId: number;
-        tone: 'formal' | 'assertive' | 'conciliatory';
-        emailBody: string;
-      };
+      const { emailId, caseId, tone, emailBody } = req.body as z.infer<typeof generateReplySchema>;
 
       const caseRow = repos.cases.findById(caseId) as Record<string, unknown> | null;
       if (!caseRow) throw new NotFoundError('Case');
