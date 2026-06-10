@@ -58,6 +58,7 @@ const MailWorkspacePage  = lz(() => import('@/features/mail/MailWorkspacePage.js
 const AgentsWorkspacePage = lz(() => import('@/features/agents/AgentsWorkspacePage.js'), 'AgentsWorkspacePage');
 const ContactsPage       = lz(() => import('@/features/contacts/ContactsPage.js'),    'ContactsPage');
 const PrecedentsPage     = lz(() => import('@/features/precedents/PrecedentsPage.js'), 'PrecedentsPage');
+const JudgmentLibraryPage = lz(() => import('@/features/judgment-library/JudgmentLibraryPage.js'), 'JudgmentLibraryPage');
 
 // ── Router ───────────────────────────────────────────────────────────────────
 
@@ -106,7 +107,8 @@ export const router: RemixRouter = createBrowserRouter([
       { path: 'mail',              element: <MailWorkspacePage />    },
       { path: 'agents',             element: <AgentsWorkspacePage />  },
       { path: 'contacts',          element: <ContactsPage />         },
-      { path: 'precedents',        element: <PrecedentsPage />       },
+      { path: 'precedents',         element: <PrecedentsPage />        },
+      { path: 'judgment-library',  element: <JudgmentLibraryPage />  },
       { path: 'entities',          element: <EntitiesPage />         },
       { path: 'entities/:type/:name', element: <EntityDetailPage />  },
       { path: 'canvas/:id',        element: <CanvasPage />           },

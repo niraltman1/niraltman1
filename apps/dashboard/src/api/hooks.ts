@@ -2850,3 +2850,65 @@ export function useTranscribeAudio() {
       postJSON<{ transcript: string }>('/api/communications/transcribe-audio', v),
   });
 }
+
+// ── Judgment Library (ספריית פסקי דין) ────────────────────────────────────────
+
+export interface JudgmentLibraryItem {
+  id:               number;
+  documentId:       number;
+  originalFilename: string;
+  procedureType:    string | null;
+  legalDomain:      string | null;
+  legalQuestions:   string[];
+  factualSummary:   string | null;
+  keywords:         string[];
+  ingestedAt:       string;
+  chunkCount:       number;
+}
+
+function parseJudgmentArr(raw: unknown): string[] {
+  if (Array.isArray(raw)) return (raw as unknown[]).map(String);
+  if (typeof raw !== 'string' || !raw) return [];
+  try { const v = JSON.parse(raw) as unknown; return Array.isArray(v) ? (v as unknown[]).map(String) : []; }
+  catch { return []; }
+}
+
+export function useJudgmentLibrary() {
+  return useQuery<JudgmentLibraryItem[]>({
+    queryKey: ['judgment-library'],
+    queryFn:  async () => {
+      const data = await fetchJSON<Record<string, unknown>[]>('/api/admin/judgment-library');
+      return data.map((r) => ({
+        id:               r['id']                as number,
+        documentId:       r['document_id']       as number,
+        originalFilename: r['original_filename'] as string,
+        procedureType:    (r['procedure_type']   as string | null) ?? null,
+        legalDomain:      (r['legal_domain']     as string | null) ?? null,
+        legalQuestions:   parseJudgmentArr(r['legalQuestions'] ?? r['legal_questions']),
+        factualSummary:   (r['factual_summary']  as string | null) ?? null,
+        keywords:         parseJudgmentArr(r['keywords']),
+        ingestedAt:       r['ingested_at']       as string,
+        chunkCount:       (r['chunk_count']      as number) ?? 0,
+      }));
+    },
+    staleTime: 60_000,
+    retry: false,
+  });
+}
+
+export function useJudgmentFullText(id: number | null) {
+  return useQuery<{ originalFilename: string; ocrText: string }>({
+    queryKey: ['judgment-full-text', id],
+    queryFn:  () => fetchJSON(`/api/admin/judgment-library/${id}/full-text`),
+    enabled:  id !== null,
+    staleTime: 5 * 60_000,
+  });
+}
+
+export function useDeleteJudgment() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (id: number) => deleteJSON<{ deleted: boolean }>(`/api/admin/judgment-library/${id}`),
+    onSuccess: () => void qc.invalidateQueries({ queryKey: ['judgment-library'] }),
+  });
+}
