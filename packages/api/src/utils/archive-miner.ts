@@ -21,7 +21,7 @@
 
 import { readdir, stat } from 'node:fs/promises';
 import type { Dirent } from 'node:fs';
-import { join, extname } from 'node:path';
+import { join, extname, resolve } from 'node:path';
 import type { Repos } from '../db.js';
 import { MediaPipeline } from './media-pipeline.js';
 import { getWorkerConcurrency } from './resource-controller.js';
@@ -71,7 +71,7 @@ export interface MineOptions {
 
 async function collectFiles(rootDir: string, limit: number): Promise<string[]> {
   const result: string[] = [];
-  const queue  = [rootDir];
+  const queue  = [resolve(rootDir)]; // normalize to absolute path before any FS operation
 
   while (queue.length > 0 && result.length < limit) {
     const dir = queue.shift()!;

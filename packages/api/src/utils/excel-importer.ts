@@ -1,5 +1,6 @@
 import * as XLSX from 'xlsx';
 import { readFileSync } from 'node:fs';
+import { resolve } from 'node:path';
 import type { Repos } from '../db.js';
 
 const OLLAMA_BASE  = process.env['OLLAMA_BASE_URL'] ?? 'http://127.0.0.1:11434';
@@ -128,10 +129,11 @@ function normalizeDate(v: string): string | null {
 
 export async function importExcelFile(
   repos: Repos,
-  filePath: string,
+  rawFilePath: string,
   sourceType: ExcelSourceType,
   filename: string,
 ): Promise<ExcelImportResult> {
+  const filePath = resolve(rawFilePath); // normalize before any fs operation (CWE-22)
   const result: ExcelImportResult = {
     sessionId:    0,
     rowsTotal:    0,

@@ -12,7 +12,7 @@
  *  - PDF integrity validation → skip encrypted / corrupt PDFs
  */
 
-import { join, dirname, basename, extname } from 'node:path';
+import { join, dirname, basename, extname, resolve, sep } from 'node:path';
 import { readdir, stat, mkdir, rename, open as fsOpen } from 'node:fs/promises';
 import { EffortController } from './effort-controller.js';
 import type { EffortReport } from './effort-controller.js';
@@ -125,13 +125,16 @@ export interface VacuumOptions {
 // ── Main runner ──────────────────────────────────────────────────────────────
 
 export async function runVacuumProtocol(opts: VacuumOptions): Promise<VacuumReport> {
-  const { targetDir, orgDir, dryRun, onProgress } = opts;
+  const { dryRun, onProgress } = opts;
+  // Resolve to absolute paths once so all downstream comparisons are stable.
+  const absTarget = resolve(opts.targetDir);
+  const absOrg    = resolve(opts.orgDir);
   const effort  = new EffortController({ ceilPercent: opts.ceilPercent ?? 70 });
   const startedAt = new Date().toISOString();
   const filePaths: string[] = [];
   const errors:    string[] = [];
 
-  await scanDir(targetDir, filePaths, errors);
+  await scanDir(absTarget, filePaths, errors);
 
   const entries:   VacuumEntry[] = [];
   let moveCount    = 0;
@@ -139,7 +142,14 @@ export async function runVacuumProtocol(opts: VacuumOptions): Promise<VacuumRepo
   let skipCount    = 0;
 
   for (let idx = 0; idx < filePaths.length; idx++) {
-    const filePath   = filePaths[idx]!;
+    const rawFilePath = filePaths[idx]!;
+    // Inline containment guard — resolve + startsWith lets CodeQL trace the
+    // sanitization directly without crossing a function-call boundary.
+    const filePath = resolve(rawFilePath);
+    if (filePath !== absTarget && !filePath.startsWith(absTarget + sep)) {
+      errors.push(`נתיב חשוד דולג: ${rawFilePath}`);
+      continue;
+    }
     const fileName   = basename(filePath);
     const detectedAt = new Date().toISOString();
 
@@ -186,9 +196,16 @@ export async function runVacuumProtocol(opts: VacuumOptions): Promise<VacuumRepo
     }
 
     const safeFolder  = sanitizeFolderName(caseNumber);
-    const expectedPath = join(orgDir, safeFolder, fileName);
+    const expectedPath = join(absOrg, safeFolder, fileName);
 
-    if (filePath === expectedPath) {
+    // Inline containment guard for the destination path.
+    const resolvedExpected = resolve(expectedPath);
+    if (resolvedExpected !== absOrg && !resolvedExpected.startsWith(absOrg + sep)) {
+      errors.push(`נתיב יעד חשוד דולג: ${expectedPath}`);
+      continue;
+    }
+
+    if (filePath === resolvedExpected) {
       const entry: VacuumEntry = {
         filePath, fileName, caseNumber, expectedPath,
         action: 'keep', contradiction: null, detectedAt,
@@ -201,13 +218,13 @@ export async function runVacuumProtocol(opts: VacuumOptions): Promise<VacuumRepo
     // ── Check for destination collision ───────────────────────────────────
     let contradiction: string | null = null;
     try {
-      await stat(toLongPath(expectedPath));
+      await stat(toLongPath(resolvedExpected));
       contradiction = `קובץ קיים בנתיב היעד — ידרש מיזוג ידני`;
     } catch { /* target free */ }
 
     if (dryRun) {
       const entry: VacuumEntry = {
-        filePath, fileName, caseNumber, expectedPath,
+        filePath, fileName, caseNumber, expectedPath: resolvedExpected,
         action: 'move', contradiction, detectedAt,
       };
       entries.push(entry);
@@ -220,7 +237,7 @@ export async function runVacuumProtocol(opts: VacuumOptions): Promise<VacuumRepo
     const locked = await isFileLocked(filePath);
     if (locked) {
       const entry: VacuumEntry = {
-        filePath, fileName, caseNumber, expectedPath,
+        filePath, fileName, caseNumber, expectedPath: resolvedExpected,
         action: 'pending', contradiction: 'קובץ נעול על-ידי תהליך אחר', detectedAt,
       };
       entries.push(entry);
@@ -230,10 +247,10 @@ export async function runVacuumProtocol(opts: VacuumOptions): Promise<VacuumRepo
     }
 
     try {
-      await mkdir(toLongPath(dirname(expectedPath)), { recursive: true });
-      await rename(toLongPath(filePath), toLongPath(expectedPath));
+      await mkdir(toLongPath(dirname(resolvedExpected)), { recursive: true });
+      await rename(toLongPath(filePath), toLongPath(resolvedExpected));
       const entry: VacuumEntry = {
-        filePath, fileName, caseNumber, expectedPath,
+        filePath, fileName, caseNumber, expectedPath: resolvedExpected,
         action: 'move', contradiction, detectedAt,
       };
       entries.push(entry);
@@ -243,7 +260,7 @@ export async function runVacuumProtocol(opts: VacuumOptions): Promise<VacuumRepo
       const msg = String(e);
       if (msg.includes('EPERM') || msg.includes('EACCES')) {
         const entry: VacuumEntry = {
-          filePath, fileName, caseNumber, expectedPath,
+          filePath, fileName, caseNumber, expectedPath: resolvedExpected,
           action: 'pending', contradiction: `הרשאה נדחתה: ${msg}`, detectedAt,
         };
         entries.push(entry);
