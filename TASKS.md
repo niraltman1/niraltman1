@@ -1,5 +1,71 @@
 # Factum-IL — Task Tracker
 
+## 🗓️ Session handoff — beta-readiness Phase 1-2-6 (2026-06-10)
+
+### Migration ledger (after this session)
+- **001–072 תפוסים** (main after #68 merge). פרטים:
+  - 067 — פנוי (gap; מספר זה לא שוחרר, נדלג עליו)
+  - 068 — `comm_ai_tags` (#72)
+  - 069 — `verdict_corpus` (#52)
+  - 070 — `precedent_library` enhanced (#67)
+  - 071 — `legal_drafts` (#68)
+  - 072 — `time_entries` (#68)
+- **הבא הפנוי:** 073 (כבר בשימוש ב-PR #71 שטרם מוזג)
+- **אחרי מיזוג #71:** 073-077 תהיינה תפוסות; הבא הפנוי: **078**
+
+### הושלם הפעם
+
+#### Phase 1 — PR triage (מיזוגים)
+- ✅ **#63** (security CWE-22, 45 path-traversal fixes) — מוזג
+- ✅ **#72** (audit remediation, migration 068) — מוזג
+- ✅ **#58** (hybrid-search LegalSectionEmbeddings wiring, B1) — מוזג
+- ✅ **#55** (vacuum-protocol) — מוזג
+- ✅ **#52** (verdict-corpus KB, migration 069) — מוזג; תוקן test שהצביע על migration ישן
+- ✅ **#67** (ספריית פסקי דין viewer, migration 070) — מוזג
+- ✅ **#68** (unified drafting workspace, migrations 071-072; כולל F-C shared components מ-legal-terms.ts + SharedComponents.tsx) — מוזג
+- ✅ **#61** (docs/planning — TASKS.md ישן) — **סגור** (מיושן; עדכון נעשה כאן במקום)
+- 🟡 **#70** (dashboard redesign) — rebased + CI רץ; ממתין למיזוג
+- 🟡 **#71** (legal-brain Phase 1, migrations 073-077) — rebased + CI רץ; ממתין למיזוג (אחרי #70)
+
+#### Phase 2 — Backend gaps
+- ✅ **B3** — `notification-service.ts`: החלפת stub ב-console.log ב-no-op שקט; `insolvency.ts` form5-notify: תמיד שומר in-app notification ב-`NotificationsRepository`, שולח WhatsApp רק אם קיים `whatsapp_phone`
+- ✅ **B1** — covered by #58 (hybrid-search + LegalSectionEmbeddings)
+
+#### Phase 6 — Release pipeline
+- ✅ `build-installer.yml`: תיקון path artifact/release מ-`dist-package\FactumIL_v1.0.0_Setup.exe` ל-`Factum-IL-Setup.exe`
+- ✅ `publish.ps1` step 9: תיקון corpus download — במקום קובץ יחיד `legal-corpus.knesset.jsonl.gz`, מורד עכשיו כל `batch-*.jsonl.gz` + `corpus-domain-index.json` מ-`v-corpus-latest` ל-`FactumIL_Dist\legal-corpus\batches\` (תואם ל-legal-corpus-loader.ts:49-55)
+
+### נותר לעבודה הבאה
+
+#### Phase 1 — השלמת מיזוגים
+1. המתן ל-CI על #70 ← מזג
+2. המתן ל-CI על #71 ← מזג
+
+#### Phase 3 — Frontend gaps
+- **F-B** — `/library` legislation reader UI (טרם התחיל)
+- **F-D** — "היום שלי" home (partially done by #70 dashboard redesign — reconcile)
+- **F-E** — `MatterWorkbench` קיים ב-`apps/dashboard/src/features/cases/MatterWorkbench.tsx` — מסמן כ-done
+- **F-F** — standardize AI-approval pattern across AgentOutputPanel, DocumentDetail, WorkbenchInsights
+- **F-G** — a11y pass (focus, aria, contrast), print stylesheet, route-level lazy-loading
+
+#### Phase 4 — Communications gaps
+- **C2** — WhatsApp manual-send (self-hosted whatsapp-web.js + consent gate)
+- **C7** — smart triage (law-il-E2B tagging of inbound messages)
+- **C8** — unknown inbox → lead conversion UI
+
+#### Phase 5 — Quality hardening
+- dashboard tests: רק 4 קבצים כרגע; יעד ≥20
+- full CI gate: typecheck + lint + test + evals
+
+#### Phase 6 — Trigger build
+- הפעל `workflow_dispatch` על `build-installer.yml` — זהו הריצה הראשונה אי-פעם
+- כאשר ירוק: push tag `v1.0.0-beta.1` → prerelease עם `Factum-IL-Setup.exe`
+
+### ה-PR שלנו
+- PR #73: `claude/factum-il-beta-readiness-fzz4ky` — draft, מכיל B3 + Phase 6 fixes
+
+---
+
 ## 🗓️ Session handoff — audit ממוקד-פערים + תיקון חוב טכני (2026-06-07)
 
 ### הושלם הפעם

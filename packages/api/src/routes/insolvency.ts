@@ -254,11 +254,7 @@ export function insolvencyRouter(repos: Repos): Router {
     const client = repos.db.prepare(
       'SELECT name_he, whatsapp_phone FROM Clients WHERE id = ?',
     ).get(caseRow.client_id) as ClientRow | undefined;
-
-    if (!client?.whatsapp_phone) {
-      fail(res, 'NO_PHONE', 'ללקוח אין מספר WhatsApp מוגדר', 422);
-      return;
-    }
+    if (!client) { fail(res, 'NOT_FOUND', 'לקוח לא נמצא', 404); return; }
 
     const gaps = repos.db.prepare(`
       SELECT section, label_he FROM insolvency_checklist_items
@@ -276,18 +272,36 @@ export function insolvencyRouter(repos: Repos): Router {
       return acc;
     }, {});
 
-    const lines = [
-      `שלום ${client.name_he},`,
-      `לגבי תיק ${caseRow.case_number} — פרטים חסרים לטופס 5:`,
-    ];
-    for (const [section, labels] of Object.entries(grouped)) {
-      lines.push(`\nסעיף ${section}:`);
-      for (const l of labels) lines.push(`  • ${l}`);
-    }
-    lines.push('\nאנא השלם/י את הפרטים בהקדם. תודה.');
+    const sectionSummary = Object.entries(grouped)
+      .map(([s, labels]) => `סעיף ${s}: ${labels.join(', ')}`)
+      .join(' | ');
 
-    await notificationService.send(client.whatsapp_phone, lines.join('\n'));
-    ok(res, { sent: true, gapCount: gaps.length, phone: client.whatsapp_phone });
+    // Persist in-app notification (primary delivery — B3 policy).
+    repos.notifications.upsert({
+      kind:     'form5_gap',
+      severity: 'warning',
+      titleHe:  `טופס 5 — פרטים חסרים בתיק ${caseRow.case_number}`,
+      bodyHe:   `${gaps.length} פרטים חסרים: ${sectionSummary}`,
+      linkType: 'case',
+      linkId:   String(caseId),
+      dedupKey: `form5_gap:case:${caseId}:filing:${filing.id}`,
+    });
+
+    // WhatsApp delivery — no-op until C2 is wired (Phase 4).
+    if (client.whatsapp_phone) {
+      const lines = [
+        `שלום ${client.name_he},`,
+        `לגבי תיק ${caseRow.case_number} — פרטים חסרים לטופס 5:`,
+      ];
+      for (const [section, labels] of Object.entries(grouped)) {
+        lines.push(`\nסעיף ${section}:`);
+        for (const l of labels) lines.push(`  • ${l}`);
+      }
+      lines.push('\nאנא השלם/י את הפרטים בהקדם. תודה.');
+      await notificationService.send(client.whatsapp_phone, lines.join('\n'));
+    }
+
+    ok(res, { sent: true, gapCount: gaps.length, phone: client.whatsapp_phone ?? null });
   }));
 
   return router;

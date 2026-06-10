@@ -1,6 +1,7 @@
 import { Link } from 'react-router-dom';
-import { RobotIcon, ThumbsUpIcon, ThumbsDownIcon } from '@phosphor-icons/react';
+import { RobotIcon } from '@phosphor-icons/react';
 import { useDocumentInsights, useVerifyInsight } from '@/api/hooks.js';
+import { AiApprovalBar } from '@/components/common/AiApprovalBar.js';
 
 const FIELDS: { key: string; label: string }[] = [
   { key: 'case_number',  label: 'מספר תיק' },
@@ -55,26 +56,15 @@ export function WorkbenchInsights({ docId }: { docId: number | null }) {
             ) : null)}
           </dl>
 
-          {insightId != null && state !== 'approved' && state !== 'rejected' && (
-            <div className="flex gap-2 pt-1">
-              <button
-                disabled={verify.isPending}
-                onClick={() => verify.mutate({ insightId, state: 'approved' })}
-                className="flex items-center gap-1.5 px-2.5 py-1 text-xs text-green-400 border border-green-400/20 rounded-lg hover:bg-green-400/10 disabled:opacity-40"
-              >
-                <ThumbsUpIcon size={12} /> אשר
-              </button>
-              <button
-                disabled={verify.isPending}
-                onClick={() => verify.mutate({ insightId, state: 'rejected' })}
-                className="flex items-center gap-1.5 px-2.5 py-1 text-xs text-red-400 border border-red-400/20 rounded-lg hover:bg-red-400/10 disabled:opacity-40"
-              >
-                <ThumbsDownIcon size={12} /> דחה
-              </button>
+          {insightId != null && (
+            <div className="pt-1">
+              <AiApprovalBar
+                state={state}
+                isPending={verify.isPending}
+                onApprove={() => verify.mutate({ insightId, state: 'approved' })}
+                onReject={() => verify.mutate({ insightId, state: 'rejected' })}
+              />
             </div>
-          )}
-          {(state === 'approved' || state === 'rejected') && (
-            <span className="text-[10px] text-parchment/40">{state === 'approved' ? '✓ אומת' : '✗ נדחה'}</span>
           )}
         </>
       )}
