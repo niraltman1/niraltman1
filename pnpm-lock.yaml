@@ -399,6 +399,9 @@ importers:
 
   packages/legal-corpus-ingest:
     dependencies:
+      '@factum-il/citation-engine':
+        specifier: workspace:*
+        version: link:../citation-engine
       '@factum-il/database':
         specifier: workspace:*
         version: link:../database

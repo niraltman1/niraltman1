@@ -12,6 +12,7 @@
     "lint": "eslint src"
   },
   "dependencies": {
+    "@factum-il/citation-engine": "workspace:*",
     "@factum-il/database": "workspace:*",
     "@factum-il/retrieval": "workspace:*",
     "@factum-il/shared": "workspace:*"

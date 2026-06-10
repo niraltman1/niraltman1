@@ -91,3 +91,10 @@ export type {
   DraftCitationRecord,
   EvidenceShelfItemRecord,
 } from './queries/drafts.js';
+export { LegalBrainSessionsRepository } from './queries/legal-brain-sessions.js';
+export type {
+  LegalBrainSession,
+  LegalBrainMessage,
+  CreateSessionInput,
+  AddMessageInput,
+} from './queries/legal-brain-sessions.js';
