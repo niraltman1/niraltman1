@@ -12,7 +12,8 @@
 - WebView2 Runtime
 - Ollama + מודל `BrainboxAI/law-il-E2B:Q4_K_M`
 - sqlite-vec.dll (הרחבת חיפוש וקטורי)
-- מריץ 60 מיגרציות DB
+- מריץ 76 מיגרציות DB (001–077)
+- מצרף את קורפוס החקיקה (batch files מ-release `v-corpus-latest`)
 - מגדיר 8 משתני סביבה ב-registry
 - יוצר קיצורי דרך בשולחן העבודה ובתפריט התחל
 
@@ -58,7 +59,7 @@ ollama pull hf.co/BrainboxAI/law-il-E2B:Q4_K_M
 
 | קובץ | תוכן |
 |------|------|
-| [`DEVELOPMENT.md`](./DEVELOPMENT.md) | Reference מלא לסשני Claude Code: כל 25 חבילות, כל 60 מיגרציות, כל API routes, כל 25 env vars, קונבנציות קוד |
+| [`DEVELOPMENT.md`](./DEVELOPMENT.md) | Reference מלא לסשני Claude Code: כל החבילות, כל 76 המיגרציות, כל API routes, env vars, קונבנציות קוד |
 | [`ARCHITECTURE.md`](./ARCHITECTURE.md) | ארכיטקטורה טכנית: מבנה monorepo, data flow, schema, מודל אבטחה, RBAC, safe mode |
 | [`BUILD.md`](./BUILD.md) | בניית `Factum-IL-Setup.exe` מ-`publish.ps1` + Inno Setup 6 (12 שלבים) |
 | [`CLAUDE.md`](./CLAUDE.md) | הנחיות קריטיות לסשן Claude Code — חובה לקרוא בתחילת כל סשן |

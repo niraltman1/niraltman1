@@ -1,22 +1,40 @@
 # Factum-IL — Task Tracker
 
-## 🗓️ Session handoff — beta-readiness F-B (2026-06-10 המשך)
+## 🗓️ Session handoff — beta-readiness הושלם + עדכון תיעוד (2026-06-10 סופי)
 
-### הושלם הפעם
+### ✅ beta-readiness הושלם — כל ה-PRs מוזגו
 
-#### Phase 3 — Frontend gaps
-- ✅ **F-B** — `/library` route עם שני טאבים: *חקיקה* (`LegalCorpusPage`) + *פסיקה* (`JudgmentLibraryPage`). סרגל צד מעודכן. 4 בדיקות חדשות. PR #76 פתוח/ממתין למיזוג.
-- ✅ **F-D** — covered by #70 dashboard redesign (today's agenda/deadlines)
-- ✅ **F-E** — `MatterWorkbench` קיים ב-`apps/dashboard/src/features/cases/MatterWorkbench.tsx` — done
-- ✅ **F-F** — `AiApprovalBar` משותף (done in previous session)
-- ✅ **F-G** — print stylesheet, skip link, a11y (done in previous session)
+#### PR #76 — F-B unified library — **מוזג** (squash `34e244d`)
+- `/library` route עם שני טאבים: *חקיקה* (`LegalCorpusPage`) + *פסיקה* (`JudgmentLibraryPage`)
+- נדרש rebase על main בגלל conflict ב-`nav-config.tsx` (refactor dashboard-first שנכנס ל-main);
+  `/library` שולב בקבוצת `research` החדשה
+- הוסר `-m-6` bleed מ-`JudgmentLibraryPage`; 4 בדיקות חדשות; CI ‏8/8 ירוק
 
-### PR פתוח
-- **PR #76** `claude/factum-il-beta-readiness-fzz4ky` — F-B unified library page — CI רץ
+#### מצב פאזות סופי
+- ✅ **F-A…F-G** — הכל הושלם (PRs #68, #70, #73, #74, #76)
+- ✅ **B1** (#58), **B3** (#73) — הושלמו
+- ✅ **C7** Smart Triage (#72+#74) — תיוג+תצוגה; ראדאר SLA נותר post-beta
+- ✅ **C8** מסלול-לקוח (#74) — המרת אלמונים; מסלול איש-קשר נותר post-beta
+- ⚠️ **C2** (WhatsApp) — חסום-סביבה; מגבלת-beta מתועדת
 
-### נותר
-- **Phase 6 Trigger** — ראה פרטים בסעיף הקודם (trigger ידני נדרש)
-- **C2 (WhatsApp)** — חסום-סביבה; מתועד כהגבלת-beta
+#### עדכון תיעוד (כל קבצי ה-MD)
+- ✅ `WORKPLAN_FRONTEND.md` — באנר השלמה + טבלת רקונסיליאציה + F-B…F-G מסומנים ✅
+- ✅ `WORKPLAN_BACKEND.md` — B1, B3 מסומנים ✅
+- ✅ `WORKPLAN_COMMUNICATIONS.md` — C7/C8 🟢 (חלקי-מתועד), C2 ⚠️ מגבלת-beta
+- ✅ `CHANGELOG.md` — רשומת "Beta Readiness — v1.0.0-beta.1 candidate" (PRs #52–#76)
+- ✅ `README.md`, `BUILD.md`, `DEVELOPMENT.md` — ספירת מיגרציות 60→76 (001–077) + corpus bundling
+- ✅ `reports/commercial-beta-readiness-report.md` + `reports/דוח-מוכנות-בטא.md` — סעיפי עדכון 2026-06-10
+  (ציון מעודכן 8.5/10); `reports/סיכום-מנהלים.md` + `reports/דוח-שלבי-המשך.md` — הערות-עדכון
+
+### ⏭️ הצעד היחיד שנותר — בניית ה-installer (פעולת משתמש)
+1. GitHub Actions → **"Build Beta Installer"** → Run workflow → branch `main`, version `1.0-beta.1`
+2. כשירוק (artifact `Factum-IL-Setup.exe`): ‏`git tag v1.0.0-beta.1 && git push origin v1.0.0-beta.1`
+   → prerelease אוטומטי עם הקובץ
+3. בדיקת התקנה על Windows נקי: 76 מיגרציות, sqlite-vec נטען, corpus counts > 0,
+   Ollama-down graceful, עברית RTL
+
+### Migration ledger
+- **001–077 תפוסים** (067 = gap מכוון). **הבא הפנוי: 078**
 
 ---
 

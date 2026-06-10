@@ -68,7 +68,7 @@ cd niraltman1
 | 6 | בניית כל 25 החבילות — `pnpm -r build` |
 | 7 | פרסום מעטפת WPF — `dotnet publish --runtime win-x64` |
 | 8 | אריזת ה-backend (Express API + node_modules פרודקשן שטוח) |
-| 9 | dashboard + קובצי מיגרציה 001–060 |
+| 9 | dashboard + קובצי מיגרציה 001–077 + קורפוס חקיקה (batch files מ-`v-corpus-latest`) |
 | 10 | הורדת node.exe פורטבילי, OllamaSetup.exe, WebView2 bootstrapper |
 | 11 | הורדת מודל GGUF (`law-il-E2B-Q4_K_M.gguf`) ו-`sqlite-vec.dll` |
 | 12 | הזרקת BOM לסקריפטי PowerShell (תמיכת UTF-8 בחלונות) |
@@ -126,7 +126,7 @@ cd niraltman1
 **בהפעלה ראשונה** מעטפת ה-WPF:
 - מריצה את שרת ה-API (Node פורטבילי מצורף — אין צורך ב-Node מותקן),
 - טוענת את `sqlite-vec.dll` מ-`SQLITE_VEC_PATH` לפני פתיחת ה-DB,
-- מיישמת את 60 ה-migrations ויוצרת את `%LOCALAPPDATA%\FactumIL\factum-il.db`,
+- מיישמת את 76 ה-migrations (001–077) ויוצרת את `%LOCALAPPDATA%\FactumIL\factum-il.db`,
 - טוענת את מודל ה-AI `BrainboxAI/law-il-E2B:Q4_K_M` ל-Ollama,
 - פותחת את ממשק ה-React. מסך הפתיחה ממתין עד שה-API מוכן.
 
@@ -141,7 +141,8 @@ FactumIL_Dist\
   shell\        מעטפת WPF (FactumIL.Desktop.exe) + DLLs של .NET ו-WebView2
   backend\      שרת Express API + node_modules פרודקשן שטוח
   dashboard\    ממשק React מקומפל
-  migrations\   קובצי SQL 001–060 (מורצים בהפעלה ראשונה)
+  migrations\   קובצי SQL 001–077 (מורצים בהפעלה ראשונה)
+  legal-corpus\ קורפוס חקיקה (batches\*.jsonl.gz, נטען ל-SQLite בהפעלה ראשונה)
   runtime\      node.exe פורטבילי
   tools\        OllamaSetup.exe + WebView2 bootstrapper + sqlite-vec.dll
   models\       law-il-E2B-Q4_K_M.gguf (מודל ה-AI, ~1.3GB)
