@@ -1,21 +1,10 @@
 import { useMemo } from 'react';
 import { ScalesIcon, ClockIcon, WarningIcon, BookOpenIcon } from '@phosphor-icons/react';
 import { useRules, type Rule } from '@/api/hooks.js';
-
-const PROCEDURE_LABELS: Record<string, string> = {
-  civil:                  'אזרחי',
-  civil_appeal:           'ערעור אזרחי',
-  criminal:               'פלילי',
-  family:                 'משפחה',
-  labor:                  'עבודה',
-  administrative:         'מינהלי',
-  constitutional:         'חוקתי (בג"ץ)',
-  insolvency:             'חדלות פירעון',
-  traffic_administrative: 'תעבורה',
-};
+import { procedureTypeLabel } from '@/lib/legal-terms.js';
 
 function procedureLabel(type: string): string {
-  return PROCEDURE_LABELS[type] ?? type;
+  return procedureTypeLabel(type);
 }
 
 export function RulesEnginePage() {

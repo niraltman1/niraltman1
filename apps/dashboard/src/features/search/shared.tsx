@@ -1,5 +1,5 @@
 import { Fragment } from 'react';
-import { FileTextIcon, UsersIcon, GavelIcon } from '@phosphor-icons/react';
+import { FileTextIcon, UsersIcon, GavelIcon, BookOpenIcon, NoteIcon, ScalesIcon } from '@phosphor-icons/react';
 import type { IconWeight } from '@phosphor-icons/react';
 import type { SearchHit } from '@/api/hooks.js';
 
@@ -19,21 +19,33 @@ interface EntityMeta {
 }
 
 export const ENTITY_META: Record<SearchEntityType, EntityMeta> = {
-  client:   { label: 'לקוחות', badge: 'לקוח', Icon: UsersIcon,    accent: 'text-blue-400',    badgeCls: 'badge badge-blue'    },
-  case:     { label: 'תיקים',  badge: 'תיק',  Icon: GavelIcon,    accent: 'text-gold',        badgeCls: 'badge badge-gold'   },
-  document: { label: 'מסמכים', badge: 'מסמך', Icon: FileTextIcon, accent: 'text-parchment/40', badgeCls: 'badge badge-neutral' },
+  client:      { label: 'לקוחות',    badge: 'לקוח',   Icon: UsersIcon,    accent: 'text-blue-400',     badgeCls: 'badge badge-blue'    },
+  case:        { label: 'תיקים',     badge: 'תיק',    Icon: GavelIcon,    accent: 'text-gold',         badgeCls: 'badge badge-gold'    },
+  document:    { label: 'מסמכים',    badge: 'מסמך',   Icon: FileTextIcon, accent: 'text-parchment/40', badgeCls: 'badge badge-neutral' },
+  legislation: { label: 'חקיקה',     badge: 'חוק',    Icon: BookOpenIcon, accent: 'text-emerald-400',  badgeCls: 'badge badge-success' },
+  draft:       { label: 'טיוטות',    badge: 'טיוטה',  Icon: NoteIcon,     accent: 'text-amber-400',    badgeCls: 'badge badge-warning' },
+  precedent:   { label: 'תקדימים',   badge: 'תקדים',  Icon: ScalesIcon,   accent: 'text-purple-400',   badgeCls: 'badge badge-neutral' },
 };
 
-/** Deterministic display order: clients → cases → documents. */
-export const ENTITY_ORDER: SearchEntityType[] = ['client', 'case', 'document'];
+/** Deterministic display order. */
+export const ENTITY_ORDER: SearchEntityType[] = ['client', 'case', 'document', 'legislation', 'draft', 'precedent'];
 
 /** Route a hit navigates to on activation. */
 export function resultHref(hit: SearchHit): string {
   switch (hit.entityType) {
-    case 'client':   return `/clients/${hit.id}`;
-    case 'case':     return `/cases/${hit.id}`;
-    case 'document': return `/documents/${hit.id}`;
+    case 'client':      return `/clients/${hit.id}`;
+    case 'case':        return `/cases/${hit.id}`;
+    case 'document':    return `/documents/${hit.id}`;
+    case 'legislation': return `/legal-corpus`;
+    case 'draft':       return `/drafting/${hit.id}`;
+    case 'precedent':   return `/precedents`;
+    default:            return '/';
   }
+}
+
+/** Whether a hit type can be sent to the Evidence Shelf. */
+export function canSendToShelf(entityType: SearchEntityType): boolean {
+  return entityType === 'legislation' || entityType === 'precedent' || entityType === 'document';
 }
 
 /** Secondary line — shown only when it adds info beyond the title. */

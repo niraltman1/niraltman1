@@ -2,10 +2,10 @@ import { Link, useNavigate } from 'react-router-dom';
 import {
   GavelIcon, FolderOpenIcon, UsersIcon, CheckSquareIcon, ScalesIcon,
   LockIcon, FileDashedIcon, BookOpenIcon, RobotIcon, WarningCircleIcon,
-  ShieldIcon,
+  ShieldIcon, FileTextIcon, CalendarIcon, ClockIcon,
 } from '@phosphor-icons/react';
 import type { IconWeight } from '@phosphor-icons/react';
-import { useAdminStats, useWatcherEvents, useQueueStats, useSeedDemo } from '@/api/hooks.js';
+import { useAdminStats, useWatcherEvents, useQueueStats, useSeedDemo, useDeadlinesAtRisk, useDrafts, useTasks } from '@/api/hooks.js';
 
 // ─── KPI Card ────────────────────────────────────────────────────────────────
 
@@ -68,6 +68,9 @@ export function DashboardPage() {
   const { data: queueStats }                      = useQueueStats();
   const seedDemo                                  = useSeedDemo();
   const navigate                                  = useNavigate();
+  const { data: deadlines }                       = useDeadlinesAtRisk(7);
+  const { data: activeDrafts }                    = useDrafts({ status: 'draft' });
+  const { data: tasksData }                       = useTasks({ status: 'pending', pageSize: 5 });
 
   const isEmpty = !statsLoading && stats && stats.clients === 0 && stats.documentsTotal === 0;
 
@@ -114,6 +117,65 @@ export function DashboardPage() {
           <p className="text-parchment/40 text-sm mt-0.5">אלטמן משרד עורכי דין — סדר 2026</p>
         </div>
       </div>
+
+      {/* Command Center — "מה דורש תשומת לב עכשיו?" */}
+      {((deadlines?.length ?? 0) > 0 || (activeDrafts?.length ?? 0) > 0 || (tasksData?.items?.length ?? 0) > 0) && (
+        <div className="bg-navy-100 border border-parchment/10 rounded-xl p-4 space-y-3" dir="rtl">
+          <h2 className="text-parchment/60 text-xs font-semibold uppercase tracking-widest flex items-center gap-2">
+            <ClockIcon size={12} className="text-amber-400" />
+            מה דורש תשומת לב עכשיו?
+          </h2>
+          <div className="flex gap-2 flex-wrap">
+            {/* Critical deadlines */}
+            {(deadlines ?? []).filter((d) => d.risk === 'overdue' || d.risk === 'critical').slice(0, 3).map((d) => (
+              <button
+                key={d.id}
+                onClick={() => navigate('/deadlines')}
+                className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs border transition-colors ${
+                  d.risk === 'overdue'
+                    ? 'bg-red-900/30 text-red-400 border-red-700/40 hover:bg-red-900/50'
+                    : 'bg-amber-900/20 text-amber-400 border-amber-700/30 hover:bg-amber-900/40'
+                }`}
+              >
+                <CalendarIcon size={10} />
+                {d.title}
+                <span className="opacity-60 text-[10px]">
+                  {d.risk === 'overdue' ? 'עבר' : `${d.daysUntil}י`}
+                </span>
+              </button>
+            ))}
+
+            {/* Active drafts count */}
+            {(activeDrafts?.length ?? 0) > 0 && (
+              <button
+                onClick={() => navigate('/drafting')}
+                className="flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs bg-navy-200/50 text-parchment/70 border border-parchment/15 hover:border-parchment/30 transition-colors"
+              >
+                <FileTextIcon size={10} />
+                {activeDrafts!.length} טיוטות פתוחות
+              </button>
+            )}
+
+            {/* Pending tasks */}
+            {(tasksData?.items ?? []).slice(0, 2).map((t) => (
+              <button
+                key={t.id}
+                onClick={() => navigate('/tasks')}
+                className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs border transition-colors ${
+                  t.urgency === 'critical'
+                    ? 'bg-red-900/20 text-red-400 border-red-700/30 hover:bg-red-900/40'
+                    : t.urgency === 'warning'
+                    ? 'bg-amber-900/20 text-amber-300 border-amber-700/20 hover:bg-amber-900/40'
+                    : 'bg-navy-200/50 text-parchment/60 border-parchment/10 hover:border-parchment/25'
+                }`}
+              >
+                <CheckSquareIcon size={10} />
+                {t.title.slice(0, 28)}{t.title.length > 28 ? '…' : ''}
+              </button>
+            ))}
+          </div>
+        </div>
+      )}
 
       {/* Row 1 — Core KPIs */}
       {statsLoading ? (

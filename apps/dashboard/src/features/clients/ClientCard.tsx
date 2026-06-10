@@ -4,8 +4,12 @@ import {
   UserIcon, PhoneIcon, EnvelopeSimpleIcon, IdentificationCardIcon,
   PencilSimpleIcon, GavelIcon, FolderOpenIcon, ClockCounterClockwiseIcon,
   ArrowRightIcon, ClipboardTextIcon, CircleNotchIcon, CurrencyCircleDollarIcon, ChatCircleIcon,
+  FileDocIcon,
 } from '@phosphor-icons/react';
-import { useClient, useCases, useDocuments, useExportWorksheet } from '@/api/hooks.js';
+import {
+  useClient, useCases, useDocuments, useExportWorksheet,
+  useGeneratePowerOfAttorney, useGenerateFeeAgreement, triggerBlobDownload,
+} from '@/api/hooks.js';
 import { ClientTimeline } from './ClientTimeline.js';
 import { CommunicationsPanel } from '@/features/communications/CommunicationsPanel.js';
 import { CallLogModal } from '@/features/communications/CallLogModal.js';
@@ -58,6 +62,107 @@ function initials(name: string) {
   return name.split(' ').slice(0, 2).map((w) => w[0]).join('');
 }
 
+function FeeAgreementModal({
+  clientId,
+  clientName,
+  cases,
+  onClose,
+}: {
+  clientId:   number;
+  clientName: string;
+  cases:      { id: number; titleHe: string; caseNumber: string }[];
+  onClose:    () => void;
+}) {
+  const [feeAmount,    setFeeAmount]    = useState('');
+  const [successBonus, setSuccessBonus] = useState('');
+  const [caseId,       setCaseId]       = useState<number | null>(cases[0]?.id ?? null);
+  const genFee = useGenerateFeeAgreement();
+
+  const handleSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    genFee.mutate(
+      {
+        clientId,
+        ...(caseId        ? { caseId }                    : {}),
+        ...(feeAmount     ? { feeAmount }                  : {}),
+        ...(successBonus  ? { successBonus }               : {}),
+      },
+      {
+        onSuccess: (blob) => {
+          triggerBlobDownload(blob, `הסכם_שכ"ט_${clientName.replace(/\s+/g, '_')}.docx`);
+          onClose();
+        },
+      },
+    );
+  };
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4" dir="rtl">
+      <div className="absolute inset-0 bg-black/60" onClick={onClose} />
+      <form
+        onSubmit={handleSubmit}
+        className="relative bg-navy-100 border border-parchment/20 rounded-xl p-6 space-y-4 w-full max-w-sm shadow-2xl"
+      >
+        <h2 className="text-parchment font-semibold text-sm">הסכם שכר טרחה — {clientName}</h2>
+
+        {cases.length > 0 && (
+          <label className="flex flex-col gap-1">
+            <span className="text-parchment/40 text-xs">תיק</span>
+            <select
+              value={caseId ?? ''}
+              onChange={(e) => setCaseId(e.target.value ? Number(e.target.value) : null)}
+              className="bg-navy-900/50 border border-parchment/15 rounded px-2 py-1.5 text-parchment text-xs outline-none focus:border-gold/50"
+            >
+              <option value="">ללא תיק</option>
+              {cases.map((cs) => (
+                <option key={cs.id} value={cs.id}>{cs.caseNumber} {cs.titleHe}</option>
+              ))}
+            </select>
+          </label>
+        )}
+
+        <label className="flex flex-col gap-1">
+          <span className="text-parchment/40 text-xs">שכר טרחה (₪)</span>
+          <input
+            type="text"
+            dir="ltr"
+            value={feeAmount}
+            onChange={(e) => setFeeAmount(e.target.value)}
+            placeholder="0"
+            className="bg-navy-900/50 border border-parchment/15 rounded px-2 py-1.5 text-parchment text-xs outline-none focus:border-gold/50"
+          />
+        </label>
+
+        <label className="flex flex-col gap-1">
+          <span className="text-parchment/40 text-xs">בונוס הצלחה (₪)</span>
+          <input
+            type="text"
+            dir="ltr"
+            value={successBonus}
+            onChange={(e) => setSuccessBonus(e.target.value)}
+            placeholder="0"
+            className="bg-navy-900/50 border border-parchment/15 rounded px-2 py-1.5 text-parchment text-xs outline-none focus:border-gold/50"
+          />
+        </label>
+
+        <div className="flex gap-2 justify-end pt-1">
+          <button type="button" onClick={onClose} className="px-3 py-1.5 text-xs text-parchment/50 hover:text-parchment transition-colors">
+            ביטול
+          </button>
+          <button
+            type="submit"
+            disabled={genFee.isPending}
+            className="flex items-center gap-1.5 px-4 py-1.5 text-xs bg-gold/20 text-gold border border-gold/30 rounded hover:bg-gold/30 transition-colors disabled:opacity-50"
+          >
+            {genFee.isPending ? <CircleNotchIcon size={12} className="animate-spin" /> : <FileDocIcon size={12} />}
+            {genFee.isPending ? 'מייצר...' : 'הורד DOCX'}
+          </button>
+        </div>
+      </form>
+    </div>
+  );
+}
+
 export function ClientCard() {
   const { id } = useParams<{ id: string }>();
   const clientId = Number(id);
@@ -66,9 +171,11 @@ export function ClientCard() {
   const { data: casesData }  = useCases(1, 50, clientId);
   const { data: docsData }   = useDocuments(1, 50);
 
-  const [tab, setTab]         = useState<Tab>('cases');
-  const [callModalOpen, setCallModalOpen] = useState(false);
-  const exportWorksheet       = useExportWorksheet();
+  const [tab, setTab]               = useState<Tab>('cases');
+  const [callModalOpen, setCallModalOpen]     = useState(false);
+  const [feeModalOpen,  setFeeModalOpen]       = useState(false);
+  const exportWorksheet = useExportWorksheet();
+  const genPOA          = useGeneratePowerOfAttorney();
 
   if (isLoading) {
     return (
@@ -93,6 +200,24 @@ export function ClientCard() {
   const cases = (casesData as { items: Record<string, unknown>[] } | undefined)?.items ?? [];
   const allDocs = (docsData as { items: Record<string, unknown>[] } | undefined)?.items ?? [];
   const clientDocs = allDocs.filter((d) => d['clientId'] === clientId || d['client_id'] === clientId);
+
+  const typedCases = cases.map((cs) => ({
+    id:        cs['id'] as number,
+    titleHe:   String(cs['titleHe'] ?? ''),
+    caseNumber: String(cs['caseNumber'] ?? ''),
+  }));
+  const firstCaseId = typedCases[0]?.id ?? null;
+  const clientName  = c['nameHe'] as string;
+
+  const handleGenPOA = () => {
+    genPOA.mutate(
+      { clientId, ...(firstCaseId ? { caseId: firstCaseId } : {}) },
+      {
+        onSuccess: (blob) =>
+          triggerBlobDownload(blob, `ייפוי_כוח_${clientName.replace(/\s+/g, '_')}.docx`),
+      },
+    );
+  };
 
   return (
     <div className="space-y-5" dir="rtl">
@@ -148,13 +273,34 @@ export function ClientCard() {
           </div>
         </div>
 
-        <button
-          className="flex items-center gap-2 px-3 py-1.5 rounded border border-parchment/20
-                     text-parchment/60 hover:text-parchment hover:border-parchment/40 text-sm transition-colors"
-        >
-          <PencilSimpleIcon size={14} />
-          עריכה
-        </button>
+        <div className="flex flex-col gap-2 shrink-0">
+          <button
+            className="flex items-center gap-2 px-3 py-1.5 rounded border border-parchment/20
+                       text-parchment/60 hover:text-parchment hover:border-parchment/40 text-sm transition-colors"
+          >
+            <PencilSimpleIcon size={14} />
+            עריכה
+          </button>
+          <button
+            onClick={handleGenPOA}
+            disabled={genPOA.isPending}
+            className="flex items-center gap-2 px-3 py-1.5 rounded border border-parchment/20
+                       text-parchment/60 hover:text-parchment hover:border-parchment/40 text-xs transition-colors disabled:opacity-50"
+          >
+            {genPOA.isPending
+              ? <CircleNotchIcon size={12} className="animate-spin" />
+              : <FileDocIcon size={12} />}
+            ייפוי כוח
+          </button>
+          <button
+            onClick={() => setFeeModalOpen(true)}
+            className="flex items-center gap-2 px-3 py-1.5 rounded border border-parchment/20
+                       text-parchment/60 hover:text-parchment hover:border-parchment/40 text-xs transition-colors"
+          >
+            <FileDocIcon size={12} />
+            הסכם שכ"ט
+          </button>
+        </div>
       </div>
 
       {/* Tabs */}
@@ -269,6 +415,15 @@ export function ClientCard() {
 
       {tab === 'ledger' && (
         <LedgerPage clientId={clientId} />
+      )}
+
+      {feeModalOpen && (
+        <FeeAgreementModal
+          clientId={clientId}
+          clientName={clientName}
+          cases={typedCases}
+          onClose={() => setFeeModalOpen(false)}
+        />
       )}
 
       {tab === 'worksheet' && (

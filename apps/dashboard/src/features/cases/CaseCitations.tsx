@@ -1,6 +1,7 @@
-import { Link } from 'react-router-dom';
-import { ScalesIcon, LinkSimpleIcon } from '@phosphor-icons/react';
-import { useCaseCitations, type CitationGroup } from '@/api/hooks.js';
+import { Link, useNavigate } from 'react-router-dom';
+import { ScalesIcon, LinkSimpleIcon, PlusCircleIcon } from '@phosphor-icons/react';
+import { useCaseCitations, useAddToShelf, useCreateDraft, type CitationGroup } from '@/api/hooks.js';
+import { useUIStore } from '@/store/index.js';
 
 const STATUS_LABEL: Record<string, { label: string; color: string }> = {
   linked:     { label: 'מקושר',   color: '#7dd3fc' },
@@ -9,9 +10,34 @@ const STATUS_LABEL: Record<string, { label: string; color: string }> = {
 };
 
 function CitationCard({ g }: { g: CitationGroup }) {
+  const navigate    = useNavigate();
+  const addToShelf  = useAddToShelf();
+  const createDraft = useCreateDraft();
+  const { selectedDraftId, selectDraft } = useUIStore();
+
   const st = STATUS_LABEL[g.status] ?? STATUS_LABEL['unresolved']!;
   const firstSnippet = g.locations.find((l) => l.snippet)?.snippet ?? null;
   const firstDoc = g.locations.find((l) => l.documentId != null)?.documentId ?? null;
+
+  const handleSendToShelf = () => {
+    const doSend = (draftId: number) => {
+      addToShelf.mutate({
+        draftId,
+        shelfType: 'case',
+        title:     g.citation,
+        sourceRef: g.citation,
+        ...(firstSnippet ? { contentHe: firstSnippet } : {}),
+      });
+    };
+    if (selectedDraftId) {
+      doSend(selectedDraftId);
+    } else {
+      createDraft.mutate({ title: 'טיוטה חדשה' }, {
+        onSuccess: (d) => { selectDraft(d.id); doSend(d.id); navigate(`/drafting/${d.id}`); },
+      });
+    }
+  };
+
   return (
     <li className="bg-navy-100 border border-parchment/10 rounded-xl p-4 space-y-2">
       <div className="flex items-center gap-2 flex-wrap">
@@ -24,6 +50,13 @@ function CitationCard({ g }: { g: CitationGroup }) {
             בשימוש ב-{g.firmUsage} תיקים נוספים
           </span>
         )}
+        <button
+          onClick={handleSendToShelf}
+          className="mr-auto flex items-center gap-1 text-[11px] px-2 py-0.5 text-gold bg-gold/10 border border-gold/20 rounded hover:bg-gold/20 transition-colors"
+        >
+          <PlusCircleIcon size={10} />
+          שלח למדף
+        </button>
       </div>
       {firstSnippet && (
         <p className="text-parchment/50 text-xs leading-relaxed truncate" dir="rtl">…{firstSnippet}…</p>

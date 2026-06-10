@@ -76,17 +76,18 @@ export interface ClientCreateInput {
 }
 
 export interface CaseCreateInput {
-  caseNumber:    string;
-  caseType?:     CaseType;
-  titleHe:       string;
-  titleEn?:      string | null;
-  clientId:      number;
-  leadLawyerId?: number | null;
-  judgeId?:      number | null;
-  courtName?:    string | null;
-  openedDate?:   string | null;
-  status?:       CaseStatus;
-  notes?:        string | null;
+  caseNumber:     string;
+  caseType?:      CaseType;
+  procedureType?: string | null;
+  titleHe:        string;
+  titleEn?:       string | null;
+  clientId:       number;
+  leadLawyerId?:  number | null;
+  judgeId?:       number | null;
+  courtName?:     string | null;
+  openedDate?:    string | null;
+  status?:        CaseStatus;
+  notes?:         string | null;
 }
 
 // ─────────────────────────────────────────────

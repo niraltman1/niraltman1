@@ -9,7 +9,7 @@ import { parsePagination } from '../utils/pagination.js';
 import { validate } from '../middleware/validate.js';
 import { createCaseSchema } from '../validation/cases.js';
 import { NotFoundError, ValidationError } from '../errors/api-error.js';
-import { analyzeEvidenceGaps, getCaseCompleteness } from '@factum-il/litigation-intelligence';
+import { analyzeEvidenceGaps, getCaseCompleteness, seedProceduralChecklist } from '@factum-il/litigation-intelligence';
 import { assessCaseRisk } from '../utils/risk-summary.js';
 
 // Builds a minimal valid .docx (OOXML ZIP) using pizzip without needing a template file.
@@ -106,7 +106,17 @@ export function casesRouter(repos: Repos): Router {
   }));
 
   router.post('/', validate(createCaseSchema), asyncHandler((req, res) => {
-    const newCase = cases.create(req.body as Parameters<typeof cases.create>[0]);
+    const body = req.body as Parameters<typeof cases.create>[0];
+    const newCase = cases.create(body);
+
+    if (body.procedureType) {
+      try {
+        seedProceduralChecklist(newCase.id, body.procedureType, db as never);
+      } catch {
+        // Non-critical: case creation should not fail if checklist seeding fails.
+      }
+    }
+
     ok(res, { id: newCase.id }, 201);
   }));
 

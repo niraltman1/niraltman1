@@ -48,6 +48,7 @@ function buildTestDb(): Database.Database {
       id             INTEGER PRIMARY KEY AUTOINCREMENT,
       case_number    TEXT UNIQUE NOT NULL,
       case_type      TEXT NOT NULL DEFAULT 'civil',
+      procedure_type TEXT,
       title_he       TEXT NOT NULL,
       title_en       TEXT,
       client_id      INTEGER NOT NULL REFERENCES Clients(id) ON DELETE RESTRICT,

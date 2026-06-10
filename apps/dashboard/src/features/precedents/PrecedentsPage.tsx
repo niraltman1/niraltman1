@@ -1,18 +1,14 @@
 import { useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import {
-  GavelIcon, CircleNotchIcon, CaretDownIcon, CaretUpIcon, PlusIcon,
+  GavelIcon, CircleNotchIcon, CaretDownIcon, CaretUpIcon, PlusIcon, PlusCircleIcon,
 } from '@phosphor-icons/react';
 import {
-  usePrecedents, useVerifyPrecedent, useCreatePrecedent,
+  usePrecedents, useVerifyPrecedent, useCreatePrecedent, useAddToShelf, useCreateDraft,
   type PrecedentRecord, type PrecedentAnalysis,
 } from '@/api/hooks.js';
-
-function ConfidenceBadge({ value }: { value: number | null }) {
-  if (value == null) return null;
-  const pct = Math.round(value * 100);
-  const cls = pct >= 75 ? 'badge-success' : pct >= 50 ? 'badge-warning' : 'badge-error';
-  return <span className={`badge ${cls}`}>{pct}%</span>;
-}
+import { useUIStore } from '@/store/index.js';
+import { ConfidenceBadge } from '@/components/common/SharedComponents.js';
 
 function AnalysisPanel({ analysis }: { analysis: PrecedentAnalysis }) {
   return (
@@ -47,14 +43,38 @@ function AnalysisPanel({ analysis }: { analysis: PrecedentAnalysis }) {
 }
 
 function PrecedentCard({ precedent }: { precedent: PrecedentRecord }) {
+  const navigate    = useNavigate();
   const [expanded, setExpanded]   = useState(false);
   const [analysis, setAnalysis]   = useState<PrecedentAnalysis | null>(null);
-  const verify                    = useVerifyPrecedent();
+  const verify      = useVerifyPrecedent();
+  const addToShelf  = useAddToShelf();
+  const createDraft = useCreateDraft();
+  const { selectedDraftId, selectDraft } = useUIStore();
 
   const handleVerify = () => {
     verify.mutate(precedent.id, {
       onSuccess: (data) => { setAnalysis(data); setExpanded(true); },
     });
+  };
+
+  const handleSendToShelf = () => {
+    const doSend = (draftId: number) => {
+      addToShelf.mutate({
+        draftId,
+        shelfType:  'precedent',
+        title:      precedent.citation,
+        entityId:   precedent.id,
+        entityType: 'precedent',
+        ...(precedent.summary_he ? { contentHe: precedent.summary_he } : {}),
+      });
+    };
+    if (selectedDraftId) {
+      doSend(selectedDraftId);
+    } else {
+      createDraft.mutate({ title: 'טיוטה חדשה' }, {
+        onSuccess: (d) => { selectDraft(d.id); doSend(d.id); navigate(`/drafting/${d.id}`); },
+      });
+    }
   };
 
   return (
@@ -82,6 +102,13 @@ function PrecedentCard({ precedent }: { precedent: PrecedentRecord }) {
 
         <div className="flex items-center gap-2 shrink-0">
           <button
+            onClick={handleSendToShelf}
+            className="flex items-center gap-1 text-[11px] px-2 py-1 text-gold bg-gold/10 border border-gold/20 rounded hover:bg-gold/20 transition-colors"
+          >
+            <PlusCircleIcon size={11} />
+            שלח למדף
+          </button>
+          <button
             onClick={handleVerify}
             disabled={verify.isPending}
             className="flex items-center gap-1.5 px-3 py-1.5 text-xs bg-gold/10 text-gold border border-gold/30
@@ -90,7 +117,7 @@ function PrecedentCard({ precedent }: { precedent: PrecedentRecord }) {
             {verify.isPending
               ? <CircleNotchIcon size={12} className="animate-spin" />
               : <GavelIcon size={12} />}
-            {verify.isPending ? 'מאמת...' : 'אמת התאמה ועובדות'}
+            {verify.isPending ? 'מאמת...' : 'אמת'}
           </button>
           {analysis && (
             <button

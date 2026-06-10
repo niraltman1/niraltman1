@@ -1,8 +1,9 @@
 import { useState, useMemo, useEffect } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
-import { MagnifyingGlassIcon, SpinnerGapIcon, WarningCircleIcon } from '@phosphor-icons/react';
-import { useSearch } from '@/api/hooks.js';
+import { MagnifyingGlassIcon, SpinnerGapIcon, WarningCircleIcon, PlusCircleIcon } from '@phosphor-icons/react';
+import { useSearch, useAddToShelf, useCreateDraft } from '@/api/hooks.js';
 import type { SearchHit } from '@/api/hooks.js';
+import { useUIStore } from '@/store/index.js';
 import {
   ENTITY_META,
   type SearchEntityType,
@@ -10,23 +11,30 @@ import {
   resultSub,
   groupHits,
   countByType,
+  canSendToShelf,
   Highlight,
 } from './shared.js';
 
 type Filter = 'all' | SearchEntityType;
 
 const FILTER_TABS: { key: Filter; label: string }[] = [
-  { key: 'all',      label: 'הכל'    },
-  { key: 'client',   label: 'לקוחות' },
-  { key: 'case',     label: 'תיקים'  },
-  { key: 'document', label: 'מסמכים' },
+  { key: 'all',         label: 'הכל'     },
+  { key: 'client',      label: 'לקוחות'  },
+  { key: 'case',        label: 'תיקים'   },
+  { key: 'document',    label: 'מסמכים'  },
+  { key: 'legislation', label: 'חקיקה'   },
+  { key: 'draft',       label: 'טיוטות'  },
+  { key: 'precedent',   label: 'תקדימים' },
 ];
 
 export function SearchPage() {
-  const navigate = useNavigate();
+  const navigate     = useNavigate();
   const [params, setParams] = useSearchParams();
-  const [query, setQuery] = useState(params.get('q') ?? '');
+  const [query, setQuery]   = useState(params.get('q') ?? '');
   const [filter, setFilter] = useState<Filter>('all');
+  const { selectedDraftId, selectDraft } = useUIStore();
+  const addToShelf  = useAddToShelf();
+  const createDraft = useCreateDraft();
 
   // Keep the URL ?q= in sync so searches are shareable / back-navigable.
   useEffect(() => {
@@ -135,11 +143,37 @@ export function SearchPage() {
                   <span className="text-parchment/25 text-[11px]">{group.items.length}</span>
                 </div>
                 <ul className="space-y-1.5">
-                  {group.items.map((hit) => (
-                    <li key={`${hit.entityType}-${hit.id}`}>
-                      <ResultCard hit={hit} query={trimmed} onClick={() => navigate(resultHref(hit))} />
-                    </li>
-                  ))}
+                  {group.items.map((hit) => {
+                    const shelfHandler = canSendToShelf(hit.entityType) ? () => {
+                      const doSend = (draftId: number) => {
+                        addToShelf.mutate({
+                          draftId,
+                          shelfType: hit.entityType === 'legislation' ? 'legislation'
+                                   : hit.entityType === 'precedent'   ? 'precedent'
+                                   : 'document',
+                          title: hit.title,
+                          ...(hit.snippet ? { contentHe: hit.snippet } : {}),
+                        });
+                      };
+                      if (selectedDraftId) {
+                        doSend(selectedDraftId);
+                      } else {
+                        createDraft.mutate({ title: 'טיוטה חדשה' }, {
+                          onSuccess: (d) => { selectDraft(d.id); doSend(d.id); navigate(`/drafting/${d.id}`); },
+                        });
+                      }
+                    } : undefined;
+                    return (
+                      <li key={`${hit.entityType}-${hit.id}`}>
+                        <ResultCard
+                          hit={hit}
+                          query={trimmed}
+                          onClick={() => navigate(resultHref(hit))}
+                          {...(shelfHandler ? { onSendToShelf: shelfHandler } : {})}
+                        />
+                      </li>
+                    );
+                  })}
                 </ul>
               </section>
             );
@@ -163,30 +197,38 @@ function EmptyHint({ icon, text }: { icon: 'search' | 'spinner'; text: string })
   );
 }
 
-function ResultCard({ hit, query, onClick }: { hit: SearchHit; query: string; onClick: () => void }) {
+function ResultCard({ hit, query, onClick, onSendToShelf }: { hit: SearchHit; query: string; onClick: () => void; onSendToShelf?: () => void }) {
   const meta = ENTITY_META[hit.entityType];
   const { Icon } = meta;
   const sub = resultSub(hit);
   return (
-    <button
-      onClick={onClick}
-      className="w-full text-right flex items-start gap-3 bg-navy-100 border border-parchment/10
-                 rounded-lg px-4 py-3 hover:border-gold/40 hover:bg-navy-100/70 transition-colors"
-    >
-      <Icon size={18} className={`${meta.accent} shrink-0 mt-0.5`} weight="duotone" />
-      <div className="flex-1 min-w-0">
-        <div className="flex items-center gap-2">
-          <span className="text-parchment text-sm font-medium truncate">
-            <Highlight text={hit.title} query={query} />
-          </span>
-          <span className={meta.badgeCls}>{meta.badge}</span>
+    <div className="w-full text-right flex items-start gap-3 bg-navy-100 border border-parchment/10 rounded-lg px-4 py-3 hover:border-gold/40 hover:bg-navy-100/70 transition-colors">
+      <button onClick={onClick} className="flex-1 flex items-start gap-3 text-right min-w-0">
+        <Icon size={18} className={`${meta.accent} shrink-0 mt-0.5`} weight="duotone" />
+        <div className="flex-1 min-w-0">
+          <div className="flex items-center gap-2">
+            <span className="text-parchment text-sm font-medium truncate">
+              <Highlight text={hit.title} query={query} />
+            </span>
+            <span className={meta.badgeCls}>{meta.badge}</span>
+          </div>
+          {sub && (
+            <p className="text-parchment/40 text-xs mt-0.5 truncate" dir="rtl">
+              <Highlight text={sub} query={query} />
+            </p>
+          )}
         </div>
-        {sub && (
-          <p className="text-parchment/40 text-xs mt-0.5 truncate" dir="rtl">
-            <Highlight text={sub} query={query} />
-          </p>
-        )}
-      </div>
-    </button>
+      </button>
+      {onSendToShelf && (
+        <button
+          onClick={(e) => { e.stopPropagation(); onSendToShelf(); }}
+          className="shrink-0 flex items-center gap-1 text-[11px] px-2 py-1 text-gold bg-gold/10 border border-gold/20 rounded hover:bg-gold/20 transition-colors mt-0.5"
+          title="שלח למדף"
+        >
+          <PlusCircleIcon size={11} />
+          מדף
+        </button>
+      )}
+    </div>
   );
 }

@@ -8,6 +8,7 @@ import {
   GraduationCapIcon,
   GearIcon, HardDriveIcon, ChartLineIcon, NotebookIcon, LockKeyIcon,
   CloudArrowUpIcon, ShieldWarningIcon,
+  MagnifyingGlassIcon, BookOpenIcon, CurrencyCircleDollarIcon,
 } from '@phosphor-icons/react';
 import type { Icon } from '@phosphor-icons/react';
 
@@ -36,11 +37,14 @@ export const NAV_GROUPS: NavGroup[] = [
   {
     id: 'work', label: 'עבודה שוטפת', Icon: SquaresFourIcon, defaultOpen: true,
     items: [
-      { to: '/dashboard', label: 'לוח בקרה', Icon: GaugeIcon },
-      { to: '/calendar',  label: 'יומן',     Icon: CalendarIcon },
+      { to: '/dashboard', label: 'לוח בקרה',    Icon: GaugeIcon },
+      { to: '/search',    label: 'חיפוש',        Icon: MagnifyingGlassIcon },
+      { to: '/drafting',  label: 'טיוטות',       Icon: FileTextIcon },
+      { to: '/calendar',  label: 'יומן',         Icon: CalendarIcon },
       { to: '/deadlines', label: 'ראדאר מועדים', Icon: WarningIcon },
-      { to: '/tasks',     label: 'משימות',   Icon: CheckSquareIcon },
-      { to: '/activity',  label: 'פעילות',   Icon: PulseIcon },
+      { to: '/tasks',     label: 'משימות',       Icon: CheckSquareIcon },
+      { to: '/ledger',    label: 'פנקס תשלומים', Icon: CurrencyCircleDollarIcon },
+      { to: '/activity',  label: 'פעילות',       Icon: PulseIcon },
     ],
   },
   {
@@ -67,12 +71,14 @@ export const NAV_GROUPS: NavGroup[] = [
   {
     id: 'legal', label: 'מנוע משפטי', Icon: ScalesIcon, defaultOpen: false,
     items: [
-      { to: '/templates',  label: 'תבניות הליך',   Icon: StackIcon },
-      { to: '/rules',      label: 'כללי סדרי דין',  Icon: GavelIcon },
-      { to: '/stens',      label: 'טפסים (Stens)', Icon: NoteIcon },
-      { to: '/precedents',        label: 'תקדימים',          Icon: GavelIcon },
-      { to: '/judgment-library', label: 'ספריית פסקי דין',  Icon: GavelIcon },
-      { to: '/entities',   label: 'ישויות',         Icon: AddressBookIcon },
+      { to: '/templates',        label: 'תבניות הליך',    Icon: StackIcon },
+      { to: '/rules',            label: 'כללי סדרי דין',  Icon: GavelIcon },
+      { to: '/stens',            label: 'טפסים (Stens)', Icon: NoteIcon },
+      { to: '/precedents',       label: 'תקדימים',        Icon: GavelIcon },
+      { to: '/judgment-library', label: 'ספריית פסקי דין', Icon: GavelIcon },
+      { to: '/legal-corpus',     label: 'מאגר חקיקה',    Icon: BookOpenIcon },
+      { to: '/insolvency',       label: 'הליכי חדלות',   Icon: ScalesIcon },
+      { to: '/entities',         label: 'ישויות',         Icon: AddressBookIcon },
     ],
   },
   {

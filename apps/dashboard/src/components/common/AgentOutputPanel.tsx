@@ -1,5 +1,8 @@
 import { useState } from 'react';
-import { RobotIcon, WarningIcon, CaretDownIcon, CaretUpIcon, WrenchIcon } from '@phosphor-icons/react';
+import { useNavigate } from 'react-router-dom';
+import { RobotIcon, WarningIcon, CaretDownIcon, CaretUpIcon, WrenchIcon, PlusCircleIcon } from '@phosphor-icons/react';
+import { useAddToShelf, useCreateDraft } from '@/api/hooks.js';
+import { useUIStore } from '@/store/index.js';
 
 interface ToolResult {
   toolName:  string;
@@ -53,6 +56,29 @@ function ConfBar({ value }: { value: number }) {
 
 export function AgentOutputPanel({ output, loading, agentLabel }: Props) {
   const [toolsOpen, setToolsOpen] = useState(false);
+  const navigate    = useNavigate();
+  const addToShelf  = useAddToShelf();
+  const createDraft = useCreateDraft();
+  const { selectedDraftId, selectDraft } = useUIStore();
+
+  const handleSendToShelf = () => {
+    if (!output) return;
+    const doSend = (draftId: number) => {
+      addToShelf.mutate({
+        draftId,
+        shelfType: 'ai_output',
+        title:     `${agentLabel} — פלט AI`,
+        contentHe: output.result.slice(0, 2000),
+      });
+    };
+    if (selectedDraftId) {
+      doSend(selectedDraftId);
+    } else {
+      createDraft.mutate({ title: 'טיוטה חדשה' }, {
+        onSuccess: (d) => { selectDraft(d.id); doSend(d.id); navigate(`/drafting/${d.id}`); },
+      });
+    }
+  };
 
   if (loading) {
     return (
@@ -134,6 +160,13 @@ export function AgentOutputPanel({ output, loading, agentLabel }: Props) {
           <span className="text-parchment/30 text-[10px] font-mono">
             {output.durationMs}ms · {output.traceId.slice(0, 8)}
           </span>
+          <button
+            onClick={handleSendToShelf}
+            className="flex items-center gap-1 text-[11px] px-2 py-1 text-gold bg-gold/10 border border-gold/20 rounded hover:bg-gold/20 transition-colors"
+          >
+            <PlusCircleIcon size={11} />
+            שלח למדף
+          </button>
         </div>
       </div>
     </div>

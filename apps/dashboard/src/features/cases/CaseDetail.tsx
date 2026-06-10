@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import {
   GavelIcon, UserIcon, CalendarIcon, ArrowRightIcon, SquaresFourIcon,
-  UsersIcon, FileTextIcon, RobotIcon, PulseIcon,
+  UsersIcon, FileTextIcon, RobotIcon, PulseIcon, ClockIcon,
   WarningCircleIcon, CheckCircleIcon, CaretDownIcon, CaretUpIcon, ShieldCheckIcon,
 } from '@phosphor-icons/react';
 import { useCase, useCaseContacts, useDocuments, useCaseInsights, useCaseActivity, useAgentSummarize, useAgentTimeline, useAgentDiscovery } from '@/api/hooks.js';
@@ -11,20 +11,8 @@ import { AgentOutputPanel } from '@/components/common/AgentOutputPanel.js';
 import { CaseRiskPanel } from './CaseRiskPanel.js';
 import { CaseTimeline } from './CaseTimeline.js';
 import { CaseCitations } from './CaseCitations.js';
-
-const STATUS_LABELS: Record<string, string> = {
-  open:      'פתוח',
-  closed:    'סגור',
-  suspended: 'מושהה',
-  archived:  'ארכיון',
-};
-
-const PROC_LABELS: Record<string, string> = {
-  civil:                  'אזרחי',
-  traffic_administrative: 'תעבורה - מנהלי',
-  traffic_criminal:       'תעבורה - פלילי',
-  academic:               'אקדמי',
-};
+import { procedureTypeLabel, CASE_STATUS_LABELS as STATUS_LABELS } from '@/lib/legal-terms.js';
+import { CaseTimeEntries } from './CaseTimeEntries.js';
 
 const STATUS_CLS: Record<string, string> = {
   open:      'badge badge-gold',
@@ -33,7 +21,7 @@ const STATUS_CLS: Record<string, string> = {
   archived:  'badge badge-neutral',
 };
 
-type Tab = 'documents' | 'timeline' | 'contacts' | 'insights' | 'citations' | 'activity';
+type Tab = 'documents' | 'timeline' | 'contacts' | 'insights' | 'citations' | 'billing' | 'activity';
 
 export function CaseDetail() {
   const { id } = useParams<{ id: string }>();
@@ -109,7 +97,7 @@ export function CaseDetail() {
           <div className="flex items-center gap-2">
             {procedureType && (
               <span className="badge badge-neutral text-xs">
-                {PROC_LABELS[procedureType] ?? procedureType}
+                {procedureTypeLabel(procedureType)}
               </span>
             )}
             <Link
@@ -163,6 +151,7 @@ export function CaseDetail() {
           { key: 'contacts'  as Tab, label: 'אנשי קשר', Icon: UsersIcon },
           { key: 'insights'  as Tab, label: 'תובנות AI', Icon: RobotIcon },
           { key: 'citations' as Tab, label: 'אסמכתאות', Icon: GavelIcon },
+          { key: 'billing'   as Tab, label: 'רישומי זמן', Icon: ClockIcon },
           { key: 'activity'  as Tab, label: 'פעילות',    Icon: PulseIcon },
         ] as const).map(({ key, label, Icon }) => (
           <button
@@ -207,6 +196,8 @@ export function CaseDetail() {
       {tab === 'timeline' && <CaseTimeline caseId={caseId} />}
 
       {tab === 'citations' && <CaseCitations caseId={caseId} />}
+
+      {tab === 'billing' && <CaseTimeEntries caseId={caseId} />}
 
       {tab === 'contacts' && (
         <ul className="space-y-2">

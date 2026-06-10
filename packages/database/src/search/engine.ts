@@ -6,7 +6,7 @@ const CACHE_TTL_MS = 60_000;
 
 export interface SearchOptions {
   readonly limit?:    number;
-  readonly entities?: Array<'documents' | 'clients' | 'cases'>;
+  readonly entities?: Array<'documents' | 'clients' | 'cases' | 'legislation' | 'drafts' | 'precedents'>;
   readonly filter?: {
     readonly documentType?:    string;
     readonly processingState?: string;
@@ -24,7 +24,7 @@ export interface SearchOptions {
 }
 
 export interface SearchHit {
-  readonly entityType: 'document' | 'client' | 'case';
+  readonly entityType: 'document' | 'client' | 'case' | 'legislation' | 'draft' | 'precedent';
   readonly id:         number;
   readonly rank:       number;
   readonly snippet:    string;
@@ -69,7 +69,7 @@ export class SearchEngine {
     if (cached) return cached;
 
     const limit    = opts.limit ?? 50;
-    const entities = opts.entities ?? ['documents', 'clients', 'cases'];
+    const entities = opts.entities ?? ['documents', 'clients', 'cases', 'legislation', 'drafts', 'precedents'];
     const hits: SearchHit[] = [];
 
     // Build prefix-stripped + synonym-expanded FTS query
@@ -86,6 +86,15 @@ export class SearchEngine {
     }
     if (entities.includes('documents')) {
       hits.push(...this.searchDocuments(ftsQuery, limit, opts.boosts?.recentDays, docIdFilter));
+    }
+    if (entities.includes('legislation')) {
+      hits.push(...this.searchLegislation(ftsQuery, limit));
+    }
+    if (entities.includes('drafts')) {
+      hits.push(...this.searchDrafts(ftsQuery, limit));
+    }
+    if (entities.includes('precedents')) {
+      hits.push(...this.searchPrecedents(ftsQuery, limit));
     }
 
     const seen = new Set<string>();
@@ -285,6 +294,75 @@ export class SearchEngine {
         rank:       Number(r['adj_rank'] ?? 0) + 2.0,
         snippet:    String(r['case_number'] ?? ''),
         title:      `${r['case_number'] ?? ''} – ${r['title_he'] ?? ''}`,
+      }));
+    } catch {
+      return [];
+    }
+  }
+
+  private searchLegislation(ftsQuery: string, limit: number): SearchHit[] {
+    try {
+      const rows = this.db.prepare(`
+        SELECT ls.id, ls.heading_he, ls.verbatim_text_he, ABS(fts.rank) AS adj_rank,
+               src.short_name
+          FROM fts_legal_sections fts
+          JOIN LegalSections ls  ON ls.id = fts.rowid
+          JOIN LegalSources  src ON src.id = ls.source_id
+         WHERE fts_legal_sections MATCH ?
+           AND src.is_active = 1
+         ORDER BY adj_rank DESC
+         LIMIT ?
+      `).all(ftsQuery, limit) as Record<string, unknown>[];
+      return rows.map((r) => ({
+        entityType: 'legislation' as const,
+        id:         Number(r['id']),
+        rank:       Number(r['adj_rank'] ?? 0),
+        snippet:    String(r['verbatim_text_he'] ?? '').slice(0, 200),
+        title:      `${r['short_name'] ?? ''} · ${r['heading_he'] ?? ''}`,
+      }));
+    } catch {
+      return [];
+    }
+  }
+
+  private searchDrafts(ftsQuery: string, limit: number): SearchHit[] {
+    try {
+      const rows = this.db.prepare(`
+        SELECT d.id, d.title, d.content_html, d.updated_at
+          FROM LegalDrafts d
+         WHERE d.is_active = 1
+           AND (d.title LIKE '%' || ? || '%' OR d.content_html LIKE '%' || ? || '%')
+         ORDER BY d.updated_at DESC
+         LIMIT ?
+      `).all(ftsQuery.replace(/"/g, '').replace(/\*/g, ''), ftsQuery.replace(/"/g, '').replace(/\*/g, ''), limit) as Record<string, unknown>[];
+      return rows.map((r) => ({
+        entityType: 'draft' as const,
+        id:         Number(r['id']),
+        rank:       0.5,
+        snippet:    String(r['title'] ?? ''),
+        title:      String(r['title'] ?? ''),
+      }));
+    } catch {
+      return [];
+    }
+  }
+
+  private searchPrecedents(ftsQuery: string, limit: number): SearchHit[] {
+    try {
+      const rows = this.db.prepare(`
+        SELECT id, citation, summary_he, ABS(rank) AS adj_rank
+          FROM legal_precedents
+         WHERE citation LIKE '%' || ? || '%'
+            OR summary_he LIKE '%' || ? || '%'
+         ORDER BY adj_rank ASC
+         LIMIT ?
+      `).all(ftsQuery.replace(/"/g, '').replace(/\*/g, ''), ftsQuery.replace(/"/g, '').replace(/\*/g, ''), limit) as Record<string, unknown>[];
+      return rows.map((r) => ({
+        entityType: 'precedent' as const,
+        id:         Number(r['id']),
+        rank:       1.0,
+        snippet:    String(r['summary_he'] ?? '').slice(0, 200),
+        title:      String(r['citation'] ?? ''),
       }));
     } catch {
       return [];
