@@ -56,6 +56,7 @@ import type { Repos } from './db.js';
 import { startRagWorker, stopRagWorker } from './utils/rag-worker.js';
 import { startBackupScheduler, stopBackupScheduler } from './utils/backup-scheduler.js';
 import { startContentUpdateScheduler, stopContentUpdateScheduler } from './modules/updates/update-scheduler.js';
+import { UpdateStateStore, runPostUpdateHealthCheck } from '@factum-il/update-core';
 import { startInsolvencyNudgeScheduler, stopInsolvencyNudgeScheduler } from './utils/insolvency-nudge-scheduler.js';
 import { startRetentionScheduler, stopRetentionScheduler } from './utils/retention-scheduler.js';
 import { startDeadlineTracker, stopDeadlineTracker } from './utils/deadline-tracker-scheduler.js';
@@ -140,6 +141,27 @@ const db = new DatabaseConnection({ path: DB_PATH });
 _earlyDb = db; // crash handlers can now write to SystemEvents
 new MigrationRunner(db, MIGRATIONS_DIR).run();
 ensureAutoVacuum(db);
+
+// Post-update health check: if the app just restarted after an OTA update
+// (state.updateInProgress === true), verify DB integrity and required tables.
+// On failure, auto-restores the pre-update snapshot and exits so the rollback
+// installer can take over (CT2 self-healing per CLAUDE.md "AI steps must fail gracefully").
+{
+  const DATA_PATH = process.env['FACTUM_IL_DATA_PATH']
+    ?? join(dirname(fileURLToPath(import.meta.url)), '..', '..', '..', '..');
+  const updateStateStore = new UpdateStateStore(DATA_PATH);
+  const healthResult = await runPostUpdateHealthCheck(updateStateStore, db, DB_PATH);
+  if (healthResult.wasApplied) {
+    if (!healthResult.healthy) {
+      logger.error('[startup] Post-update health check failed — rollback triggered', {
+        category: 'startup', failures: healthResult.failures,
+        rollbackRestored:         healthResult.rollbackResult?.restored ?? false,
+        rollbackInstallerLaunched: healthResult.rollbackResult?.installerLaunched ?? false,
+      });
+      process.exit(1);  // installer will restart the app on the previous version
+    }
+  }
+}
 
 // Non-blocking notice if vec_chunks backfill may be needed
 try {

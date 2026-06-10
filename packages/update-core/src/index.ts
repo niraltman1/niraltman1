@@ -16,6 +16,8 @@ export { UpdateDownloader }      from './UpdateDownloader.js';
 export type { DownloadProgress } from './UpdateDownloader.js';
 export { restoreFromRollback }   from './UpdateRollback.js';
 export type { RollbackResult }   from './UpdateRollback.js';
+export { runPostUpdateHealthCheck } from './PostUpdateHealthCheck.js';
+export type { PostUpdateHealthResult } from './PostUpdateHealthCheck.js';
 
 export {
   cleanOrphanedFiles,
