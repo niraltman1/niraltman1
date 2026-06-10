@@ -3,7 +3,7 @@ import { useParams, Link } from 'react-router-dom';
 import {
   FileTextIcon, ArrowRightIcon, CheckCircleIcon,
   WarningCircleIcon, RobotIcon, CalendarIcon, SquaresFourIcon,
-  ShieldCheckIcon, PencilSimpleIcon,
+  ShieldCheckIcon,
 } from '@phosphor-icons/react';
 import { useDocument, useDocumentInsights, useVerifyInsight, useEditInsight, useAgentContractReview } from '@/api/hooks.js';
 import type { AgentOutput, InsightEditFields } from '@/api/hooks.js';
