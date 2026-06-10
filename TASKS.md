@@ -1,5 +1,37 @@
 # Factum-IL — Task Tracker
 
+## 🗓️ Session handoff — beta-readiness Phase 4/F-G (2026-06-10 המשך)
+
+### הושלם הפעם (המשך אותה פגישה)
+
+#### Phase 4 — Communications
+- ✅ **C7** — חשיפת `ai_urgency`/`ai_tags` מ-`CommMessages` דרך כל ה-stack (DB → API → hooks → UI); תגית `דחוף` + pills של תגיות AI על הודעות נכנסות ב-`MessageBubble`
+- ✅ **C8** — `POST /api/communications/unknown/:id/convert`: יצירת לקוח חדש או קישור לקיים, חיבור `CommContactIdentities`, סימון resolved, audit. 5 בדיקות route חדשות (22 סה"כ). טופס המרה inline לכל שורה ב-`CommunicationsInboxPage`. hook `useConvertUnknownSender`.
+- 📝 **C2 (WhatsApp)** — חסום-סביבה (דורש whatsapp-web.js + WebView2/Edge מקומי); מתועד כהגבלת-beta
+
+#### Phase 5 — Quality hardening
+- ✅ dashboard tests: 14 קבצים / 62 בדיקות (מ-4 קבצים לפני)
+
+#### F-F
+- ✅ `AiApprovalBar` (אשר/דחה/עריכה) משותף — `WorkbenchInsights`, `DocumentDetail`, `AgentOutputPanel`
+
+#### F-G
+- ✅ Route-level lazy-loading: כבר מיושם מלא ב-`lz()` helper בכל ה-routes
+- ✅ Print stylesheet: `@media print` ב-`globals.css` — מסתיר sidebar/header/footer/controls, רקע לבן, RTL תקין
+- ✅ Skip link a11y: `<a class="skip-link">` ב-AppShell מחובר ל-`#main-content`; `aria-label` על כפתור Spotlight; `data-no-print` על header/footer
+
+#### Phase 6 — Release pipeline
+- ✅ `build-installer.yml`: תיקון path
+- ✅ `publish.ps1`: corpus batch download
+- ⚠️ **Trigger נדרש ידנית**: האינטגרציה ה-MCP אינה מורשית ל-`workflow_dispatch`. יש להפעיל ידנית:
+  - GitHub Actions → "Build Beta Installer" → Run workflow → `main` → version `1.0-beta.1`
+  - כאשר ירוק: push tag `v1.0.0-beta.1` → prerelease אוטומטי עם `Factum-IL-Setup.exe`
+
+### PR פתוח
+- **PR #74** `claude/factum-il-beta-readiness-fzz4ky` — C7 + C8 + F-G — CI ריצה; pending merge
+
+---
+
 ## 🗓️ Session handoff — beta-readiness Phase 1-2-6 (2026-06-10)
 
 ### Migration ledger (after this session)
