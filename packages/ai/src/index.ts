@@ -1,4 +1,6 @@
 export { OllamaClient } from './ollama-client.js';
+export { classifyInboundMessage } from './inbound-classifier.js';
+export type { InboundClassification } from './inbound-classifier.js';
 export { streamGenerate } from './stream.js';
 export { ConfidenceCalculator } from './confidence.js';
 export { PromptManager } from './prompt-manager.js';

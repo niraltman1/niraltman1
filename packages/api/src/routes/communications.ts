@@ -13,6 +13,7 @@ import { transcribeCommMessage, transcribeAudioData, TranscriptionUnavailableErr
 import { TelegramClient } from '../modules/telegram/telegram-client.js';
 import { handleTelegramUpdate, getTelegramToken, type TelegramUpdate } from '../modules/telegram/telegram-inbound.js';
 import { sendTelegramText } from '../modules/telegram/telegram-outbound.js';
+import { classifyInboundMessage } from '@factum-il/ai';
 
 const CHANNELS: CommChannel[] = ['telegram', 'whatsapp', 'email', 'phone'];
 const STATUSES: ConversationStatus[] = ['open', 'closed', 'triage'];
@@ -483,6 +484,17 @@ export function communicationsRouter(repos: Repos): Router {
     const result = handleTelegramUpdate(repos, req.body as TelegramUpdate);
     // Always 200 so Telegram does not retry indefinitely on non-routable updates.
     ok(res, { handled: result !== null, ...(result ? { routing: result } : {}) });
+
+    // Fire-and-forget AI classification — never delays the webhook response.
+    // Graceful per CLAUDE.md: if Ollama is down classifyInboundMessage returns null silently.
+    const msgBody = (req.body as TelegramUpdate).message?.text ?? (req.body as TelegramUpdate).message?.caption;
+    if (result?.messageId && msgBody) {
+      void classifyInboundMessage(msgBody).then((classification) => {
+        if (classification) {
+          repos.communications.setAITags(result.messageId!, classification.urgency, classification.tags);
+        }
+      }).catch(() => { /* never surfaces to the client */ });
+    }
   }));
 
   // Register the webhook URL with Telegram (admin).
