@@ -10,18 +10,50 @@ import { NotificationBell } from '@/components/notifications/NotificationBell.js
 
 export function AppShell() {
   useSpotlightShortcut();
-  const { spotlight, closeSpotlight } = useUIStore();
+  const { spotlight, closeSpotlight, openSpotlight } = useUIStore();
 
   return (
     <div className="flex h-screen overflow-hidden fx-surface" dir="rtl">
       <Sidebar />
 
       <main className="flex-1 overflow-auto flex flex-col min-w-0">
-        {/* Slim top bar — notification inbox bell (§4.1.3) */}
+        {/* Slim top bar — date · spotlight hint · notification bell */}
         <header
-          className="flex items-center px-4 shrink-0"
+          className="flex items-center justify-between px-4 shrink-0"
           style={{ height: 44, borderBottom: '1px solid var(--hairline)' }}
         >
+          <div className="flex items-center gap-4">
+            <span
+              style={{
+                fontFamily: 'var(--f-mono)',
+                fontSize: 10,
+                color: 'var(--fg-4)',
+                letterSpacing: '0.08em',
+                userSelect: 'none',
+              }}
+              dir="rtl"
+            >
+              {new Date().toLocaleDateString('he-IL', { weekday: 'short', day: 'numeric', month: 'short' })}
+            </span>
+            <button
+              type="button"
+              onClick={openSpotlight}
+              style={{
+                fontFamily: 'var(--f-mono)',
+                fontSize: 10,
+                color: 'var(--fg-4)',
+                letterSpacing: '0.08em',
+                background: 'none',
+                border: 'none',
+                cursor: 'pointer',
+                padding: 0,
+              }}
+              onMouseEnter={(e) => { (e.currentTarget as HTMLElement).style.color = 'var(--brand-gold)'; }}
+              onMouseLeave={(e) => { (e.currentTarget as HTMLElement).style.color = 'var(--fg-4)'; }}
+            >
+              ⌘K · חיפוש
+            </button>
+          </div>
           <NotificationBell />
         </header>
         <UpdateNotificationBanner />
