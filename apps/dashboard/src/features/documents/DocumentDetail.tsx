@@ -3,12 +3,13 @@ import { useParams, Link } from 'react-router-dom';
 import {
   FileTextIcon, ArrowRightIcon, CheckCircleIcon,
   WarningCircleIcon, RobotIcon, CalendarIcon, SquaresFourIcon,
-  ThumbsUpIcon, ThumbsDownIcon, ShieldCheckIcon, PencilSimpleIcon,
+  ShieldCheckIcon, PencilSimpleIcon,
 } from '@phosphor-icons/react';
 import { useDocument, useDocumentInsights, useVerifyInsight, useEditInsight, useAgentContractReview } from '@/api/hooks.js';
 import type { AgentOutput, InsightEditFields } from '@/api/hooks.js';
 import { DocumentSigningPanel } from './DocumentSigningPanel.js';
 import { AgentOutputPanel } from '@/components/common/AgentOutputPanel.js';
+import { AiApprovalBar } from '@/components/common/AiApprovalBar.js';
 
 const PROC_STATE_LABELS: Record<string, { label: string; cls: string }> = {
   DISCOVERED:     { label: 'התגלה',    cls: 'badge badge-neutral' },
@@ -278,26 +279,14 @@ export function DocumentDetail() {
         )}
 
         {/* Verify + edit actions */}
-        {!editing && insights?.id != null && insights.verification_state !== 'approved' && insights.verification_state !== 'rejected' && (
-          <div className="flex gap-2 pt-2 border-t border-parchment/10">
-            <button
-              disabled={verifyInsight.isPending}
-              onClick={() => verifyInsight.mutate({ insightId: insights.id!, state: 'approved' })}
-              className="flex items-center gap-1.5 px-3 py-1.5 text-xs text-green-400 border border-green-400/20 rounded-lg hover:bg-green-400/10 transition-colors disabled:opacity-40"
-            >
-              <ThumbsUpIcon size={12} />
-              אשר
-            </button>
-            <button
-              disabled={verifyInsight.isPending}
-              onClick={() => verifyInsight.mutate({ insightId: insights.id!, state: 'rejected' })}
-              className="flex items-center gap-1.5 px-3 py-1.5 text-xs text-red-400 border border-red-400/20 rounded-lg hover:bg-red-400/10 transition-colors disabled:opacity-40"
-            >
-              <ThumbsDownIcon size={12} />
-              דחה
-            </button>
-            <button
-              onClick={() => {
+        {!editing && insights?.id != null && (
+          <div className="pt-2 border-t border-parchment/10">
+            <AiApprovalBar
+              state={insights.verification_state as string | undefined}
+              isPending={verifyInsight.isPending}
+              onApprove={() => verifyInsight.mutate({ insightId: insights.id!, state: 'approved' })}
+              onReject={() => verifyInsight.mutate({ insightId: insights.id!, state: 'rejected' })}
+              onEdit={() => {
                 setEditForm({
                   caseNumber:  (insights.case_number  as string | null) ?? '',
                   courtName:   (insights.court_name   as string | null) ?? '',
@@ -307,11 +296,7 @@ export function DocumentDetail() {
                 });
                 setEditing(true);
               }}
-              className="flex items-center gap-1.5 px-3 py-1.5 text-xs text-parchment/60 border border-parchment/15 rounded-lg hover:bg-parchment/5 transition-colors"
-            >
-              <PencilSimpleIcon size={12} />
-              ערוך
-            </button>
+            />
           </div>
         )}
       </div>
