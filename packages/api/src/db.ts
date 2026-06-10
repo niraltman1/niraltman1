@@ -32,6 +32,7 @@ import type {
   RulesEngineRepository,
   LegalCorpusRepository,
   PrecedentLibraryRepository,
+  VerdictCorpusRepository,
 } from '@factum-il/database';
 import type { ConfigStore } from './utils/config-store.js';
 
@@ -70,4 +71,5 @@ export interface Repos {
   rules:             RulesEngineRepository;
   legalCorpus:       LegalCorpusRepository;
   precedentLibrary:  PrecedentLibraryRepository;
+  verdictCorpus:     VerdictCorpusRepository;
 }

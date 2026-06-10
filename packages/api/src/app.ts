@@ -58,6 +58,7 @@ import { communicationsRouter } from './routes/communications.js';
 import { annotationsRouter } from './routes/annotations.js';
 import { rulesRouter } from './routes/rules.js';
 import { legalCorpusRouter } from './routes/legal-corpus.js';
+import { verdictCorpusRouter } from './routes/verdict-corpus.js';
 import { recordActivity }    from './utils/resource-controller.js';
 import { RagHealingService } from './utils/rag-healing.js';
 import { logWhisperHealthAtStartup } from './modules/transcription/whisper.js';
@@ -160,6 +161,7 @@ export function createApp(
   app.use('/api/ledger',       ledgerRouter(repos));
   app.use('/api/insolvency',   insolvencyRouter(repos));
   app.use('/api/case-law',     caseLawRouter(repos));
+  app.use('/api/verdict-corpus', verdictCorpusRouter(repos));
   app.use('/api/citations',    citationsRouter(repos));
   app.use('/api/auth',         authRouter(repos));
   app.use('/api/erasure',      erasureRouter(repos));
