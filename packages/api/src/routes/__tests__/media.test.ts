@@ -1,4 +1,5 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
+import { resolve } from 'node:path';
 import express from 'express';
 import request from 'supertest';
 import { DatabaseConnection, ProcessedFilesRepository } from '@factum-il/database';
@@ -118,7 +119,7 @@ describe('mediaRouter — request validation (GH2)', () => {
       expect(res.status).toBe(200);
       expect(res.body.success).toBe(true);
       expect(res.body.data.status).toBe('registered');
-      expect(ingestMock).toHaveBeenCalledWith(expect.objectContaining({ filePath: '/tmp/scan.pdf', clientId: 5 }));
+      expect(ingestMock).toHaveBeenCalledWith(expect.objectContaining({ filePath: resolve('/tmp/scan.pdf'), clientId: 5 }));
     });
   });
 });
