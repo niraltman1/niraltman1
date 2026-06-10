@@ -4,6 +4,7 @@ import { MemoryRouter } from 'react-router-dom';
 
 vi.mock('@/api/hooks.js', () => ({
   useCommUnknownInbox: () => ({ data: [], isLoading: false }),
+  useConvertUnknownSender: () => ({ mutate: vi.fn(), isPending: false, isError: false }),
 }));
 
 vi.mock('../CommunicationsPanel.js', () => ({

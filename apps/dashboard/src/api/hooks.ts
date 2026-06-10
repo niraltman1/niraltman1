@@ -2717,6 +2717,8 @@ export interface CommMessage {
   transcript:     string | null;
   createdAt:      string;
   sentAt:         string | null;
+  aiUrgency?:     'urgent' | 'normal' | 'low' | null;
+  aiTags?:        string[];
 }
 
 export interface UnknownInboxRow {
@@ -2770,6 +2772,18 @@ export function useCommUnknownInbox(enabled = true) {
     queryKey: ['communications', 'unknown'] as const,
     queryFn:  () => fetchJSON<UnknownInboxRow[]>('/api/communications/unknown'),
     enabled,
+  });
+}
+
+export function useConvertUnknownSender() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: ({ id, ...body }: { id: number; nameHe?: string; phone?: string; existingClientId?: number }) =>
+      postJSON<{ clientId: number; linked: boolean }>(`/api/communications/unknown/${id}/convert`, body),
+    onSuccess: () => {
+      void qc.invalidateQueries({ queryKey: ['communications', 'unknown'] });
+      void qc.invalidateQueries({ queryKey: QUERY_KEYS.clients });
+    },
   });
 }
 

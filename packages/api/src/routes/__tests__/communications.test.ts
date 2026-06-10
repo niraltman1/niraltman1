@@ -313,3 +313,91 @@ describe('communicationsRouter — telegram set-webhook validation (GH2)', () =>
     expect(res.body.error.message).toContain('telegram_not_connected');
   });
 });
+
+// ── C8: unknown inbox → lead conversion ──────────────────────────────────────
+describe('communicationsRouter — C8: unknown inbox → lead conversion', () => {
+  let db: DatabaseConnection;
+  let app: express.Express;
+
+  beforeEach(() => {
+    db = new DatabaseConnection({ path: ':memory:' });
+    db.exec(SCHEMA);
+
+    // Minimal stub: communicationsRouter only calls clients.create() + .id
+    const stubClients = {
+      create: ({ nameHe }: { nameHe: string; phone?: string }) => {
+        const r = db.prepare('INSERT INTO Clients (name_he) VALUES (?)').run(nameHe);
+        return { id: Number(r.lastInsertRowid), nameHe };
+      },
+    };
+
+    const repos = {
+      db,
+      communications: new CommunicationsRepository(db),
+      commTemplates:  new CommTemplatesRepository(db),
+      clients:        stubClients,
+    } as unknown as Repos;
+
+    app = express();
+    app.use(express.json());
+    app.use('/api/communications', communicationsRouter(repos));
+    app.use(errorHandler);
+  });
+
+  afterEach(() => db.close());
+
+  it('creates a new client, links the identity, and marks the inbox row resolved', async () => {
+    db.prepare(
+      "INSERT INTO CommUnknownInbox (channel, external_id, display_name, body) VALUES ('telegram','tg-999','רחל לוי','שלום')",
+    ).run();
+
+    const res = await request(app).post('/api/communications/unknown/1/convert')
+      .send({ nameHe: 'רחל לוי' }).expect(200);
+    expect(res.body.data.linked).toBe(true);
+    const clientId = res.body.data.clientId as number;
+    expect(clientId).toBeGreaterThan(0);
+
+    const identity = db.prepare(
+      "SELECT client_id FROM CommContactIdentities WHERE channel='telegram' AND external_id='tg-999'",
+    ).get() as { client_id: number } | undefined;
+    expect(identity?.client_id).toBe(clientId);
+
+    const row = db.prepare("SELECT resolved FROM CommUnknownInbox WHERE id=1").get() as { resolved: number } | undefined;
+    expect(row?.resolved).toBe(1);
+  });
+
+  it('returns 404 for a non-existent inbox entry', async () => {
+    await request(app).post('/api/communications/unknown/999/convert')
+      .send({ nameHe: 'מישהו' }).expect(404);
+  });
+
+  it('returns 422 when nameHe is missing and no existingClientId', async () => {
+    db.prepare("INSERT INTO CommUnknownInbox (channel, external_id, body) VALUES ('telegram','tg-1','test')").run();
+    await request(app).post('/api/communications/unknown/1/convert')
+      .send({}).expect(422);
+  });
+
+  it('returns 409 when the entry is already resolved', async () => {
+    db.prepare(
+      "INSERT INTO CommUnknownInbox (channel, external_id, body, resolved) VALUES ('telegram','tg-1','test',1)",
+    ).run();
+    await request(app).post('/api/communications/unknown/1/convert')
+      .send({ nameHe: 'מישהו' }).expect(409);
+  });
+
+  it('links to an existing client when existingClientId is provided', async () => {
+    db.prepare("INSERT INTO Clients (id, name_he) VALUES (42, 'דוד כהן')").run();
+    db.prepare(
+      "INSERT INTO CommUnknownInbox (channel, external_id, body) VALUES ('whatsapp','+972501234567','hi')",
+    ).run();
+
+    const res = await request(app).post('/api/communications/unknown/1/convert')
+      .send({ existingClientId: 42 }).expect(200);
+    expect(res.body.data.clientId).toBe(42);
+
+    const identity = db.prepare(
+      "SELECT client_id FROM CommContactIdentities WHERE channel='whatsapp' AND external_id='+972501234567'",
+    ).get() as { client_id: number } | undefined;
+    expect(identity?.client_id).toBe(42);
+  });
+});
