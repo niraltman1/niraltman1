@@ -686,3 +686,94 @@
   transition: width 0.4s ease-out;
   background: linear-gradient(90deg, #8C6F36, #C5A059);
 }
+
+/* ── Skip link (a11y) ──────────────────────────────────────────────────────── */
+.skip-link {
+  position: absolute;
+  inset-inline-start: -9999px;
+  top: 0;
+  z-index: 9999;
+  padding: 8px 16px;
+  background: #fff;
+  color: #000;
+  font-size: 14px;
+  border-radius: 0 0 4px 4px;
+  text-decoration: none;
+  white-space: nowrap;
+}
+.skip-link:focus {
+  inset-inline-start: 0;
+}
+
+/* ── Print styles — case brief ─────────────────────────────────────────────── */
+@media print {
+  /* Show white page; reset dark theme */
+  html, body, #root {
+    background: #fff !important;
+    color: #111 !important;
+  }
+
+  /* Hide navigation chrome */
+  aside,
+  header,
+  footer,
+  [data-no-print],
+  .skip-link,
+  .notification-bell,
+  button[aria-label*="חיפוש"],
+  button[aria-label*="התראות"] {
+    display: none !important;
+  }
+
+  /* Main content fills the full page */
+  main {
+    overflow: visible !important;
+  }
+  main > .flex-1 {
+    padding: 0 !important;
+  }
+
+  /* Reset dark card backgrounds */
+  [class*="bg-navy"],
+  [class*="bg-amber"],
+  [class*="bg-gold"],
+  .badge {
+    background: transparent !important;
+    border-color: #ccc !important;
+    color: #111 !important;
+  }
+
+  /* Ensure RTL content prints correctly */
+  [dir="rtl"], body {
+    direction: rtl;
+  }
+
+  /* Typography cleanup */
+  h1, h2, h3 {
+    color: #000 !important;
+    page-break-after: avoid;
+  }
+
+  /* Keep case header together on one page */
+  .print-case-header {
+    page-break-inside: avoid;
+  }
+
+  /* Allow list items to break across pages */
+  li, tr {
+    page-break-inside: avoid;
+  }
+
+  /* Links print as text */
+  a[href]::after {
+    content: none;
+  }
+
+  /* Hide interactive controls */
+  button:not([data-print-show]),
+  input,
+  textarea,
+  select {
+    display: none !important;
+  }
+}

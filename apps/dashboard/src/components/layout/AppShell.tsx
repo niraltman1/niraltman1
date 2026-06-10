@@ -14,11 +14,13 @@ export function AppShell() {
 
   return (
     <div className="flex h-screen overflow-hidden fx-surface" dir="rtl">
+      <a href="#main-content" className="skip-link">דלג לתוכן הראשי</a>
       <Sidebar />
 
       <main className="flex-1 overflow-auto flex flex-col min-w-0">
         {/* Slim top bar — date · spotlight hint · notification bell */}
         <header
+          data-no-print
           className="flex items-center justify-between px-4 shrink-0"
           style={{ height: 44, borderBottom: '1px solid var(--hairline)' }}
         >
@@ -38,6 +40,7 @@ export function AppShell() {
             <button
               type="button"
               onClick={openSpotlight}
+              aria-label="פתח חיפוש מהיר (Ctrl+K)"
               style={{
                 fontFamily: 'var(--f-mono)',
                 fontSize: 10,
@@ -58,7 +61,7 @@ export function AppShell() {
         </header>
         <UpdateNotificationBanner />
         <ReviewRequiredBanner />
-        <div className="flex-1 p-6">
+        <div id="main-content" className="flex-1 p-6">
           <Suspense fallback={
             <div className="flex items-center justify-center h-full text-sm" style={{ color: 'var(--fg-3)' }}>
               טוען…
@@ -70,6 +73,7 @@ export function AppShell() {
 
         {/* Status bar */}
         <footer
+          data-no-print
           className="flex items-center gap-3 px-5 shrink-0"
           style={{
             height: 28,
