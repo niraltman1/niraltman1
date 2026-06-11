@@ -354,7 +354,7 @@ export function communicationsRouter(repos: Repos): Router {
 
     comm.linkIdentity({
       channel: row.channel, externalId: row.externalId,
-      displayName: row.displayName ?? undefined,
+      ...(row.displayName != null && { displayName: row.displayName }),
       clientId,
     });
     comm.markUnknownResolved(inboxId, 'client', clientId);
@@ -462,7 +462,17 @@ export function communicationsRouter(repos: Repos): Router {
   }));
 
   router.patch('/calls/:id', validate(updateCallSchema), asyncHandler((req, res) => {
-    const updated = repos.callLogs.update(Number(req.params['id']), req.body as z.infer<typeof updateCallSchema>);
+    const b = req.body as z.infer<typeof updateCallSchema>;
+    const patch = {
+      ...(b.subject         !== undefined && { subject:         b.subject ?? null }),
+      ...(b.summary         !== undefined && { summary:         b.summary ?? null }),
+      ...(b.direction       !== undefined && { direction:       b.direction }),
+      ...(b.occurredAt      !== undefined && { occurredAt:      b.occurredAt }),
+      ...(b.durationMinutes !== undefined && { durationMinutes: b.durationMinutes ?? null }),
+      ...(b.participants    !== undefined && { participants:    b.participants }),
+      ...(b.tags            !== undefined && { tags:            b.tags }),
+    };
+    const updated = repos.callLogs.update(Number(req.params['id']), patch);
     if (!updated) throw new NotFoundError('call log not found');
     ok(res, updated);
   }));
