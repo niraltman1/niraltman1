@@ -46,7 +46,7 @@ export function timeEntriesRouter(repos: Repos): Router {
 
   // GET /api/time-entries?caseId=N
   router.get('/', validate(querySchema, 'query'), asyncHandler(async (req, res) => {
-    const { caseId } = req.query as { caseId?: string };
+    const { caseId } = req.query as unknown as { caseId?: string };
 
     const rows = (caseId
       ? repos.db.prepare('SELECT * FROM TimeEntries WHERE case_id = ? ORDER BY entry_date DESC, id DESC')

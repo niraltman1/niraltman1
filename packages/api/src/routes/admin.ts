@@ -444,7 +444,7 @@ export function adminRouter(repos: Repos, healingService: RagHealingService): Ro
 
   // ── Agent Execution Journal ───────────────────────────────────────────────
   router.get('/journal', requireRole('admin', repos), asyncHandler((req, res) => {
-    const q         = req.query as Record<string, string>;
+    const q         = req.query as unknown as Record<string, string>;
     const caseId    = q['caseId']    !== undefined ? Number(q['caseId'])    : null;
     const eventType = q['eventType'] ?? null;
     const since     = q['since']     ?? null;
