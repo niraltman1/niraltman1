@@ -131,7 +131,7 @@ export function createApp(
   app.use(requestLogger);
   app.use(auditMiddleware(repos));
 
-  app.use('/api/health',          healthRouter(repos, dbPath ?? '', healingService));
+  app.use('/api/health',          healthRouter(repos, dbPath ?? '', svc));
   app.use('/api/activity',        activityRouter(repos));
   app.use('/api/mission-control', missionControlRouter(repos));
 
@@ -141,7 +141,7 @@ export function createApp(
   app.use('/api/search',      searchRouter(repos));
   app.use('/api/queue',       queueRouter(repos));
   app.use('/api/action-plan', actionPlanRouter(repos));
-  app.use('/api/admin',       adminRouter(repos, healingService));
+  app.use('/api/admin',       adminRouter(repos, svc));
   app.use('/api/legal-ai',    legalAiRouter(repos));
   app.use('/api/ai',          aiStreamRouter(repos));
   app.use('/api/tasks',        tasksRouter(repos));

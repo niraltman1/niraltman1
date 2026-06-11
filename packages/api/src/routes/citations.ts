@@ -29,7 +29,7 @@ export function citationsRouter(repos: Repos): Router {
 
   // GET /api/citations
   router.get('/', validate(listQuerySchema, 'query'), asyncHandler(async (req, res) => {
-    const q        = req.query as z.infer<typeof listQuerySchema>;
+    const q        = req.query as unknown as z.infer<typeof listQuerySchema>;
     const page     = q.page;
     const pageSize = q.pageSize;
     const offset   = (page - 1) * pageSize;
