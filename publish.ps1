@@ -410,12 +410,18 @@ foreach ($pkg in $WorkspacePackages) {
         if (-not $MergedDeps.Contains($p.Name)) { $MergedDeps[$p.Name] = $p.Value }
     }
 }
+# pnpm 9 reads overrides only from package.json (pnpm-workspace.yaml overrides
+# require pnpm 10) — keep the better-sqlite3 floor here so the flat install
+# resolves a version with Node-22 (ABI 127) prebuilds.
 [PSCustomObject]@{
     name         = "factum-il-backend-dist"
     version      = "1.0.0"
     private      = $true
     type         = "module"
     dependencies = [PSCustomObject]$MergedDeps
+    pnpm         = [PSCustomObject]@{
+        overrides = [PSCustomObject]@{ "better-sqlite3" = "^11.0.0" }
+    }
 } | ConvertTo-Json -Depth 10 | Set-Content "$BackendOut\package.json" -Encoding UTF8
 Write-Host "  ✓ Merged package.json written ($($MergedDeps.Count) third-party deps)." -ForegroundColor Green
 
