@@ -81,7 +81,7 @@ export function casesRouter(repos: Repos): Router {
   const { cases, contacts, calendar, citations, db } = repos;
 
   router.get('/', validate(listCasesQuerySchema, 'query'), asyncHandler((req, res) => {
-    const query = req.query as z.infer<typeof listCasesQuerySchema>;
+    const query = req.query as unknown as z.infer<typeof listCasesQuerySchema>;
     if (query.clientId) {
       const result = cases.findByClientId(query.clientId);
       ok(res, result);

@@ -476,16 +476,16 @@ if (Test-Path $wsStoreBin) {
 
 # Verify the native binding loads against the build host's Node (same major as bundled runtime)
 Write-Host "  Verifying better-sqlite3 native binding..." -ForegroundColor Gray
-$nodeVersion = node -e "console.log(process.version)"
-$nodeArch = node -e "console.log(process.arch)"
-$nodeAbi = node -e "console.log(process.versions.modules)"
+$bsqlNodeVer = node -e "console.log(process.version)"
+$bsqlArch    = node -e "console.log(process.arch)"
+$bsqlAbi     = node -e "console.log(process.versions.modules)"
 
-Write-Host "    Node: $nodeVersion | Arch: $nodeArch | ABI: $nodeAbi" -ForegroundColor DarkGray
+Write-Host "    Node: $bsqlNodeVer | Arch: $bsqlArch | ABI: $bsqlAbi" -ForegroundColor DarkGray
 
 node -e "const D=require('better-sqlite3'); const db=new D(':memory:'); db.exec('CREATE TABLE _p(x)'); db.close(); console.log('  ✓ better-sqlite3 native binding OK (v'+require('./node_modules/better-sqlite3/package.json').version+')')" 2>&1
-if ($LASTEXITCODE -ne 0) { 
+if ($LASTEXITCODE -ne 0) {
     Write-Host "  ERROR: better-sqlite3 native binding failed. Diagnostics:" -ForegroundColor Red
-    Write-Host "    • Node ABI: $nodeAbi (check Arch: $nodeArch)" -ForegroundColor Red
+    Write-Host "    • Node ABI: $bsqlAbi (check Arch: $bsqlArch)" -ForegroundColor Red
     Write-Host "    • Disk space: $(cmd /c "wmic logicaldisk get freespace" 2>$null | Select-String '\d+' | ForEach-Object {$_.Matches[0].Value})" -ForegroundColor Red
     throw "better-sqlite3 native binding failed — check Node ABI in $BackendOut"
 }
@@ -633,39 +633,45 @@ if ($corpusBatchCount -eq 0) {
 StepElapsed
 
 # ═══════════════════════════════════════════════════════════════════════════════
-# [10/13] Download portable Node.js
+# [10/13] Stage portable Node.js runtime
 # ═══════════════════════════════════════════════════════════════════════════════
 
-Step "Downloading portable Node.js v$NodeVersion"
+Step "Staging portable Node.js runtime"
 $RuntimeDst = Join-Path $OutDir "runtime"
 New-Item -ItemType Directory -Force -Path $RuntimeDst | Out-Null
 
-$TempDir     = (Get-Item -LiteralPath $env:TEMP).FullName
-$NodeZip     = "$TempDir\node-v$NodeVersion-win-x64.zip"
-$NodeExtract = "$TempDir\node-v$NodeVersion-win-x64-extract"
-
-if (-not (Test-Path $NodeZip)) {
-    $NodeUrl = "https://nodejs.org/dist/v$NodeVersion/node-v$NodeVersion-win-x64.zip"
-    if (DownloadWithRetry $NodeUrl $NodeZip $DownloadTimeoutSec $MaxDownloadRetries) {
-        # Proceed to extract
-    } else {
-        Write-Host "  ⚠ Node.js download failed. Continuing without Node.exe." -ForegroundColor Yellow
-    }
+# Prefer the node.exe already in PATH (zero-network, always correct in CI via actions/setup-node).
+# This also avoids the $NodeVersion/$nodeVersion case-collision that produced double-v URLs.
+$NodeExeSrc = (Get-Command node -ErrorAction SilentlyContinue)?.Source
+if ($NodeExeSrc -and (Test-Path $NodeExeSrc)) {
+    Copy-Item -Force $NodeExeSrc "$RuntimeDst\node.exe"
+    Write-Host "  ✓ node.exe staged from PATH: $NodeExeSrc" -ForegroundColor Green
 } else {
-    Write-Host "  ✓ Using cached: $(Split-Path $NodeZip -Leaf)" -ForegroundColor Green
-}
-
-if ((Test-Path $NodeZip) -and (ValidateArtifact $NodeZip "generic")) {
-    if (Test-Path $NodeExtract) { Remove-Item -Recurse -Force $NodeExtract -ErrorAction SilentlyContinue }
-    Expand-Archive -Path $NodeZip -DestinationPath $NodeExtract
-    if (Test-Path "$NodeExtract\node-v$NodeVersion-win-x64\node.exe") {
-        Copy-Item -Force "$NodeExtract\node-v$NodeVersion-win-x64\node.exe" "$RuntimeDst\node.exe"
-        Write-Host "  ✓ node.exe staged" -ForegroundColor Green
+    # Fallback: download from nodejs.org (strip leading v if $NodeVersion was set with one)
+    $CleanVersion = $NodeVersion.TrimStart('v')
+    $TempDir      = (Get-Item -LiteralPath $env:TEMP).FullName
+    $NodeZip      = "$TempDir\node-v$CleanVersion-win-x64.zip"
+    $NodeExtract  = "$TempDir\node-v$CleanVersion-win-x64-extract"
+    $NodeUrl      = "https://nodejs.org/dist/v$CleanVersion/node-v$CleanVersion-win-x64.zip"
+    if (-not (Test-Path $NodeZip)) {
+        if (-not (DownloadWithRetry $NodeUrl $NodeZip $DownloadTimeoutSec $MaxDownloadRetries)) {
+            Write-Host "  ⚠ Node.js download failed. Continuing without Node.exe." -ForegroundColor Yellow
+        }
     } else {
-        Write-Host "  ✗ node.exe not found in archive!" -ForegroundColor Red
+        Write-Host "  ✓ Using cached: $(Split-Path $NodeZip -Leaf)" -ForegroundColor Green
     }
-} else {
-    Write-Host "  ⚠ SKIP: node.exe not staged (zip missing or invalid)." -ForegroundColor Yellow
+    if ((Test-Path $NodeZip) -and (ValidateArtifact $NodeZip "generic")) {
+        if (Test-Path $NodeExtract) { Remove-Item -Recurse -Force $NodeExtract -ErrorAction SilentlyContinue }
+        Expand-Archive -Path $NodeZip -DestinationPath $NodeExtract
+        if (Test-Path "$NodeExtract\node-v$CleanVersion-win-x64\node.exe") {
+            Copy-Item -Force "$NodeExtract\node-v$CleanVersion-win-x64\node.exe" "$RuntimeDst\node.exe"
+            Write-Host "  ✓ node.exe staged from download" -ForegroundColor Green
+        } else {
+            Write-Host "  ✗ node.exe not found in archive!" -ForegroundColor Red
+        }
+    } else {
+        Write-Host "  ⚠ SKIP: node.exe not staged (zip missing or invalid)." -ForegroundColor Yellow
+    }
 }
 
 StepElapsed

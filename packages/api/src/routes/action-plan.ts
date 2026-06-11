@@ -20,7 +20,7 @@ export function actionPlanRouter(repos: Repos): Router {
   const { actionPlan } = repos;
 
   router.get('/', validate(listActionPlanQuerySchema, 'query'), asyncHandler((req, res) => {
-    const query = req.query as z.infer<typeof listActionPlanQuerySchema>;
+    const query = req.query as unknown as z.infer<typeof listActionPlanQuerySchema>;
     const entries = actionPlan.list(query.status, query.limit);
     ok(res, entries);
   }));

@@ -12,7 +12,7 @@ export function clientsRouter(repos: Repos): Router {
   const { clients, cases } = repos;
 
   router.get('/', asyncHandler((req, res) => {
-    const { page, pageSize } = parsePagination(req.query as Record<string, unknown>);
+    const { page, pageSize } = parsePagination(req.query as unknown as Record<string, unknown>);
     const result = clients.list(page, pageSize);
     ok(res, result);
   }));

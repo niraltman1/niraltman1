@@ -26,7 +26,7 @@ export function documentsRouter(repos: Repos): Router {
   const { documents, db } = repos;
 
   router.get('/', validate(listDocumentsQuerySchema, 'query'), asyncHandler((req, res) => {
-    const { page, pageSize } = parsePagination(req.query as Record<string, unknown>);
+    const { page, pageSize } = parsePagination(req.query as unknown as Record<string, unknown>);
     const result = documents.list({ page, pageSize });
     ok(res, result);
   }));
