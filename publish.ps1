@@ -697,7 +697,7 @@ if (-not (Test-Path $VecDll)) {
         if ($ExtractedDll -and (ValidateArtifact $ExtractedDll.FullName "dll")) {
             Copy-Item $ExtractedDll.FullName $VecDll -ErrorAction Stop
             $vecSize = [math]::Round((Get-Item $VecDll).Length/1KB,0)
-            Write-Host "  ✓ sqlite-vec $VecVersion: $vecSize KB" -ForegroundColor Green
+            Write-Host "  ✓ sqlite-vec ${VecVersion}: $vecSize KB" -ForegroundColor Green
         } else {
             Write-Host "  ⚠ vec0.dll not found or invalid in archive  -  KNN search will use JS fallback." -ForegroundColor Yellow
         }
