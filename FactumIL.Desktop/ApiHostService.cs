@@ -52,7 +52,7 @@ internal sealed class ApiHostService
 
         var userDataDir = Path.GetDirectoryName(DbPath)!;
         Directory.CreateDirectory(userDataDir);
-        Directory.CreateDirectory(Path.Combine(AppRoot, "logs"));
+        // Log directory lives in %LOCALAPPDATA% (writable without admin), not in Program Files.
 
         var psi = new ProcessStartInfo
         {
@@ -134,10 +134,17 @@ internal sealed class ApiHostService
         return 3001; // fallback
     }
 
+    private static readonly string LogPath = Path.Combine(
+        Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
+        "FactumIL", "logs", "api.log");
+
     private static void LogLine(string line)
     {
-        var logPath = Path.Combine(AppRoot, "logs", "api.log");
-        Directory.CreateDirectory(Path.GetDirectoryName(logPath)!);
-        File.AppendAllText(logPath, $"[{DateTime.Now:HH:mm:ss}] {line}{Environment.NewLine}");
+        try
+        {
+            Directory.CreateDirectory(Path.GetDirectoryName(LogPath)!);
+            File.AppendAllText(LogPath, $"[{DateTime.Now:HH:mm:ss}] {line}{Environment.NewLine}");
+        }
+        catch { /* non-throwing — logging must never crash the host */ }
     }
 }
