@@ -1,7 +1,7 @@
 import { Router } from 'express';
 import { z } from 'zod';
 import type { Repos } from '../db.js';
-import type { CommChannel, ConversationStatus } from '@factum-il/database';
+import type { CallDirection, CommChannel, ConversationStatus } from '@factum-il/database';
 import { asyncHandler } from '../utils/async-handler.js';
 import { ok } from '../utils/response.js';
 import { validate } from '../middleware/validate.js';
@@ -466,7 +466,7 @@ export function communicationsRouter(repos: Repos): Router {
     const patch = {
       ...(b.subject         !== undefined && { subject:         b.subject ?? null }),
       ...(b.summary         !== undefined && { summary:         b.summary ?? null }),
-      ...(b.direction       !== undefined && { direction:       b.direction }),
+      ...(b.direction       !== undefined && { direction:       b.direction as CallDirection }),
       ...(b.occurredAt      !== undefined && { occurredAt:      b.occurredAt }),
       ...(b.durationMinutes !== undefined && { durationMinutes: b.durationMinutes ?? null }),
       ...(b.participants    !== undefined && { participants:    b.participants }),

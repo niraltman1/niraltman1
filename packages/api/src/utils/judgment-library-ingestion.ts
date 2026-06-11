@@ -187,9 +187,9 @@ export async function ingestJudgmentFolder(
         originalFilename: filename,
         procedureType: meta?.procedureType ?? null,
         legalDomain:   meta?.legalDomain ?? null,
-        legalQuestions: meta?.legalQuestions,
+        ...(meta?.legalQuestions !== undefined && { legalQuestions: meta.legalQuestions }),
         factualSummary: meta?.factualSummary ?? null,
-        keywords:      meta?.keywords,
+        ...(meta?.keywords !== undefined && { keywords: meta.keywords }),
       });
 
       result.processed++;
