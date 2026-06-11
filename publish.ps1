@@ -410,9 +410,12 @@ foreach ($pkg in $WorkspacePackages) {
         if (-not $MergedDeps.Contains($p.Name)) { $MergedDeps[$p.Name] = $p.Value }
     }
 }
-# pnpm 9 reads overrides only from package.json (pnpm-workspace.yaml overrides
-# require pnpm 10) — keep the better-sqlite3 floor here so the flat install
-# resolves a version with Node-22 (ABI 127) prebuilds.
+# Pin better-sqlite3 to the EXACT workspace-locked version so the no-lockfile
+# flat install doesn't resolve a newer release that hasn't published Windows
+# prebuilt binaries yet (Node 22 ABI 127 prebuild confirmed for pinned version).
+$bsqLockMatch = Select-String -Path "$RepoRoot\pnpm-lock.yaml" -Pattern "^\s+better-sqlite3@(\d+\.\d+\.\d+):" | Select-Object -First 1
+$bsqPin = if ($bsqLockMatch -and $bsqLockMatch.Line -match "better-sqlite3@(\d+\.\d+\.\d+)") { $Matches[1] } else { "^11.0.0" }
+Write-Host "  Pinning better-sqlite3 to: $bsqPin" -ForegroundColor DarkGray
 [PSCustomObject]@{
     name         = "factum-il-backend-dist"
     version      = "1.0.0"
@@ -420,7 +423,7 @@ foreach ($pkg in $WorkspacePackages) {
     type         = "module"
     dependencies = [PSCustomObject]$MergedDeps
     pnpm         = [PSCustomObject]@{
-        overrides = [PSCustomObject]@{ "better-sqlite3" = "^11.0.0" }
+        overrides = [PSCustomObject]@{ "better-sqlite3" = $bsqPin }
     }
 } | ConvertTo-Json -Depth 10 | Set-Content "$BackendOut\package.json" -Encoding UTF8
 Write-Host "  ✓ Merged package.json written ($($MergedDeps.Count) third-party deps)." -ForegroundColor Green
@@ -433,7 +436,7 @@ shamefully-hoist=true
 @"
 packages: []
 overrides:
-  better-sqlite3: "^11.0.0"
+  better-sqlite3: "$bsqPin"
 "@ | Set-Content "$BackendOut\pnpm-workspace.yaml" -Encoding UTF8
 
 # 8.5  Install all third-party prod deps — flat layout, no lockfile, prefer local cache
@@ -441,10 +444,35 @@ Push-Location $BackendOut
 pnpm install --prod --no-lockfile --node-linker=hoisted --prefer-offline --ignore-scripts
 if ($LASTEXITCODE -ne 0) { throw "pnpm install --prod failed in backend/" }
 
-# Rebuild native modules with better diagnostics
-Write-Host "  Rebuilding better-sqlite3 native binding..." -ForegroundColor Gray
-npm rebuild better-sqlite3
-if ($LASTEXITCODE -ne 0) { throw "npm rebuild better-sqlite3 failed — check Node ABI / network in $BackendOut" }
+# Stage better-sqlite3 native binding — copy from workspace virtual store first
+# (already downloaded/built during 'pnpm install --frozen-lockfile' in CI step 7),
+# then fall back to npm rebuild with VS 2022 override if needed.
+Write-Host "  Staging better-sqlite3 native binding..." -ForegroundColor Gray
+$bsqDistDir  = "node_modules\better-sqlite3"
+$bsqDistVer  = (Get-Content "$bsqDistDir\package.json" | ConvertFrom-Json).version
+$wsStoreBin  = "$RepoRoot\node_modules\.pnpm\better-sqlite3@$bsqDistVer\node_modules\better-sqlite3\build\Release\better_sqlite3.node"
+$distBinDir  = "$bsqDistDir\build\Release"
+$distBinPath = "$distBinDir\better_sqlite3.node"
+
+if (Test-Path $wsStoreBin) {
+    New-Item -ItemType Directory -Force -Path $distBinDir | Out-Null
+    Copy-Item $wsStoreBin $distBinPath -Force
+    Write-Host "  ✓ better-sqlite3 binary staged from workspace store (v$bsqDistVer)." -ForegroundColor Green
+} else {
+    Write-Host "  Workspace store binary not found — running npm rebuild..." -ForegroundColor Yellow
+    # Help node-gyp find VS 2022 (version 17) to avoid VS 2026 version-string parse failure
+    $vswhere = "${env:ProgramFiles(x86)}\Microsoft Visual Studio\Installer\vswhere.exe"
+    if (Test-Path $vswhere) {
+        $vs22 = (& $vswhere -products * -version "[17,18)" -property installationPath 2>$null | Select-Object -First 1)?.Trim()
+        if ($vs22) {
+            $env:GYP_MSVS_OVERRIDE_PATH = $vs22
+            $env:npm_config_msvs_version = "2022"
+            Write-Host "    GYP_MSVS_OVERRIDE_PATH=$vs22" -ForegroundColor DarkGray
+        }
+    }
+    npm rebuild better-sqlite3
+    if ($LASTEXITCODE -ne 0) { throw "npm rebuild better-sqlite3 failed — check Node ABI / network in $BackendOut" }
+}
 
 # Verify the native binding loads against the build host's Node (same major as bundled runtime)
 Write-Host "  Verifying better-sqlite3 native binding..." -ForegroundColor Gray
