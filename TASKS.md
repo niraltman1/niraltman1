@@ -1,5 +1,21 @@
 # Factum-IL — Task Tracker
 
+## 🗓️ Session handoff — תיקון installer (2026-06-11)
+
+### הושלם הפעם
+
+- ✅ **PR #78** — תיקון test ב-`media.test.ts`: הסימון `filePath: '/tmp/scan.pdf'` הוחלף ב-`filePath: resolve('/tmp/scan.pdf')` כדי לאפשר ריצה ב-Windows (ה-route מפעיל `path.resolve()` כ-CWE-22 guard). מוזג.
+- ✅ **PR #79** — תיקון `publish.ps1` שורה 700: `$VecVersion:` → `${VecVersion}:` (PowerShell פרסר את `:` כ-scope qualifier; `${…}` מגדיר את שם המשתנה במפורש). מוזג.
+- ✅ **PR #80** — תיקון `publish.ps1` שורה 71: `'api'` נוסף ל-`$WorkspacePackages` כדי ש-`packages/api/dist` ייבנה בשלב 6 לפני שלב 8 מנסה להעתיקו. מוזג.
+
+### צעד נדרש (ידני)
+
+- **הפעל את "Build Beta Installer"** מ-GitHub Actions → Actions → Build Beta Installer → Run workflow → branch: `main` → version: `1.0-beta.1` → Run workflow.
+- ייצר `Factum-IL-Setup.exe` שיועלה כ-artifact.
+- ⚠️ ייתכנו תקלות נוספות ב-`publish.ps1` או `installer.iss` בשלבים הבאים — אם כן, דווח.
+
+---
+
 ## 🗓️ Session handoff — beta-readiness הושלם + עדכון תיעוד (2026-06-10 סופי)
 
 ### ✅ beta-readiness הושלם — כל ה-PRs מוזגו

@@ -68,7 +68,8 @@ $WorkspacePackages = @(
     'model-router', 'memory', 'retrieval', 'ai', 'ai-guardrails',
     'citation-engine', 'pipeline', 'evals', 'orchestrator', 'policy-engine',
     'agent-core', 'support-diagnostics', 'update-core',
-    'enterprise-hooks', 'encrypted-backup', 'litigation-intelligence'
+    'enterprise-hooks', 'encrypted-backup', 'litigation-intelligence',
+    'api'
 )
 
 function Log([string]$msg) {
