@@ -72,7 +72,15 @@ export function legalEngineRouter(repos: Repos): Router {
       ...(body.sourceText  !== undefined && { sourceText: body.sourceText }),
     });
 
-    const milestones = legalEngine.replaceMilestones(tpl.id, body.milestones);
+    const milestones = legalEngine.replaceMilestones(tpl.id, body.milestones.map((m) => ({
+      titleHe:      m.titleHe,
+      titleEn:      m.titleEn ?? null,
+      description:  m.description ?? null,
+      dayOffset:    m.dayOffset ?? null,
+      ...(m.anchor       !== undefined && { anchor:       m.anchor }),
+      ...(m.isMandatory  !== undefined && { isMandatory:  m.isMandatory }),
+      ...(m.taskPriority !== undefined && { taskPriority: m.taskPriority }),
+    })));
     const approved   = legalEngine.approveTemplate(tpl.id);
     ok(res, { ...approved, milestones }, 201);
   }));

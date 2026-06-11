@@ -52,7 +52,12 @@ export function importerRouter(repos: Repos): Router {
    */
   router.post('/archive-mine', validate(archiveSchema), asyncHandler(async (req, res) => {
     const body = req.body as z.infer<typeof archiveSchema>;
-    const result = await mineArchive(repos, body);
+    const result = await mineArchive(repos, {
+      rootDir: body.rootDir,
+      ...(body.limit     !== undefined && { limit:     body.limit }),
+      ...(body.outputDir !== undefined && { outputDir: body.outputDir }),
+      ...(body.force     !== undefined && { force:     body.force }),
+    });
     ok(res, result);
   }));
 

@@ -185,10 +185,10 @@ export async function ingestJudgmentFolder(
         documentId:    docId,
         sourcePath:    filePath,
         originalFilename: filename,
-        procedureType: meta?.procedureType,
-        legalDomain:   meta?.legalDomain,
+        procedureType: meta?.procedureType ?? null,
+        legalDomain:   meta?.legalDomain ?? null,
         legalQuestions: meta?.legalQuestions,
-        factualSummary: meta?.factualSummary,
+        factualSummary: meta?.factualSummary ?? null,
         keywords:      meta?.keywords,
       });
 

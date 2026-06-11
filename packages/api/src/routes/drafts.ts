@@ -74,7 +74,11 @@ export function draftsRouter(repos: Repos): Router {
     const matterId = req.query['matterId'] ? Number(req.query['matterId']) : undefined;
     const clientId = req.query['clientId'] ? Number(req.query['clientId']) : undefined;
     const status   = req.query['status']   ? String(req.query['status'])   : undefined;
-    ok(res, repos.drafts.list({ matterId, clientId, status }));
+    ok(res, repos.drafts.list({
+      ...(matterId !== undefined && { matterId }),
+      ...(clientId !== undefined && { clientId }),
+      ...(status   !== undefined && { status }),
+    }));
   }));
 
   // ─── Get single ────────────────────────────────────────────────────────────
@@ -114,11 +118,11 @@ export function draftsRouter(repos: Repos): Router {
 
     const b = req.body as z.infer<typeof updateSchema>;
     const updated = repos.drafts.update(id, {
-      title:        b.title,
-      content_json: b.contentJson,
-      content_html: b.contentHtml,
-      word_count:   b.wordCount,
-      status:       b.status,
+      ...(b.title     !== undefined && { title:        b.title }),
+      ...(b.contentJson !== undefined && { content_json: b.contentJson }),
+      ...(b.contentHtml !== undefined && { content_html: b.contentHtml }),
+      ...(b.wordCount !== undefined && { word_count:   b.wordCount }),
+      ...(b.status    !== undefined && { status:       b.status }),
     });
 
     // Snapshot version when content changes
@@ -173,7 +177,7 @@ export function draftsRouter(repos: Repos): Router {
     if (!snapshot) throw new NotFoundError('DraftVersion');
     const updated = repos.drafts.update(id, {
       content_json: snapshot.content_json,
-      content_html: snapshot.content_html ?? undefined,
+      content_html: snapshot.content_html,
       word_count:   snapshot.word_count,
     });
     const nextVer = repos.drafts.nextVersionNumber(id);
