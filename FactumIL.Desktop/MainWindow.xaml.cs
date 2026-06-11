@@ -16,6 +16,27 @@ public partial class MainWindow : Window
 
     private async Task InitSourceAsync()
     {
+        try
+        {
+            await WebView.EnsureCoreWebView2Async(null);
+        }
+        catch (Exception ex)
+        {
+            MessageBox.Show(
+                "נכשל אתחול רכיב WebView2.\n\n" +
+                "ודא ש-WebView2 Runtime מותקן (בדרך כלל מגיע עם Microsoft Edge עדכני).\n\n" +
+                $"שגיאה: {ex.Message}\n\n" +
+                "להתקנה ידנית הפעל:\n" +
+                System.IO.Path.Combine(
+                    System.IO.Path.GetDirectoryName(Environment.ProcessPath ?? "")!,
+                    "tools", "MicrosoftEdgeWebview2Setup.exe"),
+                "Factum IL — WebView2 חסר",
+                MessageBoxButton.OK,
+                MessageBoxImage.Error);
+            Application.Current.Shutdown(1);
+            return;
+        }
+
         _apiPort = await ApiHostService.ReadPortAsync();
         WebView.Source = new Uri($"http://localhost:{_apiPort}");
     }

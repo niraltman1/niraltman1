@@ -167,6 +167,19 @@ public sealed class DiagnosticsService
                      ?? new Exception(args.ExceptionObject?.ToString() ?? "UnknownException");
             // Fire-and-forget: we're in a crash path and must not block.
             _ = service.RecordCrashAsync(ex, "AppDomain.UnhandledException");
+            // Show a visible error so the user knows what happened instead of silent exit.
+            try
+            {
+                System.Windows.MessageBox.Show(
+                    $"Factum IL נקלעה לשגיאה בלתי צפויה ותיסגר.\n\n" +
+                    $"סוג שגיאה: {ex.GetType().Name}\n" +
+                    $"פרטים: {ex.Message}\n\n" +
+                    $"לוגים נשמרו ב:\n%LOCALAPPDATA%\\FactumIL\\diagnostics\\crashes\\",
+                    "Factum IL — שגיאה קריטית",
+                    System.Windows.MessageBoxButton.OK,
+                    System.Windows.MessageBoxImage.Error);
+            }
+            catch { /* if the UI thread is gone, at least the crash file was written */ }
         };
 
         TaskScheduler.UnobservedTaskException += (_, args) =>
