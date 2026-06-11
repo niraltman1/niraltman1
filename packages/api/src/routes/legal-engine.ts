@@ -20,7 +20,7 @@ export function legalEngineRouter(repos: Repos): Router {
 
   // ─── Check if a case type has a template (called on case creation) ─────────
   router.get('/templates', validate(listTemplatesQuerySchema, 'query'), asyncHandler((req, res) => {
-    const q = req.query as z.infer<typeof listTemplatesQuerySchema>;
+    const q = req.query as unknown as z.infer<typeof listTemplatesQuerySchema>;
     const templates = legalEngine.listTemplates(q.status);
     ok(res, templates);
   }));

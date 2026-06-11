@@ -63,7 +63,7 @@ export function ledgerRouter(repos: Repos): Router {
 
   // GET /api/ledger?clientId=N
   router.get('/', validate(querySchema, 'query'), asyncHandler(async (req, res) => {
-    const { clientId } = req.query as z.infer<typeof querySchema>;
+    const { clientId } = req.query as unknown as z.infer<typeof querySchema>;
 
     // Sweep overdue rows first
     repos.db.prepare(`
