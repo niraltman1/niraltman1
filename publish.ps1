@@ -639,6 +639,7 @@ StepElapsed
 Step "Staging portable Node.js runtime"
 $RuntimeDst = Join-Path $OutDir "runtime"
 New-Item -ItemType Directory -Force -Path $RuntimeDst | Out-Null
+$TempDir    = (Get-Item -LiteralPath $env:TEMP).FullName
 
 # Prefer the node.exe already in PATH (zero-network, always correct in CI via actions/setup-node).
 # This also avoids the $NodeVersion/$nodeVersion case-collision that produced double-v URLs.
@@ -649,7 +650,6 @@ if ($NodeExeSrc -and (Test-Path $NodeExeSrc)) {
 } else {
     # Fallback: download from nodejs.org (strip leading v if $NodeVersion was set with one)
     $CleanVersion = $NodeVersion.TrimStart('v')
-    $TempDir      = (Get-Item -LiteralPath $env:TEMP).FullName
     $NodeZip      = "$TempDir\node-v$CleanVersion-win-x64.zip"
     $NodeExtract  = "$TempDir\node-v$CleanVersion-win-x64-extract"
     $NodeUrl      = "https://nodejs.org/dist/v$CleanVersion/node-v$CleanVersion-win-x64.zip"
