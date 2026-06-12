@@ -35,18 +35,62 @@ See `DEVELOPMENT.md` for: quick-start commands, architecture diagram, coding con
 
 ```
 apps/
-  desktop/        ← Electron + WebView2 (Windows only)
-  web/            ← React web interface
+  dashboard/      ← React 19 + Vite + TailwindCSS — RTL Hebrew UI (port 5173 dev)
+  desktop/        ← C# WPF stub (early shell; published binary comes from FactumIL.Desktop/ at root)
+  installer/      ← Inno Setup script (FactumIL.iss) — not an npm package
+
+FactumIL.Desktop/ ← C# WPF + WebView2 — main production desktop shell (built by publish.ps1)
 
 packages/
-  ai/             ← Ollama integration, Law-IL E2B model calls
-                     depends on: @factum-il/database
-  api/            ← Backend API routes
-                     depends on: @factum-il/database, @factum-il/ai
-  database/       ← SQLite via better-sqlite3, all DB types and queries
-  pipeline/       ← Document processing pipeline (OCR, parsing, enrichment)
-                     depends on: @factum-il/database, @factum-il/ai
-  ui/             ← Shared React components
+  shared/                 ← TypeScript interfaces and types shared across all packages
+                             depends on: (none)
+  database/               ← SQLite via better-sqlite3, MigrationRunner, FTS5, sqlite-vec, all repositories
+                             depends on: @factum-il/shared
+  legal-ontology/         ← Israeli legal taxonomy, court hierarchy, procedure types
+                             depends on: @factum-il/shared, @factum-il/database
+  events/                 ← In-process typed event bus
+                             depends on: @factum-il/shared
+  observability/          ← Metrics, structured logging, PII-safe sinks
+                             depends on: @factum-il/shared
+  ai/                     ← OllamaClient, 5-step reasoning chain, circuit breaker
+                             depends on: @factum-il/shared, @factum-il/database
+  model-router/           ← AI model selection and health-check wrapper
+                             depends on: @factum-il/shared, @factum-il/ai
+  ai-guardrails/          ← Input/output safety filters, PII detection
+                             depends on: @factum-il/shared, @factum-il/ai
+  policy-engine/          ← RBAC policy evaluation (admin/attorney/assistant/reviewer/read_only)
+                             depends on: @factum-il/shared, @factum-il/database
+  memory/                 ← Per-case conversation memory (SQLite-backed, case-scoped)
+                             depends on: @factum-il/shared, @factum-il/database
+  retrieval/              ← sqlite-vec KNN retrieval, hybrid search (FTS5 + vector)
+                             depends on: @factum-il/shared, @factum-il/database
+  citation-engine/        ← Deterministic Israeli citation parser (Nevo 2021)
+                             depends on: @factum-il/shared, @factum-il/database, @factum-il/legal-ontology
+  pipeline/               ← Document processing pipeline (OCR, audio, enrichment)
+                             depends on: @factum-il/shared, @factum-il/database, @factum-il/ai, @factum-il/ai-guardrails
+  evals/                  ← AI evaluation harness, regression fixtures
+                             depends on: @factum-il/shared, @factum-il/ai
+  agent-core/             ← Base agent interface, tool registry, CaseExecutionContext
+                             depends on: @factum-il/shared, @factum-il/database, @factum-il/ai, @factum-il/policy-engine, @factum-il/memory, @factum-il/retrieval
+  orchestrator/           ← Multi-agent task orchestration, step sequencing
+                             depends on: @factum-il/shared, @factum-il/agent-core, @factum-il/events
+  support-diagnostics/    ← Crash reporting, health diagnostics, safe-mode coordinator
+                             depends on: @factum-il/shared, @factum-il/database, @factum-il/observability
+  update-core/            ← Auto-update checks, version management
+                             depends on: @factum-il/shared, @factum-il/database
+  litigation-intelligence/← Litigation analytics, deadline risk scoring
+                             depends on: @factum-il/shared, @factum-il/database, @factum-il/ai
+  enterprise-hooks/       ← Extension points for enterprise customization
+                             depends on: @factum-il/shared
+  encrypted-backup/       ← AES-256-GCM scheduled backups, restore pipeline
+                             depends on: @factum-il/shared, @factum-il/database
+  sdk/                    ← Public TypeScript SDK for external integrations
+                             depends on: @factum-il/shared
+  api/                    ← Express REST server (port 3001), 40+ route modules
+                             depends on: (all packages above)
+
+  legal-corpus-ingest/    ← PRIVATE dev-only tool: Knesset OData + WikiSource ingestion
+                             (not shipped; never a dep of api/desktop)
 ```
 
 **Dependency rule:** `database` has NO internal dependencies. Everything else can depend on `database`. Never create circular dependencies.
@@ -57,11 +101,12 @@ packages/
 
 | Layer | Technology |
 |-------|-----------|
-| UI | React + TypeScript + Tailwind |
-| Desktop shell | Electron + WebView2 (Windows) |
-| Backend | Node.js API |
-| Database | SQLite (better-sqlite3) |
+| UI | React 19 + TypeScript + Tailwind + Vite |
+| Desktop shell | WPF (.NET 8) + WebView2 (Windows only) — `FactumIL.Desktop/` |
+| Backend | Node.js API (Express, port 3001) |
+| Database | SQLite (better-sqlite3) + FTS5 + sqlite-vec |
 | AI | Ollama local — BrainboxAI/law-il-E2B model |
+| Installer | Inno Setup 6 (`installer.iss` + `publish.ps1` 12-step pipeline) |
 | Legacy pipeline | PowerShell 5.1 (separate repo, do not touch) |
 | Auth | Local only — no external auth service |
 | Language | Hebrew-first, RTL, UTF-8 everywhere |
@@ -150,6 +195,37 @@ BrainboxAI/law-il-E2B:Q4_K_M
 | `transaction()` call error | Calling result of transaction as function | `db.transaction(fn)` returns T, not a callable |
 | Hebrew text garbled | Wrong encoding | Ensure UTF-8 everywhere, never use Windows-1255 |
 | WebView2 not found | Not installed on user machine | Show installer prompt, link to Microsoft installer |
+
+---
+
+## Definition of Done
+
+Every PR must satisfy ALL of the following before merge:
+
+### Mandatory gates (every PR)
+- `pnpm -r typecheck` exits 0 — zero TypeScript errors across all packages.
+- All tests pass including the Windows job (`check-windows`): `pnpm test:logic` green on `windows-latest`.
+- Zero `any` types without an explicit inline justification comment.
+- No hardcoded POSIX paths (`/tmp/...`) — use `path.join()` / `path.resolve()` / `os.tmpdir()` only.
+- No new references to "Legal-OS", "LegalOS", or "legal-os".
+
+### Additional gates by change type
+- **New UI feature** → at least one Playwright E2E spec (`pnpm test:e2e` green) **or** a Vitest component test covering the golden path.
+- **Change to `publish.ps1` or `installer.iss`** → run `powershell/scripts/Verify-Install.ps1` on a real installation before merge. Do not merge installer changes based on CI alone.
+- **New route or changed API contract** → matching route test in `packages/api/src/__tests__/`.
+- **New database query function** → explicit TypeScript return type, covered by a repository test.
+
+### E2E / install verification commands
+```bash
+# E2E tests (Playwright, dashboard golden paths)
+pnpm test:e2e
+
+# Install verification (run after building installer on Windows)
+powershell -File powershell/scripts/Verify-Install.ps1 -InstallDir "C:\Program Files\FactumIL"
+
+# Dev-mode install check (no registry / no real install needed)
+powershell -File powershell/scripts/Verify-Install.ps1 -DevMode
+```
 
 ---
 
