@@ -17,7 +17,7 @@ export default defineConfig({
 
   webServer: [
     {
-      command: `node --loader tsx ../../packages/api/src/start.ts`,
+      command: `pnpm exec tsx ../../packages/api/src/start.ts`,
       url: 'http://localhost:3001/api/health',
       reuseExistingServer: !process.env['CI'],
       timeout: 30_000,
