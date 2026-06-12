@@ -161,3 +161,19 @@ FactumIL_Dist\
 | המתקין דורש .NET 8 | Desktop Runtime חסר במחשב הלקוח | התקן מ-Microsoft והרץ שוב |
 | WebView2 not found | Runtime חסר | המתקין מתקין אותו אוטומטית; אחרת התקן ידנית |
 | `SQLITE_VEC_PATH` לא מוגדר | Registry לא הוגדר | הרץ את ההתקנה מחדש, או הגדר ידנית עם `setx` |
+
+---
+
+## בדיקת התקנה — Verify-Install
+
+אחרי כל התקנה (installer.exe על מכונת Windows), הרץ:
+
+```powershell
+powershell -File powershell\scripts\Verify-Install.ps1 -InstallDir "C:\Program Files\FactumIL"
+```
+
+למצב פיתוח (ללא התקנה אמיתית):
+
+```powershell
+powershell -File powershell\scripts\Verify-Install.ps1 -DevMode
+```
