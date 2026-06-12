@@ -60,6 +60,10 @@ jobs:
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
         shell: pwsh
 
+      - name: Verify Installation (DevMode)
+        shell: pwsh
+        run: powershell -File powershell\scripts\Verify-Install.ps1 -DevMode
+
       - name: Upload installer artifact
         uses: actions/upload-artifact@v4
         with:
