@@ -315,7 +315,6 @@ export async function runPreflightIdentityResolution(
   if (resolvedId) {
     const byId = clients.findByIdNumber(resolvedId);
     if (byId) {
-      console.log(`[Preflight:A] Resolved client id=${byId.id} via ID lookup`);
       const parties = buildParties(rawParties, byId.id, contacts, aiExtraction);
       return { clientId: byId.id, clientName: byId.nameHe, created: false, essence, parties, captionFound: !!caption };
     }
@@ -327,7 +326,6 @@ export async function runPreflightIdentityResolution(
     const hits = clients.search(primaryName, 3);
     if (hits.length > 0) {
       const match = hits[0]!;
-      console.log(`[Preflight:A] Resolved client id=${match.id} via name search`);
       const parties = buildParties(rawParties, match.id, contacts, aiExtraction);
       return { clientId: match.id, clientName: match.nameHe, created: false, essence, parties, captionFound: !!caption };
     }
@@ -347,7 +345,6 @@ export async function runPreflightIdentityResolution(
     ...(primaryAi?.email   ? { email:    primaryAi.email }                                                                            : {}),
   });
 
-  console.log(`[Preflight:A] Auto-provisioned client id=${newClient.id} captionFound=${!!caption}`);
   const parties = buildParties(rawParties, newClient.id, contacts, aiExtraction);
   return { clientId: newClient.id, clientName: newClient.nameHe, created: true, essence, parties, captionFound: !!caption };
 }
@@ -382,7 +379,6 @@ function buildParties(
           });
           contactId = created.id;
         }
-        console.log(`[Preflight:A] Party role=${rp.role} → contact id=${contactId}`);
       } catch (e) {
         console.warn(`[Preflight:A] Failed to create contact for role=${rp.role}:`, String(e));
       }

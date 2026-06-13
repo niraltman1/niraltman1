@@ -46,8 +46,9 @@
       תביעה קטנה, כתב תביעה, גירושין, מזונות, עבודה, ערר מנהלי, דוח תנועה, ערבות.
 - [x] **legal-engine learning mode** — `POST /api/legal-engine/learn` עם Ollama fallback graceful.
       `regulation-parser.ts` מחזיר skeleton מסמך + מיילסטונים; fallback על parse error.
-- [ ] **packages דקיקים** — `orchestrator`, `sdk`, `encrypted-backup`, `enterprise-hooks` — בהמתנה להחלטת בעלים.
-- **קבלה:** כל פיצ'ר ב-IA הראשי עם backend אמיתי. packages דקיקים — החלטת בעלים.
+- [x] **packages דקיקים** — `orchestrator`, `sdk`, `encrypted-backup`, `enterprise-hooks` — **הושלם (PR #103, 2026-06-13)**:
+      stage transitions ב-rag-worker, plugin routes, encrypted-backup admin routes, enterprise capabilities endpoint, 3 panels + 8 hooks ב-Dashboard.
+- **קבלה:** כל פיצ'ר ב-IA הראשי עם backend אמיתי. packages דקיקים — **הושלמו**.
 
 ## Phase B3 — התראות וחיסיון ✅ **הושלם — מדיניות ננעלה** (PR #73, 2026-06-10)
 - [x] **ההכרעה: התראות in-app בלבד** (אפשרות א') — Notifications inbox (migration 058) הוא ערוץ-ההתראות הרשמי.
