@@ -21,6 +21,7 @@
     "test:chaos": "pnpm -r exec -- vitest run --reporter=verbose --testNamePattern='Chaos' --passWithNoTests",
     "test:env": "pnpm --filter @factum-il/api vitest run -- src/routes/__tests__/setup.test.ts --reporter=verbose",
     "test:unit": "pnpm --filter dashboard vitest run",
+    "test:e2e": "pnpm --filter @factum-il/dashboard test:e2e",
     "lint": "pnpm -r lint",
     "ingest-registry": "node tools/ingest-legal-sources.mjs",
     "ingest-knesset-odata": "tsx scripts/ingest-knesset-odata.ts",

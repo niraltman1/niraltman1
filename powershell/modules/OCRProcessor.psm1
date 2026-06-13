@@ -238,7 +238,7 @@ function Convert-PDFToImages {
     }
     $gs = if (Get-Command gswin64c -ErrorAction SilentlyContinue) { 'gswin64c' } else { 'gs' }
     & $gs -dBATCH -dNOPAUSE -dQUIET -sDEVICE=pnggray "-r$DPI" `
-          "-sOutputFile=`"$OutputDir\page_%04d.png`"" `"$PdfPath`"" 2>&1 | Out-Null
+          "-sOutputFile=`"$OutputDir\page_%04d.png`"" "$PdfPath" 2>&1 | Out-Null
 
     return Get-ChildItem -Path $OutputDir -Filter 'page_*.png' | Sort-Object Name
 }

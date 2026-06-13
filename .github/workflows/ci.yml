@@ -44,6 +44,114 @@ jobs:
         id: test-chaos
         run: pnpm test:chaos
 
+  check-windows:
+    name: Typecheck + Test (Windows)
+    runs-on: windows-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: pnpm/action-setup@v4
+        with:
+          version: '9.4.0'
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: pnpm
+          cache-dependency-path: pnpm-lock.yaml
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Typecheck
+        run: pnpm -r typecheck
+
+      - name: Test (logic)
+        run: pnpm test:logic
+
+      - name: Test (env — integration / route tests)
+        # All filesystem calls are mocked; safe on Windows
+        run: pnpm test:env
+
+      - name: Test (chaos — resilience scenarios)
+        # Uses --passWithNoTests; safe on Windows even if some tools are absent
+        run: pnpm test:chaos
+        continue-on-error: true
+
+  check-powershell:
+    name: PSScriptAnalyzer + Pester (Windows)
+    runs-on: windows-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install PSScriptAnalyzer
+        shell: pwsh
+        run: Install-Module -Name PSScriptAnalyzer -Force -Scope CurrentUser
+
+      - name: Run PSScriptAnalyzer
+        shell: pwsh
+        run: |
+          $results  = Invoke-ScriptAnalyzer -Path publish.ps1 -Severity Error
+          $results += Invoke-ScriptAnalyzer -Path powershell -Recurse -Severity Error
+          if ($results) { $results | Format-Table; exit 1 }
+
+      - name: Install SQLite
+        shell: pwsh
+        # Required by FactumIL.Tests.ps1 for SQLite-backed Describe blocks
+        run: choco install sqlite --no-progress -y
+
+      - name: Install Pester
+        shell: pwsh
+        run: Install-Module -Name Pester -Force -Scope CurrentUser -SkipPublisherCheck
+
+      - name: Run Pester tests
+        shell: pwsh
+        run: |
+          $config = New-PesterConfiguration
+          $config.Run.Path = 'tests/powershell'
+          $config.Output.Verbosity = 'Detailed'
+          $config.Run.Exit = $true
+          Invoke-Pester -Configuration $config
+
+  e2e:
+    name: Playwright E2E
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: pnpm/action-setup@v4
+        with:
+          version: '9.4.0'
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: pnpm
+          cache-dependency-path: pnpm-lock.yaml
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Build packages (required by API webServer)
+        run: pnpm -r --if-present run build
+
+      - name: Install Playwright browsers
+        working-directory: apps/dashboard
+        run: pnpm exec playwright install --with-deps chromium
+
+      - name: Run E2E tests
+        run: pnpm test:e2e
+
+      - name: Upload Playwright traces on failure
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: playwright-traces
+          path: apps/dashboard/test-results/
+          retention-days: 7
+
   evals:
     name: Eval Regression
     runs-on: ubuntu-latest

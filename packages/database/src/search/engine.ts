@@ -108,7 +108,9 @@ export class SearchEngine {
       })
       .slice(0, limit);
 
-    this.cacheResults(cacheKey, ranked, normalised);
+    if (ranked.length > 0) {
+      this.cacheResults(cacheKey, ranked, normalised);
+    }
 
     logger.debug(`Search: "${normalised}" → ${ranked.length} hits`, {
       category: 'system', agentSource: 'SearchEngine',
@@ -137,32 +139,31 @@ export class SearchEngine {
 
   buildFTSQuery(normalised: string): string {
     const tokens = normalised.split(/\s+/).filter((w) => w.length > 0);
-    const parts: string[] = [];
+    const clean = (v: string) => v.replace(/["()*]/g, '').trim();
 
-    for (const token of tokens) {
+    // Single-token path: can safely use OR between prefix variants.
+    // FTS5 does NOT support parenthesised OR groups like (A* OR B*), so for
+    // multi-token queries we fall back to one prefix term per input token
+    // (preserving implicit-AND semantics) to avoid a syntax error.
+    if (tokens.length === 1) {
+      const token   = tokens[0]!;
       const variants = new Set<string>([token]);
 
-      // Strip compound prefix first, then single-char
       const stripped = token.replace(HE_COMPOUND, '').replace(HE_CONJUNCTIVE, '');
       if (stripped !== token && stripped.length >= 2) variants.add(stripped);
 
-      // Add definite article variant (ה + base form)
       if (!token.startsWith('ה') && stripped.length >= 2) {
         variants.add(`ה${stripped}`);
       }
 
-      // Legal synonyms
       const syns = LEGAL_SYNONYMS[token] ?? LEGAL_SYNONYMS[stripped] ?? [];
       for (const s of syns) variants.add(s);
 
-      // Build OR group: ("variant1"* OR "variant2"*)
-      const orGroup = [...variants]
-        .map((v) => `"${v.replace(/"/g, '')}"*`)
-        .join(' OR ');
-      parts.push(variants.size > 1 ? `(${orGroup})` : orGroup);
+      return [...variants].map((v) => `${clean(v)}*`).join(' OR ');
     }
 
-    return parts.join(' ');
+    // Multi-token path: one prefix term per token, space-joined (implicit AND).
+    return tokens.map((t) => `${clean(t)}*`).join(' ');
   }
 
   // ───────────────────────────────────────────────
