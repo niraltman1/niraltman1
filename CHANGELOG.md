@@ -5,6 +5,39 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ---
 
+## [Audit UX Round + B2/C7 Completion] — 2026-06-13
+PRs #91, #94–#101
+
+### Added
+- **Audit UX #13** — Case-level notes tab (`'notes'`) in `CaseDetail`: compose textarea with Ctrl+Enter shortcut, per-note delete. Uses existing `Tasks` table (`source: 'note'`) — no new endpoint (PR #99).
+- **Audit UX #1–#12, #14–#20** — 19 additional items completed across PRs #94–#98:
+  - Global search (`/search`) wired to FTS5 results with grouping + highlight (PR #94).
+  - Legal corpus browser (`/library`) tabs: legislation + case-law (PR #94).
+  - Matter workbench button on every case card (PR #94).
+  - Citation harvest button in `DocumentDetail` (PR #94).
+  - Stored agent results (`GET /api/agents/results`, PR #94).
+  - Document version history + AI insight batch review + citations page (PR #95).
+  - Entity graph (SVG, D3-free) + unified agent URL-param experience (PR #96).
+  - PDF and Word export (`jspdf` + `docx`, `ExportMenu`, PR #97).
+- **B2 — Stens seed data:** migration 078 — 8 real Hebrew legal form templates in `StensTemplates` (small claims, civil pleading, divorce, maintenance, labour, admin appeal, traffic fine, bail bond) (PR #101).
+- **B2 — Saved Filters (Smart Collections):** migration 079 — `SavedFilters` table + `SavedFiltersRepository`; 4 API routes (`GET/POST /api/collections/saved`, `DELETE /saved/:id`, `GET /saved/:id/items`); `SmartCollectionsPage` extended with custom filter pills (create, activate, delete) (PR #101).
+- **B2 — legal-engine learning mode:** `POST /api/legal-engine/learn` — regulation document parsed by `regulation-parser.ts`; Ollama graceful fallback on parse error (PR #101).
+- **C7 — SLA Radar:** `sla-radar-scheduler.ts` — hourly scheduler (configurable via `COMM_SLA_HOURS`, default 4h); queries `CommMessages WHERE direction='inbound' AND handled=0`; creates `warning`/`critical` in-app notifications with idempotent `dedupKey: 'sla:conv:<id>'`; auto-resolves when conversation is handled (PR #101).
+- QA Phase 2: Windows CI job (`check-windows`), PowerShell/Pester CI job, Playwright E2E golden tests (8 tests) (PR #91).
+
+### Fixed
+- Flaky timing test in `packages/update-core` — `waitForDbUnlock` threshold raised from 200ms to 1000ms for slow Windows runners (PR #99).
+- FTS5 alias bug: `WHERE fts MATCH ?` corrected to `WHERE fts_documents MATCH ?` (PR #91).
+- FTS5 parenthesized-OR syntax rejected by SQLite — flattened to `A* OR B*` form (PR #91).
+- Cache poisoning in `cacheResults` — only caches when `ranked.length > 0` (PR #91).
+
+### Known limitations (unchanged)
+- WhatsApp manual-send (C2) requires self-hosted `whatsapp-web.js` with local WebView2/Edge — environment-blocked, documented caveat.
+- Telegram live delivery and local Whisper transcription require user-machine network access.
+- packages דקיקים (`orchestrator`, `sdk`, `encrypted-backup`, `enterprise-hooks`) — awaiting owner decision.
+
+---
+
 ## [Beta Readiness — v1.0.0-beta.1 candidate] — 2026-06-10
 PRs #52, #55, #58, #63, #67, #68, #70–#74, #76
 
@@ -30,7 +63,8 @@ PRs #52, #55, #58, #63, #67, #68, #70–#74, #76
 
 ### Known beta limitations
 - WhatsApp manual-send (C2) requires self-hosted `whatsapp-web.js` with local WebView2/Edge `executablePath` — environment-blocked, documented caveat.
-- C7 SLA orphan-message radar and C8 professional-contact path deferred post-beta.
+- C7 SLA radar — completed in PR #101 (see above).
+- C8 professional-contact path deferred post-beta.
 - Telegram live delivery and local Whisper transcription require user-machine verification.
 
 ---

@@ -108,21 +108,23 @@
 - **אומת:** +3 repo, +2 transcription, +2 route; DB(81)+API(105) ירוקים; build נקי; migration 062 ולידציה.
 - ⚠️ **חסם-סביבה:** תמלול חי דורש מודל Whisper מקומי (`WHISPER_CMD`) — הלוגיקה אומתה דרך injection.
 
-## Phase C6 — תיעוד שיחות + הכתבה (שבוע 7)
-- [ ] **כלל קשיח:** אין הקלטת שיחות חיות עם לקוחות.
-- [ ] **טופס "תעד שיחה"** (side-panel): חותמת-זמן, נושא, משימות-המשך.
-- [ ] **הכתבה אחרי השיחה (Whisper):** כפתור "הקלט" *אחרי* הניתוק → המשתמש מכתיב סיכום → Whisper מתמלל לשדה-הסיכום.
-- [ ] **שילוב בציר-הזמן:** יומן-השיחה מופיע כבלוק רגיל בציר.
-- **קבלה:** עו"ד מתעד שיחה + מכתיב סיכום מתומלל, ללא הקלטת השיחה עצמה.
+## Phase C6 — תיעוד שיחות + הכתבה ✅ **הושלם**
+- [x] **כלל קשיח:** אין הקלטת שיחות חיות עם לקוחות.
+- [x] **טופס "תעד שיחה"** — `CallLogModal.tsx`: חותמת-זמן, כיוון, נושא, סיכום, תגיות, פעולות-המשך.
+      `CallLogs` (migration 066): `direction, subject, summary, occurred_at, duration_minutes, participants, tags, action_items, is_evidence`.
+- [x] **הכתבה אחרי השיחה (Whisper):** כפתור "תמלל" ב-modal → מקליט browser audio → `POST /api/communications/transcribe` (Whisper מקומי) → מצרף לשדה הסיכום.
+- [x] **שילוב בציר-הזמן:** `CommunicationsPanel` מציג שיחות כרטיסי-שיחה עם סמל טלפון, סיכום, תגיות, כפתור "שמור כראיה".
+- **אומת:** `CallLogsRepository` + `useCreateCallLog` hook + migration 066 + CI ירוק.
 
-## Phase C7 — AI יזום: תיוג סמנטי + מוניטור SLA 🟢 **Smart Triage הושלם** (PRs #72, #74)
+## Phase C7 — AI יזום: תיוג סמנטי + מוניטור SLA ✅ **הושלם** (PRs #72, #74, #101)
 - [x] **Smart Triage** — `classifyInboundMessage` מריץ `law-il-E2B` מקומי על כל הודעה נכנסת (fire-and-forget
       אחרי webhook), שומר `ai_urgency` (urgent/normal/low) + `ai_tags` ב-`CommMessages` (migration 068).
       Ollama-graceful — אם המודל לא זמין, מדלגים בלי לקרוס.
 - [x] **תצוגה ב-UI** — תגית "דחוף" אדומה + pills של תגיות-AI על הודעות נכנסות ב-`MessageBubble` (PR #74).
-- [ ] **ראדאר הודעות-יתומות (SLA):** job מתוזמן סורק הודעות שלא נענו תוך X שעות → התראת in-app
-      "לקוחות ממתינים". *(נותר — פריט post-beta)*
-- **קבלה (חלקית):** הודעה נכנסת מתויגת ומוצגת עם דחיפות; ראדאר SLA טרם מומש.
+- [x] **ראדאר הודעות-יתומות (SLA):** `sla-radar-scheduler.ts` — job שעתי סורק `CommMessages WHERE handled=0 AND direction='inbound' AND created_at < NOW() - COMM_SLA_HOURS`.
+      יוצר התראת `warning`/`critical` ב-`NotificationsRepository` (idempotent, `sla:conv:<id>`).
+      מכבה התראה אוטומטית כאשר כל ההודעות בשיחה מטופלות. מחווט ל-`start.ts`.
+- **אומת:** PR #101, CI ירוק.
 
 ## Phase C8 — ניתוב אנשי-קשר לא-מזוהים (Lead→Client) 🟢 **מסלול-לקוח הושלם** (PR #74)
 - [x] **Unknown Inbox** — `CommUnknownInbox` קולט שולחים לא-מזוהים מ-`routeInbound`; תיבה גלובלית

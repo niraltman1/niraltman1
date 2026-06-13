@@ -56,7 +56,7 @@ factum-il/
 │   ├── encrypted-backup/   # AES-256-GCM scheduled backups, restore pipeline
 │   ├── sdk/                # Public TypeScript SDK for external integrations
 │   └── api/                # Express REST server (port 3001) — all 40+ route modules
-├── migrations/             # SQL files 001–077 (067 intentionally skipped), run exactly once by MigrationRunner
+├── migrations/             # SQL files 001–079 (067 intentionally skipped), run exactly once by MigrationRunner
 ├── powershell/
 │   ├── lib/
 │   │   ├── Config.ps1              # Office root: C:\אלטמן משרד עורכי דין - סדר 2026
@@ -112,7 +112,7 @@ Two database files:
 - WAL mode is always on; FTS5 for full-text search; sqlite-vec for KNN vector search
 - PRAGMA statements must appear before `BEGIN TRANSACTION` in migration files
 
-### All Migrations (001–077, 067 intentionally skipped)
+### All Migrations (001–079, 067 intentionally skipped)
 
 | Migration | Tables / Changes Added |
 |-----------|----------------------|
@@ -193,6 +193,8 @@ Two database files:
 | 075 | SupremeCourtVerdicts |
 | 076 | PrecedentChunks (vector search) |
 | 077 | vec_precedent_verdicts (sqlite-vec, SKIP_ON_ERROR) |
+| 078 | StensTemplates seed data — 8 Hebrew legal form templates (small claims, civil, divorce, maintenance, labour, admin, traffic, bail) |
+| 079 | SavedFilters — user-defined document filter queries (Smart Collections, B2) |
 
 ## API Routes
 

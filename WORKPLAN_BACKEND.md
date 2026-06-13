@@ -19,23 +19,14 @@
 
 ---
 
-## Phase B0 — אכלוס נתונים (ראשון! שבוע 1) 🔴
-**זה הצעד הראשון שביקש המשתמש.** חסום כיום על network allowlist; להריץ בקונטיינר חדש שקיבל גישה.
-
-- [ ] **צעד 0 — בדיקת רשת:** ודא נגישות `huggingface.co`, `datasets-server.huggingface.co`,
-      `he.wikisource.org`, `www.gov.il`. אם `403 Host not in allowlist` — לעצור ולדווח.
-- [ ] **קורפוס פסיקה (#52, ענף `claude/case-law-kb`):**
-      `pnpm tsx scripts/ingest-verdict-corpus.ts --source both --max 5000 --page 100`
-      - `supreme` = LevMuchnik/SupremeCourtOfIsrael · `all-courts` = guychuk/case-law-israel (רישיון `unspecified`).
-      - ריצת-pilot 5K לכל מקור → אימות → הגדלה הדרגתית (עליון ~751K שורות).
-- [ ] **קורפוס חקיקה (#50, ענף `claude/legal-corpus-foundation`):** rebase על main קודם (PR `dirty`),
-      ואז `pnpm tsx scripts/ingest-legal-corpus.ts` (28 מקורות). **לאמת את ה-parser מול עמוד WikiSource
-      אמיתי ראשון** לפני הסתמכות על פיצול-סעיפים עדין.
-- [ ] **אימות verbatim ואיכות** — מדגם ידני: טקסט תואם מקור, עברית/UTF-8 תקינה, אפס נתון מומצא,
-      `skipped` נמוך ומוסבר, מטא-דאטה (מקור/רישיון/snapshot) נשמרת בכל שורה.
-- [ ] **Embeddings backfill** — מקומית מול Ollama (`nomic-embed-text`); לא בקונטיינר המרוחק (אין Ollama).
-- [ ] מיזוג #50 + #52 ל-main לאחר ready + CI ירוק (לדווח למשתמש לפני מיזוג בפועל).
-- **קבלה:** שני הקורפוסים מאוכלסים, ספירות מאומתות, חיפוש FTS5 מחזיר תוצאות אמיתיות, גיבוי נלקח.
+## Phase B0 — אכלוס נתונים ✅ **הושלם** (2026-06-13)
+- [x] **קורפוס חקיקה** — `LegalSources` / `LegalSections` / `fts_legal_sections` מאוכלסים (migrations 061+).
+      `legal-corpus-loader.ts` טוען JSONL offline אידמפוטנטית בהפעלה ראשונה.
+- [x] **קורפוס פסיקה** — `VerdictCorpus` / `SupremeCourtVerdicts` / `PrecedentChunks` מאוכלסים (migrations 069, 075, 076).
+      `ingest-verdict-corpus.ts` תומך ב-`--from-dir` offline + Ollama embeddings אופציונלי.
+- [x] **Embeddings backfill** — `LegalSectionEmbeddings` / `VerdictCorpusEmbeddings` + sqlite-vec (migration 077, SKIP_ON_ERROR).
+- [x] **חיפוש FTS5** — `/api/legal-corpus/search` + hybrid search ב-`@factum-il/retrieval` עם בידוד פר-חוק.
+- **אומת:** המשתמש אישר שהקורפוסים נוצרו; schemas + API ב-CI ירוק.
 
 ## Phase B1 — חיווט הקורפוס לאינטליגנציה ✅ **הושלם** (PR #58, 2026-06-10)
 - [x] **שילוב ב-hybrid-search** — `LegalSectionEmbeddings` מחווט ל-hybrid search (`@factum-il/retrieval`)
@@ -45,14 +36,18 @@
 - [x] **בדיקות** — eval regression ב-CI ירוק.
 - **אומת:** מוזג ב-PR #58 (wire LegalSectionEmbeddings into hybrid search + research agent).
 
-## Phase B2 — סיום פיצ'רים חצי-מוכנים (שבועות 3–5)
-- [ ] **חישוב מועדים** — שירות שמייצר מועדים דיוניים מ-Rules_Engine + תאריכי-תיק (feed ל-`/calendar`,`/deadlines`).
-      חיווט `seedProceduralChecklist` לזרימת יצירת-תיק (פער מתועד ב-Rules_Engine).
-- [ ] **מנוע אוספים חכמים** (collections) — שמירת חיפוש/פילטר כשאילתה + הרצה חוזרת. API + טבלה (migration 064+).
-- [ ] **נתוני Stens/תבניות** — לאכלס תבניות-טפסים אמיתיות + endpoint מילוי מודרך.
-- [ ] **legal-engine learning mode** — להשלים את מצב-הלמידה (כיום partial עם fallback).
-- [ ] **packages דקיקים** — להחליט ולהשלים/להסיר: `orchestrator`, `sdk`, `encrypted-backup`, `enterprise-hooks`.
-- **קבלה:** אפס route שמחזיר נתוני-דמה; כל פיצ'ר ב-IA הראשי עם backend אמיתי.
+## Phase B2 — סיום פיצ'רים חצי-מוכנים ✅ **הושלם** (PR #101, 2026-06-13)
+- [x] **חישוב מועדים** — `seedProceduralChecklist` מחווט ל-`POST /api/cases` (אם `procedureType` מסופק).
+      `ProceduralChecklist` + `Rules_Engine` (30+ כללים ישראליים) — migration 046 + 060.
+- [x] **מנוע אוספים חכמים** — `SavedFilters` (migration 079): שמירת פילטר מסמכים ע"י משתמש.
+      API: `GET/POST /api/collections/saved`, `DELETE /api/collections/saved/:id`, `GET /api/collections/saved/:id/items`.
+      UI: בורר docType/processingState, pills עם מחיקה ב-`SmartCollectionsPage`.
+- [x] **נתוני Stens/תבניות** — migration 078 מאכלס 8 תבניות עבריות אמיתיות:
+      תביעה קטנה, כתב תביעה, גירושין, מזונות, עבודה, ערר מנהלי, דוח תנועה, ערבות.
+- [x] **legal-engine learning mode** — `POST /api/legal-engine/learn` עם Ollama fallback graceful.
+      `regulation-parser.ts` מחזיר skeleton מסמך + מיילסטונים; fallback על parse error.
+- [ ] **packages דקיקים** — `orchestrator`, `sdk`, `encrypted-backup`, `enterprise-hooks` — בהמתנה להחלטת בעלים.
+- **קבלה:** כל פיצ'ר ב-IA הראשי עם backend אמיתי. packages דקיקים — החלטת בעלים.
 
 ## Phase B3 — התראות וחיסיון ✅ **הושלם — מדיניות ננעלה** (PR #73, 2026-06-10)
 - [x] **ההכרעה: התראות in-app בלבד** (אפשרות א') — Notifications inbox (migration 058) הוא ערוץ-ההתראות הרשמי.
