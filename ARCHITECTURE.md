@@ -36,7 +36,7 @@ factum-il/
 │           ├── modules/    # Feature modules: canvas, evidence, gmail, security, updates
 │           ├── routes/     # REST endpoints (one file per resource, 40+ routes)
 │           └── utils/      # MediaPipeline, RAG worker, legal-registry-loader, ingest-adapter
-├── migrations/             # SQL files 001–060, run exactly once by MigrationRunner
+├── migrations/             # SQL files 001–077 (067 intentionally skipped), run exactly once by MigrationRunner
 ├── powershell/
 │   ├── lib/
 │   │   ├── Config.ps1              # Office root: C:\אלטמן משרד עורכי דין - סדר 2026
