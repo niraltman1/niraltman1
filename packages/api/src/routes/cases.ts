@@ -11,6 +11,7 @@ import { createCaseSchema } from '../validation/cases.js';
 import { NotFoundError, ValidationError } from '../errors/api-error.js';
 import { analyzeEvidenceGaps, getCaseCompleteness, seedProceduralChecklist } from '@factum-il/litigation-intelligence';
 import { assessCaseRisk } from '../utils/risk-summary.js';
+import { extensionPoints } from '@factum-il/sdk';
 
 // Builds a minimal valid .docx (OOXML ZIP) using pizzip without needing a template file.
 async function writeMinimalDocx(outPath: string, cas: Record<string, unknown>): Promise<void> {
@@ -117,6 +118,7 @@ export function casesRouter(repos: Repos): Router {
       }
     }
 
+    extensionPoints.fireCaseCreated(newCase.id).catch(() => {});
     ok(res, { id: newCase.id }, 201);
   }));
 

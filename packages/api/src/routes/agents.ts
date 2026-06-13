@@ -14,6 +14,7 @@ import { withCaseExecutionGuard } from '../middleware/case-execution-guard.js';
 import { checkExecutionValidity, markAgentCompleted, markAgentFailed, journalEvent } from '@factum-il/agent-core';
 import type { CaseExecutionContext } from '@factum-il/agent-core';
 import type { Repos } from '../db.js';
+import { extensionPoints } from '@factum-il/sdk';
 
 // Helper: read guard metadata attached by withCaseExecutionGuard
 function guardMeta(req: object): { traceId: string; caseStateHash: string; username: string } {
@@ -81,6 +82,7 @@ export function agentsRouter(repos: Repos): Router {
         if (stale.isStale) journalEvent(repos.db, 'stale_detected', traceId, caseId, username, { reason: stale.staleReason });
         markAgentCompleted(traceId, repos.db);
         journalEvent(repos.db, 'execution_completed', traceId, caseId, username);
+        extensionPoints.fireAgentCompleted(traceId).catch(() => {});
         ok(res, { ...output, ...stale });
       } catch (err) {
         markAgentFailed(traceId, String(err), repos.db);
@@ -108,6 +110,7 @@ export function agentsRouter(repos: Repos): Router {
         if (stale.isStale) journalEvent(repos.db, 'stale_detected', traceId, caseId, username, { reason: stale.staleReason });
         markAgentCompleted(traceId, repos.db);
         journalEvent(repos.db, 'execution_completed', traceId, caseId, username);
+        extensionPoints.fireAgentCompleted(traceId).catch(() => {});
         ok(res, { ...output, ...stale });
       } catch (err) {
         markAgentFailed(traceId, String(err), repos.db);
@@ -142,6 +145,7 @@ export function agentsRouter(repos: Repos): Router {
         if (stale.isStale) journalEvent(repos.db, 'stale_detected', traceId, resolvedCaseId, username, { reason: stale.staleReason });
         markAgentCompleted(traceId, repos.db);
         journalEvent(repos.db, 'execution_completed', traceId, resolvedCaseId, username);
+        extensionPoints.fireAgentCompleted(traceId).catch(() => {});
         ok(res, { ...output, ...stale });
       } catch (err) {
         markAgentFailed(traceId, String(err), repos.db);
@@ -167,6 +171,7 @@ export function agentsRouter(repos: Repos): Router {
         const output = await reviewContract(repos, documentId);
         markAgentCompleted(traceId, repos.db);
         journalEvent(repos.db, 'execution_completed', traceId, null, username);
+        extensionPoints.fireAgentCompleted(traceId).catch(() => {});
         // Contract review is document-scoped; no case staleness check needed
         ok(res, { ...output, isStale: false, staleReason: null });
       } catch (err) {
@@ -195,6 +200,7 @@ export function agentsRouter(repos: Repos): Router {
         if (stale.isStale) journalEvent(repos.db, 'stale_detected', traceId, caseId, username, { reason: stale.staleReason });
         markAgentCompleted(traceId, repos.db);
         journalEvent(repos.db, 'execution_completed', traceId, caseId, username);
+        extensionPoints.fireAgentCompleted(traceId).catch(() => {});
         ok(res, { ...output, ...stale });
       } catch (err) {
         markAgentFailed(traceId, String(err), repos.db);

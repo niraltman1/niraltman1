@@ -62,6 +62,8 @@ import { legalCorpusRouter } from './routes/legal-corpus.js';
 import { verdictCorpusRouter } from './routes/verdict-corpus.js';
 import { draftsRouter }      from './routes/drafts.js';
 import { legalBrainRouter }  from './routes/legal-brain.js';
+import { pluginsRouter }     from './routes/plugins.js';
+import { enterpriseRouter }  from './routes/enterprise.js';
 import { recordActivity }    from './utils/resource-controller.js';
 import { RagHealingService } from './utils/rag-healing.js';
 import { logWhisperHealthAtStartup } from './modules/transcription/whisper.js';
@@ -141,7 +143,7 @@ export function createApp(
   app.use('/api/search',      searchRouter(repos));
   app.use('/api/queue',       queueRouter(repos));
   app.use('/api/action-plan', actionPlanRouter(repos));
-  app.use('/api/admin',       adminRouter(repos, svc));
+  app.use('/api/admin',       adminRouter(repos, svc, dbPath));
   app.use('/api/legal-ai',    legalAiRouter(repos));
   app.use('/api/ai',          aiStreamRouter(repos));
   app.use('/api/tasks',        tasksRouter(repos));
@@ -187,6 +189,8 @@ export function createApp(
   app.use('/api/legal-corpus',  legalCorpusRouter(repos));
   app.use('/api/drafts',        draftsRouter(repos));
   app.use('/api/legal-brain',   legalBrainRouter(repos));
+  app.use('/api/plugins',       pluginsRouter());
+  app.use('/api/enterprise',    enterpriseRouter());
 
   // Track activity for Day/Night resource controller
   app.use((_req, _res, next) => { recordActivity(); next(); });

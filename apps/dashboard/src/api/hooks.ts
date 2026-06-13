@@ -973,6 +973,109 @@ export function useMediaRegistryStats() {
   });
 }
 
+// ─────────────────────────────────────────────
+//  SDK Plugins
+// ─────────────────────────────────────────────
+
+export function usePlugins() {
+  return useQuery({
+    queryKey: ['plugins'],
+    queryFn:  () => fetchJSON<{ plugins: string[] }>('/api/plugins'),
+    staleTime: 30_000,
+    retry: false,
+  });
+}
+
+export function useLoadPlugin() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (manifest: unknown) =>
+      postJSON<{ loaded: string }>('/api/plugins/load', { manifest }),
+    onSuccess: () => { void qc.invalidateQueries({ queryKey: ['plugins'] }); },
+  });
+}
+
+export function useUnloadPlugin() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (name: string) => deleteJSON<{ unloaded: string }>(`/api/plugins/${encodeURIComponent(name)}`),
+    onSuccess: () => { void qc.invalidateQueries({ queryKey: ['plugins'] }); },
+  });
+}
+
+// ─────────────────────────────────────────────
+//  Encrypted Backups
+// ─────────────────────────────────────────────
+
+export interface EncryptedBackupManifest {
+  backupId:            string;
+  createdAt:           string;
+  dbPath:              string;
+  appVersion:          string;
+  algorithm:           string;
+  encryptedSizeBytes:  number;
+  plaintextSizeBytes:  number;
+}
+
+export function useEncryptedBackups() {
+  return useQuery({
+    queryKey: ['admin', 'encrypted-backups'],
+    queryFn:  () => fetchJSON<{ backups: EncryptedBackupManifest[] }>('/api/admin/encrypted-backups'),
+    staleTime: 30_000,
+    retry: false,
+  });
+}
+
+export function useCreateEncryptedBackup() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: () => postJSON<{ backupId: string; path: string }>('/api/admin/encrypted-backups'),
+    onSuccess: () => { void qc.invalidateQueries({ queryKey: ['admin', 'encrypted-backups'] }); },
+  });
+}
+
+export function useVerifyEncryptedBackup() {
+  return useMutation({
+    mutationFn: (id: string) =>
+      fetchJSON<{ valid: boolean }>(`/api/admin/encrypted-backups/${encodeURIComponent(id)}/verify`),
+  });
+}
+
+export function useRestoreEncryptedBackup() {
+  return useMutation({
+    mutationFn: (id: string) =>
+      postJSON<{ restoredTo: string; hash: boolean }>(`/api/admin/encrypted-backups/${encodeURIComponent(id)}/restore`),
+  });
+}
+
+// ─────────────────────────────────────────────
+//  Enterprise Capabilities
+// ─────────────────────────────────────────────
+
+export interface EnterpriseCapabilitiesResponse {
+  firmProfile: {
+    firmId:      string;
+    displayName: string;
+    licenseType: 'beta' | 'standard' | 'enterprise';
+    maxUsers:    number;
+  } | null;
+  capabilities: {
+    multiUser:          { enabled: boolean };
+    centralizedStorage: { enabled: boolean };
+    adminConsole:       { enabled: boolean; url: string | null };
+    enterpriseBackup:   { enabled: boolean };
+  };
+}
+
+export function useEnterpriseCapabilities() {
+  return useQuery({
+    queryKey: ['enterprise', 'capabilities'],
+    queryFn:  () => fetchJSON<EnterpriseCapabilitiesResponse>('/api/enterprise/capabilities'),
+    staleTime: 60_000,
+    retry: false,
+  });
+}
+
 export function useMediaHealth() {
   return useQuery({
     queryKey: ['media', 'health'],
