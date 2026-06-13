@@ -1,5 +1,45 @@
 # Factum-IL — Task Tracker
 
+## 🗓️ Session handoff — Audit UX Round COMPLETE (2026-06-13)
+
+### הושלם הפעם
+
+- ✅ **PR #99 — Audit UX #13: טאב הערות ב-CaseDetail (מוזג `69e7b5d`):**
+  - טאב "הערות" (`'notes'`) נוסף ל-`CaseDetail` עם textarea + Ctrl+Enter + מחיקה
+  - משתמש בתשתית `useTasks` / `useCreateTask` / `useDeleteTask` קיימת (`source: 'note'`)
+  - ללא endpoint חדש — Tasks table + `caseId` + `source: 'note'`
+  - תיקון נוסף: timing-flake ב-`packages/update-core` (200ms → 1000ms threshold)
+
+### סטטוס Audit UX — **20/20 הושלמו** ✅
+
+| # | פריט | PR / סטטוס |
+|---|------|------------|
+| 1 | Global Search בסיידבר | #94 |
+| 2 | מאגר חקיקה/פסיקה | #94 |
+| 3 | Drafting workspace | קיים בקוד (#68) |
+| 4 | Register Payment Ledger | קיים בקוד (#98) |
+| 5 | "Today's View" dashboard | קיים בקוד (#98) |
+| 6 | Matter Workbench | #94 |
+| 7 | Unified AI agent experience | #96 |
+| 8 | Citation harvesting button | #94 |
+| 9 | Insolvency module | קיים בקוד (#98) |
+| 10 | Research workflow | #95 |
+| 11 | PDF + Word export | #97 |
+| 12 | Entity graph visualization | #96 |
+| 13 | Matter-level notes | #99 |
+| 14 | Agent execution journal | קיים בקוד (#98) |
+| 15 | AI insight batch review | #95 |
+| 16 | Document version history | #95 |
+| 17 | Comm ↔ matter timeline | קיים בקוד (#98) |
+| 18 | Procedure-type onboarding | קיים בקוד (#98) |
+| 19 | Persistent agent results | #94 |
+| 20 | Scoped legal corpus search | קיים בקוד (#98) |
+
+### מה לעשות עכשיו
+- Audit UX Round הסתיים. ניתן להמשיך ל-`WORKPLAN_BACKEND.md` או `WORKPLAN_COMMUNICATIONS.md`.
+
+---
+
 ## 🗓️ Session handoff — Platform Audit UX improvements (2026-06-13)
 
 ### הושלם הפעם

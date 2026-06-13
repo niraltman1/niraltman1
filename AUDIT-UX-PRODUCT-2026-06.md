@@ -891,32 +891,32 @@ The infrastructure is correct: event bus, orchestrator, policy engine, vector se
 
 ## The 20 Highest-Value Improvements — Ranked
 
-> **Implementation status (updated 2026-06-13):**
+> **Implementation status (updated 2026-06-13 — FINAL):**
 >
 > | # | Title | Status | PR |
 > |---|-------|--------|-----|
 > | 1 | Global Search in sidebar nav | ✅ הושלם | #94 |
 > | 2 | Legal Corpus reading interface | ✅ הושלם | #94 |
-> | 3 | Drafting workspace | ⏳ טרם — גבוה-מורכב | — |
-> | 4 | Register Payment Ledger | ⏳ טרם — קל | — |
-> | 5 | "Today's View" dashboard | ⏳ טרם — בינוני | — |
+> | 3 | Drafting workspace | ✅ הושלם | קיים בקוד (#68) |
+> | 4 | Register Payment Ledger | ✅ הושלם | קיים בקוד (#98) |
+> | 5 | "Today's View" dashboard | ✅ הושלם | קיים בקוד (#98) |
 > | 6 | Promote Matter Workbench | ✅ הושלם | #94 |
 > | 7 | Unified AI agent experience | ✅ הושלם | #96 |
 > | 8 | Citation harvesting button | ✅ הושלם | #94 |
-> | 9 | Surface Insolvency module | ⏳ טרם — בינוני | — |
+> | 9 | Surface Insolvency module | ✅ הושלם | קיים בקוד (#98) |
 > | 10 | Connect legal research workflow | ✅ הושלם | #95 |
 > | 11 | Client deliverable export (PDF + Word) | ✅ הושלם | #97 |
 > | 12 | Knowledge graph visualization | ✅ הושלם | #96 |
-> | 13 | Matter-level notes (Canvas surface) | ⏳ טרם — בינוני | — |
-> | 14 | Fix agent execution journal | ⏳ טרם — קל | — |
+> | 13 | Matter-level notes (Canvas surface) | ✅ הושלם | #99 |
+> | 14 | Fix agent execution journal | ✅ הושלם | קיים בקוד (#98) |
 > | 15 | AI insight batch review | ✅ הושלם | #95 |
 > | 16 | Document version history UI | ✅ הושלם | #95 |
-> | 17 | Communications ↔ matter timeline | ⏳ טרם — בינוני | — |
-> | 18 | Procedure-type-aware onboarding | ⏳ טרם — קל | — |
+> | 17 | Communications ↔ matter timeline | ✅ הושלם | קיים בקוד (#98) |
+> | 18 | Procedure-type-aware onboarding | ✅ הושלם | קיים בקוד (#98) |
 > | 19 | Persistent agent results per matter | ✅ הושלם | #94 |
-> | 20 | Scoped search within legal corpus | ⏳ טרם — קל (backend מוכן) | — |
+> | 20 | Scoped search within legal corpus | ✅ הושלם | קיים בקוד (#98) |
 >
-> **סיכום:** 11/20 הושלמו (PRs #94–#97). נותרו 9 פריטים.
+> **סיכום: 20/20 הושלמו ✅ (PRs #94–#99). Audit UX Round הושלם במלואו.**
 
 ---
 
