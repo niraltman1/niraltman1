@@ -2625,6 +2625,34 @@ export function useEntityDetail(type: EntityType, name: string | null) {
   });
 }
 
+// ── Entity Knowledge Graph ───────────────────────────────────────────────────────
+
+export interface EntityGraphNode {
+  id:        number;
+  kind:      string;
+  canonical: string;
+  degree:    number;
+}
+
+export interface EntityGraphEdge {
+  source:   number;
+  target:   number;
+  relation: string;
+}
+
+export interface EntityGraphData {
+  nodes: EntityGraphNode[];
+  edges: EntityGraphEdge[];
+}
+
+export function useEntityGraph() {
+  return useQuery({
+    queryKey: ['entities', 'graph'],
+    queryFn:  () => fetchJSON<EntityGraphData>('/api/entities/graph'),
+    staleTime: 120_000,
+  });
+}
+
 // ── Smart Collections (M7) ──────────────────────────────────────────────────────
 export interface SmartCollectionMeta { key: string; label: string; count: number; }
 export interface SmartCollectionItem {
