@@ -289,7 +289,7 @@ async function runCycle(repos: Repos, targetDocumentId?: number): Promise<void> 
         const { caseId } = await withWriteLock('rag-worker:applyExtraction', () =>
           applyExtraction(repos, doc.id, result.extraction, result.raw),
         );
-        try { orchestrator.transitionStage(doc.id, 'ENTITY_EXTRACTION_DONE', 'COMPLETED', repos.db); } catch {}
+        try { orchestrator.transitionStage(doc.id, 'ENTITY_EXTRACTION_DONE', 'COMPLETED', repos.db); } catch { /* non-critical */ }
 
         // Persist the knowledge graph (judge/court/case entities + relations).
         // Runs AFTER the extraction transaction has committed and is fully isolated:
@@ -305,7 +305,7 @@ async function runCycle(repos: Repos, targetDocumentId?: number): Promise<void> 
         } catch (err) {
           logger.warn(`entity-graph population failed doc=${doc.id}: ${String(err)}`, { category: 'ai' });
         }
-        try { orchestrator.transitionStage(doc.id, 'INDEXING_DONE', 'COMPLETED', repos.db); } catch {}
+        try { orchestrator.transitionStage(doc.id, 'INDEXING_DONE', 'COMPLETED', repos.db); } catch { /* non-critical */ }
 
         const fields = discoverFields(doc.ocr_text);
         void routeEntities(repos, {
@@ -330,7 +330,7 @@ async function runCycle(repos: Repos, targetDocumentId?: number): Promise<void> 
           confidence: result.extraction.confidence,
           message:    `${result.extraction.documentType ?? 'unknown'} — ${result.extraction.caseNumber ?? '—'}`,
         });
-        try { orchestrator.transitionStage(doc.id, 'READY_FOR_AGENTS', 'COMPLETED', repos.db); } catch {}
+        try { orchestrator.transitionStage(doc.id, 'READY_FOR_AGENTS', 'COMPLETED', repos.db); } catch { /* non-critical */ }
         extensionPoints.fireDocumentIngested(doc.id).catch(() => {});
         logger.info(
           `RAG doc=${doc.id} type=${result.extraction.documentType ?? '?'} ` +
