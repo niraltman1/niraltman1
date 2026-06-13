@@ -36,7 +36,7 @@ factum-il/
 │           ├── modules/    # Feature modules: canvas, evidence, gmail, security, updates
 │           ├── routes/     # REST endpoints (one file per resource, 40+ routes)
 │           └── utils/      # MediaPipeline, RAG worker, legal-registry-loader, ingest-adapter
-├── migrations/             # SQL files 001–060, run exactly once by MigrationRunner
+├── migrations/             # SQL files 001–079 (067 intentionally skipped), run exactly once by MigrationRunner
 ├── powershell/
 │   ├── lib/
 │   │   ├── Config.ps1              # Office root: C:\אלטמן משרד עורכי דין - סדר 2026
@@ -145,7 +145,10 @@ React 19 Dashboard (RTL Hebrew, Vite, TanStack Query)
 WPF Desktop Shell (WebView2 → http://localhost:3001)
 ```
 
-## 4. Full Migration Table (001–060)
+## 4. Full Migration Table (001–079)
+
+> **Canonical reference:** see `DEVELOPMENT.md §"All Migrations"` for the authoritative table.
+> The rows below reflect the actual migration files as of 2026-06-13.
 
 | Migration | Tables / Changes Added |
 |-----------|----------------------|
@@ -188,27 +191,46 @@ WPF Desktop Shell (WebView2 → http://localhost:3001)
 | 037 | Reliability / observability tables |
 | 038 | CivilStandardProcedure |
 | 039 | Cases.registry_status (`mapped` \| `manual_review_required`) |
-| 040 | EventsLog (typed event bus persistence) |
-| 041 | ObservabilityMetrics |
-| 042 | RBACRoles, RBACPermissions, RBACUserRoles |
-| 043 | AgentRuns (agent execution log) |
-| 044 | CaseExecutionContexts (case-scoped AI context) |
-| 045 | VectorChunks (sqlite-vec embeddings, attached to data_store) |
-| 046 | RetrievalCache |
-| 047 | MemorySnapshots (per-case conversation memory) |
-| 048 | GuardrailsLog (AI safety filter decisions) |
-| 049 | EvalResults (AI evaluation harness results) |
-| 050 | LitigationScores (deadline risk + litigation analytics) |
-| 051 | UpdateChannels, UpdateManifest |
-| 052 | BackupManifest, RecoveryLog |
-| 053 | SupportTickets, DiagnosticsSnapshot |
-| 054 | Rules_Engine (20 seeded Israeli procedural rules, 9 procedure types) |
-| 055 | Entities, EntityRelations (knowledge graph) |
-| 056 | CorpusDocuments, CorpusChunks (offline legislation corpus) |
-| 057 | KnessetBills, KnessetVersions (Knesset OData corpus) |
-| 058 | WikiSourcePages (WikiSource legislation corpus) |
-| 059 | CitationLinks (citation graph edges) |
-| 060 | EntityEnrichmentLog |
+| 040 | Metrics, ObservabilityMetrics |
+| 041 | EventStore, EventHandlerLog, DeadLetterQueue |
+| 042 | Entities, EntityRelations (knowledge graph — judges, courts, cases) |
+| 043 | CaseMemory, UserPreferences, AgentRunLog |
+| 044 | DocumentChunks, ChunkEmbeddings, fts_document_chunks |
+| 045 | AgentResults |
+| 046 | ProceduralChecklist, RiskAssessments |
+| 047 | DocumentVersions, Annotations |
+| 048 | DocumentSignatures |
+| 049 | WorkflowStates, WorkflowIdempotencyLog, AgentRunRegistry |
+| 050 | VacuumSessions (extended) |
+| 051 | PipelineLogs (extended) |
+| 052 | vec_chunks (sqlite-vec virtual table, SKIP_ON_ERROR) |
+| 053 | AgentExecutionEvents |
+| 054 | SystemEvents |
+| 055 | WorkflowIdempotency TTL |
+| 056 | CaseAssignments (RBAC v2 hook point) |
+| 057 | SystemSettings (ConfigStore) |
+| 058 | Notifications inbox |
+| 059 | Notifications resolved tracking |
+| 060 | Rules_Engine (20 seeded Israeli procedural rules, 9 procedure types) |
+| 061 | LegalSources, LegalSections (verbatim text), fts_legal_sections (1,077 laws) |
+| 062 | Rules_Engine verification flags |
+| 063 | CommChannels, CommMessages, CommContactIdentities, CommInbox (7 tables) |
+| 064 | CommTemplates, CommSecureLinks |
+| 065 | CommEvidence, transcript column on CommMessages |
+| 066 | CallLogs |
+| 067 | _(intentionally skipped)_ |
+| 068 | CommMessages.ai_urgency, ai_tags |
+| 069 | VerdictCorpus, VerdictChunks |
+| 070 | PrecedentLibrary (enhanced precedent storage) |
+| 071 | LegalDrafts (drafting workspace documents) |
+| 072 | TimeEntries (billable time tracking) |
+| 073 | LegalBrainSessions |
+| 074 | LegalBrainMessages |
+| 075 | SupremeCourtVerdicts |
+| 076 | PrecedentChunks (vector search) |
+| 077 | vec_precedent_verdicts (sqlite-vec, SKIP_ON_ERROR) |
+| 078 | StensTemplates seed — 8 Hebrew legal form templates (small claims, civil, divorce, maintenance, labour, admin, traffic, bail) |
+| 079 | SavedFilters — user-defined document filter queries (Smart Collections) |
 
 **Migration runner rules:**
 - Each file runs exactly once; completion recorded in `_migrations` table
@@ -341,7 +363,7 @@ FactumIL_Dist\
   shell\        WPF desktop shell (FactumIL.Desktop.exe + .NET / WebView2 DLLs)
   backend\      Express API server + flat production node_modules
   dashboard\    Compiled React UI (Vite output)
-  migrations\   SQL files 001–060 (applied on first run)
+  migrations\   SQL files 001–079 (067 skipped; applied on first run)
   runtime\      Portable node.exe (no Node.js installation required on end-user machine)
   tools\        OllamaSetup.exe + WebView2 bootstrapper + sqlite-vec.dll
   models\       law-il-E2B-Q4_K_M.gguf (~1.3 GB)
