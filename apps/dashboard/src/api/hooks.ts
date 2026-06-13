@@ -2539,6 +2539,43 @@ export function useAgentDiscovery() {
   });
 }
 
+export function useAgentInsolvency() {
+  return useMutation({
+    mutationFn: (caseId: number) =>
+      postJSON<AgentOutput>('/api/agents/insolvency-summary', { caseId }),
+  });
+}
+
+export function useAgentDeadlineAnalysis() {
+  return useMutation({
+    mutationFn: (caseId: number) =>
+      postJSON<AgentOutput>('/api/agents/deadline-analysis', { caseId }),
+  });
+}
+
+export function useAgentHearingPrep() {
+  return useMutation({
+    mutationFn: ({ caseId, hearingId }: { caseId: number; hearingId: number }) =>
+      postJSON<AgentOutput>('/api/agents/hearing-prep', { caseId, hearingId }),
+  });
+}
+
+export interface CaseIntakeInput {
+  clientName:     string;
+  idNumber?:      string;
+  caseType?:      string;
+  factsNarrative: string;
+  documentIds?:   number[];
+  clientId?:      number;
+}
+
+export function useAgentCaseIntake() {
+  return useMutation({
+    mutationFn: (input: CaseIntakeInput) =>
+      postJSON<AgentOutput>('/api/agents/case-intake', input),
+  });
+}
+
 // ── Mail Reply Generator ──────────────────────────────────────────────────────
 
 export function useGenerateMailReply() {
@@ -3613,5 +3650,59 @@ export function useDeleteJudgment() {
   return useMutation({
     mutationFn: (id: number) => deleteJSON<{ deleted: boolean }>(`/api/admin/judgment-library/${id}`),
     onSuccess: () => void qc.invalidateQueries({ queryKey: ['judgment-library'] }),
+  });
+}
+
+// ─────────────────────────────────────────────
+//  Workspace overview additions
+// ─────────────────────────────────────────────
+
+export interface AgentRunItem {
+  id:          number;
+  agent_name:  string;
+  case_id:     number | null;
+  confidence:  number;
+  flag_review: number | null;
+  created_at:  string;
+}
+
+export function useAgentRuns(limit = 10) {
+  return useQuery({
+    queryKey: ['agents', 'runs', limit],
+    queryFn:  () => fetchJSON<{ runs: AgentRunItem[] }>(`/api/agents/runs?limit=${limit}`),
+    staleTime: 30_000,
+    retry: false,
+  });
+}
+
+export interface CommInboxSummaryItem {
+  channel: string;
+  unread:  number;
+  urgency: 'normal' | 'high' | 'critical';
+  aiTag?:  string;
+}
+
+export function useCommInboxSummary() {
+  return useQuery({
+    queryKey:       ['communications', 'inbox-summary'],
+    queryFn:        () => fetchJSON<{ summary: CommInboxSummaryItem[] }>('/api/communications/inbox/summary'),
+    refetchInterval: 60_000,
+    retry: false,
+  });
+}
+
+export interface PipelineFailureItem {
+  id:         number;
+  file_path:  string;
+  error:      string | null;
+  created_at: string;
+}
+
+export function usePipelineFailures(limit = 10) {
+  return useQuery({
+    queryKey: ['pipeline', 'failures', limit],
+    queryFn:  () => fetchJSON<{ failures: PipelineFailureItem[] }>(`/api/pipeline/failures?limit=${limit}`),
+    staleTime: 30_000,
+    retry: false,
   });
 }

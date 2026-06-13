@@ -67,6 +67,9 @@ const DraftEditorPage    = lz(() => import('@/features/drafting/DraftEditorPage.
 const InsolvencyPage     = lz(() => import('@/features/insolvency/InsolvencyPage.js'), 'InsolvencyPage');
 const InsightReviewPage  = lz(() => import('@/features/documents/InsightReviewPage.js'), 'InsightReviewPage');
 const CitationsPage      = lz(() => import('@/features/citations/CitationsPage.js'),    'CitationsPage');
+const DashboardHomePage  = lz(() => import('@/features/workspace/DashboardHomePage.js'), 'DashboardHomePage');
+const SupportPage        = lz(() => import('@/features/support/SupportPage.js'),        'SupportPage');
+const DataMigrationPage  = lz(() => import('@/features/data-migration/DataMigrationPage.js'), 'DataMigrationPage');
 
 // ── Router ───────────────────────────────────────────────────────────────────
 
@@ -84,7 +87,8 @@ export const router: RemixRouter = createBrowserRouter([
     path:    '/',
     element: <AppShell />,
     children: [
-      { index: true,               element: <Navigate to="/dashboard" replace /> },
+      { index: true,               element: <Navigate to="/workspace" replace /> },
+      { path: 'workspace',         element: <DashboardHomePage /> },
       { path: 'dashboard',         element: <DashboardPage />   },
       { path: 'documents',         element: <DocumentsPage />   },
       { path: 'documents/:id',     element: <DocumentDetail />  },
@@ -125,6 +129,8 @@ export const router: RemixRouter = createBrowserRouter([
       { path: 'insolvency',        element: <InsolvencyPage />       },
       { path: 'insights-review',   element: <InsightReviewPage />    },
       { path: 'citations',         element: <CitationsPage />        },
+      { path: 'support',           element: <SupportPage />          },
+      { path: 'data-migration',    element: <DataMigrationPage />    },
       { path: 'entities',          element: <EntitiesPage />         },
       { path: 'entities/:type/:name', element: <EntityDetailPage />  },
       { path: 'canvas/:id',        element: <CanvasPage />           },
