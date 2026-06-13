@@ -107,8 +107,6 @@ export function DataMigrationPage() {
   const [sourceType, setSourceType]     = useState<SourceType>('sqlite');
   const [sourcePath, setSourcePath]     = useState('');
   const [docPath, setDocPath]           = useState('');
-  const [activeStep, setActiveStep]     = useState<number>(0);
-
   const scanMut        = useMutation({ mutationFn: () => postJSON<{ snapshot: ScanResult }>('/api/data-migration/scan', { path: sourcePath, type: sourceType }) });
   const analyzeMut     = useMutation({ mutationFn: () => postJSON<{ analysis: AnalysisResult }>('/api/data-migration/analyze', { path: sourcePath, type: sourceType }) });
   const reportMut      = useMutation({ mutationFn: () => postJSON<{ report: MappingReport }>('/api/data-migration/report', { path: sourcePath, type: sourceType }) });
@@ -202,7 +200,7 @@ export function DataMigrationPage() {
               <button
                 className="btn btn-ghost btn-sm flex items-center gap-1"
                 disabled={!sourcePath.trim() || scanMut.isPending}
-                onClick={() => { scanMut.mutate(); setActiveStep(1); }}
+                onClick={() => scanMut.mutate()}
                 style={{ fontSize: 11 }}
               >
                 <MagnifyingGlassIcon size={11} />
@@ -228,7 +226,7 @@ export function DataMigrationPage() {
               <button
                 className="btn btn-ghost btn-sm flex items-center gap-1"
                 disabled={analyzeMut.isPending}
-                onClick={() => { analyzeMut.mutate(); setActiveStep(2); }}
+                onClick={() => analyzeMut.mutate()}
                 style={{ fontSize: 10 }}
               >
                 <ArrowRightIcon size={11} />
@@ -268,7 +266,7 @@ export function DataMigrationPage() {
               <button
                 className="btn btn-ghost btn-sm flex items-center gap-1"
                 disabled={reportMut.isPending}
-                onClick={() => { reportMut.mutate(); setActiveStep(3); }}
+                onClick={() => reportMut.mutate()}
                 style={{ fontSize: 10 }}
               >
                 <ArrowRightIcon size={11} />
