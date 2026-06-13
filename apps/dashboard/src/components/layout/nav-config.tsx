@@ -61,8 +61,9 @@ export const NAV_GROUPS: NavGroup[] = [
       { to: '/evidence',     label: 'כספת ראיות',   Icon: VaultIcon },
       { to: '/media',        label: 'מדיה וסריקות', Icon: ImageIcon },
       { to: '/queue',        label: 'תור קליטה',    Icon: TrayIcon },
-      { to: '/action-queue', label: 'תור אישורים',  Icon: CheckCircleIcon },
-      { to: '/action-plan',  label: 'תוכנית פעולה', Icon: BroomIcon },
+      { to: '/action-queue',    label: 'תור אישורים',    Icon: CheckCircleIcon },
+      { to: '/action-plan',     label: 'תוכנית פעולה',  Icon: BroomIcon },
+      { to: '/insights-review', label: 'בדיקת תובנות AI', Icon: RobotIcon },
     ],
   },
   {

@@ -207,6 +207,28 @@ export function useDocumentVersions(docId: number | null) {
   });
 }
 
+export interface InsightListItem {
+  id:                 number;
+  document_id:        number;
+  filename:           string;
+  case_number:        string | null;
+  court_name:         string | null;
+  judge_name:         string | null;
+  offense_type:       string | null;
+  next_hearing:       string | null;
+  confidence:         number | null;
+  verification_state: string;
+  extracted_at:       string;
+}
+
+export function useAllInsights(state = 'unverified') {
+  return useQuery({
+    queryKey: ['insights', 'all', state],
+    queryFn:  () => fetchJSON<{ insights: InsightListItem[] }>(`/api/documents/insights?state=${encodeURIComponent(state)}`),
+    staleTime: 30_000,
+  });
+}
+
 export function useDocumentAnnotations(docId: number) {
   return useQuery({
     queryKey: QUERY_KEYS.documentAnnotations(docId),
