@@ -31,6 +31,7 @@
     "@factum-il/observability": "workspace:*",
     "@factum-il/pipeline": "workspace:*",
     "@factum-il/shared": "workspace:*",
+    "@factum-il/database-intelligence": "workspace:*",
     "archiver": "^7.0.1",
     "cors": "^2.8.5",
     "docxtemplater": "^3.68.7",
