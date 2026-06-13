@@ -148,7 +148,6 @@ export async function exportToWord(payload: ExportPayload): Promise<void> {
     Document, Packer, Paragraph, TextRun,
     Table, TableRow, TableCell,
     AlignmentType, WidthType, BorderStyle,
-    HeadingLevel,
   } = await import('docx');
 
   const rtlPara = (text: string, opts?: { bold?: boolean; size?: number; color?: string }): typeof Paragraph.prototype => {
