@@ -1,6 +1,6 @@
 # Factum-IL — Task Tracker
 
-## 🗓️ Session handoff — QA Phase 2 rebase onto main (2026-06-13)
+## 🗓️ Session handoff — QA Phase 2 merged to main (2026-06-13)
 
 ### הושלם הפעם
 
@@ -17,8 +17,11 @@
   8. `tests/powershell/FactumIL.Tests.ps1` — תיקוני Pester (path + null-guard)
   9. `powershell/modules/OCRProcessor.psm1` / `CrashRecovery.psm1` / `Supervisor.psm1` — PSScriptAnalyzer fixes
 
+### תוצאה
+- ✅ **PR #91 מוזג** (squash `01e519b`) — כל 5 בדיקות ירוקות.
+
 ### הצעד הבא
-- **CI לאחר ה-rebase** — אם 5/5 ירוקים → מזג PR #91.
+- שום דבר ממתין מ-QA Phase 2 — כל העבודה מוזגה ל-main.
 
 ---
 
