@@ -10,11 +10,14 @@
 import { Router } from 'express';
 import { readdir, readFile, stat, unlink, mkdir, writeFile, rm } from 'node:fs/promises';
 import { join, dirname } from 'node:path';
-import { readFileSync, createWriteStream } from 'node:fs';
+import { readFileSync, createWriteStream, statSync } from 'node:fs';
 import archiver from 'archiver';
 import { fileURLToPath } from 'node:url';
 import type { Repos } from '../db.js';
 import { asyncHandler } from '../utils/async-handler.js';
+import { RepairRecommendationsEngine } from '@factum-il/support-diagnostics';
+import { SelfHealingActions } from '@factum-il/support-diagnostics';
+import type { RepairAction } from '@factum-il/support-diagnostics';
 
 // ── Constants ─────────────────────────────────────────────────────────────────
 
@@ -358,6 +361,75 @@ export function diagnosticsRouter(repos: Repos): Router {
       res.json({ deleted, retained, pruneOlderThanHours: 72 });
     }),
   );
+
+  // GET /api/diagnostics/recommendations — analyze DB + WAL + migrations → repair list
+  router.get('/recommendations', asyncHandler((_req, res) => {
+    const engine = new RepairRecommendationsEngine();
+
+    // WAL file size
+    const dbPath = (repos.db as unknown as { name?: string }).name ?? '';
+    let walSizeBytes = 0;
+    if (dbPath) {
+      try { walSizeBytes = statSync(`${dbPath}-wal`).size; } catch { /* no WAL file */ }
+    }
+
+    // Migration count
+    let appliedMigrations = 0;
+    try {
+      const row = repos.db.prepare('SELECT COUNT(*) AS n FROM _Migrations').get() as { n: number } | undefined;
+      appliedMigrations = row?.n ?? 0;
+    } catch { /* table may not exist */ }
+
+    // FTS health
+    let ftsHealthy = true;
+    try {
+      repos.db.prepare("INSERT INTO Documents_fts(Documents_fts) VALUES('integrity-check')").run();
+    } catch { ftsHealthy = false; }
+
+    // sqlite-vec
+    let vecAvailable = false;
+    try {
+      repos.db.prepare('SELECT vec_version()').get();
+      vecAvailable = true;
+    } catch { /* not available */ }
+
+    // Orphan count (failed pipeline entries older than 7 days)
+    let orphanCount = 0;
+    try {
+      const row = repos.db.prepare(
+        "SELECT COUNT(*) AS n FROM PipelineLogs WHERE status IN ('failed_ocr','failed_ai') AND timestamp < datetime('now', '-7 days')",
+      ).get() as { n: number } | undefined;
+      orphanCount = row?.n ?? 0;
+    } catch { /* ignore */ }
+
+    const recommendations = engine.analyze({
+      walSizeBytes,
+      appliedMigrations,
+      expectedMigrations: 79,
+      vecAvailable,
+      ftsHealthy,
+      orphanCount,
+    });
+
+    res.json({ success: true, data: { recommendations } });
+  }));
+
+  // POST /api/diagnostics/heal/:action — execute a self-healing action
+  router.post('/heal/:action', asyncHandler(async (req, res) => {
+    const action = req.params['action'] as RepairAction;
+    const VALID_ACTIONS: RepairAction[] = [
+      'rebuild-fts', 'wal-checkpoint', 'vacuum',
+      'validate-vec', 'validate-migrations', 'orphan-cleanup',
+    ];
+    if (!VALID_ACTIONS.includes(action)) {
+      res.status(400).json({ success: false, error: { code: 'INVALID_ACTION', message: `Unknown action: ${action}` } });
+      return;
+    }
+
+    const healer = new SelfHealingActions(repos.db as never);
+    const result = await healer.execute(action);
+    res.json({ success: true, data: result });
+  }));
 
   return router;
 }
