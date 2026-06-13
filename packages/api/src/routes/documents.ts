@@ -159,5 +159,13 @@ export function documentsRouter(repos: Repos): Router {
     ok(res, documents.findInsightById(insightId) ?? {});
   }));
 
+  // GET /api/documents/:id/versions
+  router.get('/:id/versions', asyncHandler((req, res) => {
+    const id = Number(req.params['id']);
+    if (!Number.isInteger(id) || id <= 0) throw new Error('invalid id');
+    const versions = repos.documentVersions.findByDocument(id);
+    ok(res, { versions });
+  }));
+
   return router;
 }

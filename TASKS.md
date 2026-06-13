@@ -1,5 +1,36 @@
 # Factum-IL — Task Tracker
 
+## 🗓️ Session handoff — Platform Audit UX improvements (2026-06-13)
+
+### הושלם הפעם
+
+- ✅ **PR #91 — QA Phase 2** — Windows CI, E2E golden tests, FTS5/cache/validation/Pester fixes. מוזג.
+- ✅ **PR #94 — Platform Audit UX Round 1 (מוזג `86b868a`):**
+  - **#1** `nav`: `/search` נוסף לקבוצת "לוח בקרה" — חיפוש גלובלי גלוי לכל עו"ד
+  - **#2** `nav`: `/legal-corpus` נוסף לקבוצת "מחקר משפטי" — קורפוס 1,077 חוקים נגיש
+  - **#8** כפתור "חלץ אסמכתאות" ב-DocumentDetail — `useHarvestCitations` hook מחובר ל-UI
+  - **#6** כפתור `⊞` שולחן עבודה על כל כרטיס תיק ב-CasesPage — גישה בקליק אחד
+  - **#19** `GET /api/agents/results` + `useStoredAgentResults` + סקציית "ניתוחים קודמים" ב-CaseDetail
+
+- 🔄 **Round 2 (ב-PR הנוכחי):**
+  - **#16** גרסאות מסמך — `DocumentVersionRepository` מחובר ל-API (`GET /api/documents/:id/versions`), hook `useDocumentVersions`, סקציית "גרסאות מסמך" ב-DocumentDetail
+
+### מצב יתרת ה-audit (AUDIT-UX-PRODUCT-2026-06.md)
+
+פעוּלות שנותרו עם תשתית קיימת:
+- `#12` Knowledge graph visualization — טבלאות Entities/EntityRelations מאוכלסות; `EntitiesPage` מציג רשימה שטוחה; צריך להוסיף תצוגת גרף (D3 — לא מותקן)
+- `#15` AI Insight batch review — צריך עמוד חדש שמאגד כל `unverified` insights
+- `#10` Legal research workspace — איחוד `/search`, `/legal-corpus`, `/precedents`, `/rules`, `/entities` לקבוצת-ניווט אחת
+- `#7` Unified AI agent experience — 3 surfaces, טרם אוחדו
+- `#11` PDF export — אין תשתית
+
+### מה לעשות עכשיו
+1. בדוק PR #94 Round 2 — בקש merge
+2. המשך עם #15 (AI Insight batch review) — עמוד חדש `InsightReviewPage`
+3. ה-Draft editor (`/drafting`) כבר מיושם במלואו — בדוק ורפא bugs אם יש
+
+---
+
 ## 🗓️ Session handoff — QA Phase 2 rebase onto main (2026-06-13)
 
 ### הושלם הפעם

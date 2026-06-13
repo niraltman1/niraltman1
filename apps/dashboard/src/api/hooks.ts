@@ -184,6 +184,29 @@ export interface AnnotationCreate {
   color?:         string;
 }
 
+// ─── Document Versions ──────────────────────────────────────────────────────
+
+export interface DocumentVersionRecord {
+  id:          number;
+  documentId:  number;
+  version:     number;
+  storagePath: string;
+  fileHash:    string;
+  filename:    string;
+  createdBy:   string | null;
+  changeNote:  string | null;
+  createdAt:   string;
+}
+
+export function useDocumentVersions(docId: number | null) {
+  return useQuery({
+    queryKey: ['document-versions', docId],
+    queryFn:  () => fetchJSON<{ versions: DocumentVersionRecord[] }>(`/api/documents/${docId}/versions`),
+    enabled:  docId !== null && docId > 0,
+    staleTime: 60_000,
+  });
+}
+
 export function useDocumentAnnotations(docId: number) {
   return useQuery({
     queryKey: QUERY_KEYS.documentAnnotations(docId),
