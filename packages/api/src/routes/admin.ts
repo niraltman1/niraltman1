@@ -10,7 +10,7 @@ import { runVacuumProtocol } from '../utils/vacuum-protocol.js';
 import { reconfigureWatchFolders, rescanFolder } from '../utils/file-ingestion.js';
 import { ingestJudgmentFolder } from '../utils/judgment-library-ingestion.js';
 import { existsSync, statSync } from 'node:fs';
-import { resolve as resolvePath } from 'node:path';
+import { resolve as resolvePath, join, dirname } from 'node:path';
 import { ValidationError, NotFoundError } from '../errors/api-error.js';
 import type { RagHealingService } from '../utils/rag-healing.js';
 import { requireRole } from '../middleware/auth.js';
@@ -18,6 +18,8 @@ import {
   getSystemMode, setSystemMode,
   assignCaseAccess, revokeCaseAccess, listCaseAssignments,
 } from '@factum-il/agent-core';
+import { orchestrator } from '@factum-il/orchestrator';
+import { encryptDb, decryptDb, verifyBackup, listBackups, keyFromEnv } from '@factum-il/encrypted-backup';
 
 function parseJsonArray(raw: unknown): string[] {
   if (typeof raw !== 'string' || raw.length === 0) return [];
@@ -59,7 +61,7 @@ const caseAssignmentSchema = z.object({
   role:   z.string(),
 }).strict();
 
-export function adminRouter(repos: Repos, healingService: RagHealingService): Router {
+export function adminRouter(repos: Repos, healingService: RagHealingService, dbPath?: string): Router {
   const router = Router();
   const { db, backups, hardening, queue, config, watcherEvents } = repos;
 
@@ -440,6 +442,53 @@ export function adminRouter(repos: Repos, healingService: RagHealingService): Ro
     const deleted = repos.precedentLibrary.delete(id);
     if (!deleted) throw new NotFoundError(`Judgment ${id}`);
     ok(res, { deleted: true });
+  }));
+
+  // ── Workflow State (Orchestrator) ─────────────────────────────────────────
+  router.get('/workflow/:documentId', asyncHandler((req, res) => {
+    const docId = Number(req.params['documentId']);
+    if (isNaN(docId)) throw new ValidationError('documentId must be a number');
+    const stages = ['OCR_DONE', 'ENTITY_EXTRACTION_DONE', 'INDEXING_DONE', 'MEMORY_WRITTEN', 'READY_FOR_AGENTS'] as const;
+    const state = Object.fromEntries(
+      stages.map(s => [s, orchestrator.getState(docId, s, repos.db)]),
+    );
+    ok(res, state);
+  }));
+
+  // ── Encrypted Backups (AES-256-GCM manifest-based) ───────────────────────
+  const encBackupDir = () => join(
+    process.env['BACKUP_DIR'] ?? join(dbPath ? dirname(dbPath) : '.', 'backups'),
+    'encrypted',
+  );
+
+  router.get('/encrypted-backups', asyncHandler(async (_req, res) => {
+    const manifests = await listBackups(encBackupDir());
+    ok(res, { backups: manifests });
+  }));
+
+  router.post('/encrypted-backups', requireRole('admin', repos), asyncHandler(async (_req, res) => {
+    const key = keyFromEnv();
+    if (!key) { res.status(503).json({ success: false, error: { code: 'KEY_NOT_CONFIGURED', message: 'BACKUP_ENCRYPT_KEY לא מוגדר' } }); return; }
+    if (!dbPath) throw new ValidationError('dbPath לא מוגדר');
+    const result = await encryptDb(dbPath, encBackupDir(), key, process.env['FACTUM_IL_VERSION'] ?? '1.0.0');
+    ok(res, { backupId: result.manifest.backupId, path: result.encryptedPath }, 201);
+  }));
+
+  router.get('/encrypted-backups/:id/verify', requireRole('admin', repos), asyncHandler(async (req, res) => {
+    const key = keyFromEnv();
+    if (!key) { res.status(503).json({ success: false, error: { code: 'KEY_NOT_CONFIGURED', message: 'BACKUP_ENCRYPT_KEY לא מוגדר' } }); return; }
+    const manifestPath = join(encBackupDir(), `${req.params['id']}.manifest.json`);
+    const valid = await verifyBackup(manifestPath, key);
+    ok(res, { valid });
+  }));
+
+  router.post('/encrypted-backups/:id/restore', requireRole('admin', repos), asyncHandler(async (req, res) => {
+    const key = keyFromEnv();
+    if (!key) { res.status(503).json({ success: false, error: { code: 'KEY_NOT_CONFIGURED', message: 'BACKUP_ENCRYPT_KEY לא מוגדר' } }); return; }
+    const manifestPath = join(encBackupDir(), `${req.params['id']}.manifest.json`);
+    const target = join(encBackupDir(), `restore-${Date.now()}.db`);
+    const result = await decryptDb(manifestPath, target, key);
+    ok(res, { restoredTo: result.restoredDbPath, hash: result.verifiedHash });
   }));
 
   // ── Agent Execution Journal ───────────────────────────────────────────────

@@ -12,7 +12,7 @@
 - WebView2 Runtime
 - Ollama + מודל `BrainboxAI/law-il-E2B:Q4_K_M`
 - sqlite-vec.dll (הרחבת חיפוש וקטורי)
-- מריץ 76 מיגרציות DB (001–077)
+- מריץ 78 מיגרציות DB (001–079, 067 מדולג בכוונה)
 - מצרף את קורפוס החקיקה (batch files מ-release `v-corpus-latest`)
 - מגדיר 8 משתני סביבה ב-registry
 - יוצר קיצורי דרך בשולחן העבודה ובתפריט התחל

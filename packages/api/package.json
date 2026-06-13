@@ -12,6 +12,10 @@
     "lint": "eslint src"
   },
   "dependencies": {
+    "@factum-il/orchestrator": "workspace:*",
+    "@factum-il/sdk": "workspace:*",
+    "@factum-il/encrypted-backup": "workspace:*",
+    "@factum-il/enterprise-hooks": "workspace:*",
     "@factum-il/agent-core": "workspace:*",
     "@factum-il/retrieval": "workspace:*",
     "@factum-il/update-core": "workspace:*",

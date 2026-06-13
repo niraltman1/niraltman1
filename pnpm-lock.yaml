@@ -225,6 +225,12 @@ importers:
       '@factum-il/database':
         specifier: workspace:*
         version: link:../database
+      '@factum-il/encrypted-backup':
+        specifier: workspace:*
+        version: link:../encrypted-backup
+      '@factum-il/enterprise-hooks':
+        specifier: workspace:*
+        version: link:../enterprise-hooks
       '@factum-il/events':
         specifier: workspace:*
         version: link:../events
@@ -243,12 +249,18 @@ importers:
       '@factum-il/observability':
         specifier: workspace:*
         version: link:../observability
+      '@factum-il/orchestrator':
+        specifier: workspace:*
+        version: link:../orchestrator
       '@factum-il/pipeline':
         specifier: workspace:*
         version: link:../pipeline
       '@factum-il/retrieval':
         specifier: workspace:*
         version: link:../retrieval
+      '@factum-il/sdk':
+        specifier: workspace:*
+        version: link:../sdk
       '@factum-il/shared':
         specifier: workspace:*
         version: link:../shared

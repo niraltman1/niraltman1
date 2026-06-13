@@ -1,5 +1,50 @@
 # Factum-IL — Task Tracker
 
+## 🗓️ Session handoff — B2+C7 הושלמו + MD sync (2026-06-13)
+
+### הושלם הפעם
+
+- ✅ **PR #101 — feat(b2/c7): stens seed data, saved filters, SLA radar (מוזג `72e9182`):**
+  - **B2 — Stens seed data:** migration 078 מזריע 8 תבניות עבריות (`StensTemplates`): תביעה קטנה, כתב תביעה, גירושין, מזונות, עבודה, ערר מנהלי, דוח תנועה, ערבות
+  - **B2 — Saved Filters:** migration 079 + `SavedFiltersRepository` + 4 API routes (`GET/POST /api/collections/saved`, `DELETE /:id`, `GET /:id/items`) + `SmartCollectionsPage` שודרג עם ממשק pills מותאם אישית
+  - **C7 — SLA Radar:** `sla-radar-scheduler.ts` — scheduler שעתי; ברירת מחדל 4 שעות; `warning`/`critical` ב-`Notifications` עם `dedupKey: 'sla:conv:<id>'` (אידמפוטנטי); auto-resolve כשמצב handled=0 יורד ל-0
+  - **B2 — learning mode:** `POST /api/legal-engine/learn` עם Ollama graceful fallback
+- ✅ **PR #102 — MD sync (ענף זה):** עדכון כל קבצי ה-MD לסטטוס הנוכחי (TASKS, CHANGELOG, README, ARCHITECTURE, WORKPLAN_BACKEND, WORKPLAN_COMMUNICATIONS, DEVELOPMENT)
+
+### מצב B2/C7 לאחר PR #101
+
+| פאזה | פריט | סטטוס |
+|------|------|--------|
+| B2 | חישוב מועדים / ProceduralChecklist | ✅ migration 046 + seedProceduralChecklist מחווט |
+| B2 | Stens seed (8 templates) | ✅ migration 078 |
+| B2 | Saved Filters | ✅ migration 079 + API + UI |
+| B2 | learning mode | ✅ `POST /api/legal-engine/learn` |
+| B2 | packages דקיקים | ⏳ המתנה להחלטת בעלים |
+| C7 | SLA Radar | ✅ `sla-radar-scheduler.ts` |
+
+### Migration Slots (עדכני — 2026-06-13, 78 קבצים, 067 מדולג בכוונה)
+001–039: core schema | 040: Metrics | 041: EventStore | 042: Entities | 043: CaseMemory
+044: DocumentChunks | 045: AgentResults | 046: ProceduralChecklist | 047: DocumentVersions
+048: DocumentSignatures | 049: WorkflowStates | 050: VacuumSessions | 051: PipelineLogs
+052: vec_chunks (SKIP_ON_ERROR) | 053: AgentExecutionEvents | 054: SystemEvents
+055: WorkflowIdempotency TTL | 056: CaseAssignments | 057: SystemSettings | 058: Notifications
+059: Notifications resolved | 060: Rules_Engine | 061: LegalSources/Sections | 062: verify_flags
+063: CommChannels/Messages | 064: CommTemplates | 065: CommEvidence | 066: CallLogs
+067: _(מכוון — ריק)_ | 068: CommMessages.ai_urgency/tags | 069: VerdictCorpus
+070: PrecedentLibrary | 071: LegalDrafts | 072: TimeEntries | 073: LegalBrainSessions
+074: LegalBrainMessages | 075: SupremeCourtVerdicts | 076: PrecedentChunks
+077: vec_precedent_verdicts (SKIP_ON_ERROR) | 078: StensTemplates seed | 079: SavedFilters
+
+**הבא הפנוי: 080**
+
+### מה לעשות עכשיו
+- **B4 production hardening** — אבטחה, ביצועים, גיבוי/שחזור, תצפיתיות — `WORKPLAN_BACKEND.md §B4`
+- C1 Telegram live validation — חסום-סביבה (allowlist)
+- C2 WhatsApp — חסום-סביבה (whatsapp-web.js + WebView2 מקומי)
+- packages דקיקים (`orchestrator`, `sdk`, `encrypted-backup`, `enterprise-hooks`) — המתנה להחלטת בעלים
+
+---
+
 ## 🗓️ Session handoff — Audit UX Round COMPLETE (2026-06-13)
 
 ### הושלם הפעם

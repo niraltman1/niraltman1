@@ -5,9 +5,11 @@ import {
   useUpdateStatus, useTriggerContentUpdate, useSecurityStatus, useAiHealth,
   useStartVacuum, useVacuumStatus,
   useIngestionStatus, useSetWatchFolders, useRescanFolder,
+  usePlugins, useEncryptedBackups, useCreateEncryptedBackup, useVerifyEncryptedBackup,
+  useRestoreEncryptedBackup, useEnterpriseCapabilities,
   deleteJSON,
 } from '@/api/hooks.js';
-import type { UpdateLogRecord, VacuumSessionData } from '@/api/hooks.js';
+import type { UpdateLogRecord, VacuumSessionData, EncryptedBackupManifest } from '@/api/hooks.js';
 import {
   HeartbeatIcon, FolderOpenIcon, DatabaseIcon, WrenchIcon,
   CheckCircleIcon, WarningCircleIcon, CircleNotchIcon,
@@ -907,6 +909,191 @@ function OllamaStatusPanel() {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
+//  Plugins Panel (SDK)
+// ─────────────────────────────────────────────────────────────────────────────
+
+function PluginsPanel() {
+  const { data, isLoading } = usePlugins();
+  const plugins = data?.plugins ?? [];
+
+  if (isLoading) return <PanelSkeleton label="טוען תוספים…" />;
+
+  return (
+    <div className="space-y-2">
+      {plugins.length === 0 ? (
+        <p className="text-parchment/40 text-sm text-center py-6">אין תוספים טעונים</p>
+      ) : (
+        <ul className="space-y-1">
+          {plugins.map((name) => (
+            <li key={name} className="flex items-center gap-2 px-3 py-2 bg-navy-200/30 rounded text-sm text-parchment">
+              <CheckCircleIcon size={14} className="text-green-400 shrink-0" />
+              {name}
+            </li>
+          ))}
+        </ul>
+      )}
+    </div>
+  );
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+//  Encrypted Backup Panel
+// ─────────────────────────────────────────────────────────────────────────────
+
+function EncryptedBackupPanel() {
+  const { data, isLoading, refetch } = useEncryptedBackups();
+  const createBackup  = useCreateEncryptedBackup();
+  const verifyBackup  = useVerifyEncryptedBackup();
+  const restoreBackup = useRestoreEncryptedBackup();
+  const [verifyState,  setVerifyState]  = useState<Record<string, boolean | null>>({});
+  const [restoreState, setRestoreState] = useState<Record<string, string | null>>({});
+  const noKey = !!(createBackup.error?.message?.includes('BACKUP_ENCRYPT_KEY'));
+
+  const backups: EncryptedBackupManifest[] = data?.backups ?? [];
+
+  async function handleCreate() {
+    await createBackup.mutateAsync();
+    void refetch();
+  }
+
+  async function handleVerify(id: string) {
+    const result = await verifyBackup.mutateAsync(id);
+    setVerifyState((s) => ({ ...s, [id]: result.valid }));
+  }
+
+  async function handleRestore(id: string) {
+    const result = await restoreBackup.mutateAsync(id);
+    setRestoreState((s) => ({ ...s, [id]: result.hash ? result.restoredTo : '⚠ אימות נכשל' }));
+  }
+
+  if (isLoading) return <PanelSkeleton label="טוען גיבויים מוצפנים…" />;
+
+  return (
+    <div className="space-y-3">
+      {noKey && (
+        <div className="flex items-center gap-2 text-yellow-400 text-xs px-3 py-2
+                        bg-yellow-900/20 rounded border border-yellow-700/30">
+          <WarningCircleIcon size={14} />
+          BACKUP_ENCRYPT_KEY לא מוגדר — גיבוי מוצפן אינו זמין
+        </div>
+      )}
+      <div className="flex justify-end">
+        <button
+          onClick={() => void handleCreate()}
+          disabled={createBackup.isPending}
+          className="px-3 py-1.5 bg-gold/10 hover:bg-gold/20 text-gold text-xs rounded
+                     transition-colors disabled:opacity-40 flex items-center gap-1.5 border border-gold/30"
+        >
+          {createBackup.isPending
+            ? <CircleNotchIcon size={12} className="animate-spin" />
+            : <DatabaseIcon size={12} />}
+          צור גיבוי מוצפן
+        </button>
+      </div>
+      {backups.length === 0 ? (
+        <p className="text-parchment/40 text-sm text-center py-6">אין גיבויים מוצפנים</p>
+      ) : (
+        <div className="space-y-2">
+          {backups.map((b) => (
+            <div key={b.backupId}
+                 className="flex items-center justify-between gap-3 px-3 py-2
+                            bg-navy-200/30 rounded border border-parchment/10">
+              <div className="min-w-0">
+                <p className="text-xs font-mono text-parchment truncate">{b.backupId}</p>
+                <p className="text-xs text-parchment/50 mt-0.5">{new Date(b.createdAt).toLocaleString('he-IL')}</p>
+              </div>
+              <div className="flex items-center gap-1.5 shrink-0">
+                {verifyState[b.backupId] !== undefined && (
+                  verifyState[b.backupId]
+                    ? <CheckCircleIcon size={14} className="text-green-400" />
+                    : <WarningCircleIcon size={14} className="text-red-400" />
+                )}
+                <button
+                  onClick={() => void handleVerify(b.backupId)}
+                  disabled={verifyBackup.isPending}
+                  className="px-2 py-1 text-xs text-parchment/60 hover:text-parchment
+                             bg-parchment/5 hover:bg-parchment/10 rounded transition-colors"
+                >
+                  אמת
+                </button>
+                <button
+                  onClick={() => void handleRestore(b.backupId)}
+                  disabled={restoreBackup.isPending}
+                  className="px-2 py-1 text-xs text-red-400 hover:text-red-300
+                             bg-red-900/10 hover:bg-red-900/20 rounded transition-colors"
+                >
+                  שחזר
+                </button>
+              </div>
+              {restoreState[b.backupId] && (
+                <p className="text-xs text-green-400 font-mono truncate w-full">
+                  שוחזר ל: {restoreState[b.backupId]}
+                </p>
+              )}
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+//  Enterprise Capabilities Panel
+// ─────────────────────────────────────────────────────────────────────────────
+
+function EnterpriseCapabilitiesPanel() {
+  const { data, isLoading } = useEnterpriseCapabilities();
+
+  if (isLoading) return <PanelSkeleton label="טוען יכולות Enterprise…" />;
+  if (!data) return null;
+
+  const { firmProfile, capabilities } = data;
+  const capList = [
+    { key: 'multiUser',          label: 'ריבוי משתמשים',    enabled: capabilities.multiUser.enabled },
+    { key: 'centralizedStorage', label: 'אחסון מרכזי',       enabled: capabilities.centralizedStorage.enabled },
+    { key: 'adminConsole',       label: 'מסוף ניהול',        enabled: capabilities.adminConsole.enabled },
+    { key: 'enterpriseBackup',   label: 'גיבוי Enterprise', enabled: capabilities.enterpriseBackup.enabled },
+  ];
+
+  return (
+    <div className="space-y-3">
+      {firmProfile && (
+        <div className="flex items-center gap-3 px-3 py-2 bg-navy-200/30 rounded border border-parchment/10">
+          <div>
+            <p className="text-xs font-semibold text-parchment">{firmProfile.displayName}</p>
+            <p className="text-xs text-parchment/50 mt-0.5">
+              רישיון: <span className="font-medium">{firmProfile.licenseType}</span>
+              {' · '}משתמשים מקסימום: {firmProfile.maxUsers}
+            </p>
+          </div>
+        </div>
+      )}
+      {firmProfile?.licenseType === 'beta' && (
+        <div className="text-xs text-parchment/50 px-1">
+          * יכולות Enterprise זמינות ברישיון Standard ומעלה
+        </div>
+      )}
+      <div className="space-y-1">
+        {capList.map(({ key, label, enabled }) => (
+          <div key={key} className="flex items-center justify-between px-3 py-2
+                                    bg-navy-200/20 rounded text-sm">
+            <span className="text-parchment/80">{label}</span>
+            <span className={`text-xs px-2 py-0.5 rounded font-medium ${
+              enabled
+                ? 'bg-green-900/30 text-green-400'
+                : 'bg-parchment/5 text-parchment/30'
+            }`}>
+              {enabled ? 'פעיל' : 'מושבת'}
+            </span>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
 //  Section wrapper
 // ─────────────────────────────────────────────────────────────────────────────
 
@@ -995,6 +1182,18 @@ export function DiagnosticsPage() {
 
       <Section icon={<HardDrivesIcon size={16} weight="duotone" />} title="פרוטוקול Vacuum">
         <VacuumProtocolPanel />
+      </Section>
+
+      <Section icon={<RobotIcon size={16} weight="duotone" />} title="תוספים טעונים">
+        <PluginsPanel />
+      </Section>
+
+      <Section icon={<LockIcon size={16} weight="duotone" />} title="גיבוי מוצפן">
+        <EncryptedBackupPanel />
+      </Section>
+
+      <Section icon={<ShieldCheckIcon size={16} weight="duotone" />} title="יכולות Enterprise">
+        <EnterpriseCapabilitiesPanel />
       </Section>
     </div>
   );
