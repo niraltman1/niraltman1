@@ -54,6 +54,7 @@ import {
   DraftsRepository,
   LegalBrainSessionsRepository,
   DocumentVersionRepository,
+  SavedFiltersRepository,
 } from '@factum-il/database';
 import { createApp } from './app.js';
 import type { Repos } from './db.js';
@@ -64,6 +65,7 @@ import { UpdateStateStore, runPostUpdateHealthCheck } from '@factum-il/update-co
 import { startInsolvencyNudgeScheduler, stopInsolvencyNudgeScheduler } from './utils/insolvency-nudge-scheduler.js';
 import { startRetentionScheduler, stopRetentionScheduler } from './utils/retention-scheduler.js';
 import { startDeadlineTracker, stopDeadlineTracker } from './utils/deadline-tracker-scheduler.js';
+import { startSlaRadarScheduler, stopSlaRadarScheduler } from './utils/sla-radar-scheduler.js';
 import { initRegistry } from './utils/legal-registry-loader.js';
 import { initLegalCorpus } from './utils/legal-corpus-loader.js';
 import { seedDefaultAdmin } from './middleware/auth.js';
@@ -231,6 +233,7 @@ const repos: Repos = {
   drafts:             new DraftsRepository(db),
   legalBrainSessions: new LegalBrainSessionsRepository(db),
   documentVersions:   new DocumentVersionRepository(db),
+  savedFilters:       new SavedFiltersRepository(db),
 };
 
 // Release stale agent locks left over from a previous crash or restart.
@@ -303,6 +306,7 @@ const server = app.listen(PORT, () => {
     startInsolvencyNudgeScheduler(repos);
     startRetentionScheduler(repos);
     startDeadlineTracker(repos);
+    startSlaRadarScheduler(repos);
     // File-ingestion: watch configured folders → durable WatcherEvents queue → media pipeline.
     const ingestPipeline = new MediaPipeline(
       repos.processedFiles, repos.documents, repos.evidence,
@@ -317,7 +321,7 @@ const server = app.listen(PORT, () => {
 function _shutdown() {
   void clearServerConfig();
   stopRagWorker(); stopBackupScheduler(); stopContentUpdateScheduler();
-  stopInsolvencyNudgeScheduler(); stopRetentionScheduler(); stopDeadlineTracker();
+  stopInsolvencyNudgeScheduler(); stopRetentionScheduler(); stopDeadlineTracker(); stopSlaRadarScheduler();
   stopFileIngestion();
   try { server.close(); } catch { /* server may not have started yet */ }
 }

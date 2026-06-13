@@ -98,3 +98,5 @@ export type {
   CreateSessionInput,
   AddMessageInput,
 } from './queries/legal-brain-sessions.js';
+export { SavedFiltersRepository } from './queries/saved-filters.js';
+export type { SavedFilter, SavedFilterCreateInput } from './queries/saved-filters.js';

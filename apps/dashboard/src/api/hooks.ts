@@ -2679,6 +2679,49 @@ export function useCollectionItems(key: string | null) {
   });
 }
 
+export interface SavedFilter {
+  id:         number;
+  nameHe:     string;
+  filterJson: string;
+  createdAt:  string;
+}
+
+export function useSavedFilters() {
+  return useQuery({
+    queryKey: ['collections', 'saved'],
+    queryFn:  () => fetchJSON<SavedFilter[]>('/api/collections/saved'),
+    staleTime: 30_000,
+    retry: false,
+  });
+}
+
+export function useSavedFilterItems(id: number | null) {
+  return useQuery({
+    queryKey: ['collections', 'saved', id, 'items'],
+    queryFn:  () => fetchJSON<SmartCollectionItem[]>(`/api/collections/saved/${id}/items`),
+    enabled:  id !== null,
+    staleTime: 30_000,
+    retry: false,
+  });
+}
+
+export function useCreateSavedFilter() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (body: { nameHe: string; filterJson: string }) =>
+      postJSON<SavedFilter>('/api/collections/saved', body),
+    onSuccess: () => void qc.invalidateQueries({ queryKey: ['collections', 'saved'] }),
+  });
+}
+
+export function useDeleteSavedFilter() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (id: number) => deleteJSON<{ deleted: boolean }>(`/api/collections/saved/${id}`),
+    onSuccess: () => void qc.invalidateQueries({ queryKey: ['collections', 'saved'] }),
+  });
+}
+
 export interface DeadlineRisk extends CalendarEvent {
   daysUntil: number;
   risk:      'overdue' | 'critical' | 'soon' | 'upcoming';

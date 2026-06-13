@@ -36,6 +36,7 @@ import type {
   DraftsRepository,
   LegalBrainSessionsRepository,
   DocumentVersionRepository,
+  SavedFiltersRepository,
 } from '@factum-il/database';
 import type { ConfigStore } from './utils/config-store.js';
 
@@ -78,4 +79,5 @@ export interface Repos {
   drafts:             DraftsRepository;
   legalBrainSessions: LegalBrainSessionsRepository;
   documentVersions:   DocumentVersionRepository;
+  savedFilters:       SavedFiltersRepository;
 }
