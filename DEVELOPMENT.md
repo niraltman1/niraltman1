@@ -112,32 +112,32 @@ Two database files:
 - WAL mode is always on; FTS5 for full-text search; sqlite-vec for KNN vector search
 - PRAGMA statements must appear before `BEGIN TRANSACTION` in migration files
 
-### All Migrations (001–060)
+### All Migrations (001–077, 067 intentionally skipped)
 
 | Migration | Tables / Changes Added |
 |-----------|----------------------|
 | 001 | Clients, Lawyers, Judges, Cases, Documents |
-| 002 | FTS5 virtual tables (fts_documents) |
+| 002 | FTS5 virtual tables (fts_documents, fts_cases) |
 | 003 | ActionLog, ProcessingStatus |
-| 004 | AIEnrichment |
-| 005 | QueueItems (WAL queue, poison queue) |
-| 006 | WorkerHealth, WatcherEvents |
-| 007 | supervisor/watcher tables |
+| 004 | ProcessingStatus extended (state machine) |
+| 005 | QueueItems (WAL queue, poison queue), WorkerHealth |
+| 006 | Search AI hardening (search_meta trigger) |
+| 007 | Supervisor/watcher tables, WatcherEvents |
 | 008 | ActionPlan |
-| 009 | TrafficCases |
-| 010 | TrafficCaseAlerts |
-| 011 | Contacts |
-| 012 | CaseContacts |
-| 013 | ContactsExt (CRM roles) |
+| 009 | Tasks |
+| 010 | LegalEngine (procedure templates) |
+| 011 | ProcessedFiles |
+| 012 | TrafficCases, TrafficCaseAlerts |
+| 013 | Contacts, CaseContacts, ContactsExt (CRM roles) |
 | 014 | Cases.judge_name, procedure_type, statute_deadline; Documents.ai_enriched |
 | 015 | DocumentInsights (per-document AI extraction results) |
 | 016 | AcademicSubjects, AcademicCourses, StudyQuestions, GraphNodes + fts_study_questions |
-| 017 | EvidenceItems, EvidenceChain |
-| 018 | StensTemplates, StensSubmissions |
-| 019 | CanvasDocuments, CanvasTasks |
+| 017 | CanvasDocuments, CanvasTasks, DocumentCanvas |
+| 018 | EvidenceItems, EvidenceChain |
+| 019 | StensTemplates, StensSubmissions |
 | 020 | GmailSyncConfig, GmailSyncLog |
-| 021 | UpdateLog |
-| 022 | DocumentCanvas |
+| 021 | BackupManifest, RecoveryLog |
+| 022 | UpdateLog, UpdateChannels, UpdateManifest |
 | 023 | fix_search_meta_trigger, VacuumSessions |
 | 024 | LearningFeedback, PipelineLogs |
 | 025 | ComplexCrmRoles |
@@ -155,27 +155,44 @@ Two database files:
 | 037 | Reliability / observability tables |
 | 038 | CivilStandardProcedure |
 | 039 | Cases.registry_status (`mapped` \| `manual_review_required`) |
-| 040 | EventsLog (typed event bus persistence) |
-| 041 | ObservabilityMetrics |
-| 042 | RBACRoles, RBACPermissions, RBACUserRoles |
-| 043 | AgentRuns (agent execution log) |
-| 044 | CaseExecutionContexts (case-scoped AI context) |
-| 045 | VectorChunks (sqlite-vec embeddings, attached to data_store) |
-| 046 | RetrievalCache |
-| 047 | MemorySnapshots (per-case conversation memory) |
-| 048 | GuardrailsLog (AI safety filter decisions) |
-| 049 | EvalResults (AI evaluation harness results) |
-| 050 | LitigationScores (deadline risk + litigation analytics) |
-| 051 | UpdateChannels, UpdateManifest |
-| 052 | BackupManifest, RecoveryLog |
-| 053 | SupportTickets, DiagnosticsSnapshot |
-| 054 | Rules_Engine (20 seeded Israeli procedural rules, 9 procedure types) |
-| 055 | Entities, EntityRelations (knowledge graph) |
-| 056 | CorpusDocuments, CorpusChunks (offline legislation corpus) |
-| 057 | KnessetBills, KnessetVersions (Knesset OData corpus) |
-| 058 | WikiSourcePages (WikiSource legislation corpus) |
-| 059 | CitationLinks (citation graph edges) |
-| 060 | EntityEnrichmentLog |
+| 040 | Metrics, ObservabilityMetrics |
+| 041 | EventStore, EventHandlerLog, DeadLetterQueue |
+| 042 | Entities, EntityRelations (knowledge graph — judges, courts, cases) |
+| 043 | CaseMemory, UserPreferences, AgentRunLog |
+| 044 | DocumentChunks, ChunkEmbeddings, fts_document_chunks |
+| 045 | AgentResults |
+| 046 | ProceduralChecklist, RiskAssessments |
+| 047 | DocumentVersions, Annotations |
+| 048 | DocumentSignatures |
+| 049 | WorkflowStates, WorkflowIdempotencyLog, AgentRunRegistry |
+| 050 | VacuumSessions (extended) |
+| 051 | PipelineLogs (extended) |
+| 052 | vec_chunks (sqlite-vec virtual table, SKIP_ON_ERROR) |
+| 053 | AgentExecutionEvents |
+| 054 | SystemEvents |
+| 055 | WorkflowIdempotency TTL |
+| 056 | CaseAssignments (RBAC v2 hook point) |
+| 057 | SystemSettings (ConfigStore) |
+| 058 | Notifications inbox |
+| 059 | Notifications resolved tracking |
+| 060 | Rules_Engine (20 seeded Israeli procedural rules, 9 procedure types) |
+| 061 | LegalSources, LegalSections (verbatim text), fts_legal_sections (1,077 laws) |
+| 062 | Rules_Engine verification flags |
+| 063 | CommChannels, CommMessages, CommContactIdentities, CommInbox (7 tables) |
+| 064 | CommTemplates, CommSecureLinks |
+| 065 | CommEvidence, transcript column on CommMessages |
+| 066 | CallLogs |
+| 067 | _(intentionally skipped)_ |
+| 068 | CommMessages.ai_urgency, ai_tags |
+| 069 | VerdictCorpus, VerdictChunks |
+| 070 | PrecedentLibrary (enhanced precedent storage) |
+| 071 | LegalDrafts (drafting workspace documents) |
+| 072 | TimeEntries (billable time tracking) |
+| 073 | LegalBrainSessions |
+| 074 | LegalBrainMessages |
+| 075 | SupremeCourtVerdicts |
+| 076 | PrecedentChunks (vector search) |
+| 077 | vec_precedent_verdicts (sqlite-vec, SKIP_ON_ERROR) |
 
 ## API Routes
 
@@ -183,45 +200,67 @@ Base URL: `http://localhost:3001/api/`
 
 | Prefix | Module |
 |--------|--------|
-| `/clients` | ClientRepository CRUD |
-| `/cases` | CaseRepository CRUD |
-| `/documents` | DocumentRepository + processing status |
-| `/search` | FTS5 full-text search |
+| `/clients` | Client CRUD |
+| `/cases` | Case CRUD |
+| `/documents` | Document registry + processing status + insights + versions |
+| `/search` | FTS5 full-text search (cases, clients, documents) |
 | `/queue` | Job queue stats + requeue |
 | `/action-plan` | Approve / reject / sign rename plans |
 | `/tasks` | Task management |
-| `/legal-engine` | Document templates |
+| `/legal-engine` | Procedure templates |
 | `/media` | File ingest + audio pipeline |
 | `/traffic` | Traffic case management |
 | `/contacts` | Contacts CRM |
 | `/studies` | Academic Hub — subjects, courses, questions, graph nodes |
+| `/calendar` | Calendar + court hearings + deadlines |
+| `/notifications` | Notifications inbox |
+| `/activity` | Activity feed |
+| `/evidence` | Evidence Locker (chain of custody, locking) |
+| `/canvas` | Canvas documents + tasks |
+| `/annotations` | Document annotations |
+| `/signatures` | Document signing workflow |
+| `/collections` | Smart Collections (saved queries) |
+| `/stens` | Stens forms library (AI-assisted fill) |
+| `/citations` | Citation registry + harvest endpoint |
+| `/case-law` | Case law / precedent registry |
+| `/precedents` | Precedents registry |
+| `/entities` | Entity navigation (judges, courts) + knowledge graph |
+| `/rules` | Rules Engine (Israeli procedural rules) |
+| `/legal-corpus` | Legal corpus browser — 1,077 Israeli laws (FTS5 + verbatim) |
+| `/communications` | Communications hub — Telegram, call logs, template matching |
+| `/insolvency` | Insolvency proceedings (debt-arrangement workflow) |
+| `/ledger` | Payment ledger + billing schedules |
+| `/mail` | Mail reply generator |
+| `/gmail` | Gmail Bridge (OAuth + attachment sync) |
+| `/agents/summarize` | Case summarizer agent |
+| `/agents/timeline` | Timeline reconstruction agent |
+| `/agents/research` | Legal research agent |
+| `/agents/contract-review` | Contract review agent |
+| `/agents/discovery` | Discovery / evidence agent |
+| `/agents/results` | Stored agent results per case |
+| `/agents/:type/stream` | SSE streaming for all agents |
+| `/ai-stream` | Generic AI streaming (SSE) |
+| `/legal-ai` | Legal AI utility endpoints |
+| `/legal-brain` | Legal brain (persistent research sessions) |
+| `/drafts` | Legal drafts workspace |
+| `/time-entries` | Time entries (billable hours) |
+| `/verdict-corpus` | Verdict corpus (supreme court rulings) |
+| `/tabular` | Tabular data engine |
+| `/events` | Event bus query |
+| `/mission-control` | Mission control snapshot |
+| `/diagnostics` | Support diagnostics + health snapshot |
+| `/recovery` | Safe-mode restore (RecoveryWindow) |
+| `/updates` | Update check + manifest |
+| `/vacuum` | Vacuum protocol + watcher lifecycle |
+| `/setup` | First-run setup wizard |
+| `/health` | Basic health check |
+| `/erasure` | PII erasure (GDPR / right-to-deletion) |
+| `/importer` | Data importer (Excel/CSV) |
 | `/admin/repair/fts` | Rebuild FTS5 index |
 | `/admin/repair/rag` | Requeue unenriched documents |
 | `/admin/repair/manifest` | Validate installer manifest |
 | `/admin/repair/integrity` | SQLite PRAGMA integrity_check |
 | `/admin/repair/replay` | Replay failed pipeline events |
-| `/agents/summarize` | Summarize agent |
-| `/agents/timeline` | Timeline reconstruction agent |
-| `/agents/research` | Legal research agent |
-| `/agents/contract-review` | Contract review agent |
-| `/agents/discovery` | Discovery / evidence agent |
-| `/ai-stream` | Streaming AI responses (SSE) |
-| `/diagnostics` | Support diagnostics + health snapshot |
-| `/recovery` | RecoveryWindow — safe-mode restore |
-| `/updates` | Update check + manifest |
-| `/canvas` | Canvas documents + tasks |
-| `/evidence` | Evidence Locker (chain of custody) |
-| `/gmail` | Gmail Bridge (OAuth + attachment sync) |
-| `/citations` | Citation lookup + registry |
-| `/case-law` | Precedent registry |
-| `/signatures` | Document signing workflow |
-| `/events` | Event bus query |
-| `/activity` | Activity feed |
-| `/notifications` | Notifications inbox |
-| `/calendar` | Calendar + court hearings |
-| `/rules` | Rules Engine (Israeli procedural rules) |
-| `/annotations` | Document annotations |
-| `/workbench/legal` | Legal Workbench |
 
 ## Environment Variables (25)
 
