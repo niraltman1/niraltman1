@@ -8,6 +8,7 @@ import {
 import { useCase, useCaseContacts, useDocuments, useCaseInsights, useCaseActivity, useAgentSummarize, useAgentTimeline, useAgentDiscovery, useStoredAgentResults } from '@/api/hooks.js';
 import type { CaseContactRecord, CaseInsightRecord, ActivityEventRow, AgentOutput } from '@/api/hooks.js';
 import { AgentOutputPanel } from '@/components/common/AgentOutputPanel.js';
+import { ExportMenu } from '@/components/common/ExportMenu.js';
 import { CaseRiskPanel } from './CaseRiskPanel.js';
 import { CaseTimeline } from './CaseTimeline.js';
 import { CaseCitations } from './CaseCitations.js';
@@ -115,6 +116,37 @@ export function CaseDetail() {
               <GavelIcon size={12} />
               הכנה לדיון
             </Link>
+            <ExportMenu
+              payload={{
+                filename: caseNumber || `case-${caseId}`,
+                title:    titleHe,
+                subtitle: caseNumber,
+                sections: [
+                  {
+                    title: 'פרטי תיק',
+                    rows: [
+                      { label: 'מספר תיק',    value: caseNumber },
+                      { label: 'כותרת',        value: titleHe },
+                      { label: 'סטטוס',        value: STATUS_LABELS[statusStr] ?? statusStr },
+                      { label: 'סוג הליך',     value: procedureType ? procedureTypeLabel(procedureType) : null },
+                      { label: 'בית משפט',     value: courtName || null },
+                      { label: 'שופט/ת',       value: judgeName || null },
+                      { label: 'תאריך פתיחה',  value: openedDate || null },
+                    ],
+                  },
+                  {
+                    title: 'ניתוחי AI אחרונים',
+                    rows: (storedResults?.results ?? []).slice(0, 5).map((r) => ({
+                      label: String(r['agent_name'] ?? ''),
+                      value: [
+                        new Date(String(r['created_at'])).toLocaleDateString('he-IL'),
+                        r['confidence'] != null ? `${Math.round(Number(r['confidence']) * 100)}%` : null,
+                      ].filter(Boolean).join(' · ') || null,
+                    })),
+                  },
+                ],
+              }}
+            />
           </div>
         </div>
 

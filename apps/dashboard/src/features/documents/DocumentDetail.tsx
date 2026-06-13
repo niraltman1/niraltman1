@@ -6,10 +6,11 @@ import {
   ShieldCheckIcon, GavelIcon,
 } from '@phosphor-icons/react';
 import { useDocument, useDocumentInsights, useVerifyInsight, useEditInsight, useAgentContractReview, useHarvestCitations, useDocumentVersions } from '@/api/hooks.js';
-import type { AgentOutput, InsightEditFields, DocumentVersionRecord } from '@/api/hooks.js';
+import type { AgentOutput, InsightEditFields, DocumentVersionRecord, DocumentInsightsData } from '@/api/hooks.js';
 import { DocumentSigningPanel } from './DocumentSigningPanel.js';
 import { AgentOutputPanel } from '@/components/common/AgentOutputPanel.js';
 import { AiApprovalBar } from '@/components/common/AiApprovalBar.js';
+import { ExportMenu } from '@/components/common/ExportMenu.js';
 
 const PROC_STATE_LABELS: Record<string, { label: string; cls: string }> = {
   DISCOVERED:     { label: 'התגלה',    cls: 'badge badge-neutral' },
@@ -107,6 +108,38 @@ export function DocumentDetail() {
             <SquaresFourIcon size={12} />
             פתח בקנבס
           </Link>
+          <ExportMenu
+            payload={{
+              filename: filename || `document-${docId}`,
+              title:    filename || 'מסמך',
+              ...(docType ? { subtitle: DOC_TYPE_LABELS[docType] ?? docType } : {}),
+              sections: [
+                {
+                  title: 'פרטי מסמך',
+                  rows: [
+                    { label: 'שם קובץ',    value: filename },
+                    { label: 'סוג מסמך',   value: docType ? (DOC_TYPE_LABELS[docType] ?? docType) : null },
+                    { label: 'מצב עיבוד',  value: stateInfo.label },
+                    { label: 'תאריך מסמך', value: documentDate || null },
+                    { label: 'עמודים',      value: pageCount != null ? String(pageCount) : null },
+                    { label: 'גודל',        value: fileSizeBytes > 0 ? `${Math.round(fileSizeBytes / 1024)} KB` : null },
+                  ],
+                },
+                {
+                  title: 'תובנות AI',
+                  rows: [
+                    { label: 'מספר תיק',   value: (insights as DocumentInsightsData | null | undefined)?.case_number    ?? null },
+                    { label: 'בית משפט',   value: (insights as DocumentInsightsData | null | undefined)?.court_name     ?? null },
+                    { label: 'שופט/ת',     value: (insights as DocumentInsightsData | null | undefined)?.judge_name     ?? null },
+                    { label: 'סוג עבירה',  value: (insights as DocumentInsightsData | null | undefined)?.offense_type   ?? null },
+                    { label: 'דיון הבא',   value: (insights as DocumentInsightsData | null | undefined)?.next_hearing   ?? null },
+                    { label: 'ביטחון',     value: (insights as DocumentInsightsData | null | undefined)?.confidence != null ? `${Math.round((insights as DocumentInsightsData).confidence! * 100)}%` : null },
+                    { label: 'מצב אימות',  value: (insights as DocumentInsightsData | null | undefined)?.verification_state ?? null },
+                  ],
+                },
+              ],
+            }}
+          />
         </div>
       </div>
 
