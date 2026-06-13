@@ -2,14 +2,15 @@
 
 > ✅ **סטטוס 2026-06-10: כל הפאזות F-A…F-G הושלמו ומוזגו ל-main** (PRs #68, #70, #73, #74, #76).
 >
-> ✅ **סטטוס 2026-06-13 — Audit UX Round (PRs #94–#97, 11/20 פריטים):**
+> ✅ **סטטוס 2026-06-13 — Audit UX Round הושלם במלואו (PRs #94–#99, 20/20 פריטים):**
 > - #94: ניווט (חיפוש + קורפוס), כפתור שולחן עבודה, חלץ אסמכתאות, תוצאות AI שמורות
 > - #95: גרסאות מסמך, batch review תובנות AI, דף אסמכתאות
 > - #96: גרף ישויות (SVG), חוויית סוכנים מאוחדת (URL params)
 > - #97: ייצוא PDF + Word (`jspdf` + `docx`, `ExportMenu`)
+> - #98: סנכרון תיעוד (DEVELOPMENT.md, AUDIT, WORKPLAN, TASKS)
+> - #99: טאב "הערות" ל-CaseDetail (#13) + תיקון timing-flake ב-update-core
 >
-> **נותרים 9 פריטים מה-audit** — ראה `AUDIT-UX-PRODUCT-2026-06.md` §"The 20 Highest-Value Improvements" לסטטוס מלא.
-> עבודה עתידית: #4 (Ledger), #14 (Journal), #18 (onboarding), #9 (Insolvency), #3 (Drafting workspace).
+> **כל 20 פריטי ה-audit הושלמו** — ראה `AUDIT-UX-PRODUCT-2026-06.md` §"The 20 Highest-Value Improvements" לסטטוס מלא.
 
 > **מטרת-על:** ממשק שנבנה **לעורך דין**, לא למתכנת. כל מסך נמדד: *"האם עו"ד תחת לחץ מועדים מבין בשנייה מה לעשות כאן?"*
 >
