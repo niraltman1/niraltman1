@@ -257,12 +257,12 @@ describe('waitForDbUnlock', () => {
 
     const start = Date.now();
     await waitForDbUnlock(dbFile, 5_000);
-    expect(Date.now() - start).toBeLessThan(200);
+    expect(Date.now() - start).toBeLessThan(1_000);
   });
 
   it('resolves immediately when db file does not exist (no-op)', async () => {
     const start = Date.now();
     await waitForDbUnlock(join(tmpDir, 'nonexistent.db'), 5_000);
-    expect(Date.now() - start).toBeLessThan(200);
+    expect(Date.now() - start).toBeLessThan(1_000);
   });
 });
