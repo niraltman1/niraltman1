@@ -310,14 +310,23 @@ export function DocumentDetail() {
             <RobotIcon size={12} className="text-blue-400" />
             סקירת חוזה AI
           </h2>
-          <button
-            className="btn-primary flex items-center gap-1.5 text-xs px-3 py-1.5"
-            disabled={contractReviewAgent.isPending}
-            onClick={() => { setContractOutput(null); contractReviewAgent.mutate(docId, { onSuccess: setContractOutput }); }}
-          >
-            <RobotIcon size={13} />
-            {contractReviewAgent.isPending ? 'מנתח...' : 'נתח מסמך'}
-          </button>
+          <div className="flex items-center gap-2">
+            <button
+              className="btn-primary flex items-center gap-1.5 text-xs px-3 py-1.5"
+              disabled={contractReviewAgent.isPending}
+              onClick={() => { setContractOutput(null); contractReviewAgent.mutate(docId, { onSuccess: setContractOutput }); }}
+            >
+              <RobotIcon size={13} />
+              {contractReviewAgent.isPending ? 'מנתח...' : 'נתח מסמך'}
+            </button>
+            <Link
+              to={`/agents?documentId=${docId}&agentId=contract-review`}
+              className="text-xs text-parchment/35 hover:text-gold transition-colors"
+              title="פתח בסביבת AI המלאה"
+            >
+              ↗
+            </Link>
+          </div>
         </div>
         {(contractReviewAgent.isPending || contractOutput) && (
           <AgentOutputPanel output={contractOutput} loading={contractReviewAgent.isPending} agentLabel="סקירת חוזה" />
