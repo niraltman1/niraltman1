@@ -44,13 +44,20 @@ export interface LegalDraftRow {
   created_at:  string;
 }
 
+export interface WatcherEventRow {
+  id:           unknown;
+  file_path?:   string;
+  occurred_at?: string;
+  detected_at?: string;
+}
+
 export interface WorkspaceOverview {
   agenda:         CalendarEvent[];
   atRisk:         DeadlineRisk[];
   cases:          EnrichedCaseRow[];
   commsNotifs:    NotificationItem[];
   channelSummary: CommChannelSummary[];
-  watcherEvents:  Record<string, unknown>[];
+  watcherEvents:  WatcherEventRow[];
   ocrFailures:    PipelineFailureRow[];
   agentRuns:      AgentRunRow[];
   brainSessions:  BrainSessionRow[];
@@ -112,7 +119,7 @@ export function useWorkspaceOverview(): WorkspaceOverview {
       // 5 — recently ingested files (watcher events)
       {
         queryKey:  ['workspace', 'watcher'] as const,
-        queryFn:   () => fetchJSON<Record<string, unknown>[]>('/api/admin/watcher'),
+        queryFn:   () => fetchJSON<WatcherEventRow[]>('/api/admin/watcher'),
         staleTime: 30_000,
         retry:     false,
       },
@@ -160,7 +167,7 @@ export function useWorkspaceOverview(): WorkspaceOverview {
     cases:          ((casesQ.data  as { items: EnrichedCaseRow[] } | undefined)?.items ?? []),
     commsNotifs,
     channelSummary: ((commsQ.data  as { summary: CommChannelSummary[] } | undefined)?.summary ?? []),
-    watcherEvents:  (watcherQ.data as Record<string, unknown>[] | undefined) ?? [],
+    watcherEvents:  (watcherQ.data as WatcherEventRow[] | undefined) ?? [],
     ocrFailures:    ((failuresQ.data as { failures: PipelineFailureRow[] } | undefined)?.failures ?? []),
     agentRuns:      ((runsQ.data   as { runs: AgentRunRow[] }          | undefined)?.runs ?? []),
     brainSessions:  (sessionsQ.data as BrainSessionRow[]   | undefined) ?? [],

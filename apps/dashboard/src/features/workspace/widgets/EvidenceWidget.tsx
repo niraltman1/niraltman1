@@ -20,7 +20,7 @@ interface Stats {
 interface OcrFailure {
   id:          number;
   file_path:   string;
-  error?:      string;
+  error?:      string | null;
   created_at:  string;
 }
 

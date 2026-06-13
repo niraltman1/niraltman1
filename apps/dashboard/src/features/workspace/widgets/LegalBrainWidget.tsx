@@ -11,7 +11,7 @@ interface AgentRun {
   case_id?:   number | null;
   confidence: number;
   created_at: string;
-  flag_review?: number | boolean;
+  flag_review?: number | boolean | null;
 }
 
 interface BrainSession {
