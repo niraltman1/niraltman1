@@ -12,22 +12,21 @@
   - **#6** כפתור `⊞` שולחן עבודה על כל כרטיס תיק ב-CasesPage — גישה בקליק אחד
   - **#19** `GET /api/agents/results` + `useStoredAgentResults` + סקציית "ניתוחים קודמים" ב-CaseDetail
 
-- 🔄 **Round 2 (ב-PR הנוכחי):**
+- 🔄 **Round 2 + Round 3 (PR #95 `claude/factum-il-audit-cont-p2`):**
   - **#16** גרסאות מסמך — `DocumentVersionRepository` מחובר ל-API (`GET /api/documents/:id/versions`), hook `useDocumentVersions`, סקציית "גרסאות מסמך" ב-DocumentDetail
+  - **#15** AI Insight batch review — `GET /api/documents/insights?state=` + `useAllInsights` hook + `InsightReviewPage` + nav "בדיקת תובנות AI" בקבוצת מסמכים
+  - **#10** Research workspace — `CitationsPage` + route `/citations` + nav "אסמכתאות" בקבוצת מחקר
 
 ### מצב יתרת ה-audit (AUDIT-UX-PRODUCT-2026-06.md)
 
-פעוּלות שנותרו עם תשתית קיימת:
+פעוּלות שנותרו:
 - `#12` Knowledge graph visualization — טבלאות Entities/EntityRelations מאוכלסות; `EntitiesPage` מציג רשימה שטוחה; צריך להוסיף תצוגת גרף (D3 — לא מותקן)
-- `#15` AI Insight batch review — צריך עמוד חדש שמאגד כל `unverified` insights
-- `#10` Legal research workspace — איחוד `/search`, `/legal-corpus`, `/precedents`, `/rules`, `/entities` לקבוצת-ניווט אחת
 - `#7` Unified AI agent experience — 3 surfaces, טרם אוחדו
 - `#11` PDF export — אין תשתית
 
 ### מה לעשות עכשיו
-1. בדוק PR #94 Round 2 — בקש merge
-2. המשך עם #15 (AI Insight batch review) — עמוד חדש `InsightReviewPage`
-3. ה-Draft editor (`/drafting`) כבר מיושם במלואו — בדוק ורפא bugs אם יש
+1. בדוק PR #95 — בקש merge כאשר CI ירוק
+2. אפשרות: הוסף תצוגת גרף קלילה (SVG/CSS, ללא D3) ל-EntitiesPage (#12)
 
 ---
 

@@ -76,6 +76,7 @@ export const NAV_GROUPS: NavGroup[] = [
       { to: '/library',          label: 'ספריית חקיקה ופסיקה', Icon: BookOpenIcon },
       { to: '/legal-corpus',     label: 'חוקים ישראליים',       Icon: BookOpenIcon },
       { to: '/entities',         label: 'ישויות',               Icon: AddressBookIcon },
+      { to: '/citations',        label: 'אסמכתאות',             Icon: GavelIcon },
       { to: '/insolvency',       label: 'הליכי חדלות',          Icon: ScalesIcon },
     ],
   },

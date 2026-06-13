@@ -66,6 +66,7 @@ const DraftingPage       = lz(() => import('@/features/drafting/DraftingPage.js'
 const DraftEditorPage    = lz(() => import('@/features/drafting/DraftEditorPage.js'), 'DraftEditorPage');
 const InsolvencyPage     = lz(() => import('@/features/insolvency/InsolvencyPage.js'), 'InsolvencyPage');
 const InsightReviewPage  = lz(() => import('@/features/documents/InsightReviewPage.js'), 'InsightReviewPage');
+const CitationsPage      = lz(() => import('@/features/citations/CitationsPage.js'),    'CitationsPage');
 
 // ── Router ───────────────────────────────────────────────────────────────────
 
@@ -123,6 +124,7 @@ export const router: RemixRouter = createBrowserRouter([
       { path: 'drafting/:id',      element: <DraftEditorPage />      },
       { path: 'insolvency',        element: <InsolvencyPage />       },
       { path: 'insights-review',   element: <InsightReviewPage />    },
+      { path: 'citations',         element: <CitationsPage />        },
       { path: 'entities',          element: <EntitiesPage />         },
       { path: 'entities/:type/:name', element: <EntityDetailPage />  },
       { path: 'canvas/:id',        element: <CanvasPage />           },
