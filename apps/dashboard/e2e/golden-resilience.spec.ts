@@ -16,8 +16,8 @@ test.describe('golden: resilience', () => {
     await expect(page.getByText('שגיאה קריטית')).not.toBeVisible({ timeout: 3_000 })
       .catch(() => { /* מקובל — לא קיים */ });
 
-    // ודא שהדשבורד נטען (navigation מ-/ ל-/dashboard)
-    await expect(page).toHaveURL(/dashboard/);
+    // ודא שסביבת העבודה נטענה (navigation מ-/ ל-/workspace)
+    await expect(page).toHaveURL(/workspace/);
 
     // ודא שה-Sidebar נטען (מכיל לפחות קישורי ניווט)
     await expect(page.locator('[dir="rtl"]').first()).toBeVisible();
