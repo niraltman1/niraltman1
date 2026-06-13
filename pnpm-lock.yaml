@@ -267,6 +267,9 @@ importers:
       '@factum-il/shared':
         specifier: workspace:*
         version: link:../shared
+      '@factum-il/support-diagnostics':
+        specifier: workspace:*
+        version: link:../support-diagnostics
       '@factum-il/update-core':
         specifier: workspace:*
         version: link:../update-core

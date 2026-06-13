@@ -330,12 +330,12 @@ export function agentsRouter(repos: Repos): Router {
     asyncHandler(async (req, res) => {
       const body = req.body as z.infer<typeof caseIntakeSchema>;
       const output = await runCaseIntake(repos, {
-        clientName:      body.clientName,
-        idNumber:        body.idNumber,
-        caseType:        body.caseType,
-        factsNarrative:  body.factsNarrative,
-        documentIds:     body.documentIds,
-        clientId:        body.clientId,
+        clientName:     body.clientName,
+        factsNarrative: body.factsNarrative,
+        ...(body.idNumber    != null ? { idNumber:    body.idNumber    } : {}),
+        ...(body.caseType    != null ? { caseType:    body.caseType    } : {}),
+        ...(body.documentIds != null ? { documentIds: body.documentIds } : {}),
+        ...(body.clientId    != null ? { clientId:    body.clientId    } : {}),
       });
       ok(res, output);
     }),
