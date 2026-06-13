@@ -4,7 +4,7 @@
 
 ### הושלם הפעם — Master Maturity Plan Phases 1–3
 
-**ענף:** `claude/factum-il-maturity-plan-thfwxf`
+**ענף:** `claude/factum-il-maturity-plan-thfwxf` → **מוזג ל-main (PR #106)**
 
 #### Phase 1 — Daily Legal Workspace ✅
 - `DashboardHomePage.tsx` at `/workspace` (7 sections: matters, agenda, cases, comms, evidence, brain, notifications)
@@ -38,9 +38,33 @@
 - `DataMigrationPage.tsx` at `/data-migration` — 6-section wizard, JSON export
 
 ### מה לעשות עכשיו
-- **Merge PR** for `claude/factum-il-maturity-plan-thfwxf` after review
-- **Phase 2 Priority B** (after merge): `draft-motion-agent.ts`, `draft-letter-agent.ts`, `evidence-review-agent.ts`
+- **Phase 2 Priority B** (אחרי מיזוג Phase 3): `draft-motion-agent.ts`, `draft-letter-agent.ts`, `evidence-review-agent.ts`
 - **HARD STOP** — do not begin Phases 4–7 without explicit approval
+
+---
+
+## 🗓️ Session handoff — packages דקיקים + B4 hardening (2026-06-13)
+
+### הושלם הפעם
+
+- ✅ **PR #103 — packages דקיקים מחוברים (מוזג)**
+  - `orchestrator`: `transitionStage` ב-rag-worker (ENTITY_EXTRACTION_DONE / INDEXING_DONE / READY_FOR_AGENTS) + `GET /api/admin/workflow/:id`
+  - `sdk`: plugin routes (GET/POST/DELETE /api/plugins), `fireCaseCreated` / `fireAgentCompleted` / `fireDocumentIngested` events
+  - `encrypted-backup`: 4 admin routes (list/create/verify/restore) AES-256-GCM manifests
+  - `enterprise-hooks`: `GET /api/enterprise/capabilities`
+  - Dashboard: `PluginsPanel`, `EncryptedBackupPanel`, `EnterpriseCapabilitiesPanel` ב-DiagnosticsPage + 8 hooks חדשים
+- ✅ **B4 — אבטחה/חיסיון**: הסרת 5 קריאות `console.log` שהדליפו שמות צדדים ומזהי לקוח
+  (`preflight-agent.ts` ×4, `media-pipeline.ts` ×1) — PII לא מודפס עוד לקונסול
+- ✅ **migration 080** — `performance_indexes`: 14 אינדקסים על עמודות חמות
+  (Cases, Documents, DocumentInsights, Tasks, TrafficCases, WorkflowStates, AgentExecutionEvents, CommMessages, DocumentChunks, EvidenceItems)
+
+### סלוטי Migration
+- **001–080 תפוסים** (067 = gap מכוון). **הבא הפנוי: 081**
+
+### הצעד הבא
+- B4 המשך: אמינות (Ollama fallback coverage), observability מטריקות, גיבוי/שחזור testing
+- C1 Telegram live validation (חסומה על allowlist)
+- בניית installer: GitHub Actions → "Build Beta Installer" → main → v1.0-beta.1
 
 ---
 

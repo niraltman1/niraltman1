@@ -375,9 +375,6 @@ export class MediaPipeline {
         resolvedClientId  = preflightResult.clientId;
         clientProvisioned = preflightResult.created;
         if (preflightResult.essence) essence = preflightResult.essence;
-        if (preflightResult.captionFound) {
-          console.log(`[Preflight:A] Caption parsed — ${preflightResult.parties.map((p) => `"${p.name}" (${p.litigationRole})`).join(' | ')}`);
-        }
         this.pipelineLogs?.create({
           fileHash,
           fileName:          originalName,
