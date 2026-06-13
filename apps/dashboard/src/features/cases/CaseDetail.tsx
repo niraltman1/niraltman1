@@ -5,7 +5,7 @@ import {
   UsersIcon, FileTextIcon, RobotIcon, PulseIcon, ClockIcon,
   WarningCircleIcon, CheckCircleIcon, CaretDownIcon, CaretUpIcon, ShieldCheckIcon,
 } from '@phosphor-icons/react';
-import { useCase, useCaseContacts, useDocuments, useCaseInsights, useCaseActivity, useAgentSummarize, useAgentTimeline, useAgentDiscovery } from '@/api/hooks.js';
+import { useCase, useCaseContacts, useDocuments, useCaseInsights, useCaseActivity, useAgentSummarize, useAgentTimeline, useAgentDiscovery, useStoredAgentResults } from '@/api/hooks.js';
 import type { CaseContactRecord, CaseInsightRecord, ActivityEventRow, AgentOutput } from '@/api/hooks.js';
 import { AgentOutputPanel } from '@/components/common/AgentOutputPanel.js';
 import { CaseRiskPanel } from './CaseRiskPanel.js';
@@ -35,6 +35,7 @@ export function CaseDetail() {
   const discovery = useAgentDiscovery();
   const aiLoading = summarize.isPending || timeline.isPending || discovery.isPending;
 
+  const { data: storedResults }    = useStoredAgentResults(caseId > 0 ? caseId : null);
   const { data: caseData, isLoading, isError } = useCase(caseId);
   const { data: contacts = [] }    = useCaseContacts(tab === 'contacts' ? caseId : null);
   const { data: docsData }         = useDocuments(1, 50);
@@ -332,6 +333,20 @@ export function CaseDetail() {
             </div>
             {(aiLoading || aiOutput) && (
               <AgentOutputPanel output={aiOutput} loading={aiLoading} agentLabel={aiLabel} />
+            )}
+            {(storedResults?.results?.length ?? 0) > 0 && !aiLoading && !aiOutput && (
+              <div className="pt-2 border-t border-parchment/10 space-y-1">
+                <p className="text-parchment/40 text-[10px] font-semibold uppercase tracking-widest">ניתוחים קודמים</p>
+                {storedResults!.results.slice(0, 5).map((r) => (
+                  <div key={r.id} className="flex items-center justify-between text-xs bg-parchment/5 rounded px-3 py-1.5">
+                    <span className="text-parchment/60 font-medium">{r.agent_name}</span>
+                    <span className="text-parchment/30 font-mono text-[10px]">
+                      {new Date(r.created_at).toLocaleDateString('he-IL')}
+                      {r.confidence != null && ` · ${Math.round(r.confidence * 100)}%`}
+                    </span>
+                  </div>
+                ))}
+              </div>
             )}
           </div>
         )}

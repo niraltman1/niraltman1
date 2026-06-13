@@ -3,9 +3,9 @@ import { useParams, Link } from 'react-router-dom';
 import {
   FileTextIcon, ArrowRightIcon, CheckCircleIcon,
   WarningCircleIcon, RobotIcon, CalendarIcon, SquaresFourIcon,
-  ShieldCheckIcon,
+  ShieldCheckIcon, GavelIcon,
 } from '@phosphor-icons/react';
-import { useDocument, useDocumentInsights, useVerifyInsight, useEditInsight, useAgentContractReview } from '@/api/hooks.js';
+import { useDocument, useDocumentInsights, useVerifyInsight, useEditInsight, useAgentContractReview, useHarvestCitations } from '@/api/hooks.js';
 import type { AgentOutput, InsightEditFields } from '@/api/hooks.js';
 import { DocumentSigningPanel } from './DocumentSigningPanel.js';
 import { AgentOutputPanel } from '@/components/common/AgentOutputPanel.js';
@@ -49,6 +49,8 @@ export function DocumentDetail() {
   const [editForm, setEditForm] = useState<InsightEditFields>({});
   const contractReviewAgent = useAgentContractReview();
   const [contractOutput, setContractOutput] = useState<AgentOutput | null>(null);
+  const harvestCitations = useHarvestCitations();
+  const [harvestedCount, setHarvestedCount] = useState<number | null>(null);
 
   if (isLoading) {
     return (
@@ -318,6 +320,36 @@ export function DocumentDetail() {
         </div>
         {(contractReviewAgent.isPending || contractOutput) && (
           <AgentOutputPanel output={contractOutput} loading={contractReviewAgent.isPending} agentLabel="סקירת חוזה" />
+        )}
+      </div>
+
+      {/* Citation Harvesting */}
+      <div className="bg-navy-100 border border-parchment/10 rounded-xl p-5 space-y-3">
+        <div className="flex items-center justify-between">
+          <h2 className="text-parchment/50 text-xs font-semibold uppercase tracking-widest flex items-center gap-2">
+            <GavelIcon size={12} className="text-gold" />
+            אסמכתאות משפטיות
+          </h2>
+          <button
+            className="btn-primary flex items-center gap-1.5 text-xs px-3 py-1.5"
+            disabled={harvestCitations.isPending}
+            onClick={() => {
+              setHarvestedCount(null);
+              harvestCitations.mutate(docId, {
+                onSuccess: (r) => setHarvestedCount(r.harvested),
+              });
+            }}
+          >
+            <GavelIcon size={13} />
+            {harvestCitations.isPending ? 'מחלץ...' : 'חלץ אסמכתאות'}
+          </button>
+        </div>
+        {harvestedCount != null && (
+          <p className="text-parchment/60 text-xs">
+            {harvestedCount > 0
+              ? `נמצאו ${harvestedCount} אסמכתאות ועודכנו בתיק`
+              : 'לא נמצאו אסמכתאות חדשות'}
+          </p>
         )}
       </div>
 

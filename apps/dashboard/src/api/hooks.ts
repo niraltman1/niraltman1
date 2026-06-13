@@ -3355,6 +3355,31 @@ export function useAgentEvents(opts: {
   });
 }
 
+export interface StoredAgentResult {
+  id:          number;
+  agent_name:  string;
+  trace_id:    string;
+  case_id:     number | null;
+  document_id: number | null;
+  result_text: string | null;
+  confidence:  number | null;
+  flag_review: number;
+  tool_log:    string | null;
+  duration_ms: number | null;
+  created_at:  string;
+}
+
+export function useStoredAgentResults(caseId: number | null, limit = 10) {
+  return useQuery({
+    queryKey: ['agent-results', caseId, limit],
+    queryFn:  () => fetchJSON<{ results: StoredAgentResult[] }>(
+      `/api/agents/results?caseId=${caseId}&limit=${limit}`,
+    ),
+    enabled: caseId !== null && caseId > 0,
+    staleTime: 60_000,
+  });
+}
+
 export function useJudgmentFullText(id: number | null) {
   return useQuery<{ originalFilename: string; ocrText: string }>({
     queryKey: ['judgment-full-text', id],
