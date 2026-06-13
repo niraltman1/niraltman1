@@ -7,6 +7,7 @@ import {
   FileTextIcon,
   ArrowSquareOutIcon,
   ArrowsOutSimpleIcon,
+  SquaresFourIcon,
 } from '@phosphor-icons/react';
 import { useCases } from '@/api/hooks.js';
 import { NewCaseWizard } from '@/features/legal-engine/NewCaseWizard.js';
@@ -234,6 +235,14 @@ function AiSummaryPanel({ cs }: { cs: Record<string, unknown> | null }) {
           style={{ flex: 1, justifyContent: 'center', fontSize: 12, textDecoration: 'none' }}
         >
           פתח תיק ›
+        </Link>
+        <Link
+          to={`/cases/${cs['id'] as number}/workbench`}
+          className="btn"
+          style={{ justifyContent: 'center', fontSize: 12, textDecoration: 'none', padding: '0 10px' }}
+          title="שולחן עבודה"
+        >
+          <SquaresFourIcon size={14} />
         </Link>
       </div>
     </div>

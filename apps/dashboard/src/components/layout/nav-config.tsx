@@ -36,6 +36,7 @@ export const NAV_GROUPS: NavGroup[] = [
     id: 'home', label: 'לוח בקרה', Icon: HouseIcon, defaultOpen: true,
     items: [
       { to: '/dashboard', label: 'שולחן העבודה', Icon: GaugeIcon },
+      { to: '/search',    label: 'חיפוש',          Icon: MagnifyingGlassIcon },
     ],
   },
   {
@@ -72,6 +73,7 @@ export const NAV_GROUPS: NavGroup[] = [
       { to: '/stens',            label: 'טפסים (Stens)',        Icon: NoteIcon },
       { to: '/precedents',       label: 'תקדימים',              Icon: GavelIcon },
       { to: '/library',          label: 'ספריית חקיקה ופסיקה', Icon: BookOpenIcon },
+      { to: '/legal-corpus',     label: 'חוקים ישראליים',       Icon: BookOpenIcon },
       { to: '/entities',         label: 'ישויות',               Icon: AddressBookIcon },
       { to: '/insolvency',       label: 'הליכי חדלות',          Icon: ScalesIcon },
     ],

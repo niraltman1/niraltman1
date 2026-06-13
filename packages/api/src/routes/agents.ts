@@ -204,6 +204,24 @@ export function agentsRouter(repos: Repos): Router {
     }),
   );
 
+  // GET /api/agents/results?caseId=N[&limit=N]
+  router.get('/results', asyncHandler((req, res) => {
+    const caseId = Number(req.query['caseId']);
+    const limit  = Math.min(Number(req.query['limit'] ?? 20), 50);
+    if (!Number.isInteger(caseId) || caseId <= 0) throw new ValidationError('caseId required');
+
+    const rows = repos.db.prepare(`
+      SELECT id, agent_name, trace_id, case_id, document_id, result_text,
+             confidence, flag_review, tool_log, duration_ms, created_at
+        FROM AgentResults
+       WHERE case_id = ?
+       ORDER BY created_at DESC
+       LIMIT ?
+    `).all(caseId, limit) as Record<string, unknown>[];
+
+    ok(res, { results: rows });
+  }));
+
   return router;
 }
 
