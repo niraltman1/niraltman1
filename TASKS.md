@@ -1,5 +1,38 @@
 # Factum-IL — Task Tracker
 
+## 🗓️ Session handoff — Audit UX Round 3: PDF + Word export (2026-06-13)
+
+### הושלם הפעם
+
+- ✅ **PR #97 (מוזג `73802d3`) — Audit #11 (PDF + Word export):**
+  - `apps/dashboard/package.json` — נוספו `jspdf ^4.2.1` ו-`docx ^9.7.1`
+  - `apps/dashboard/src/lib/export.ts` (חדש) — `exportToPDF` + `exportToWord` עם RTL, עברית, עמודים מרובים, footer סודיות
+  - `apps/dashboard/src/components/common/ExportMenu.tsx` (חדש) — dropdown עם PDF/Word + loading/error states
+  - חובר ל-`DocumentDetail` ו-`CaseDetail` בכותרת
+
+### מצב יתרת ה-audit (AUDIT-UX-PRODUCT-2026-06.md)
+
+| # | נושא | מצב |
+|---|------|------|
+| #1 | Global search nav | ✅ PR #94 |
+| #2 | Legal corpus nav | ✅ PR #94 |
+| #6 | One-click workbench | ✅ PR #94 |
+| #7 | Unified AI agents | ✅ PR #96 |
+| #8 | Extract citations button | ✅ PR #94 |
+| #10 | Citations page | ✅ PR #95 |
+| #11 | PDF + Word export | ✅ PR #97 |
+| #12 | Knowledge graph | ✅ PR #96 |
+| #15 | AI insight review | ✅ PR #95 |
+| #16 | Document versions | ✅ PR #95 |
+| #19 | Stored agent results | ✅ PR #94 |
+| שאר | #3-#5, #9, #13-#14, #17-#18, #20 | ⏳ טרם |
+
+### מה לעשות עכשיו
+- המשך לפריטי ה-audit הנותרים (פרט #3-#5, #9, #13-#14, #17-#18, #20)
+- כל branch חדש: `git fetch origin main && git checkout -b claude/... origin/main`
+
+---
+
 ## 🗓️ Session handoff — Platform Audit UX improvements (2026-06-13)
 
 ### הושלם הפעם
