@@ -184,6 +184,51 @@ export interface AnnotationCreate {
   color?:         string;
 }
 
+// ─── Document Versions ──────────────────────────────────────────────────────
+
+export interface DocumentVersionRecord {
+  id:          number;
+  documentId:  number;
+  version:     number;
+  storagePath: string;
+  fileHash:    string;
+  filename:    string;
+  createdBy:   string | null;
+  changeNote:  string | null;
+  createdAt:   string;
+}
+
+export function useDocumentVersions(docId: number | null) {
+  return useQuery({
+    queryKey: ['document-versions', docId],
+    queryFn:  () => fetchJSON<{ versions: DocumentVersionRecord[] }>(`/api/documents/${docId}/versions`),
+    enabled:  docId !== null && docId > 0,
+    staleTime: 60_000,
+  });
+}
+
+export interface InsightListItem {
+  id:                 number;
+  document_id:        number;
+  filename:           string;
+  case_number:        string | null;
+  court_name:         string | null;
+  judge_name:         string | null;
+  offense_type:       string | null;
+  next_hearing:       string | null;
+  confidence:         number | null;
+  verification_state: string;
+  extracted_at:       string;
+}
+
+export function useAllInsights(state = 'unverified') {
+  return useQuery({
+    queryKey: ['insights', 'all', state],
+    queryFn:  () => fetchJSON<{ insights: InsightListItem[] }>(`/api/documents/insights?state=${encodeURIComponent(state)}`),
+    staleTime: 30_000,
+  });
+}
+
 export function useDocumentAnnotations(docId: number) {
   return useQuery({
     queryKey: QUERY_KEYS.documentAnnotations(docId),

@@ -53,6 +53,7 @@ import {
   VerdictCorpusRepository,
   DraftsRepository,
   LegalBrainSessionsRepository,
+  DocumentVersionRepository,
 } from '@factum-il/database';
 import { createApp } from './app.js';
 import type { Repos } from './db.js';
@@ -229,6 +230,7 @@ const repos: Repos = {
   verdictCorpus:      new VerdictCorpusRepository(db),
   drafts:             new DraftsRepository(db),
   legalBrainSessions: new LegalBrainSessionsRepository(db),
+  documentVersions:   new DocumentVersionRepository(db),
 };
 
 // Release stale agent locks left over from a previous crash or restart.

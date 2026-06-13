@@ -17,6 +17,10 @@ const listDocumentsQuerySchema = z.object({
   pageSize: z.coerce.number().int().min(1).max(200).optional(),
 }).strict();
 
+const listInsightsQuerySchema = z.object({
+  state: z.enum(['unverified', 'approved', 'rejected']).optional(),
+}).strict();
+
 const verifyInsightSchema = z.object({
   state: z.enum(['approved', 'rejected']),
 }).strict();
@@ -29,6 +33,20 @@ export function documentsRouter(repos: Repos): Router {
     const { page, pageSize } = parsePagination(req.query as unknown as Record<string, unknown>);
     const result = documents.list({ page, pageSize });
     ok(res, result);
+  }));
+
+  // Must be before /:id so Express doesn't swallow "insights" as a document id
+  router.get('/insights', validate(listInsightsQuerySchema, 'query'), asyncHandler((req, res) => {
+    const state = (req.query['state'] as string | undefined) ?? 'unverified';
+    const rows = db.prepare(`
+      SELECT di.*, d.filename
+        FROM DocumentInsights di
+        JOIN Documents d ON d.id = di.document_id
+       WHERE di.verification_state = ?
+       ORDER BY di.extracted_at DESC
+       LIMIT 100
+    `).all(state) as Record<string, unknown>[];
+    ok(res, { insights: rows });
   }));
 
   router.get('/:id', asyncHandler((req, res) => {
@@ -157,6 +175,14 @@ export function documentsRouter(repos: Repos): Router {
     });
 
     ok(res, documents.findInsightById(insightId) ?? {});
+  }));
+
+  // GET /api/documents/:id/versions
+  router.get('/:id/versions', asyncHandler((req, res) => {
+    const id = Number(req.params['id']);
+    if (!Number.isInteger(id) || id <= 0) throw new Error('invalid id');
+    const versions = repos.documentVersions.findByDocument(id);
+    ok(res, { versions });
   }));
 
   return router;

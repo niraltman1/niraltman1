@@ -5,8 +5,8 @@ import {
   WarningCircleIcon, RobotIcon, CalendarIcon, SquaresFourIcon,
   ShieldCheckIcon, GavelIcon,
 } from '@phosphor-icons/react';
-import { useDocument, useDocumentInsights, useVerifyInsight, useEditInsight, useAgentContractReview, useHarvestCitations } from '@/api/hooks.js';
-import type { AgentOutput, InsightEditFields } from '@/api/hooks.js';
+import { useDocument, useDocumentInsights, useVerifyInsight, useEditInsight, useAgentContractReview, useHarvestCitations, useDocumentVersions } from '@/api/hooks.js';
+import type { AgentOutput, InsightEditFields, DocumentVersionRecord } from '@/api/hooks.js';
 import { DocumentSigningPanel } from './DocumentSigningPanel.js';
 import { AgentOutputPanel } from '@/components/common/AgentOutputPanel.js';
 import { AiApprovalBar } from '@/components/common/AiApprovalBar.js';
@@ -51,6 +51,7 @@ export function DocumentDetail() {
   const [contractOutput, setContractOutput] = useState<AgentOutput | null>(null);
   const harvestCitations = useHarvestCitations();
   const [harvestedCount, setHarvestedCount] = useState<number | null>(null);
+  const { data: versionsData } = useDocumentVersions(docId > 0 ? docId : null);
 
   if (isLoading) {
     return (
@@ -354,6 +355,28 @@ export function DocumentDetail() {
       </div>
 
       <DocumentSigningPanel documentId={docId} />
+
+      {/* Document Version History (#16) */}
+      {(versionsData?.versions?.length ?? 0) > 0 && (
+        <div className="bg-navy-100 border border-parchment/10 rounded-xl p-5 space-y-2">
+          <h2 className="text-parchment/50 text-xs font-semibold uppercase tracking-widest flex items-center gap-2">
+            <CheckCircleIcon size={12} className="text-parchment/40" />
+            גרסאות מסמך
+          </h2>
+          <div className="space-y-1">
+            {versionsData!.versions.map((v: DocumentVersionRecord) => (
+              <div key={v.id} className="flex items-center justify-between text-xs bg-parchment/5 rounded px-3 py-1.5">
+                <span className="text-parchment/70 font-mono">גרסה {v.version}</span>
+                <div className="flex items-center gap-3 text-parchment/40 text-[10px]">
+                  {v.changeNote && <span className="text-parchment/50">{v.changeNote}</span>}
+                  {v.createdBy && <span>{v.createdBy}</span>}
+                  <span className="font-mono">{new Date(v.createdAt).toLocaleDateString('he-IL')}</span>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
     </div>
   );
 }
