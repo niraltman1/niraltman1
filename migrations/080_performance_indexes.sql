@@ -23,8 +23,8 @@ CREATE INDEX IF NOT EXISTS idx_tasks_priority           ON Tasks(priority);
 -- Tasks: case_id + status composite for per-case task lists
 CREATE INDEX IF NOT EXISTS idx_tasks_case_status        ON Tasks(case_id, status);
 
--- TrafficCases: days_remaining + status for SLA radar and admin stats
-CREATE INDEX IF NOT EXISTS idx_traffic_days_status      ON TrafficCases(days_remaining, status);
+-- TrafficCases: statute_deadline + lifecycle_state for SLA radar and admin stats
+CREATE INDEX IF NOT EXISTS idx_traffic_deadline_state   ON TrafficCases(statute_deadline, lifecycle_state);
 
 -- WorkflowStates: stage + status for orchestrator canProceedToStage check
 CREATE INDEX IF NOT EXISTS idx_workflow_doc_stage_status ON WorkflowStates(document_id, stage, status);
