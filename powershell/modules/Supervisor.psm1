@@ -168,7 +168,7 @@ function Watch-MemoryPressure {
 
   if ($memMB -gt $Script:MemoryLimitMB) {
     Write-LegalLog -Level WARN -Category system `
-      -Message "Memory pressure: ${memMB:F0} MB exceeds limit $($Script:MemoryLimitMB) MB; requesting GC"
+      -Message "Memory pressure: $([math]::Round($memMB)) MB exceeds limit $($Script:MemoryLimitMB) MB; requesting GC"
     [System.GC]::Collect()
     [System.GC]::WaitForPendingFinalizers()
     [System.GC]::Collect()

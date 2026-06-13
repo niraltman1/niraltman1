@@ -1,5 +1,51 @@
 # Factum-IL — Task Tracker
 
+## 🗓️ Session handoff — QA Phase 2 rebase onto main (2026-06-13)
+
+### הושלם הפעם
+
+- ✅ **Rebased `qa/phase-2-windows-ci` onto `main`** — direct `git rebase` failed (no common ancestor; 200+ add/add conflicts). Solution: fresh branch from `origin/main`, applied only QA-unique changes.
+
+  **קבצים שהוחלו על main:**
+  1. `.github/workflows/ci.yml` — 3 jobs חדשים: `check-windows`, `check-powershell`, `e2e`
+  2. `apps/dashboard/e2e/` — 5 קבצי E2E: `helpers.ts`, 4 golden specs
+  3. `apps/dashboard/playwright.config.ts` — Playwright config חדש
+  4. `package.json` (root) — `test:e2e` script נוסף
+  5. `packages/database/src/search/engine.ts` — תיקון `buildFTSQuery` (FTS5 flat OR) + cache poisoning
+  6. `packages/api/src/validation/cases.ts` — `.optional()` → `.nullish()` + שמירת `procedureType` מ-main
+  7. `packages/api/src/validation/clients.ts` — `.optional()` → `.nullish()`
+  8. `tests/powershell/FactumIL.Tests.ps1` — תיקוני Pester (path + null-guard)
+  9. `powershell/modules/OCRProcessor.psm1` / `CrashRecovery.psm1` / `Supervisor.psm1` — PSScriptAnalyzer fixes
+
+### הצעד הבא
+- **CI לאחר ה-rebase** — אם 5/5 ירוקים → מזג PR #91.
+
+---
+
+## 🗓️ Session handoff — QA Phase 2 CI hardening (2026-06-13)
+
+### הושלם הפעם
+
+- ✅ **PR #91 — QA Phase 2: Windows CI + E2E golden tests — כל 5 בדיקות ה-CI ירוקות** (commit `f4499de`)
+
+  **שלושה באגים עיקריים תוקנו:**
+
+  1. **FTS5 alias bug** (`packages/database/src/search/engine.ts`):
+     `WHERE fts MATCH ?` → `WHERE fts_documents MATCH ?` / `WHERE fts_cases MATCH ?`.
+  2. **FTS5 parenthesized OR syntax** (`buildFTSQuery`):
+     תוצרים כמו `("שרה"* OR "רה"*)` לא חוקיים ב-FTS5 — תוקן: single-token → flat `A* OR B*`.
+  3. **Cache poisoning** — `cacheResults` נקראת רק כאשר `ranked.length > 0`.
+  4. **E2E button mismatch** — `CasesPage` משתמשת ב-`NewCaseWizard`; כפתור הוא **'המשך'**, לא **'שמור תיק'**.
+
+### מצב CI לפני ה-rebase (commit `f4499de`)
+- ✅ Typecheck + Test + Lint
+- ✅ Typecheck + Test (Windows)
+- ✅ PSScriptAnalyzer + Pester (Windows)
+- ✅ Playwright E2E (8 tests, 8 passed)
+- ✅ Eval Regression
+
+---
+
 ## 🗓️ Session handoff — תיקון installer (2026-06-11)
 
 ### הושלם הפעם

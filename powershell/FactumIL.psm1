@@ -31,7 +31,11 @@ $subModules = @(
 foreach ($sub in $subModules) {
     $path = Join-Path $moduleRoot $sub
     if (Test-Path $path) {
-        . $path
+        # Use Import-Module -Global so each sub-module's exports land in the
+        # global session state.  Dot-sourcing + Export-ModuleMember only
+        # propagates to the root module scope, which Pester 5 isolates per
+        # scriptblock and therefore cannot see from inner BeforeAll/It blocks.
+        Import-Module $path -Force -Global
     } else {
         Write-Warning "[FactumIL] Sub-module not found: $path"
     }

@@ -7,16 +7,16 @@
 
 BeforeAll {
     $repoRoot   = Resolve-Path (Join-Path $PSScriptRoot '..\..')
-    $moduleRoot = Join-Path $repoRoot 'factum-il\powershell'
+    $moduleRoot = Join-Path $repoRoot 'powershell'
 
-    Import-Module (Join-Path $moduleRoot 'FactumIL.psm1') -Force
+    Import-Module (Join-Path $moduleRoot 'FactumIL.psm1') -Force -Global
 
     # Temporary SQLite DB for tests
     $Script:TestDbPath = Join-Path $env:TEMP "factum_il_test_$(Get-Random).db"
 
     # Apply migrations to the test database
     if (Get-Command sqlite3 -ErrorAction SilentlyContinue) {
-        $migrationsDir = Join-Path $repoRoot 'factum-il\migrations'
+        $migrationsDir = Join-Path $repoRoot 'migrations'
         Get-ChildItem -Path $migrationsDir -Filter '*.sql' | Sort-Object Name | ForEach-Object {
             sqlite3 $Script:TestDbPath ".read `"$($_.FullName)`""
         }
@@ -24,7 +24,7 @@ BeforeAll {
 }
 
 AfterAll {
-    if (Test-Path $Script:TestDbPath) {
+    if ($Script:TestDbPath -and (Test-Path $Script:TestDbPath)) {
         Remove-Item -Path $Script:TestDbPath -Force
     }
     # Clean WAL files
@@ -136,7 +136,7 @@ Describe 'StateMachine' {
         { Assert-ValidTransition -FromState 'UNKNOWN_STATE' -ToState 'HASHED' } | Should -Throw
     }
 
-    Context 'With SQLite database' -Skip:((-not (Get-Command sqlite3 -ErrorAction SilentlyContinue)) -or (-not (Test-Path $Script:TestDbPath))) {
+    Context 'With SQLite database' -Skip:((-not (Get-Command sqlite3 -ErrorAction SilentlyContinue)) -or (-not $Script:TestDbPath) -or (-not (Test-Path $Script:TestDbPath))) {
         BeforeAll {
             # Insert a test document
             sqlite3 $Script:TestDbPath @"
@@ -165,7 +165,7 @@ VALUES ('aaaa1111', 'C:\test\doc.pdf', 'C:\storage\doc.pdf', 'doc.pdf', 'pdf', 1
 # ─────────────────────────────────────────────
 #  ActionLog tests
 # ─────────────────────────────────────────────
-Describe 'ActionLog' -Skip:((-not (Get-Command sqlite3 -ErrorAction SilentlyContinue)) -or (-not (Test-Path $Script:TestDbPath))) {
+Describe 'ActionLog' -Skip:((-not (Get-Command sqlite3 -ErrorAction SilentlyContinue)) -or (-not $Script:TestDbPath) -or (-not (Test-Path $Script:TestDbPath))) {
     BeforeAll {
         # Insert test document if not present
         sqlite3 $Script:TestDbPath @"
@@ -195,7 +195,7 @@ VALUES ('bbbb2222', 'C:\test\action_doc.pdf', 'C:\storage\action_doc.pdf', 'acti
 # ─────────────────────────────────────────────
 #  ManifestSnapshot tests
 # ─────────────────────────────────────────────
-Describe 'ManifestSnapshot' -Skip:((-not (Get-Command sqlite3 -ErrorAction SilentlyContinue)) -or (-not (Test-Path $Script:TestDbPath))) {
+Describe 'ManifestSnapshot' -Skip:((-not (Get-Command sqlite3 -ErrorAction SilentlyContinue)) -or (-not $Script:TestDbPath) -or (-not (Test-Path $Script:TestDbPath))) {
     BeforeAll {
         sqlite3 $Script:TestDbPath @"
 INSERT OR IGNORE INTO Documents (file_hash, original_path, storage_path, filename, extension, file_size_bytes)

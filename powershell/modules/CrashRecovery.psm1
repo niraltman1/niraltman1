@@ -103,7 +103,7 @@ UPDATE TransactionJournal
    SET phase = 'COMMIT', replayed = 1, committed_at = strftime('%Y-%m-%dT%H:%M:%fZ','now')
  WHERE transaction_id = '$($txId -replace "'","''")'";
 "@
-                    Write-LegalLog -Message "Transaction $txId: accepted completed move at $pathAfter" `
+                    Write-LegalLog -Message "Transaction ${txId}: accepted completed move at $pathAfter" `
                                    -Level INFO -Category rollback -AgentSource $AgentSource
                 } catch {
                     # Hash mismatch – restore original
@@ -115,7 +115,7 @@ UPDATE TransactionJournal
    SET phase = 'ROLLBACK', replayed = 1
  WHERE transaction_id = '$($txId -replace "'","''")'";
 "@
-                    Write-LegalLog -Message "Transaction $txId: rolled back corrupt move" `
+                    Write-LegalLog -Message "Transaction ${txId}: rolled back corrupt move" `
                                    -Level WARN -Category rollback -AgentSource $AgentSource
                 }
             } elseif (Test-Path -LiteralPath $pathBefore) {
@@ -125,7 +125,7 @@ UPDATE TransactionJournal
    SET phase = 'ROLLBACK', replayed = 1
  WHERE transaction_id = '$($txId -replace "'","''")'";
 "@
-                Write-LegalLog -Message "Transaction $txId: source intact, operation never completed" `
+                Write-LegalLog -Message "Transaction ${txId}: source intact, operation never completed" `
                                -Level INFO -Category rollback -AgentSource $AgentSource
             }
         } else {
