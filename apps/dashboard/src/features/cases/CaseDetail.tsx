@@ -305,7 +305,7 @@ export function CaseDetail() {
 
         {aiOpen && (
           <div className="px-5 pb-5 space-y-4 border-t border-parchment/10">
-            <div className="flex gap-2 pt-3 flex-wrap">
+            <div className="flex gap-2 pt-3 flex-wrap items-center">
               <button
                 className="btn-primary flex items-center gap-1.5 text-xs px-3 py-1.5"
                 disabled={aiLoading}
@@ -330,6 +330,13 @@ export function CaseDetail() {
                 <ShieldCheckIcon size={13} />
                 נתח גילוי ראיות
               </button>
+              <Link
+                to={`/agents?caseId=${caseId}`}
+                className="flex items-center gap-1 text-xs text-parchment/40 hover:text-gold transition-colors mr-auto"
+              >
+                <RobotIcon size={12} />
+                סביבת AI מלאה ↗
+              </Link>
             </div>
             {(aiLoading || aiOutput) && (
               <AgentOutputPanel output={aiOutput} loading={aiLoading} agentLabel={aiLabel} />

@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import {
   RobotIcon, BookOpenIcon, ClockIcon, MagnifyingGlassIcon,
   FileTextIcon, ShieldCheckIcon,
@@ -23,9 +24,14 @@ const AGENTS = [
 type AgentId = typeof AGENTS[number]['id'];
 
 export function AgentsWorkspacePage() {
-  const [activeAgent, setActiveAgent]   = useState<AgentId>('summarize');
-  const [selectedCase, setSelectedCase] = useState<number | null>(null);
-  const [selectedDoc,  setSelectedDoc]  = useState<number | null>(null);
+  const [searchParams] = useSearchParams();
+  const initCaseId  = searchParams.get('caseId')  ? Number(searchParams.get('caseId'))  : null;
+  const initDocId   = searchParams.get('documentId') ? Number(searchParams.get('documentId')) : null;
+  const initAgentId = (searchParams.get('agentId') as AgentId | null) ?? (initDocId ? 'contract-review' : 'summarize');
+
+  const [activeAgent, setActiveAgent]   = useState<AgentId>(initAgentId);
+  const [selectedCase, setSelectedCase] = useState<number | null>(initCaseId);
+  const [selectedDoc,  setSelectedDoc]  = useState<number | null>(initDocId);
   const [question,     setQuestion]     = useState('');
   const [result,       setResult]       = useState<AgentOutput | null>(null);
   const [streamMode,   setStreamMode]   = useState(false);
