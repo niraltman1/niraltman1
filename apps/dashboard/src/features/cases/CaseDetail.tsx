@@ -1,11 +1,12 @@
-import { useState } from 'react';
+import { useState, useRef } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import {
   GavelIcon, UserIcon, CalendarIcon, ArrowRightIcon, SquaresFourIcon,
   UsersIcon, FileTextIcon, RobotIcon, PulseIcon, ClockIcon,
   WarningCircleIcon, CheckCircleIcon, CaretDownIcon, CaretUpIcon, ShieldCheckIcon,
+  NotePencilIcon, TrashIcon,
 } from '@phosphor-icons/react';
-import { useCase, useCaseContacts, useDocuments, useCaseInsights, useCaseActivity, useAgentSummarize, useAgentTimeline, useAgentDiscovery, useStoredAgentResults } from '@/api/hooks.js';
+import { useCase, useCaseContacts, useDocuments, useCaseInsights, useCaseActivity, useAgentSummarize, useAgentTimeline, useAgentDiscovery, useStoredAgentResults, useTasks, useCreateTask, useDeleteTask } from '@/api/hooks.js';
 import type { CaseContactRecord, CaseInsightRecord, ActivityEventRow, AgentOutput } from '@/api/hooks.js';
 import { AgentOutputPanel } from '@/components/common/AgentOutputPanel.js';
 import { ExportMenu } from '@/components/common/ExportMenu.js';
@@ -22,7 +23,7 @@ const STATUS_CLS: Record<string, string> = {
   archived:  'badge badge-neutral',
 };
 
-type Tab = 'documents' | 'timeline' | 'contacts' | 'insights' | 'citations' | 'billing' | 'activity';
+type Tab = 'documents' | 'timeline' | 'contacts' | 'insights' | 'citations' | 'billing' | 'activity' | 'notes';
 
 export function CaseDetail() {
   const { id } = useParams<{ id: string }>();
@@ -31,10 +32,14 @@ export function CaseDetail() {
   const [aiOpen,   setAiOpen]   = useState(false);
   const [aiOutput, setAiOutput] = useState<AgentOutput | null>(null);
   const [aiLabel,  setAiLabel]  = useState('');
-  const summarize = useAgentSummarize();
-  const timeline  = useAgentTimeline();
-  const discovery = useAgentDiscovery();
-  const aiLoading = summarize.isPending || timeline.isPending || discovery.isPending;
+  const [noteText, setNoteText] = useState('');
+  const noteRef = useRef<HTMLTextAreaElement>(null);
+  const summarize   = useAgentSummarize();
+  const timeline    = useAgentTimeline();
+  const discovery   = useAgentDiscovery();
+  const aiLoading   = summarize.isPending || timeline.isPending || discovery.isPending;
+  const createTask  = useCreateTask();
+  const deleteTask  = useDeleteTask();
 
   const { data: storedResults }    = useStoredAgentResults(caseId > 0 ? caseId : null);
   const { data: caseData, isLoading, isError } = useCase(caseId);
@@ -42,6 +47,9 @@ export function CaseDetail() {
   const { data: docsData }         = useDocuments(1, 50);
   const { data: caseInsights = [] } = useCaseInsights(tab === 'insights' ? caseId : null);
   const { data: activityEvents = [] } = useCaseActivity(tab === 'activity' ? caseId : null);
+  const { data: tasksData }        = useTasks(tab === 'notes' ? { caseId } : undefined);
+  const caseNotes = (tasksData?.items ?? []).filter((t) => t.source === 'note')
+    .sort((a, b) => b.createdAt.localeCompare(a.createdAt));
 
   if (isLoading) {
     return (
@@ -186,6 +194,7 @@ export function CaseDetail() {
           { key: 'citations' as Tab, label: 'אסמכתאות', Icon: GavelIcon },
           { key: 'billing'   as Tab, label: 'רישומי זמן', Icon: ClockIcon },
           { key: 'activity'  as Tab, label: 'פעילות',    Icon: PulseIcon },
+          { key: 'notes'     as Tab, label: 'הערות',     Icon: NotePencilIcon },
         ] as const).map(({ key, label, Icon }) => (
           <button
             key={key}
@@ -315,6 +324,79 @@ export function CaseDetail() {
                 )}
               </div>
             ))
+          )}
+        </div>
+      )}
+
+      {tab === 'notes' && (
+        <div className="space-y-4">
+          {/* Compose new note */}
+          <div className="bg-navy-100 border border-parchment/10 rounded-xl p-4 space-y-3">
+            <label className="text-parchment/60 text-xs font-semibold uppercase tracking-widest">הערה חדשה</label>
+            <textarea
+              ref={noteRef}
+              value={noteText}
+              onChange={(e) => setNoteText(e.target.value)}
+              rows={3}
+              dir="rtl"
+              className="w-full bg-parchment/5 border border-parchment/10 rounded-lg px-3 py-2 text-sm text-parchment placeholder:text-parchment/30 resize-none focus:outline-none focus:border-gold/40"
+              placeholder="הוסף הערה לתיק זה…"
+              onKeyDown={(e) => {
+                if (e.key === 'Enter' && (e.ctrlKey || e.metaKey) && noteText.trim()) {
+                  e.preventDefault();
+                  createTask.mutate(
+                    { title: noteText.trim(), caseId, source: 'note', status: 'pending', priority: 'normal' },
+                    { onSuccess: () => { setNoteText(''); noteRef.current?.focus(); } },
+                  );
+                }
+              }}
+            />
+            <div className="flex items-center justify-between">
+              <span className="text-parchment/25 text-xs">Ctrl+Enter לשמירה</span>
+              <button
+                className="btn-primary flex items-center gap-1.5 text-xs px-3 py-1.5 disabled:opacity-40"
+                disabled={!noteText.trim() || createTask.isPending}
+                onClick={() => {
+                  if (!noteText.trim()) return;
+                  createTask.mutate(
+                    { title: noteText.trim(), caseId, source: 'note', status: 'pending', priority: 'normal' },
+                    { onSuccess: () => { setNoteText(''); noteRef.current?.focus(); } },
+                  );
+                }}
+              >
+                <NotePencilIcon size={12} />
+                שמור הערה
+              </button>
+            </div>
+          </div>
+
+          {/* Notes list */}
+          {caseNotes.length === 0 ? (
+            <div className="flex flex-col items-center gap-3 py-10 text-parchment/30">
+              <NotePencilIcon size={28} weight="duotone" />
+              <p className="text-sm">אין הערות לתיק זה עדיין</p>
+            </div>
+          ) : (
+            <ul className="space-y-2">
+              {caseNotes.map((note) => (
+                <li key={note.id} className="bg-navy-100 border border-parchment/10 rounded-xl px-4 py-3 flex items-start gap-3">
+                  <NotePencilIcon size={14} weight="duotone" className="text-gold/60 mt-0.5 shrink-0" />
+                  <div className="flex-1 min-w-0">
+                    <p className="text-parchment text-sm whitespace-pre-wrap break-words">{note.title}</p>
+                    <span className="text-parchment/30 text-[10px] font-mono">
+                      {new Date(note.createdAt).toLocaleString('he-IL')}
+                    </span>
+                  </div>
+                  <button
+                    aria-label="מחק הערה"
+                    className="text-parchment/20 hover:text-red-400 transition-colors shrink-0 mt-0.5"
+                    onClick={() => deleteTask.mutate(note.id)}
+                  >
+                    <TrashIcon size={14} />
+                  </button>
+                </li>
+              ))}
+            </ul>
           )}
         </div>
       )}
