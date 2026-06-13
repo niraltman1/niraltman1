@@ -18,8 +18,8 @@ CREATE INDEX IF NOT EXISTS idx_doc_insights_verif_state ON DocumentInsights(veri
 -- DocumentInsights: confidence sort on per-case insights endpoint
 CREATE INDEX IF NOT EXISTS idx_doc_insights_confidence  ON DocumentInsights(confidence DESC);
 
--- Tasks: urgency filter used in admin/stats critical-count query
-CREATE INDEX IF NOT EXISTS idx_tasks_urgency            ON Tasks(urgency);
+-- Tasks: priority filter used in admin/stats critical-count query
+CREATE INDEX IF NOT EXISTS idx_tasks_priority           ON Tasks(priority);
 -- Tasks: case_id + status composite for per-case task lists
 CREATE INDEX IF NOT EXISTS idx_tasks_case_status        ON Tasks(case_id, status);
 
