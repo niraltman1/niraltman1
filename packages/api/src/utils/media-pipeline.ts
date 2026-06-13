@@ -375,8 +375,6 @@ export class MediaPipeline {
         resolvedClientId  = preflightResult.clientId;
         clientProvisioned = preflightResult.created;
         if (preflightResult.essence) essence = preflightResult.essence;
-        if (preflightResult.captionFound) {
-        }
         this.pipelineLogs?.create({
           fileHash,
           fileName:          originalName,
