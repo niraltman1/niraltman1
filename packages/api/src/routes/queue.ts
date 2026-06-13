@@ -101,5 +101,18 @@ export function queueRouter(repos: Repos): Router {
     ok(res, { recorded: true });
   }));
 
+  // GET /api/pipeline/failures?limit=N — recent OCR/AI pipeline failures (workspace overview)
+  router.get('/failures', asyncHandler((req, res) => {
+    const limit = Math.min(Number(req.query['limit'] ?? 10), 50);
+    const rows = repos.db.prepare(`
+      SELECT id, file_name AS file_path, error_message AS error, timestamp AS created_at
+        FROM PipelineLogs
+       WHERE status IN ('failed_ocr', 'failed_ai')
+       ORDER BY timestamp DESC
+       LIMIT ?
+    `).all(limit) as Record<string, unknown>[];
+    ok(res, { failures: rows });
+  }));
+
   return router;
 }

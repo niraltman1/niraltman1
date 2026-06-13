@@ -10,6 +10,10 @@ import { buildTimeline } from '../modules/agents/timeline-builder.js';
 import { researchLegalQuestion } from '../modules/agents/research-agent.js';
 import { reviewContract } from '../modules/agents/contract-review.js';
 import { runDiscovery } from '../modules/agents/discovery-agent.js';
+import { runInsolvencyAnalysis } from '../modules/agents/insolvency-agent.js';
+import { runDeadlineAnalysis } from '../modules/agents/deadline-analysis-agent.js';
+import { runHearingPrep } from '../modules/agents/hearing-prep-agent.js';
+import { runCaseIntake } from '../modules/agents/case-intake-agent.js';
 import { withCaseExecutionGuard } from '../middleware/case-execution-guard.js';
 import { checkExecutionValidity, markAgentCompleted, markAgentFailed, journalEvent } from '@factum-il/agent-core';
 import type { CaseExecutionContext } from '@factum-il/agent-core';
@@ -39,6 +43,20 @@ const researchSchema = z.object({
 
 const contractReviewSchema = z.object({
   documentId: z.number(),
+}).strict();
+
+const hearingPrepSchema = z.object({
+  caseId:    z.number(),
+  hearingId: z.number(),
+}).strict();
+
+const caseIntakeSchema = z.object({
+  clientName:      z.string().min(1),
+  idNumber:        z.string().optional(),
+  caseType:        z.string().optional(),
+  factsNarrative:  z.string().min(10),
+  documentIds:     z.array(z.number()).optional(),
+  clientId:        z.number().optional(),
 }).strict();
 
 function staleMeta(
@@ -226,6 +244,113 @@ export function agentsRouter(repos: Repos): Router {
     `).all(caseId, limit) as Record<string, unknown>[];
 
     ok(res, { results: rows });
+  }));
+
+  // POST /api/agents/insolvency-summary  { caseId: number }
+  router.post('/insolvency-summary',
+    validate(caseIdSchema),
+    withCaseExecutionGuard('insolvency-agent', repos),
+    asyncHandler(async (req, res) => {
+      const { caseId } = req.body as z.infer<typeof caseIdSchema>;
+      const caseRow = repos.db.prepare('SELECT id FROM Cases WHERE id = ?').get(caseId);
+      if (!caseRow) throw new NotFoundError(`Case ${caseId} not found`);
+      const { traceId, caseStateHash, username } = guardMeta(req);
+      journalEvent(repos.db, 'execution_started', traceId, caseId, username);
+      try {
+        const output = await runInsolvencyAnalysis(repos, caseId);
+        const stale = staleMeta(caseId, caseStateHash, username, repos.db);
+        if (stale.isStale) journalEvent(repos.db, 'stale_detected', traceId, caseId, username, { reason: stale.staleReason });
+        markAgentCompleted(traceId, repos.db);
+        journalEvent(repos.db, 'execution_completed', traceId, caseId, username);
+        extensionPoints.fireAgentCompleted(traceId).catch(() => {});
+        ok(res, { ...output, ...stale });
+      } catch (err) {
+        markAgentFailed(traceId, String(err), repos.db);
+        journalEvent(repos.db, 'execution_failed', traceId, caseId, username, { error: String(err) });
+        throw err;
+      }
+    }),
+  );
+
+  // POST /api/agents/deadline-analysis  { caseId: number }
+  router.post('/deadline-analysis',
+    validate(caseIdSchema),
+    withCaseExecutionGuard('deadline-analysis', repos),
+    asyncHandler(async (req, res) => {
+      const { caseId } = req.body as z.infer<typeof caseIdSchema>;
+      const caseRow = repos.db.prepare('SELECT id FROM Cases WHERE id = ?').get(caseId);
+      if (!caseRow) throw new NotFoundError(`Case ${caseId} not found`);
+      const { traceId, caseStateHash, username } = guardMeta(req);
+      journalEvent(repos.db, 'execution_started', traceId, caseId, username);
+      try {
+        const output = await runDeadlineAnalysis(repos, caseId);
+        const stale = staleMeta(caseId, caseStateHash, username, repos.db);
+        if (stale.isStale) journalEvent(repos.db, 'stale_detected', traceId, caseId, username, { reason: stale.staleReason });
+        markAgentCompleted(traceId, repos.db);
+        journalEvent(repos.db, 'execution_completed', traceId, caseId, username);
+        extensionPoints.fireAgentCompleted(traceId).catch(() => {});
+        ok(res, { ...output, ...stale });
+      } catch (err) {
+        markAgentFailed(traceId, String(err), repos.db);
+        journalEvent(repos.db, 'execution_failed', traceId, caseId, username, { error: String(err) });
+        throw err;
+      }
+    }),
+  );
+
+  // POST /api/agents/hearing-prep  { caseId: number, hearingId: number }
+  router.post('/hearing-prep',
+    validate(hearingPrepSchema),
+    withCaseExecutionGuard('hearing-prep', repos),
+    asyncHandler(async (req, res) => {
+      const { caseId, hearingId } = req.body as z.infer<typeof hearingPrepSchema>;
+      const caseRow = repos.db.prepare('SELECT id FROM Cases WHERE id = ?').get(caseId);
+      if (!caseRow) throw new NotFoundError(`Case ${caseId} not found`);
+      const { traceId, caseStateHash, username } = guardMeta(req);
+      journalEvent(repos.db, 'execution_started', traceId, caseId, username);
+      try {
+        const output = await runHearingPrep(repos, caseId, hearingId);
+        const stale = staleMeta(caseId, caseStateHash, username, repos.db);
+        if (stale.isStale) journalEvent(repos.db, 'stale_detected', traceId, caseId, username, { reason: stale.staleReason });
+        markAgentCompleted(traceId, repos.db);
+        journalEvent(repos.db, 'execution_completed', traceId, caseId, username);
+        extensionPoints.fireAgentCompleted(traceId).catch(() => {});
+        ok(res, { ...output, ...stale });
+      } catch (err) {
+        markAgentFailed(traceId, String(err), repos.db);
+        journalEvent(repos.db, 'execution_failed', traceId, caseId, username, { error: String(err) });
+        throw err;
+      }
+    }),
+  );
+
+  // POST /api/agents/case-intake  { clientName, factsNarrative, ... }
+  router.post('/case-intake',
+    validate(caseIntakeSchema),
+    asyncHandler(async (req, res) => {
+      const body = req.body as z.infer<typeof caseIntakeSchema>;
+      const output = await runCaseIntake(repos, {
+        clientName:     body.clientName,
+        factsNarrative: body.factsNarrative,
+        ...(body.idNumber    != null ? { idNumber:    body.idNumber    } : {}),
+        ...(body.caseType    != null ? { caseType:    body.caseType    } : {}),
+        ...(body.documentIds != null ? { documentIds: body.documentIds } : {}),
+        ...(body.clientId    != null ? { clientId:    body.clientId    } : {}),
+      });
+      ok(res, output);
+    }),
+  );
+
+  // GET /api/agents/runs?limit=N — recent runs across all cases (workspace overview)
+  router.get('/runs', asyncHandler((req, res) => {
+    const limit = Math.min(Number(req.query['limit'] ?? 10), 50);
+    const rows = repos.db.prepare(`
+      SELECT id, agent_name, case_id, confidence, flag_review, created_at
+        FROM AgentResults
+       ORDER BY created_at DESC
+       LIMIT ?
+    `).all(limit) as Record<string, unknown>[];
+    ok(res, { runs: rows });
   }));
 
   return router;

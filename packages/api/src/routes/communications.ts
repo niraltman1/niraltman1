@@ -556,5 +556,27 @@ export function communicationsRouter(repos: Repos): Router {
     ok(res, { ok: true });
   }));
 
+  // GET /api/communications/inbox/summary — unread counts + urgency by channel
+  router.get('/inbox/summary', asyncHandler((_req, res) => {
+    type SummaryRow = { channel: string; unread: number; urgency_rank: number };
+    const rows = repos.db.prepare(`
+      SELECT c.channel,
+             COUNT(m.id) AS unread,
+             MAX(CASE WHEN m.ai_urgency = 'urgent' THEN 2 WHEN m.ai_urgency = 'normal' THEN 1 ELSE 0 END) AS urgency_rank
+        FROM CommConversations c
+        JOIN CommMessages m ON m.conversation_id = c.id
+       WHERE c.status = 'open' AND m.handled = 0 AND m.direction = 'inbound'
+       GROUP BY c.channel
+    `).all() as SummaryRow[];
+
+    const summary = rows.map((r) => ({
+      channel: r.channel,
+      unread:  r.unread,
+      urgency: r.urgency_rank >= 2 ? 'critical' : r.urgency_rank >= 1 ? 'high' : 'normal',
+    }));
+
+    ok(res, { summary });
+  }));
+
   return router;
 }

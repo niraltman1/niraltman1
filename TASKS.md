@@ -1,5 +1,48 @@
 # Factum-IL — Task Tracker
 
+## 🗓️ Session handoff — Phases 1, 2A, 3A, 3B Complete (2026-06-13)
+
+### הושלם הפעם — Master Maturity Plan Phases 1–3
+
+**ענף:** `claude/factum-il-maturity-plan-thfwxf` → **מוזג ל-main (PR #106)**
+
+#### Phase 1 — Daily Legal Workspace ✅
+- `DashboardHomePage.tsx` at `/workspace` (7 sections: matters, agenda, cases, comms, evidence, brain, notifications)
+- `useWorkspaceOverview.ts` — single aggregation hook (10 parallel queries)
+- Widget extraction: `AgendaWidget`, `ActiveCasesWidget`, `CommunicationsWidget`, `EvidenceWidget`
+- New API endpoints: `GET /api/agents/runs`, `GET /api/communications/inbox/summary`, `GET /api/pipeline/failures`
+- Router: `/` → `/workspace` redirect, `/support`, `/data-migration` added
+- Nav: סביבת עבודה, תמיכה, ייבוא נתונים
+
+#### Phase 2 Priority A — Legal Agents ✅
+- `insolvency-agent.ts` — InsolvencyModule + PaymentLedger analysis → LegalDrafts
+- `deadline-analysis-agent.ts` — Rules_Engine + CourtHearings → AgentResults
+- `hearing-prep-agent.ts` — hearing briefing → LegalDrafts + AgentResults
+- `case-intake-agent.ts` — new case intake (no caseId) → LegalDrafts
+- API routes: POST `/api/agents/insolvency-summary`, `/deadline-analysis`, `/hearing-prep`, `/case-intake`
+- AgentsWorkspacePage updated with all 4 Priority A agents
+
+#### Phase 3A — Support Platform ✅
+- `RepairRecommendationsEngine.ts` — WAL, FTS, migrations, sqlite-vec, orphan analysis
+- `SelfHealingActions.ts` — rebuild-fts, wal-checkpoint, vacuum, validate-vec, validate-migrations, orphan-cleanup
+- `GET /api/diagnostics/recommendations`, `POST /api/diagnostics/heal/:action`
+- `SupportPage.tsx` at `/support` — system health, bundle, repair + one-click healing
+
+#### Phase 3B — Database Intelligence Platform ✅
+- `@factum-il/database-intelligence` package (13 source files)
+- SQLiteConnector, CSVConnector, ExcelConnector (read-only, graceful degradation)
+- LegalDataDictionary — Hebrew/English → Factum-IL table mapping
+- SemanticSchemaAnalyzer, MappingRecommendationEngine, ImportPlanner
+- DocumentInventoryAnalyzer (SHA-256 duplicates), FileStructureAnalyzer
+- 6 endpoints: `/api/data-migration/scan|analyze|report|plan|document-inventory|file-structure`
+- `DataMigrationPage.tsx` at `/data-migration` — 6-section wizard, JSON export
+
+### מה לעשות עכשיו
+- **Phase 2 Priority B** (אחרי מיזוג Phase 3): `draft-motion-agent.ts`, `draft-letter-agent.ts`, `evidence-review-agent.ts`
+- **HARD STOP** — do not begin Phases 4–7 without explicit approval
+
+---
+
 ## 🗓️ Session handoff — packages דקיקים + B4 hardening (2026-06-13)
 
 ### הושלם הפעם
