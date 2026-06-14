@@ -6,8 +6,8 @@ import {
 } from '@phosphor-icons/react';
 import {
   useDraftShelf, useLegalCorpusSearch, useCaseCitations, usePrecedents,
-  useAddToShelf,
-  type DraftRecord, type LegalSectionSearchHit, type PrecedentRecord,
+  useVerdictSearch, useAddToShelf,
+  type DraftRecord, type LegalSectionSearchHit, type PrecedentRecord, type VerdictSearchHit,
 } from '@/api/hooks.js';
 import { EvidenceShelf } from './EvidenceShelf.js';
 import type { Editor } from '@tiptap/react';
@@ -85,6 +85,7 @@ export function DraftIntelligencePanel({ draft, editor }: Props) {
   const { data: caseCitations }   = useCaseCitations(draft.matter_id);
   const { data: precedents }      = usePrecedents();
   const { data: shelfItems }      = useDraftShelf(draft.id);
+  const { data: verdictHits }     = useVerdictSearch(seedQuery);
 
   const pendingShelf = (shelfItems ?? []).filter((i) => i.is_inserted === 0).length;
 
@@ -115,6 +116,16 @@ export function DraftIntelligencePanel({ draft, editor }: Props) {
       entityId:   p.id,
       entityType: 'precedent',
       ...(p.summary_he ? { contentHe: p.summary_he } : {}),
+    });
+  }, [addToShelf, draft.id]);
+
+  const handleSendVerdict = useCallback((v: VerdictSearchHit) => {
+    addToShelf.mutate({
+      draftId:   draft.id,
+      shelfType: 'precedent',
+      title:     v.caseName ?? v.caseNumber ?? 'פסק דין',
+      sourceRef: v.docKey,
+      ...(v.snippet ? { contentHe: v.snippet.replace(/\[|\]/g, '') } : {}),
     });
   }, [addToShelf, draft.id]);
 
@@ -215,7 +226,28 @@ export function DraftIntelligencePanel({ draft, editor }: Props) {
             </section>
           )}
 
-          {(legislationHits?.length ?? 0) === 0 && (caseCitations?.length ?? 0) === 0 && (
+          {/* Verdict corpus suggestions */}
+          {(verdictHits?.length ?? 0) > 0 && (
+            <section className="space-y-2">
+              <p className="text-parchment/30 text-[10px] uppercase tracking-widest flex items-center gap-1.5">
+                <ScalesIcon size={10} />
+                פסיקה ישראלית
+              </p>
+              {verdictHits!.slice(0, 3).map((v) => (
+                <IntelligenceItem
+                  key={v.docKey}
+                  title={v.caseName ?? v.caseNumber ?? 'פסק דין'}
+                  {...(v.snippet ? { snippet: v.snippet.replace(/\[|\]/g, '').slice(0, 120) } : {})}
+                  sourceLabel={[v.court, v.year?.toString(), v.caseNumber].filter(Boolean).join(' · ')}
+                  onSendToShelf={() => handleSendVerdict(v)}
+                  onOpen={() => navigate('/supreme-court')}
+                  icon={<ScalesIcon size={12} />}
+                />
+              ))}
+            </section>
+          )}
+
+          {(legislationHits?.length ?? 0) === 0 && (caseCitations?.length ?? 0) === 0 && (verdictHits?.length ?? 0) === 0 && (
             <div className="flex flex-col items-center justify-center py-12 gap-3 text-center">
               <LightbulbIcon size={32} className="text-parchment/15" />
               <div>
