@@ -26,6 +26,7 @@
     "ingest-registry": "node tools/ingest-legal-sources.mjs",
     "ingest-knesset-odata": "tsx scripts/ingest-knesset-odata.ts",
     "enrich-embeddings":    "tsx scripts/enrich-embeddings.ts",
+    "healthcheck": "tsx scripts/healthcheck.ts",
     "build:installer": "powershell -ExecutionPolicy Bypass -File publish.ps1"
   },
   "devDependencies": {
