@@ -1,5 +1,8 @@
 # Factum-IL — Comprehensive UI/UX, Product Surface & Unified Attorney Workstation Audit
 
+> ✅ **SUPERSEDED — 2026-06-14:** All 20 audit items delivered and merged via PRs #94–#99.
+> See `WORKPLAN_FRONTEND.md` Phases F-A through F-G for the completion summary.
+
 **Audit Date:** 2026-06-06  
 **Auditor:** Claude Code (claude-sonnet-4-6)  
 **Branch:** `claude/factum-il-platform-audit-xuhqo`  
