@@ -2576,6 +2576,30 @@ export function useAgentCaseIntake() {
   });
 }
 
+export type MotionType = 'preliminary_injunction' | 'extension_of_time' | 'summary_judgment' | 'dismissal' | 'evidence_exclusion' | 'general';
+export type RecipientType = 'client' | 'court' | 'opposing_counsel' | 'authority';
+
+export function useAgentDraftMotion() {
+  return useMutation({
+    mutationFn: ({ caseId, motionType }: { caseId: number; motionType?: MotionType }) =>
+      postJSON<AgentOutput>('/api/agents/draft-motion', { caseId, motionType }),
+  });
+}
+
+export function useAgentDraftLetter() {
+  return useMutation({
+    mutationFn: ({ caseId, recipientType }: { caseId: number; recipientType?: RecipientType }) =>
+      postJSON<AgentOutput>('/api/agents/draft-letter', { caseId, recipientType }),
+  });
+}
+
+export function useAgentEvidenceReview() {
+  return useMutation({
+    mutationFn: (caseId: number) =>
+      postJSON<AgentOutput>('/api/agents/evidence-review', { caseId }),
+  });
+}
+
 // ── Mail Reply Generator ──────────────────────────────────────────────────────
 
 export function useGenerateMailReply() {

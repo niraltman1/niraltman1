@@ -492,6 +492,27 @@ export function adminRouter(repos: Repos, healingService: RagHealingService, dbP
   }));
 
   // ── Agent Execution Journal ───────────────────────────────────────────────
+  router.get('/metrics', requireRole('admin', repos), asyncHandler((req, res) => {
+    const q     = req.query as unknown as Record<string, string>;
+    const name  = q['name']  ?? null;
+    const agent = q['agent'] ?? null;
+    const since = q['since'] ?? null;
+    const limit = Math.min(parseInt(q['limit'] ?? '200', 10), 1000);
+
+    const rows = repos.db.prepare(
+      `SELECT id, name, value, unit, agent, document_id AS documentId,
+              tags, recorded_at AS recordedAt
+         FROM Metrics
+        WHERE (? IS NULL OR name  = ?)
+          AND (? IS NULL OR agent = ?)
+          AND (? IS NULL OR recorded_at >= ?)
+        ORDER BY recorded_at DESC
+        LIMIT ?`,
+    ).all(name, name, agent, agent, since, since, limit) as unknown[];
+
+    ok(res, { metrics: rows, count: rows.length });
+  }));
+
   router.get('/journal', requireRole('admin', repos), asyncHandler((req, res) => {
     const q         = req.query as unknown as Record<string, string>;
     const caseId    = q['caseId']    !== undefined ? Number(q['caseId'])    : null;
