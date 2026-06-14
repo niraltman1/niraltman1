@@ -1,5 +1,26 @@
 # Factum-IL — Task Tracker
 
+## 🗓️ Session handoff — מניעת בעיות התקנה חוזרת (2026-06-14)
+
+### הושלם הפעם
+
+- ✅ **PR #89** — מניעת בעיות reinstall ב-`installer.iss` + `build-installer.yml` — **מוזג**.
+  - **`[InstallDelete]`**: מוחק `{app}\app\api\node_modules`, `api\dist`, `dashboard\dist` לפני העתקת קבצים חדשים — מונע קריסות `MODULE_NOT_FOUND` ו-native binding מגרסאות קודמות
+  - **Downgrade guard**: `InstalledVersionStr()` + `IsNewerVersion()` + התרעה ב-`InitializeSetup()` אם גרסה חדשה יותר כבר מותקנת
+  - **`-SkipTests`**: הועבר ל-`publish.ps1` ב-`build-installer.yml` כדי למנוע ריצה כפולה של הבדיקות
+
+### גורם השורש שנחקר (בעיה קודמת)
+- **PR #80** (2026-06-11): `'api'` חסר ב-`$WorkspacePackages` → `packages/api/dist/start.js` לא הועתק → Node process כשל בהפעלה → "לא עבד כלום"
+- **PR #79** (2026-06-11): `$VecVersion:` → `${VecVersion}:` → `sqlite-vec.dll` לא הורד
+
+### צעד נדרש (ידני)
+
+- **הפעל את "Build Beta Installer"** מ-GitHub Actions → Actions → Build Beta Installer → Run workflow → branch: `main` → version: `1.0-beta.2` → Run workflow.
+- ייצר `Factum-IL-Setup.exe` שיועלה כ-artifact (30 יום שמירה).
+- לאחר בדיקה מוצלחת: `git tag v1.0.0-beta.2 && git push origin v1.0.0-beta.2` → prerelease אוטומטי.
+
+---
+
 ## 🗓️ Session handoff — תיקון installer (2026-06-11)
 
 ### הושלם הפעם
