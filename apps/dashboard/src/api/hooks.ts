@@ -3730,3 +3730,141 @@ export function usePipelineFailures(limit = 10) {
     retry: false,
   });
 }
+
+// ── Legal Brain Chat ───────────────────────────────────────────────────────
+
+export interface BrainSession {
+  id:         number;
+  user_id:    string;
+  case_id:    number | null;
+  title:      string;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface BrainMessage {
+  id:           number;
+  session_id:   number;
+  role:         'user' | 'assistant';
+  content:      string;
+  sources_json: string | null;
+  rating:       number | null;
+  created_at:   string;
+}
+
+export interface BrainSessionDetail extends BrainSession {
+  messages: BrainMessage[];
+}
+
+export function useLegalBrainSessions(userId = 'default') {
+  return useQuery({
+    queryKey: ['legal-brain', 'sessions', userId],
+    queryFn:  () => fetchJSON<BrainSession[]>(`/api/legal-brain/sessions?userId=${encodeURIComponent(userId)}`),
+    staleTime: 30_000,
+  });
+}
+
+export function useBrainSession(id: number | null) {
+  return useQuery({
+    queryKey: ['legal-brain', 'session', id],
+    queryFn:  () => fetchJSON<BrainSessionDetail>(`/api/legal-brain/sessions/${id}`),
+    enabled:  id !== null,
+    staleTime: 10_000,
+  });
+}
+
+export function useCreateBrainSession() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (body: { userId?: string; caseId?: number; title?: string }) =>
+      postJSON<BrainSession>('/api/legal-brain/sessions', body),
+    onSuccess: () => void qc.invalidateQueries({ queryKey: ['legal-brain', 'sessions'] }),
+  });
+}
+
+export function useDeleteBrainSession() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (id: number) => deleteJSON<{ deleted: boolean }>(`/api/legal-brain/sessions/${id}`),
+    onSuccess: () => void qc.invalidateQueries({ queryKey: ['legal-brain', 'sessions'] }),
+  });
+}
+
+export function useBrainFeedback() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: ({ id, rating }: { id: number; rating: 1 | -1 }) =>
+      postJSON<{ updated: boolean }>(`/api/legal-brain/messages/${id}/feedback`, { rating }),
+    onSuccess: () => void qc.invalidateQueries({ queryKey: ['legal-brain', 'session'] }),
+  });
+}
+
+export function useAskBrain() {
+  const qc = useQueryClient();
+  const [streaming, setStreaming]       = useState(false);
+  const [streamedText, setStreamedText] = useState('');
+
+  const ask = useCallback(async (sessionId: number, question: string) => {
+    setStreaming(true);
+    setStreamedText('');
+    try {
+      const resp = await fetch(`/api/legal-brain/sessions/${sessionId}/ask`, {
+        method:  'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body:    JSON.stringify({ question }),
+      });
+      if (!resp.ok || !resp.body) throw new Error('stream failed');
+      const reader  = resp.body.getReader();
+      const decoder = new TextDecoder();
+      let buffer = '';
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+        buffer += decoder.decode(value, { stream: true });
+        const lines = buffer.split('\n');
+        buffer = lines.pop() ?? '';
+        for (const line of lines) {
+          if (line.startsWith('data: ')) {
+            const data = line.slice(6);
+            if (data === '[DONE]') break;
+            try {
+              const obj = JSON.parse(data) as { token?: string };
+              if (obj.token) setStreamedText((t) => t + obj.token);
+            } catch { /* malformed SSE chunk — skip */ }
+          }
+        }
+      }
+    } finally {
+      setStreaming(false);
+      void qc.invalidateQueries({ queryKey: ['legal-brain', 'session', sessionId] });
+    }
+  }, [qc]);
+
+  return { ask, streaming, streamedText, resetStream: () => setStreamedText('') };
+}
+
+// ── Admin Metrics ────────────────────────────────────────────────────────────
+
+export interface MetricRow {
+  id:         number;
+  name:       string;
+  value:      number;
+  unit:       string | null;
+  agent:      string | null;
+  documentId: number | null;
+  tags:       string | null;
+  recordedAt: string;
+}
+
+export function useAdminMetrics(params: { name?: string; agent?: string; limit?: number } = {}) {
+  const { name, agent, limit = 50 } = params;
+  const qs = new URLSearchParams();
+  if (name)  qs.set('name', name);
+  if (agent) qs.set('agent', agent);
+  qs.set('limit', String(limit));
+  return useQuery({
+    queryKey: ['admin', 'metrics', name, agent, limit],
+    queryFn:  () => fetchJSON<{ metrics: MetricRow[]; count: number }>(`/api/admin/metrics?${qs}`),
+    staleTime: 30_000,
+  });
+}
