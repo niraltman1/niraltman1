@@ -2576,6 +2576,42 @@ export function useAgentCaseIntake() {
   });
 }
 
+export interface DraftMotionInput {
+  caseId:       number;
+  motionType:   string;
+  instructions: string;
+}
+
+export function useAgentDraftMotion() {
+  return useMutation({
+    mutationFn: (input: DraftMotionInput) =>
+      postJSON<AgentOutput>('/api/agents/draft-motion', input),
+  });
+}
+
+export type LetterType = 'client' | 'demand' | 'court';
+
+export interface DraftLetterInput {
+  caseId:       number;
+  letterType:   LetterType;
+  recipient:    string;
+  instructions: string;
+}
+
+export function useAgentDraftLetter() {
+  return useMutation({
+    mutationFn: (input: DraftLetterInput) =>
+      postJSON<AgentOutput>('/api/agents/draft-letter', input),
+  });
+}
+
+export function useAgentEvidenceReview() {
+  return useMutation({
+    mutationFn: (caseId: number) =>
+      postJSON<AgentOutput>('/api/agents/evidence-review', { caseId }),
+  });
+}
+
 // ── Mail Reply Generator ──────────────────────────────────────────────────────
 
 export function useGenerateMailReply() {
