@@ -99,14 +99,16 @@ export class CallLogsRepository {
     return r ? mapRow(r) : null;
   }
 
-  listByClient(clientId: number): CallLog[] {
-    return (this.db.prepare('SELECT * FROM CallLogs WHERE client_id = ? ORDER BY occurred_at DESC')
-      .all(clientId) as Record<string, unknown>[]).map(mapRow);
+  listByClient(clientId: number, limit = 200): CallLog[] {
+    const cap = Math.min(limit, 500);
+    return (this.db.prepare('SELECT * FROM CallLogs WHERE client_id = ? ORDER BY occurred_at DESC LIMIT ?')
+      .all(clientId, cap) as Record<string, unknown>[]).map(mapRow);
   }
 
-  listByCase(caseId: number): CallLog[] {
-    return (this.db.prepare('SELECT * FROM CallLogs WHERE case_id = ? ORDER BY occurred_at DESC')
-      .all(caseId) as Record<string, unknown>[]).map(mapRow);
+  listByCase(caseId: number, limit = 200): CallLog[] {
+    const cap = Math.min(limit, 500);
+    return (this.db.prepare('SELECT * FROM CallLogs WHERE case_id = ? ORDER BY occurred_at DESC LIMIT ?')
+      .all(caseId, cap) as Record<string, unknown>[]).map(mapRow);
   }
 
   update(id: number, patch: CallLogPatch): CallLog | null {

@@ -84,15 +84,17 @@ export class EvidenceRepository {
     ).all(clientId) as Record<string, unknown>[]).map(mapRow);
   }
 
-  list(filters: { caseId?: number; clientId?: number; mediaType?: string } = {}): EvidenceItem[] {
+  list(filters: { caseId?: number; clientId?: number; mediaType?: string; limit?: number } = {}): EvidenceItem[] {
     const conds: string[] = [];
     const args:  unknown[] = [];
     if (filters.caseId    != null) { conds.push('case_id = ?');    args.push(filters.caseId); }
     if (filters.clientId  != null) { conds.push('client_id = ?');  args.push(filters.clientId); }
     if (filters.mediaType != null) { conds.push('media_type = ?'); args.push(filters.mediaType); }
+    const cap = Math.min(filters.limit ?? 200, 500);
+    args.push(cap);
     const where = conds.length ? `WHERE ${conds.join(' AND ')}` : '';
     return (this.db.prepare(
-      `SELECT * FROM EvidenceItems ${where} ORDER BY locked_at DESC`,
+      `SELECT * FROM EvidenceItems ${where} ORDER BY locked_at DESC LIMIT ?`,
     ).all(...args) as Record<string, unknown>[]).map(mapRow);
   }
 

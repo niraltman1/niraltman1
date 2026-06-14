@@ -208,10 +208,11 @@ export function communicationsRouter(repos: Repos): Router {
   // consistent with the rest of the operational API. Secrets stay admin-gated below.
   router.get('/conversations', asyncHandler((req, res) => {
     const q = req.query;
-    const filter: { caseId?: number; clientId?: number; userId?: number; status?: ConversationStatus } = {};
+    const filter: { caseId?: number; clientId?: number; userId?: number; status?: ConversationStatus; limit?: number } = {};
     if (q['caseId']   !== undefined) filter.caseId   = Number(q['caseId']);
     if (q['clientId'] !== undefined) filter.clientId = Number(q['clientId']);
     if (q['userId']   !== undefined) filter.userId   = Number(q['userId']);
+    if (q['limit']    !== undefined) filter.limit    = Number(q['limit']);
     if (q['status']   !== undefined) {
       const s = String(q['status']);
       if (!STATUSES.includes(s as ConversationStatus)) throw new ValidationError('invalid status');
@@ -322,7 +323,8 @@ export function communicationsRouter(repos: Repos): Router {
 
   // ── Unknown inbox (operational) ───────────────────────────────────────────
   router.get('/unknown', asyncHandler((req, res) => {
-    ok(res, comm.listUnknownInbox(req.query['all'] === 'true'));
+    const limit = req.query['limit'] !== undefined ? Number(req.query['limit']) : 200;
+    ok(res, comm.listUnknownInbox(req.query['all'] === 'true', limit));
   }));
 
   // ── C8: Unknown inbox → lead conversion ──────────────────────────────────
@@ -365,8 +367,9 @@ export function communicationsRouter(repos: Repos): Router {
 
   // ── Smart templates (C4) ──────────────────────────────────────────────────
   // All active templates (admin/management view).
-  router.get('/templates', asyncHandler((_req, res) => {
-    ok(res, repos.commTemplates.listTemplates());
+  router.get('/templates', asyncHandler((req, res) => {
+    const limit = req.query['limit'] !== undefined ? Number(req.query['limit']) : 200;
+    ok(res, repos.commTemplates.listTemplates(false, limit));
   }));
 
   // Context-matched templates with a non-minting preview for a case (or generic if no case).
@@ -456,8 +459,9 @@ export function communicationsRouter(repos: Repos): Router {
 
   router.get('/calls', asyncHandler((req, res) => {
     const { clientId, caseId } = req.query;
-    if (caseId   !== undefined) { ok(res, repos.callLogs.listByCase(Number(caseId))); return; }
-    if (clientId !== undefined) { ok(res, repos.callLogs.listByClient(Number(clientId))); return; }
+    const limit = req.query['limit'] !== undefined ? Number(req.query['limit']) : 200;
+    if (caseId   !== undefined) { ok(res, repos.callLogs.listByCase(Number(caseId), limit)); return; }
+    if (clientId !== undefined) { ok(res, repos.callLogs.listByClient(Number(clientId), limit)); return; }
     throw new ValidationError('clientId or caseId required');
   }));
 

@@ -415,6 +415,7 @@ export class CommunicationsRepository {
 
   listConversations(filter: {
     caseId?: number; clientId?: number; userId?: number; status?: ConversationStatus;
+    limit?: number;
   } = {}): CommConversation[] {
     const where: string[] = [];
     const params: unknown[] = [];
@@ -422,9 +423,12 @@ export class CommunicationsRepository {
     if (filter.clientId !== undefined) { where.push('client_id = ?');        params.push(filter.clientId); }
     if (filter.userId   !== undefined) { where.push('assigned_user_id = ?'); params.push(filter.userId); }
     if (filter.status   !== undefined) { where.push('status = ?');           params.push(filter.status); }
+    const limit = Math.min(filter.limit ?? 200, 500);
+    params.push(limit);
     const sql = `SELECT * FROM CommConversations
                  ${where.length ? 'WHERE ' + where.join(' AND ') : ''}
-                 ORDER BY COALESCE(last_message_at, created_at) DESC`;
+                 ORDER BY COALESCE(last_message_at, created_at) DESC
+                 LIMIT ?`;
     return (this.db.prepare(sql).all(...params) as Record<string, unknown>[]).map(mapConversation);
   }
 
@@ -525,11 +529,13 @@ export class CommunicationsRepository {
   }
 
   /** Unknown-sender inbox (C8 routing target). Defaults to unresolved only. */
-  listUnknownInbox(includeResolved = false): UnknownInboxRow[] {
+  listUnknownInbox(includeResolved = false, limit = 200): UnknownInboxRow[] {
+    const cap = Math.min(limit, 500);
     const sql = `SELECT id, channel, external_id, display_name, body, media_kind, resolved, created_at
                  FROM CommUnknownInbox
                  ${includeResolved ? '' : 'WHERE resolved = 0'}
-                 ORDER BY created_at DESC`;
+                 ORDER BY created_at DESC
+                 LIMIT ${cap}`;
     return (this.db.prepare(sql).all() as Record<string, unknown>[]).map((r) => ({
       id:          r['id'] as number,
       channel:     r['channel'] as CommChannel,

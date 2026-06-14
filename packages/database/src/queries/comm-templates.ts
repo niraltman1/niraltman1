@@ -59,8 +59,9 @@ export class CommTemplatesRepository {
     });
   }
 
-  listTemplates(includeInactive = false): CommTemplate[] {
-    const sql = `SELECT * FROM CommTemplates ${includeInactive ? '' : 'WHERE is_active = 1'} ORDER BY name_he`;
+  listTemplates(includeInactive = false, limit = 200): CommTemplate[] {
+    const cap = Math.min(limit, 500);
+    const sql = `SELECT * FROM CommTemplates ${includeInactive ? '' : 'WHERE is_active = 1'} ORDER BY name_he LIMIT ${cap}`;
     return (this.db.prepare(sql).all() as Record<string, unknown>[]).map(mapTemplate);
   }
 
