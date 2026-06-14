@@ -14,24 +14,24 @@ import {
   useAgentDraftMotion, useAgentDraftLetter, useAgentEvidenceReview,
   useAgentStream,
 } from '../../api/hooks.js';
-import type { AgentOutput, CaseIntakeInput, DraftMotionInput, DraftLetterInput, LetterType } from '../../api/hooks.js';
+import type { AgentOutput, CaseIntakeInput, MotionType, RecipientType } from '../../api/hooks.js';
 
 const AGENTS = [
   // Priority A
-  { id: 'insolvency',        label: 'חדלות פירעון',    Icon: ScalesIcon,          requiresCase: true,  requiresDoc: false, isResearch: false, isHearingPrep: false, isIntake: false, isDraftMotion: false, isDraftLetter: false },
-  { id: 'deadline-analysis', label: 'ניתוח מועדים',    Icon: WarningIcon,         requiresCase: true,  requiresDoc: false, isResearch: false, isHearingPrep: false, isIntake: false, isDraftMotion: false, isDraftLetter: false },
-  { id: 'hearing-prep',      label: 'הכנה לדיון',      Icon: CalendarIcon,        requiresCase: true,  requiresDoc: false, isResearch: false, isHearingPrep: true,  isIntake: false, isDraftMotion: false, isDraftLetter: false },
-  { id: 'case-intake',       label: 'קליטת תיק חדש',   Icon: UserPlusIcon,        requiresCase: false, requiresDoc: false, isResearch: false, isHearingPrep: false, isIntake: true,  isDraftMotion: false, isDraftLetter: false },
+  { id: 'insolvency',        label: 'חדלות פירעון',        Icon: ScalesIcon,          requiresCase: true,  requiresDoc: false, isResearch: false, isHearingPrep: false, isIntake: false, isDraftMotion: false, isDraftLetter: false },
+  { id: 'deadline-analysis', label: 'ניתוח מועדים',         Icon: WarningIcon,         requiresCase: true,  requiresDoc: false, isResearch: false, isHearingPrep: false, isIntake: false, isDraftMotion: false, isDraftLetter: false },
+  { id: 'hearing-prep',      label: 'הכנה לדיון',           Icon: CalendarIcon,        requiresCase: true,  requiresDoc: false, isResearch: false, isHearingPrep: true,  isIntake: false, isDraftMotion: false, isDraftLetter: false },
+  { id: 'case-intake',       label: 'קליטת תיק חדש',        Icon: UserPlusIcon,        requiresCase: false, requiresDoc: false, isResearch: false, isHearingPrep: false, isIntake: true,  isDraftMotion: false, isDraftLetter: false },
   // Priority B
-  { id: 'draft-motion',      label: 'טיוטת בקשה/סיכומים', Icon: NotePencilIcon,  requiresCase: true,  requiresDoc: false, isResearch: false, isHearingPrep: false, isIntake: false, isDraftMotion: true,  isDraftLetter: false },
-  { id: 'draft-letter',      label: 'טיוטת מכתב',      Icon: EnvelopeSimpleIcon,  requiresCase: true,  requiresDoc: false, isResearch: false, isHearingPrep: false, isIntake: false, isDraftMotion: false, isDraftLetter: true  },
-  { id: 'evidence-review',   label: 'סקירת ראיות',      Icon: EyeIcon,             requiresCase: true,  requiresDoc: false, isResearch: false, isHearingPrep: false, isIntake: false, isDraftMotion: false, isDraftLetter: false },
+  { id: 'draft-motion',      label: 'טיוטת בקשה/סיכומים',  Icon: NotePencilIcon,      requiresCase: true,  requiresDoc: false, isResearch: false, isHearingPrep: false, isIntake: false, isDraftMotion: true,  isDraftLetter: false },
+  { id: 'draft-letter',      label: 'טיוטת מכתב',           Icon: EnvelopeSimpleIcon,  requiresCase: true,  requiresDoc: false, isResearch: false, isHearingPrep: false, isIntake: false, isDraftMotion: false, isDraftLetter: true  },
+  { id: 'evidence-review',   label: 'סקירת ראיות',           Icon: EyeIcon,             requiresCase: true,  requiresDoc: false, isResearch: false, isHearingPrep: false, isIntake: false, isDraftMotion: false, isDraftLetter: false },
   // Existing
-  { id: 'summarize',         label: 'סיכום תיק',       Icon: BookOpenIcon,        requiresCase: true,  requiresDoc: false, isResearch: false, isHearingPrep: false, isIntake: false, isDraftMotion: false, isDraftLetter: false },
-  { id: 'timeline',          label: 'ציר זמן',          Icon: ClockIcon,           requiresCase: true,  requiresDoc: false, isResearch: false, isHearingPrep: false, isIntake: false, isDraftMotion: false, isDraftLetter: false },
-  { id: 'discovery',         label: 'גילוי ראיות',      Icon: ShieldCheckIcon,     requiresCase: true,  requiresDoc: false, isResearch: false, isHearingPrep: false, isIntake: false, isDraftMotion: false, isDraftLetter: false },
-  { id: 'contract-review',   label: 'סקירת חוזה',       Icon: FileTextIcon,        requiresCase: false, requiresDoc: true,  isResearch: false, isHearingPrep: false, isIntake: false, isDraftMotion: false, isDraftLetter: false },
-  { id: 'research',          label: 'מחקר משפטי',       Icon: MagnifyingGlassIcon, requiresCase: false, requiresDoc: false, isResearch: true,  isHearingPrep: false, isIntake: false, isDraftMotion: false, isDraftLetter: false },
+  { id: 'summarize',         label: 'סיכום תיק',            Icon: BookOpenIcon,        requiresCase: true,  requiresDoc: false, isResearch: false, isHearingPrep: false, isIntake: false, isDraftMotion: false, isDraftLetter: false },
+  { id: 'timeline',          label: 'ציר זמן',               Icon: ClockIcon,           requiresCase: true,  requiresDoc: false, isResearch: false, isHearingPrep: false, isIntake: false, isDraftMotion: false, isDraftLetter: false },
+  { id: 'discovery',         label: 'גילוי ראיות',            Icon: ShieldCheckIcon,     requiresCase: true,  requiresDoc: false, isResearch: false, isHearingPrep: false, isIntake: false, isDraftMotion: false, isDraftLetter: false },
+  { id: 'contract-review',   label: 'סקירת חוזה',             Icon: FileTextIcon,        requiresCase: false, requiresDoc: true,  isResearch: false, isHearingPrep: false, isIntake: false, isDraftMotion: false, isDraftLetter: false },
+  { id: 'research',          label: 'מחקר משפטי',             Icon: MagnifyingGlassIcon, requiresCase: false, requiresDoc: false, isResearch: true,  isHearingPrep: false, isIntake: false, isDraftMotion: false, isDraftLetter: false },
 ] as const;
 
 type AgentId = typeof AGENTS[number]['id'];
@@ -46,16 +46,13 @@ export function AgentsWorkspacePage() {
   const [selectedCase, setSelectedCase] = useState<number | null>(initCaseId);
   const [selectedDoc,  setSelectedDoc]  = useState<number | null>(initDocId);
   const [question,     setQuestion]     = useState('');
-  const [hearingId,    setHearingId]    = useState<number | null>(null);
+  const [hearingId,      setHearingId]      = useState<number | null>(null);
   const [intakeFacts,    setIntakeFacts]    = useState('');
   const [intakeName,     setIntakeName]     = useState('');
-  const [motionType,     setMotionType]     = useState('');
-  const [motionInstr,    setMotionInstr]    = useState('');
-  const [letterType,     setLetterType]     = useState<LetterType>('client');
-  const [letterRecipient, setLetterRecipient] = useState('');
-  const [letterInstr,    setLetterInstr]    = useState('');
-  const [result,         setResult]         = useState<AgentOutput | null>(null);
-  const [streamMode,     setStreamMode]     = useState(false);
+  const [motionType,     setMotionType]     = useState<MotionType>('general');
+  const [recipientType,  setRecipientType]  = useState<RecipientType>('client');
+  const [result,       setResult]       = useState<AgentOutput | null>(null);
+  const [streamMode,   setStreamMode]   = useState(false);
 
   const { data: casesData } = useCases(1, 200);
   const cases = casesData?.items ?? [];
@@ -130,12 +127,10 @@ export function AgentsWorkspacePage() {
         ...(selectedCase !== null ? { clientId: selectedCase } : {}),
       };
       caseIntake.mutate(payload, { onSuccess, onError });
-    } else if (activeAgent === 'draft-motion' && selectedCase !== null && motionType.trim() && motionInstr.trim()) {
-      const payload: DraftMotionInput = { caseId: selectedCase, motionType: motionType.trim(), instructions: motionInstr.trim() };
-      draftMotion.mutate(payload, { onSuccess, onError });
-    } else if (activeAgent === 'draft-letter' && selectedCase !== null && letterRecipient.trim() && letterInstr.trim()) {
-      const payload: DraftLetterInput = { caseId: selectedCase, letterType, recipient: letterRecipient.trim(), instructions: letterInstr.trim() };
-      draftLetter.mutate(payload, { onSuccess, onError });
+    } else if (activeAgent === 'draft-motion' && selectedCase !== null) {
+      draftMotion.mutate({ caseId: selectedCase, motionType }, { onSuccess, onError });
+    } else if (activeAgent === 'draft-letter' && selectedCase !== null) {
+      draftLetter.mutate({ caseId: selectedCase, recipientType }, { onSuccess, onError });
     } else if (activeAgent === 'evidence-review' && selectedCase !== null) {
       evidenceReview.mutate(selectedCase, { onSuccess, onError });
     }
@@ -151,8 +146,8 @@ export function AgentsWorkspacePage() {
     (activeAgent === 'deadline-analysis' && selectedCase !== null) ||
     (activeAgent === 'hearing-prep'      && selectedCase !== null && hearingId !== null) ||
     (activeAgent === 'case-intake'       && intakeName.trim().length > 0 && intakeFacts.trim().length > 10) ||
-    (activeAgent === 'draft-motion'      && selectedCase !== null && motionType.trim().length > 0 && motionInstr.trim().length > 0) ||
-    (activeAgent === 'draft-letter'      && selectedCase !== null && letterRecipient.trim().length > 0 && letterInstr.trim().length > 0) ||
+    (activeAgent === 'draft-motion'      && selectedCase !== null) ||
+    (activeAgent === 'draft-letter'      && selectedCase !== null) ||
     (activeAgent === 'evidence-review'   && selectedCase !== null);
 
   const effectiveResult = streamMode ? streamState.result : result;
@@ -267,66 +262,40 @@ export function AgentsWorkspacePage() {
               </>
             )}
 
-            {/* Draft motion fields */}
+            {/* Motion type for draft-motion */}
             {activeAgentDef.isDraftMotion && (
-              <>
-                <div className="flex flex-col gap-1">
-                  <label className="text-parchment/40 text-xs">סוג הבקשה / מסמך</label>
-                  <input
-                    type="text"
-                    className="form-input"
-                    placeholder="לדוגמה: בקשת ביניים, סיכומים..."
-                    value={motionType}
-                    onChange={(e) => setMotionType(e.target.value)}
-                  />
-                </div>
-                <div className="flex flex-col gap-1">
-                  <label className="text-parchment/40 text-xs">הוראות לסוכן</label>
-                  <textarea
-                    className="form-input resize-none h-24"
-                    placeholder="תאר את הטיעון העיקרי, הסעד המבוקש..."
-                    value={motionInstr}
-                    onChange={(e) => setMotionInstr(e.target.value)}
-                  />
-                </div>
-              </>
+              <div className="flex flex-col gap-1">
+                <label className="text-parchment/40 text-xs">סוג הבקשה</label>
+                <select
+                  className="form-input"
+                  value={motionType}
+                  onChange={(e) => setMotionType(e.target.value as MotionType)}
+                >
+                  <option value="general">כללי</option>
+                  <option value="preliminary_injunction">צו מניעה זמני</option>
+                  <option value="extension_of_time">הארכת מועד</option>
+                  <option value="summary_judgment">פסק דין על הסף</option>
+                  <option value="dismissal">מחיקה/דחייה</option>
+                  <option value="evidence_exclusion">פסילת ראיה</option>
+                </select>
+              </div>
             )}
 
-            {/* Draft letter fields */}
+            {/* Recipient type for draft-letter */}
             {activeAgentDef.isDraftLetter && (
-              <>
-                <div className="flex flex-col gap-1">
-                  <label className="text-parchment/40 text-xs">סוג מכתב</label>
-                  <select
-                    className="form-input"
-                    value={letterType}
-                    onChange={(e) => setLetterType(e.target.value as LetterType)}
-                  >
-                    <option value="client">מכתב ללקוח</option>
-                    <option value="demand">מכתב דרישה</option>
-                    <option value="court">הודעה לבית המשפט</option>
-                  </select>
-                </div>
-                <div className="flex flex-col gap-1">
-                  <label className="text-parchment/40 text-xs">נמען</label>
-                  <input
-                    type="text"
-                    className="form-input"
-                    placeholder="שם הנמען..."
-                    value={letterRecipient}
-                    onChange={(e) => setLetterRecipient(e.target.value)}
-                  />
-                </div>
-                <div className="flex flex-col gap-1">
-                  <label className="text-parchment/40 text-xs">הוראות לסוכן</label>
-                  <textarea
-                    className="form-input resize-none h-20"
-                    placeholder="תוכן ומטרת המכתב..."
-                    value={letterInstr}
-                    onChange={(e) => setLetterInstr(e.target.value)}
-                  />
-                </div>
-              </>
+              <div className="flex flex-col gap-1">
+                <label className="text-parchment/40 text-xs">נמען המכתב</label>
+                <select
+                  className="form-input"
+                  value={recipientType}
+                  onChange={(e) => setRecipientType(e.target.value as RecipientType)}
+                >
+                  <option value="client">ללקוח</option>
+                  <option value="court">לבית המשפט</option>
+                  <option value="opposing_counsel">לבא כוח הצד השני</option>
+                  <option value="authority">לרשות</option>
+                </select>
+              </div>
             )}
 
             {/* Research question */}

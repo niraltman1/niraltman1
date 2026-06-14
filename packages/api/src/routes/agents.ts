@@ -13,11 +13,12 @@ import { runDiscovery } from '../modules/agents/discovery-agent.js';
 import { runInsolvencyAnalysis } from '../modules/agents/insolvency-agent.js';
 import { runDeadlineAnalysis } from '../modules/agents/deadline-analysis-agent.js';
 import { runHearingPrep } from '../modules/agents/hearing-prep-agent.js';
-import { runCaseIntake } from '../modules/agents/case-intake-agent.js';
 import { runDraftMotion } from '../modules/agents/draft-motion-agent.js';
+import type { MotionType } from '../modules/agents/draft-motion-agent.js';
 import { runDraftLetter } from '../modules/agents/draft-letter-agent.js';
-import type { LetterType } from '../modules/agents/draft-letter-agent.js';
+import type { RecipientType } from '../modules/agents/draft-letter-agent.js';
 import { runEvidenceReview } from '../modules/agents/evidence-review-agent.js';
+import { runCaseIntake } from '../modules/agents/case-intake-agent.js';
 import { withCaseExecutionGuard } from '../middleware/case-execution-guard.js';
 import { checkExecutionValidity, markAgentCompleted, markAgentFailed, journalEvent } from '@factum-il/agent-core';
 import type { CaseExecutionContext } from '@factum-il/agent-core';
@@ -54,6 +55,16 @@ const hearingPrepSchema = z.object({
   hearingId: z.number(),
 }).strict();
 
+const draftMotionSchema = z.object({
+  caseId:     z.number(),
+  motionType: z.enum(['preliminary_injunction','extension_of_time','summary_judgment','dismissal','evidence_exclusion','general']).optional(),
+}).strict();
+
+const draftLetterSchema = z.object({
+  caseId:        z.number(),
+  recipientType: z.enum(['client','court','opposing_counsel','authority']).optional(),
+}).strict();
+
 const caseIntakeSchema = z.object({
   clientName:      z.string().min(1),
   idNumber:        z.string().optional(),
@@ -61,23 +72,6 @@ const caseIntakeSchema = z.object({
   factsNarrative:  z.string().min(10),
   documentIds:     z.array(z.number()).optional(),
   clientId:        z.number().optional(),
-}).strict();
-
-const draftMotionSchema = z.object({
-  caseId:       z.number(),
-  motionType:   z.string().min(1),
-  instructions: z.string().min(1),
-}).strict();
-
-const draftLetterSchema = z.object({
-  caseId:       z.number(),
-  letterType:   z.enum(['client', 'demand', 'court']),
-  recipient:    z.string().min(1),
-  instructions: z.string().min(1),
-}).strict();
-
-const evidenceReviewSchema = z.object({
-  caseId: z.number(),
 }).strict();
 
 function staleMeta(
@@ -362,69 +356,64 @@ export function agentsRouter(repos: Repos): Router {
     }),
   );
 
-  // POST /api/agents/draft-motion  { caseId, motionType, instructions }
+  // POST /api/agents/draft-motion  { caseId: number, motionType?: MotionType }
   router.post('/draft-motion',
     validate(draftMotionSchema),
     withCaseExecutionGuard('draft-motion', repos),
     asyncHandler(async (req, res) => {
-      const body = req.body as z.infer<typeof draftMotionSchema>;
-      const caseRow = repos.db.prepare('SELECT id FROM Cases WHERE id = ?').get(body.caseId);
-      if (!caseRow) throw new NotFoundError(`Case ${body.caseId} not found`);
+      const { caseId, motionType } = req.body as z.infer<typeof draftMotionSchema>;
+      const caseRow = repos.db.prepare('SELECT id FROM Cases WHERE id = ?').get(caseId);
+      if (!caseRow) throw new NotFoundError(`Case ${caseId} not found`);
       const { traceId, caseStateHash, username } = guardMeta(req);
-      journalEvent(repos.db, 'execution_started', traceId, body.caseId, username);
+      journalEvent(repos.db, 'execution_started', traceId, caseId, username);
       try {
-        const output = await runDraftMotion(repos, body);
-        const stale = staleMeta(body.caseId, caseStateHash, username, repos.db);
-        if (stale.isStale) journalEvent(repos.db, 'stale_detected', traceId, body.caseId, username, { reason: stale.staleReason });
+        const output = await runDraftMotion(repos, caseId, (motionType as MotionType | undefined) ?? 'general');
+        const stale = staleMeta(caseId, caseStateHash, username, repos.db);
+        if (stale.isStale) journalEvent(repos.db, 'stale_detected', traceId, caseId, username, { reason: stale.staleReason });
         markAgentCompleted(traceId, repos.db);
-        journalEvent(repos.db, 'execution_completed', traceId, body.caseId, username);
+        journalEvent(repos.db, 'execution_completed', traceId, caseId, username);
         extensionPoints.fireAgentCompleted(traceId).catch(() => {});
         ok(res, { ...output, ...stale });
       } catch (err) {
         markAgentFailed(traceId, String(err), repos.db);
-        journalEvent(repos.db, 'execution_failed', traceId, body.caseId, username, { error: String(err) });
+        journalEvent(repos.db, 'execution_failed', traceId, caseId, username, { error: String(err) });
         throw err;
       }
     }),
   );
 
-  // POST /api/agents/draft-letter  { caseId, letterType, recipient, instructions }
+  // POST /api/agents/draft-letter  { caseId: number, recipientType?: RecipientType }
   router.post('/draft-letter',
     validate(draftLetterSchema),
     withCaseExecutionGuard('draft-letter', repos),
     asyncHandler(async (req, res) => {
-      const body = req.body as z.infer<typeof draftLetterSchema>;
-      const caseRow = repos.db.prepare('SELECT id FROM Cases WHERE id = ?').get(body.caseId);
-      if (!caseRow) throw new NotFoundError(`Case ${body.caseId} not found`);
+      const { caseId, recipientType } = req.body as z.infer<typeof draftLetterSchema>;
+      const caseRow = repos.db.prepare('SELECT id FROM Cases WHERE id = ?').get(caseId);
+      if (!caseRow) throw new NotFoundError(`Case ${caseId} not found`);
       const { traceId, caseStateHash, username } = guardMeta(req);
-      journalEvent(repos.db, 'execution_started', traceId, body.caseId, username);
+      journalEvent(repos.db, 'execution_started', traceId, caseId, username);
       try {
-        const output = await runDraftLetter(repos, {
-          caseId:       body.caseId,
-          letterType:   body.letterType as LetterType,
-          recipient:    body.recipient,
-          instructions: body.instructions,
-        });
-        const stale = staleMeta(body.caseId, caseStateHash, username, repos.db);
-        if (stale.isStale) journalEvent(repos.db, 'stale_detected', traceId, body.caseId, username, { reason: stale.staleReason });
+        const output = await runDraftLetter(repos, caseId, (recipientType as RecipientType | undefined) ?? 'client');
+        const stale = staleMeta(caseId, caseStateHash, username, repos.db);
+        if (stale.isStale) journalEvent(repos.db, 'stale_detected', traceId, caseId, username, { reason: stale.staleReason });
         markAgentCompleted(traceId, repos.db);
-        journalEvent(repos.db, 'execution_completed', traceId, body.caseId, username);
+        journalEvent(repos.db, 'execution_completed', traceId, caseId, username);
         extensionPoints.fireAgentCompleted(traceId).catch(() => {});
         ok(res, { ...output, ...stale });
       } catch (err) {
         markAgentFailed(traceId, String(err), repos.db);
-        journalEvent(repos.db, 'execution_failed', traceId, body.caseId, username, { error: String(err) });
+        journalEvent(repos.db, 'execution_failed', traceId, caseId, username, { error: String(err) });
         throw err;
       }
     }),
   );
 
-  // POST /api/agents/evidence-review  { caseId }
+  // POST /api/agents/evidence-review  { caseId: number }
   router.post('/evidence-review',
-    validate(evidenceReviewSchema),
+    validate(caseIdSchema),
     withCaseExecutionGuard('evidence-review', repos),
     asyncHandler(async (req, res) => {
-      const { caseId } = req.body as z.infer<typeof evidenceReviewSchema>;
+      const { caseId } = req.body as z.infer<typeof caseIdSchema>;
       const caseRow = repos.db.prepare('SELECT id FROM Cases WHERE id = ?').get(caseId);
       if (!caseRow) throw new NotFoundError(`Case ${caseId} not found`);
       const { traceId, caseStateHash, username } = guardMeta(req);

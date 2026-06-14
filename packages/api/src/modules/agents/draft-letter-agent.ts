@@ -1,61 +1,54 @@
-// Draft Letter Agent — generates a Hebrew letter (client/demand/court notification).
-// Output saved to LegalDrafts. Always flagForReview=true.
+// Draft Letter Agent — generates formal Hebrew legal correspondence.
+// Takes caseId + recipientType. Saves draft to LegalDrafts (type: 'letter').
 // Model: BrainboxAI/law-il-E2B:Q4_K_M (mandatory — do not change).
 import { runAgent } from '@factum-il/agent-core';
 import type { Repos } from '../../db.js';
 import type { AgentOutput, AgentProgress } from '@factum-il/agent-core';
-import { makeCaseTool, makeCaseDocumentsTool } from './db-tools.js';
+import { makeCaseTool, makeCaseTasksTool } from './db-tools.js';
 import { persistAgentResult } from './persist-result.js';
 
-export type LetterType = 'client' | 'demand' | 'court';
-
-export interface DraftLetterInput {
-  caseId:       number;
-  letterType:   LetterType;
-  recipient:    string;
-  instructions: string;
-}
-
-const LETTER_TYPE_LABELS: Record<LetterType, string> = {
-  client:  'מכתב ללקוח',
-  demand:  'מכתב דרישה',
-  court:   'הודעה לבית המשפט',
-};
+export type RecipientType = 'client' | 'court' | 'opposing_counsel' | 'authority';
 
 export async function runDraftLetter(
   repos: Repos,
-  input: DraftLetterInput,
+  caseId: number,
+  recipientType: RecipientType = 'client',
   onProgress?: (p: AgentProgress) => void,
 ): Promise<AgentOutput> {
-  const { caseId, letterType, recipient, instructions } = input;
-  const letterLabel = LETTER_TYPE_LABELS[letterType];
+  const recipientLabels: Record<RecipientType, string> = {
+    client:            'ללקוח',
+    court:             'לבית המשפט',
+    opposing_counsel:  'לבא כוח הצד השני',
+    authority:         'לרשות',
+  };
+  const recipientLabel = recipientLabels[recipientType];
 
   const output = await runAgent({
     agentName: 'draft-letter',
-    task: `כתוב ${letterLabel} בעברית פורמלית בפורמט JSON:
+    task: `נסח מכתב משפטי רשמי ${recipientLabel} עבור תיק זה. החזר JSON בפורמט:
 {
-  "date": "<תאריך בפורמט DD.MM.YYYY>",
-  "to": "${recipient}",
   "subject": "<נושא המכתב>",
-  "salutation": "<פתיחת מכתב — לכבוד / אל כבוד>",
-  "body": "<גוף המכתב — פסקאות מובנות>",
-  "closing": "<סיום — בכבוד רב / בברכה>",
-  "signature": "עו'ד [שם]",
-  "attachments": ["<רשימת מצורפים אם יש>"],
+  "salutation": "<פנייה מתאימה>",
+  "opening": "<פסקת פתיחה — מטרת המכתב>",
+  "body": "<גוף המכתב — עובדות, טענות, דרישות>",
+  "closing": "<פסקת סיכום והנחיות>",
+  "signature": "<חתימה: שם עו\"ד, כותרת>",
+  "enclosures": ["<מסמך מצורף 1>"],
+  "urgency": "routine|urgent|immediate",
+  "confidenceNote": "<הערת מהימנות>",
   "confidence": <0.0–1.0>
 }
 
-סוג מכתב: ${letterLabel}
-נמען: ${recipient}
-הוראות: ${instructions}
-
-התאם את הטון לסוג המכתב:
-- מכתב ללקוח: בהיר ומסביר, לא משפטי מדי
-- מכתב דרישה: נחרץ ורשמי, עם מועד תגובה מפורש
-- הודעה לבית המשפט: רשמי לחלוטין, לפי כללי הדיון`,
+חשוב: שמור על לשון ענייה ומקצועית. ${
+  recipientType === 'court'
+    ? 'פנה לבית המשפט בנוסח פורמלי לפי כללי לשכת עורכי הדין.'
+    : recipientType === 'client'
+    ? 'הסבר לשון פשוטה ומובנת, ללא עמימות משפטית.'
+    : 'שמור על גבול מקצועי, ללא ויתורים על עמדות.'
+}`,
     tools: [
       makeCaseTool(repos, caseId),
-      makeCaseDocumentsTool(repos, caseId),
+      makeCaseTasksTool(repos, caseId),
     ],
     caseId,
     ...(onProgress ? { onProgress } : {}),
@@ -65,19 +58,20 @@ export async function runDraftLetter(
 
   try {
     persistAgentResult(repos, finalOutput, { caseId });
+    const wordCount = (finalOutput.result ?? '').split(/\s+/).length;
     repos.drafts.create({
-      title:          `${letterLabel} ל-${recipient} — תיק ${caseId}`,
-      content_json:   finalOutput.result,
-      content_html:   null,
-      matter_id:      caseId,
-      client_id:      null,
-      document_type:  'letter',
-      status:         'draft',
-      word_count:     (finalOutput.result ?? '').split(/\s+/).length,
+      title:           `מכתב ${recipientLabel} — תיק ${caseId}`,
+      content_json:    finalOutput.result,
+      content_html:    null,
+      matter_id:       caseId,
+      client_id:       null,
+      document_type:   'letter',
+      status:          'draft',
+      word_count:      wordCount,
       parent_draft_id: null,
-      fork_reason:    null,
-      created_by:     'draft-letter',
-      is_active:      1,
+      fork_reason:     null,
+      created_by:      'draft-letter-agent',
+      is_active:       1,
     });
   } catch { /* non-blocking */ }
 
