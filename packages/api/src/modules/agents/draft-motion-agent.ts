@@ -42,7 +42,7 @@ export async function runDraftMotion(
     { "heading": "<כותרת הטענה>", "body": "<פירוט הטיעון המשפטי>" }
   ],
   "relief": "<הסעד המבוקש>",
-  "signature": "עו\"ד [שם], ב\"כ המבקש",
+  "signature": "עו'ד [שם], ב'כ המבקש",
   "confidence": <0.0–1.0>
 }
 

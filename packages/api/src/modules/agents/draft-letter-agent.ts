@@ -40,7 +40,7 @@ export async function runDraftLetter(
   "salutation": "<פתיחת מכתב — לכבוד / אל כבוד>",
   "body": "<גוף המכתב — פסקאות מובנות>",
   "closing": "<סיום — בכבוד רב / בברכה>",
-  "signature": "עו\"ד [שם]",
+  "signature": "עו'ד [שם]",
   "attachments": ["<רשימת מצורפים אם יש>"],
   "confidence": <0.0–1.0>
 }
