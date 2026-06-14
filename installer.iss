@@ -195,6 +195,15 @@ Filename: "{app}\{#AppExeName}"; \
   Description: "הפעל את Factum IL עכשיו"; \
   Flags: nowait postinstall skipifsilent skipifdoesntexist
 
+[InstallDelete]
+; Purge stale compiled output and native bindings from any previous installation.
+; Runs before [Files], so the fresh installer always wins with no leftover modules.
+; Without this, removed npm packages and old .node ABI binaries stay in node_modules
+; and cause MODULE_NOT_FOUND / native binding crashes on upgrade.
+Type: filesandordirs; Name: "{app}\app\api\node_modules"
+Type: filesandordirs; Name: "{app}\app\api\dist"
+Type: filesandordirs; Name: "{app}\app\dashboard\dist"
+
 [UninstallDelete]
 ; Remove runtime-generated files on uninstall (leaves %LOCALAPPDATA%\FactumIL intact)
 Type: filesandordirs; Name: "{app}\app\api\node_modules\.cache"
@@ -203,6 +212,46 @@ Type: filesandordirs; Name: "{app}\logs"
 [Code]
 var
   OrgDirPage: TInputDirWizardPage;
+
+// ── Read installed version from registry ─────────────────────────────────────
+function InstalledVersionStr(): String;
+var Ver: String;
+begin
+  if not RegQueryStringValue(HKLM,
+    'SYSTEM\CurrentControlSet\Control\Session Manager\Environment',
+    'FACTUM_IL_VERSION', Ver) then Ver := '';
+  Result := Ver;
+end;
+
+// ── Parse one dot-separated segment (1=major, 2=minor, 3=patch) ──────────────
+function ParseVersionPart(S: String; Part: Integer): Integer;
+var I, DotCount: Integer; Seg: String;
+begin
+  DotCount := 0; Seg := ''; Result := 0;
+  for I := 1 to Length(S) do
+  begin
+    if S[I] = '.' then
+    begin
+      Inc(DotCount);
+      if DotCount = Part then begin Result := StrToIntDef(Seg, 0); Exit; end;
+      Seg := '';
+    end else
+      Seg := Seg + S[I];
+  end;
+  if DotCount = Part - 1 then Result := StrToIntDef(Seg, 0);
+end;
+
+// ── Returns True when Existing > Installing (downgrade scenario) ──────────────
+function IsNewerVersion(Existing, Installing: String): Boolean;
+var EM, EMin, EP, IM, IMin, IP: Integer;
+begin
+  EM   := ParseVersionPart(Existing,   1);  IM   := ParseVersionPart(Installing, 1);
+  EMin := ParseVersionPart(Existing,   2);  IMin := ParseVersionPart(Installing, 2);
+  EP   := ParseVersionPart(Existing,   3);  IP   := ParseVersionPart(Installing, 3);
+  Result := (EM > IM) or
+            ((EM = IM) and (EMin > IMin)) or
+            ((EM = IM) and (EMin = IMin) and (EP > IP));
+end;
 
 // ── Detect .NET 8 Desktop Runtime (required for WPF) ─────────────────────────
 // WPF requires Microsoft.WindowsDesktop.App, not just Microsoft.NETCore.App.
@@ -277,6 +326,7 @@ end;
 function InitializeSetup(): Boolean;
 var
   ErrCode: Integer;
+  ExistingVer: String;
 begin
   Result := True;
 
@@ -295,6 +345,22 @@ begin
     end;
     MsgBox('התקן את .NET 8 Desktop Runtime ולאחר מכן הפעל שוב את המתקין.', mbInformation, MB_OK);
     Result := False;
+    Exit;
+  end;
+
+  // ── Downgrade guard ────────────────────────────────────────────────────────
+  ExistingVer := InstalledVersionStr();
+  if (ExistingVer <> '') and IsNewerVersion(ExistingVer, '{#AppVersion}') then
+  begin
+    if MsgBox(
+      'גרסה ' + ExistingVer + ' כבר מותקנת — חדשה מגרסה {#AppVersion} שברצונך להתקין.' + #13#10 +
+      'התקנת גרסה ישנה יותר עלולה לגרום לבעיות.' + #13#10#13#10 +
+      'האם להמשיך בכל זאת?',
+      mbConfirmation, MB_YESNO) = IDNO then
+    begin
+      Result := False;
+      Exit;
+    end;
   end;
 end;
 
