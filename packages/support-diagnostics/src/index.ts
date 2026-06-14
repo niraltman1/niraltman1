@@ -25,3 +25,6 @@ export { RepairRecommendationsEngine } from './RepairRecommendationsEngine.js';
 
 export type { HealResult } from './SelfHealingActions.js';
 export { SelfHealingActions } from './SelfHealingActions.js';
+
+export type { SupportExportOptions, SupportExportResult } from './SupportSessionExporter.js';
+export { SupportSessionExporter } from './SupportSessionExporter.js';

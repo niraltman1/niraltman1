@@ -12,6 +12,7 @@
   },
   "dependencies": {
     "@factum-il/shared": "workspace:*",
+    "@factum-il/observability": "workspace:*",
     "better-sqlite3": "^9.6.0"
   },
   "devDependencies": {

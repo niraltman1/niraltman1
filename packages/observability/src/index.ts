@@ -9,5 +9,11 @@ export {
   incrementMemoryRejections,
   recordRetrievalCacheHit,
   incrementAgentRacePrevented,
+  recordPatchApplyDuration,
+  recordPatchRollbackDuration,
+  recordGraphQueryDuration,
+  recordGraphCacheHit,
+  recordSupportExportDuration,
+  recordRecoveryPointVerifyDuration,
 } from './metrics-store.js';
 export { observabilityMiddleware } from './middleware.js';

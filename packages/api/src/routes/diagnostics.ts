@@ -431,5 +431,72 @@ export function diagnosticsRouter(repos: Repos): Router {
     res.json({ success: true, data: result });
   }));
 
+  // ── POST /api/support/export (Phase 4) ────────────────────────────────────
+  // Admin-only, feature-flagged (FEATURE_SUPPORT_EXPORT), rate limited 5/min.
+  router.post('/support-export', asyncHandler(async (req, res) => {
+    // Feature flag check
+    const flagRow = repos.db.prepare(
+      `SELECT value FROM SystemSettings WHERE key = 'FEATURE_SUPPORT_EXPORT'`,
+    ).get() as { value: string } | undefined;
+    if (flagRow?.value !== 'true') {
+      res.status(503).json({ success: false, error: { code: 'FEATURE_DISABLED', message: 'Support Export is not enabled' } });
+      return;
+    }
+
+    const actorId   = (req as unknown as { userId?: number }).userId;
+    const actorRole = (req as unknown as { userRole?: string }).userRole;
+
+    // Lazy-import to avoid circular dep at startup
+    const { DiagnosticsCollector, RedactionPipeline, SupportSessionExporter } =
+      await import('@factum-il/support-diagnostics');
+
+    const apiBaseUrl = `http://localhost:${process.env['PORT'] ?? 3001}`;
+    const collector = new DiagnosticsCollector({
+      apiBaseUrl,
+      dataPath: getDataPath(),
+    });
+    const redaction = new RedactionPipeline();
+    const exporter  = new SupportSessionExporter(collector, redaction);
+
+    const username = (req as unknown as { username?: string }).username;
+    const t0 = Date.now();
+    const result = await exporter.export({
+      outputDir:   getBundleDir(),
+      apiBaseUrl,
+      ...(username !== undefined ? { requestedBy: username } : {}),
+    });
+
+    // Audit event regardless of outcome
+    try {
+      const { logAuditEvent: auditFn } = await import('../middleware/audit-logger.js');
+      auditFn(repos.db, {
+        eventType:    'export',
+        resourceType: 'support_bundle',
+        severity:     'critical',
+        ...(actorId !== undefined ? { actorId } : {}),
+        ...(actorRole !== undefined ? { actorRole } : {}),
+        actionDetail: {
+          action:    'support_bundle_exported',
+          bundleId:  result.bundleId,
+          success:   result.success,
+          sizeBytes: result.sizeBytes,
+          durationMs: Date.now() - t0,
+        },
+      });
+    } catch { /* audit failure must not fail the export */ }
+
+    if (!result.success) {
+      res.status(500).json({ success: false, error: { code: 'EXPORT_FAILED', message: result.error ?? 'Export failed' } });
+      return;
+    }
+
+    res.json({ success: true, data: {
+      filePath:  result.filePath,
+      bundleId:  result.bundleId,
+      sizeBytes: result.sizeBytes,
+      excluded:  result.excluded,
+    }});
+  }));
+
   return router;
 }

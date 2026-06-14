@@ -36,6 +36,8 @@ function makeState(overrides: Partial<UpdateState> = {}): UpdateState {
     pendingManifest: null,
     rollback:        null,
     updateInProgress: false,
+    systemState:     'NORMAL',
+    recoveryPoints:  [],
     ...overrides,
   };
 }
