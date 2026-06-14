@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import {
-  CircleNotchIcon, DatabaseIcon, CheckCircleIcon, WarningCircleIcon, LockIcon,
+  CircleNotchIcon, CheckCircleIcon, WarningCircleIcon, LockIcon,
 } from '@phosphor-icons/react';
 import {
   useEncryptedBackups, useCreateEncryptedBackup,
