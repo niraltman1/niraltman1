@@ -88,8 +88,14 @@
 - Searches verdict corpus using draft title as seed query
 - Each verdict can be sent to the draft shelf as 'precedent' type via "שלח למדף"
 
+### בנוסף — תיקוני TypeScript ו-Pester (PR #110, מוזג 2026-06-14)
+- `EncryptedBackupPanel.tsx` — `b.sizeBytes` → `b.encryptedSizeBytes` (שדה נכון מהממשק)
+- `EnterpriseCapabilitiesPanel.tsx` — `firmName` → `displayName` (שדה נכון מהטיפוס)
+- `tests/powershell/Verify-Install.Tests.ps1` — תיקון בדיקת DefaultValue: `Get-Command` מחזיר `$null` לקבצי `.ps1` חיצוניים; עבר לשימוש ב-AST (`Parser.ParseFile` + `SafeGetValue()`)
+
+**PR #110 — מוזג ✅** (squash commit `2bb986b9`)
+
 ### מה לעשות עכשיו
-- פתח PR עבור ענף זה, מזג, ובדוק שהדפים מוצגים כראוי
 - Migration slot הבא: **081**
 - עבודות ממתינות: GH2 Zod validation (31 routes), B4 observability metrics
 
