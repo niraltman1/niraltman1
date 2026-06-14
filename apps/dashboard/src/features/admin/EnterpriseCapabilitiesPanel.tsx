@@ -31,8 +31,8 @@ export function EnterpriseCapabilitiesPanel() {
           <span className="badge bg-navy-200/60 text-parchment/80">
             {data.firmProfile.licenseType}
           </span>
-          {data.firmProfile.firmName && (
-            <span className="text-parchment/60">{data.firmProfile.firmName}</span>
+          {data.firmProfile.displayName && (
+            <span className="text-parchment/60">{data.firmProfile.displayName}</span>
           )}
         </div>
       )}
