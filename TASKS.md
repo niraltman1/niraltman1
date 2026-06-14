@@ -37,9 +37,16 @@
 - 6 endpoints: `/api/data-migration/scan|analyze|report|plan|document-inventory|file-structure`
 - `DataMigrationPage.tsx` at `/data-migration` — 6-section wizard, JSON export
 
+#### Phase 2 Priority B — Drafting & Evidence Agents ✅ (2026-06-14, PR #107)
+- `draft-motion-agent.ts` — Hebrew motion/brief draft (6 motion types) → LegalDrafts, flagForReview always
+- `draft-letter-agent.ts` — Hebrew letter (client/court/opposing counsel/authority) → LegalDrafts, flagForReview always
+- `evidence-review-agent.ts` — evidence inconsistencies, chronology gaps, admissibility risks → AgentResults
+- API routes: `POST /api/agents/draft-motion`, `/draft-letter`, `/evidence-review`
+- UI: 3 new Priority B agent cards in AgentsWorkspacePage with input forms
+- New hooks: `useAgentDraftMotion`, `useAgentDraftLetter`, `useAgentEvidenceReview`
+
 ### מה לעשות עכשיו
-- **Phase 2 Priority B** (אחרי מיזוג Phase 3): `draft-motion-agent.ts`, `draft-letter-agent.ts`, `evidence-review-agent.ts`
-- **HARD STOP** — do not begin Phases 4–7 without explicit approval
+- **HARD STOP** — All Phases 1–3 + Priority B complete. Do not begin Phases 4–7 without explicit approval.
 
 ---
 
