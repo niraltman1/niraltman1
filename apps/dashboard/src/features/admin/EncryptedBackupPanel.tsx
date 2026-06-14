@@ -68,7 +68,7 @@ export function EncryptedBackupPanel() {
             </div>
             <div className="text-parchment/40">
               {new Date(b.createdAt).toLocaleString('he-IL')}
-              {b.sizeBytes != null && ` · ${(b.sizeBytes / 1_048_576).toFixed(1)} MB`}
+              {b.encryptedSizeBytes != null && ` · ${(b.encryptedSizeBytes / 1_048_576).toFixed(1)} MB`}
             </div>
           </div>
           <div className="flex items-center gap-2 shrink-0">
