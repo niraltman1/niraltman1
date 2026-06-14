@@ -60,6 +60,8 @@ const ContactsPage       = lz(() => import('@/features/contacts/ContactsPage.js'
 const PrecedentsPage     = lz(() => import('@/features/precedents/PrecedentsPage.js'), 'PrecedentsPage');
 const JudgmentLibraryPage = lz(() => import('@/features/judgment-library/JudgmentLibraryPage.js'), 'JudgmentLibraryPage');
 const LedgerPage         = lz(() => import('@/features/ledger/LedgerPage.js'),        'LedgerPage');
+const TimeTrackingPage   = lz(() => import('@/features/ledger/TimeTrackingPage.js'),   'TimeTrackingPage');
+const LegalBrainPage     = lz(() => import('@/features/legal-brain/LegalBrainPage.js'), 'LegalBrainPage');
 const LegalCorpusPage    = lz(() => import('@/features/legal/LegalCorpusPage.js'),    'LegalCorpusPage');
 const LegalLibraryPage   = lz(() => import('@/features/legal/LegalLibraryPage.js'),   'LegalLibraryPage');
 const DraftingPage       = lz(() => import('@/features/drafting/DraftingPage.js'),    'DraftingPage');
@@ -123,6 +125,8 @@ export const router: RemixRouter = createBrowserRouter([
       { path: 'library',            element: <LegalLibraryPage />     },
       { path: 'judgment-library',  element: <JudgmentLibraryPage />  },
       { path: 'ledger',            element: <LedgerPage />           },
+      { path: 'time-entries',     element: <TimeTrackingPage />     },
+      { path: 'legal-brain',      element: <LegalBrainPage />       },
       { path: 'legal-corpus',      element: <LegalCorpusPage />      },
       { path: 'drafting',          element: <DraftingPage />         },
       { path: 'drafting/:id',      element: <DraftEditorPage />      },

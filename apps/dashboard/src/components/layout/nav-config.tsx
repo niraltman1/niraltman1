@@ -7,7 +7,7 @@ import {
   CalendarIcon, WarningIcon, CheckSquareIcon, ChatCircleIcon, EnvelopeIcon, EnvelopeSimpleIcon,
   CurrencyCircleDollarIcon, PulseIcon, GraduationCapIcon,
   GearIcon, HardDriveIcon, ChartLineIcon, NotebookIcon, LockKeyIcon, CloudArrowUpIcon, ShieldWarningIcon,
-  DatabaseIcon,
+  DatabaseIcon, ClockIcon, LightbulbIcon,
 } from '@phosphor-icons/react';
 import type { Icon } from '@phosphor-icons/react';
 
@@ -85,8 +85,9 @@ export const NAV_GROUPS: NavGroup[] = [
   {
     id: 'ai', label: 'בינה מלאכותית', Icon: RobotIcon, defaultOpen: false,
     items: [
-      { to: '/agents',   label: 'סוכני AI', Icon: RobotIcon },
-      { to: '/drafting', label: 'טיוטות',   Icon: FileTextIcon },
+      { to: '/agents',      label: 'סוכני AI',   Icon: RobotIcon },
+      { to: '/drafting',    label: 'טיוטות',     Icon: FileTextIcon },
+      { to: '/legal-brain', label: 'מוח משפטי',  Icon: LightbulbIcon },
     ],
   },
   {
@@ -99,6 +100,7 @@ export const NAV_GROUPS: NavGroup[] = [
       { to: '/mail',           label: 'מחולל מייל',       Icon: EnvelopeIcon },
       { to: '/gmail',          label: 'חיבור Gmail',      Icon: EnvelopeSimpleIcon },
       { to: '/ledger',         label: 'פנקס תשלומים',    Icon: CurrencyCircleDollarIcon },
+      { to: '/time-entries',   label: 'רישום שעות',       Icon: ClockIcon },
       { to: '/activity',       label: 'פעילות',           Icon: PulseIcon },
       { to: '/studies',        label: 'מרכז אקדמי',       Icon: GraduationCapIcon },
     ],
