@@ -123,7 +123,7 @@ export class EvidenceLocker {
     this.repo.setAnalysis(evidenceId, ocrText);
   }
 
-  list(filters: { caseId?: number; clientId?: number; mediaType?: string } = {}): EvidenceItem[] {
+  list(filters: { caseId?: number; clientId?: number; mediaType?: string; limit?: number } = {}): EvidenceItem[] {
     return this.repo.list(filters);
   }
 

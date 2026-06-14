@@ -253,7 +253,9 @@ async function runCycle(repos: Repos, targetDocumentId?: number): Promise<void> 
       `).all(BATCH_SIZE) as { id: number; ocr_text: string; storage_path: string }[];
 
   for (const doc of pending) {
+    if (!orchestrator.acquireLock(doc.id, repos.db)) continue;
     try {
+      try {
       // Step 0: Retrieve relevant precedent context — inject legal_questions + factual_summary
       // into the prompt so the model reasons from known similar verdicts.
       const precedents       = searchPrecedentContext(doc.ocr_text.slice(0, 400), repos.db, 3);
@@ -321,6 +323,7 @@ async function runCycle(repos: Repos, targetDocumentId?: number): Promise<void> 
             confidence:    result.extraction.confidence,
           },
         }).catch(() => {});
+        try { orchestrator.transitionStage(doc.id, 'MEMORY_WRITTEN', 'COMPLETED', repos.db); } catch { /* non-critical */ }
         void enrichCanvasFields(repos.db, doc.id, doc.ocr_text, doc.storage_path ?? '').catch(() => {});
         emitActivity(repos, {
           kind:       'entities_extracted',
@@ -338,14 +341,17 @@ async function runCycle(repos: Repos, targetDocumentId?: number): Promise<void> 
           { category: 'ai', operationId: String(doc.id) },
         );
       }
-    } catch (e) {
-      logger.error(`RAG failed doc=${doc.id}: ${e instanceof Error ? e.message : String(e)}`, { category: 'ai' });
-      emitActivity(repos, {
-        kind:       'queue_failure',
-        documentId: doc.id,
-        source:     'scheduler:rag-worker',
-        message:    e instanceof Error ? e.message : String(e),
-      });
+      } catch (e) {
+        logger.error(`RAG failed doc=${doc.id}: ${e instanceof Error ? e.message : String(e)}`, { category: 'ai' });
+        emitActivity(repos, {
+          kind:       'queue_failure',
+          documentId: doc.id,
+          source:     'scheduler:rag-worker',
+          message:    e instanceof Error ? e.message : String(e),
+        });
+      }
+    } finally {
+      orchestrator.releaseLock(doc.id, repos.db);
     }
   }
 }

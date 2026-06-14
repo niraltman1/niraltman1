@@ -26,10 +26,11 @@ export function evidenceRouter(repos: Repos): Router {
   const locker  = new EvidenceLocker(repos.evidence, LOCKER_ROOT);
 
   router.get('/', asyncHandler(async (req, res) => {
-    const filters: { caseId?: number; clientId?: number; mediaType?: string } = {};
+    const filters: { caseId?: number; clientId?: number; mediaType?: string; limit?: number } = {};
     if (req.query['caseId'])    filters.caseId    = Number(req.query['caseId']);
     if (req.query['clientId'])  filters.clientId  = Number(req.query['clientId']);
     if (req.query['mediaType']) filters.mediaType = String(req.query['mediaType']);
+    if (req.query['limit'])     filters.limit     = Number(req.query['limit']);
     ok(res, locker.list(filters));
   }));
 
