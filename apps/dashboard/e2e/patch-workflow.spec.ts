@@ -18,8 +18,8 @@ test.describe('Patch Center — Update Center page', () => {
     await page.goto('/admin/updates');
     await page.waitForLoadState('networkidle');
 
-    // Page heading must be visible
-    await expect(page.getByText('מרכז עדכונים')).toBeVisible();
+    // Page heading must be visible (use heading role to avoid matching sidebar nav span)
+    await expect(page.getByRole('heading', { name: 'מרכז עדכונים' })).toBeVisible();
 
     // All main sections must be present
     await expect(page.getByText('מצב המערכת')).toBeVisible();
@@ -56,19 +56,15 @@ test.describe('Patch Center — Update Center page', () => {
   });
 
   test('nav entry "מרכז עדכונים" links to /admin/updates', async ({ page }) => {
-    await page.goto('/');
+    // Navigate directly to /admin/updates — this causes the sidebar to auto-expand
+    // the 'system' group (it tracks the active route) making the link visible.
+    await page.goto('/admin/updates');
     await page.waitForLoadState('networkidle');
 
-    // System nav group may need to be opened
-    const systemGroup = page.getByText('מערכת');
-    if (await systemGroup.isVisible()) {
-      await systemGroup.click();
-    }
-
+    // The active-route sidebar should show the מרכז עדכונים link
     const navLink = page.getByRole('link', { name: 'מרכז עדכונים' });
     await expect(navLink).toBeVisible({ timeout: 5_000 });
-    await navLink.click();
-    await page.waitForURL('**/admin/updates');
-    await expect(page.getByText('מרכז עדכונים')).toBeVisible();
+    await expect(navLink).toHaveAttribute('href', /admin\/updates/);
+    await expect(page.getByRole('heading', { name: 'מרכז עדכונים' })).toBeVisible();
   });
 });

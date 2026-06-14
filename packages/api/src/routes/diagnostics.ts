@@ -15,6 +15,7 @@ import archiver from 'archiver';
 import { fileURLToPath } from 'node:url';
 import type { Repos } from '../db.js';
 import { asyncHandler } from '../utils/async-handler.js';
+import { requireRole } from '../middleware/auth.js';
 import { RepairRecommendationsEngine } from '@factum-il/support-diagnostics';
 import { SelfHealingActions } from '@factum-il/support-diagnostics';
 import type { RepairAction } from '@factum-il/support-diagnostics';
@@ -433,7 +434,8 @@ export function diagnosticsRouter(repos: Repos): Router {
 
   // ── POST /api/support/export (Phase 4) ────────────────────────────────────
   // Admin-only, feature-flagged (FEATURE_SUPPORT_EXPORT), rate limited 5/min.
-  router.post('/support-export', asyncHandler(async (req, res) => {
+  // requireRole runs first so unauthenticated requests get 401/403 before feature flag check.
+  router.post('/support-export', requireRole('admin', repos), asyncHandler(async (req, res) => {
     // Feature flag check
     const flagRow = repos.db.prepare(
       `SELECT value FROM SystemSettings WHERE key = 'FEATURE_SUPPORT_EXPORT'`,
