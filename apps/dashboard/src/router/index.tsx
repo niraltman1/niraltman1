@@ -62,6 +62,7 @@ const JudgmentLibraryPage = lz(() => import('@/features/judgment-library/Judgmen
 const LedgerPage         = lz(() => import('@/features/ledger/LedgerPage.js'),        'LedgerPage');
 const LegalCorpusPage    = lz(() => import('@/features/legal/LegalCorpusPage.js'),    'LegalCorpusPage');
 const LegalLibraryPage   = lz(() => import('@/features/legal/LegalLibraryPage.js'),   'LegalLibraryPage');
+const SupremeCourtSearchPage = lz(() => import('@/features/legal/SupremeCourtSearchPage.js'), 'SupremeCourtSearchPage');
 const DraftingPage       = lz(() => import('@/features/drafting/DraftingPage.js'),    'DraftingPage');
 const DraftEditorPage    = lz(() => import('@/features/drafting/DraftEditorPage.js'), 'DraftEditorPage');
 const InsolvencyPage     = lz(() => import('@/features/insolvency/InsolvencyPage.js'), 'InsolvencyPage');
@@ -124,6 +125,7 @@ export const router: RemixRouter = createBrowserRouter([
       { path: 'judgment-library',  element: <JudgmentLibraryPage />  },
       { path: 'ledger',            element: <LedgerPage />           },
       { path: 'legal-corpus',      element: <LegalCorpusPage />      },
+      { path: 'supreme-court',     element: <SupremeCourtSearchPage /> },
       { path: 'drafting',          element: <DraftingPage />         },
       { path: 'drafting/:id',      element: <DraftEditorPage />      },
       { path: 'insolvency',        element: <InsolvencyPage />       },

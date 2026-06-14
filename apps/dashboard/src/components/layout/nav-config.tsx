@@ -75,6 +75,7 @@ export const NAV_GROUPS: NavGroup[] = [
       { to: '/rules',            label: 'כללי סדרי דין',       Icon: ScalesIcon },
       { to: '/stens',            label: 'טפסים (Stens)',        Icon: NoteIcon },
       { to: '/precedents',       label: 'תקדימים',              Icon: GavelIcon },
+      { to: '/supreme-court',    label: 'פסיקה ישראלית',         Icon: GavelIcon },
       { to: '/library',          label: 'ספריית חקיקה ופסיקה', Icon: BookOpenIcon },
       { to: '/legal-corpus',     label: 'חוקים ישראליים',       Icon: BookOpenIcon },
       { to: '/entities',         label: 'ישויות',               Icon: AddressBookIcon },
