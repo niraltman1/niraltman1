@@ -7,6 +7,7 @@ import { CaseRiskPanel } from './CaseRiskPanel.js';
 import { CaseCitations } from './CaseCitations.js';
 import { WorkbenchDocViewer } from './WorkbenchDocViewer.js';
 import { WorkbenchInsights } from './WorkbenchInsights.js';
+import { PrecedentSuggestionsPanel } from './PrecedentSuggestionsPanel.js';
 
 /** Full Legal Workbench (Task E): 3-pane matter cockpit — Timeline | Viewer | Insights. */
 export function MatterWorkbench() {
@@ -88,7 +89,7 @@ export function MatterWorkbench() {
           <WorkbenchDocViewer docId={selectedDocId} />
         </div>
 
-        {/* Right — Insights + risk + citations */}
+        {/* Right — Insights + risk + citations + precedents */}
         <div className="space-y-3 order-3">
           <WorkbenchInsights docId={selectedDocId} />
           <CaseRiskPanel caseId={caseId} />
@@ -96,6 +97,7 @@ export function MatterWorkbench() {
             <h2 className="text-parchment/50 text-xs font-semibold uppercase tracking-widest mb-2">אסמכתאות</h2>
             <CaseCitations caseId={caseId} />
           </div>
+          <PrecedentSuggestionsPanel caseTitle={titleHe} />
         </div>
       </div>
     </div>
