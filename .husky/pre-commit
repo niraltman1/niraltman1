@@ -35,5 +35,11 @@ if [ -n "$SENSITIVE" ]; then
   echo "Review these before committing (attorney-client privilege)."
 fi
 
+# 4. System health gate
+pnpm run healthcheck || {
+  echo "Healthcheck failed — fix the issue above before committing."
+  exit 1
+}
+
 echo "Pre-commit checks passed"
 exit 0
