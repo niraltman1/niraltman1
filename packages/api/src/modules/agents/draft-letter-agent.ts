@@ -32,7 +32,7 @@ export async function runDraftLetter(
   "opening": "<פסקת פתיחה — מטרת המכתב>",
   "body": "<גוף המכתב — עובדות, טענות, דרישות>",
   "closing": "<פסקת סיכום והנחיות>",
-  "signature": "<חתימה: שם עו\"ד, כותרת>",
+  "signature": "<חתימה: שם עו'ד, כותרת>",
   "enclosures": ["<מסמך מצורף 1>"],
   "urgency": "routine|urgent|immediate",
   "confidenceNote": "<הערת מהימנות>",
