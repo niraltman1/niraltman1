@@ -100,3 +100,31 @@ export type {
 } from './queries/legal-brain-sessions.js';
 export { SavedFiltersRepository } from './queries/saved-filters.js';
 export type { SavedFilter, SavedFilterCreateInput } from './queries/saved-filters.js';
+export { LegalDocumentRepository } from './queries/legal-documents.js';
+export type {
+  LegalDocumentInput,
+  LegalDocumentRow,
+  LegalDocumentSearchHit,
+  LegalDocumentStats,
+  VisibilityScope,
+  LegalDocumentType,
+  ProceedingType,
+} from './queries/legal-documents.js';
+export { LegalSourceRegistryRepository } from './queries/legal-source-registry.js';
+export type {
+  LegalSourceRegistryRow,
+  UpsertSourceInput,
+  UpdateStrategy,
+  RegistrySourceType,
+} from './queries/legal-source-registry.js';
+export { VerdictCitationRepository } from './queries/verdict-citations.js';
+export type {
+  VerdictCitationInput,
+  VerdictCitationRow,
+  CitationGraphNode,
+  CitationType,
+} from './queries/verdict-citations.js';
+export { LegalDocumentEmbeddingRepository } from './queries/legal-document-embeddings.js';
+export type { LegalDocumentEmbeddingInput, LegalDocumentEmbeddingRow } from './queries/legal-document-embeddings.js';
+export { LegalIngestionProgressRepository } from './queries/legal-ingestion-progress.js';
+export type { IngestionProgressRow, IngestionStatus } from './queries/legal-ingestion-progress.js';

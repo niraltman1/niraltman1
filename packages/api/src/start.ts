@@ -55,6 +55,11 @@ import {
   LegalBrainSessionsRepository,
   DocumentVersionRepository,
   SavedFiltersRepository,
+  LegalDocumentRepository,
+  LegalSourceRegistryRepository,
+  VerdictCitationRepository,
+  LegalDocumentEmbeddingRepository,
+  LegalIngestionProgressRepository,
 } from '@factum-il/database';
 import { createApp } from './app.js';
 import type { Repos } from './db.js';
@@ -234,6 +239,12 @@ const repos: Repos = {
   legalBrainSessions: new LegalBrainSessionsRepository(db),
   documentVersions:   new DocumentVersionRepository(db),
   savedFilters:       new SavedFiltersRepository(db),
+  // Unified Legal Knowledge Platform (migrations 082-084)
+  legalDocuments:          new LegalDocumentRepository(db),
+  legalSourceRegistry:     new LegalSourceRegistryRepository(db),
+  verdictCitations:        new VerdictCitationRepository(db),
+  legalDocumentEmbeddings: new LegalDocumentEmbeddingRepository(db),
+  legalIngestionProgress:  new LegalIngestionProgressRepository(db),
 };
 
 // ── ConfigIntegrityValidator — seed missing FEATURE_* flags (PRE-4) ───────────

@@ -37,6 +37,11 @@ import type {
   LegalBrainSessionsRepository,
   DocumentVersionRepository,
   SavedFiltersRepository,
+  LegalDocumentRepository,
+  LegalSourceRegistryRepository,
+  VerdictCitationRepository,
+  LegalDocumentEmbeddingRepository,
+  LegalIngestionProgressRepository,
 } from '@factum-il/database';
 import type { ConfigStore } from './utils/config-store.js';
 
@@ -80,4 +85,10 @@ export interface Repos {
   legalBrainSessions: LegalBrainSessionsRepository;
   documentVersions:   DocumentVersionRepository;
   savedFilters:       SavedFiltersRepository;
+  // Unified Legal Knowledge Platform (migration 082-084)
+  legalDocuments:         LegalDocumentRepository;
+  legalSourceRegistry:    LegalSourceRegistryRepository;
+  verdictCitations:       VerdictCitationRepository;
+  legalDocumentEmbeddings: LegalDocumentEmbeddingRepository;
+  legalIngestionProgress: LegalIngestionProgressRepository;
 }
