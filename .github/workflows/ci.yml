@@ -90,16 +90,12 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Register PSGallery
+      - name: Trust PSGallery and install tools
         shell: pwsh
         run: |
-          [Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12
-          Install-PackageProvider -Name NuGet -MinimumVersion 2.8.5.201 -Force -Scope CurrentUser
           Set-PSRepository -Name PSGallery -InstallationPolicy Trusted
-
-      - name: Install PSScriptAnalyzer
-        shell: pwsh
-        run: Install-Module -Name PSScriptAnalyzer -Force -Scope CurrentUser -Repository PSGallery
+          Install-Module -Name PSScriptAnalyzer -Force -Scope CurrentUser -Repository PSGallery
+          Install-Module -Name Pester        -Force -Scope CurrentUser -Repository PSGallery -SkipPublisherCheck
 
       - name: Run PSScriptAnalyzer
         shell: pwsh
@@ -112,10 +108,6 @@ jobs:
         shell: pwsh
         # Required by FactumIL.Tests.ps1 for SQLite-backed Describe blocks
         run: choco install sqlite --no-progress -y
-
-      - name: Install Pester
-        shell: pwsh
-        run: Install-Module -Name Pester -Force -Scope CurrentUser -SkipPublisherCheck -Repository PSGallery
 
       - name: Run Pester tests
         shell: pwsh
