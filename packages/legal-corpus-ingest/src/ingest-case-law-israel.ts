@@ -111,7 +111,7 @@ async function main(): Promise<void> {
   const sourceReg    = new LegalSourceRegistryRepository(db);
   const citations    = new VerdictCitationRepository(db);
   const progress     = new LegalIngestionProgressRepository(db);
-  const _embeddings  = new LegalDocumentEmbeddingRepository(db); // initialized to activate vec check
+  new LegalDocumentEmbeddingRepository(db); // activate sqlite-vec availability check
 
   const source = sourceReg.getBySourceId(SOURCE_ID);
   if (!source) throw new Error(`Source not registered: ${SOURCE_ID}. Run migrations first.`);
