@@ -323,6 +323,7 @@ export function AgentsWorkspacePage() {
               <button
                 onClick={() => { setStreamMode(m => !m); resetStream(); setResult(null); }}
                 className="px-2 py-1 text-xs rounded border border-parchment/20 text-parchment/50 hover:text-parchment/80"
+                aria-label={streamMode ? 'מצב הזרמה — לחץ לעבור למצב רגיל' : 'מצב רגיל — לחץ לעבור למצב הזרמה'}
               >
                 {streamMode ? '📡 Streaming' : '⚡ Standard'}
               </button>

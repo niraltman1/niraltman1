@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { Link } from 'react-router-dom';
-import { FolderOpenIcon, RobotIcon, ArrowLeftIcon, ArrowRightIcon } from '@phosphor-icons/react';
+import { RobotIcon, ArrowLeftIcon, ArrowRightIcon } from '@phosphor-icons/react';
 import { useDocuments } from '@/api/hooks.js';
 import { LoadingPanel } from '@/components/common/LoadingPanel.js';
 import { EmptyPanel } from '@/components/common/EmptyPanel.js';

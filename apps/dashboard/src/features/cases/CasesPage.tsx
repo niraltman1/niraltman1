@@ -95,7 +95,7 @@ function AiSummaryPanel({ cs }: { cs: Record<string, unknown> | null }) {
             LAW-IL E2B · מקומי · 1.4S
           </div>
         </div>
-        <button className="btn btn-ghost" style={{ padding: 6 }}>
+        <button className="btn btn-ghost" style={{ padding: 6 }} aria-label="הרחב תצוגה">
           <ArrowsOutSimpleIcon size={14} />
         </button>
       </div>
@@ -243,9 +243,9 @@ function AiSummaryPanel({ cs }: { cs: Record<string, unknown> | null }) {
           to={`/cases/${cs['id'] as number}/workbench`}
           className="btn"
           style={{ justifyContent: 'center', fontSize: 12, textDecoration: 'none', padding: '0 10px' }}
-          title="שולחן עבודה"
+          aria-label="שולחן עבודה"
         >
-          <SquaresFourIcon size={14} />
+          <SquaresFourIcon size={14} aria-hidden="true" />
         </Link>
       </div>
     </div>

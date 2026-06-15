@@ -1,7 +1,7 @@
 import { Link } from 'react-router-dom';
 import {
   DatabaseIcon, RobotIcon, HeartbeatIcon, CalendarIcon,
-  WarningCircleIcon, CheckCircleIcon, CircleNotchIcon, LockIcon,
+  WarningCircleIcon, CheckCircleIcon, LockIcon,
   ClockCounterClockwiseIcon, ShieldCheckIcon,
 } from '@phosphor-icons/react';
 import { useMissionControl } from '@/api/hooks.js';
