@@ -21,11 +21,12 @@ test.describe('Patch Center — Update Center page', () => {
     // Page heading must be visible (use heading role to avoid matching sidebar nav span)
     await expect(page.getByRole('heading', { name: 'מרכז עדכונים' })).toBeVisible();
 
-    // All main sections must be present
-    await expect(page.getByText('מצב המערכת')).toBeVisible();
-    await expect(page.getByText('בריאות המערכת לאחר עדכון')).toBeVisible();
-    await expect(page.getByText('נקודות שחזור')).toBeVisible();
-    await expect(page.getByText('היסטוריית עדכונים')).toBeVisible();
+    // All main sections must be present — use heading role to avoid matching paragraph text
+    // that contains partial substring of section names (e.g. "אין נקודות שחזור.")
+    await expect(page.getByRole('heading', { name: 'מצב המערכת' })).toBeVisible();
+    await expect(page.getByRole('heading', { name: 'בריאות המערכת לאחר עדכון' })).toBeVisible();
+    await expect(page.getByRole('heading', { name: 'נקודות שחזור' })).toBeVisible();
+    await expect(page.getByRole('heading', { name: 'היסטוריית עדכונים' })).toBeVisible();
   });
 
   test('patch history shows empty state when no patches applied', async ({ page }) => {
