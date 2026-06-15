@@ -712,7 +712,35 @@ $GgufFile = Join-Path $GgufDst "law-il-E2B-Q4_K_M.gguf"
 
 if (-not $SkipGGUF -and -not (Test-Path $GgufFile)) {
     Write-Host "  Downloading law-il-E2B-Q4_K_M.gguf (~1.3 GB) ..." -ForegroundColor Gray
-    if (DownloadWithRetry "https://huggingface.co/BrainboxAI/law-il-E2B-GGUF/resolve/main/law-il-E2B-Q4_K_M.gguf" $GgufFile $DownloadTimeoutSec $MaxDownloadRetries) {
+    $HfToken = $env:HF_TOKEN
+    $GgufUrl = "https://huggingface.co/BrainboxAI/law-il-E2B-GGUF/resolve/main/law-il-E2B-Q4_K_M.gguf"
+    if (-not $HfToken) {
+        Write-Host "  ⚠ HF_TOKEN not set — GGUF download will fail for private models." -ForegroundColor Yellow
+    }
+    $downloaded = $false
+    for ($attempt = 1; $attempt -le $MaxDownloadRetries -and -not $downloaded; $attempt++) {
+        try {
+            Write-Host "  Downloading law-il-E2B-Q4_K_M.gguf (Attempt $attempt/$MaxDownloadRetries) ..." -ForegroundColor Gray
+            $iwrParams = @{
+                Uri             = $GgufUrl
+                OutFile         = $GgufFile
+                UseBasicParsing = $true
+                TimeoutSec      = $DownloadTimeoutSec
+                ErrorAction     = 'Stop'
+            }
+            if ($HfToken) { $iwrParams['Headers'] = @{ 'Authorization' = "Bearer $HfToken" } }
+            Invoke-WebRequest @iwrParams
+            $downloaded = $true
+        } catch {
+            if ($attempt -lt $MaxDownloadRetries) {
+                Write-Host "  ⚠ Attempt $attempt failed: $_ — retrying in 5 s..." -ForegroundColor Yellow
+                Start-Sleep -Seconds 5
+            } else {
+                Write-Host "  ✗ GGUF download failed after $MaxDownloadRetries attempts: $_" -ForegroundColor Red
+            }
+        }
+    }
+    if ($downloaded) {
         if (ValidateArtifact $GgufFile "gguf") {
             $ggufSize = [math]::Round((Get-Item $GgufFile).Length/1GB,2)
             Write-Host "  ✓ GGUF: $ggufSize GB (validated)" -ForegroundColor Green
@@ -728,14 +756,19 @@ if (-not $SkipGGUF -and -not (Test-Path $GgufFile)) {
 }
 
 # sqlite-vec  -  native KNN extension for SQLite
-$VecVersion = "v0.1.7"
-$VecZip     = "$TempDir\sqlite-vec.zip"
-$VecDll     = "$ToolsDst\sqlite-vec.dll"
+# v0.1.6: filename has no 'v' prefix, packaged as .tar.gz (not .zip)
+$VecVersion  = "v0.1.6"
+$VecTar      = "$TempDir\sqlite-vec.tar.gz"
+$VecDll      = "$ToolsDst\sqlite-vec.dll"
 if (-not (Test-Path $VecDll)) {
-    $VecUrl = "https://github.com/asg017/sqlite-vec/releases/download/$VecVersion/sqlite-vec-$VecVersion-loadable-windows-x86_64.zip"
-    if (DownloadWithRetry $VecUrl $VecZip 60 2) {
-        Expand-Archive $VecZip -DestinationPath "$TempDir\sqlite-vec-extract" -Force -ErrorAction SilentlyContinue
-        $ExtractedDll = Get-ChildItem "$TempDir\sqlite-vec-extract" -Recurse -Filter "vec0.dll" -ErrorAction SilentlyContinue | Select-Object -First 1
+    $VecVerNum = $VecVersion.TrimStart('v')
+    $VecUrl    = "https://github.com/asg017/sqlite-vec/releases/download/$VecVersion/sqlite-vec-$VecVerNum-loadable-windows-x86_64.tar.gz"
+    if (DownloadWithRetry $VecUrl $VecTar 60 2) {
+        $VecExtract = "$TempDir\sqlite-vec-extract"
+        if (Test-Path $VecExtract) { Remove-Item -Recurse -Force $VecExtract }
+        New-Item -ItemType Directory -Force -Path $VecExtract | Out-Null
+        tar -xzf $VecTar -C $VecExtract 2>$null
+        $ExtractedDll = Get-ChildItem $VecExtract -Recurse -Filter "vec0.dll" -ErrorAction SilentlyContinue | Select-Object -First 1
         if ($ExtractedDll -and (ValidateArtifact $ExtractedDll.FullName "dll")) {
             Copy-Item $ExtractedDll.FullName $VecDll -ErrorAction Stop
             $vecSize = [math]::Round((Get-Item $VecDll).Length/1KB,0)
