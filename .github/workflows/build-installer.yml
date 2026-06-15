@@ -101,6 +101,17 @@ jobs:
           & $iscc installer.iss
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
 
+      - name: Verify installer payload contains GGUF
+        shell: pwsh
+        run: |
+          choco install 7zip --yes --no-progress
+          $listing = & "C:\Program Files\7-Zip\7z.exe" l Factum-IL-Setup.exe
+          if ($listing -notmatch "gemma-4-E2B-it\.BF16-mmproj\.gguf") {
+            Write-Error "GGUF model asset missing from installer payload."
+            exit 1
+          }
+          Write-Host "✓ GGUF payload confirmed in installer." -ForegroundColor Green
+
       - name: Verify Installation (DevMode)
         shell: pwsh
         run: powershell -File powershell\scripts\Verify-Install.ps1 -DevMode

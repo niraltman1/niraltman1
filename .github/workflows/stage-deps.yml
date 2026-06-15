@@ -24,20 +24,17 @@ jobs:
             https://github.com/ollama/ollama/releases/download/v0.9.0/OllamaSetup.exe
           echo "OllamaSetup: $(du -sh OllamaSetup.exe | cut -f1)"
 
-      - name: Download WebView2 bootstrapper
+      - name: Download WebView2 bootstrapper (self-hosted v-assets-latest)
         run: |
-          curl -fsSL -L -o MicrosoftEdgeWebview2Setup.exe \
-            "https://go.microsoft.com/fwlink/p/?LinkId=2124703"
+          curl -fsSL -o MicrosoftEdgeWebview2Setup.exe \
+            "https://github.com/niraltman1/niraltman1/releases/download/v-assets-latest/MicrosoftEdgeWebView2RuntimeInstallerX64.exe"
           echo "WebView2: $(du -sh MicrosoftEdgeWebview2Setup.exe | cut -f1)"
 
-      - name: Find and download GGUF (Q4_K_M) from HuggingFace
+      - name: Note on GGUF model asset
         run: |
-          GGUF_FILE=$(curl -s "https://huggingface.co/api/models/BrainboxAI/law-il-E2B" \
-            | jq -r '.siblings[].rfilename | select(test("Q4_K_M"))')
-          echo "Detected GGUF filename: $GGUF_FILE"
-          curl -fsSL -o law-il-E2B-Q4_K_M.gguf \
-            "https://huggingface.co/BrainboxAI/law-il-E2B/resolve/main/${GGUF_FILE}"
-          echo "GGUF: $(du -sh law-il-E2B-Q4_K_M.gguf | cut -f1)"
+          echo "GGUF model (gemma-4-E2B-it.BF16-mmproj.gguf) is self-hosted at v-model-latest."
+          echo "The build pipeline (publish.ps1) downloads it directly from that release."
+          echo "No re-upload to v-deps-1.0.0 is required."
 
       - name: Create release v-deps-1.0.0 (if absent)
         env:
@@ -46,7 +43,7 @@ jobs:
           gh release create v-deps-1.0.0 \
             --repo niraltman1/niraltman1 \
             --title "Dependencies v1.0.0" \
-            --notes "Pinned build deps: Node.js 22.13.1, Ollama 0.9.0, WebView2 bootstrapper, BrainboxAI/law-il-E2B Q4_K_M GGUF (~1.3 GB). Not a product release — used by build-installer.yml." \
+            --notes "Pinned build deps: Node.js 22.13.1, Ollama 0.9.0, WebView2 bootstrapper. GGUF model is at v-model-latest. Not a product release — used by build-installer.yml." \
             || true
 
       - name: Upload assets (clobber existing)
@@ -58,5 +55,4 @@ jobs:
             --clobber \
             node-v22.13.1-win-x64.zip \
             OllamaSetup.exe \
-            MicrosoftEdgeWebview2Setup.exe \
-            law-il-E2B-Q4_K_M.gguf
+            MicrosoftEdgeWebview2Setup.exe

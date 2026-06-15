@@ -126,7 +126,7 @@ Factum-IL v1.0.0 is functionally complete across all nine planned development ph
 
 - [ ] Run `stage-deps.yml` GitHub Actions workflow to populate `v-deps-1.0.0` GitHub Release with 4 assets:
   - [ ] `node-v20-win-x64.zip`
-  - [ ] `law-il-E2B-Q4_K_M.gguf`
+  - [ ] `gemma-4-E2B-it.BF16-mmproj.gguf`
   - [ ] `OllamaSetup.exe`
   - [ ] `MicrosoftEdgeWebview2Setup.exe`
 - [ ] Push `v1.0.0-beta.1` tag → `build-installer.yml` produces `FactumIL_v1.0.0_Setup.exe`
@@ -185,7 +185,7 @@ Post-install, verify the following files exist in the installation directory (`C
 - [ ] `FactumIL_Dist\dashboard\dist\index.html` — compiled React dashboard
 - [ ] `FactumIL_Dist\tools\OllamaSetup.exe` — Ollama installer
 - [ ] `FactumIL_Dist\tools\MicrosoftEdgeWebview2Setup.exe` — WebView2 installer
-- [ ] `FactumIL_Dist\models\law-il-E2B-Q4_K_M.gguf` — AI model (largest file, ~4 GB)
+- [ ] `FactumIL_Dist\models\gemma-4-E2B-it.BF16-mmproj.gguf` — AI model (largest file, ~4 GB)
 
 ---
 

@@ -946,9 +946,9 @@ Next available: **054**
 ### Completed this session
 
 **Self-Hosted Dependencies + Local GGUF (PR #9)**
-- `.github/workflows/stage-deps.yml` — manual workflow: downloads Node 22.13.1, Ollama 0.9.0, WebView2, law-il-E2B Q4_K_M GGUF (~1.3 GB) from HuggingFace → uploads all 4 to `v-deps-1.0.0` GitHub Release
-- `publish.ps1` (root + apps/desktop) — all download URLs now point to `v-deps-1.0.0` GitHub Release (no external deps during CI)
-- `installer.iss` — GGUF bundled to `{app}\models\law-il-E2B-Q4_K_M.gguf`
+- `.github/workflows/stage-deps.yml` — manual workflow: downloads Node 22.13.1, Ollama 0.9.0, WebView2 (self-hosted v-assets-latest) → uploads to `v-deps-1.0.0`. GGUF is sourced from `v-model-latest` directly.
+- `publish.ps1` (root + apps/desktop) — GGUF from `v-model-latest`, WebView2 from `v-assets-latest`, SHA-256 locked for both
+- `installer.iss` — GGUF bundled to `{app}\models\gemma-4-E2B-it.BF16-mmproj.gguf`
 - `OllamaService.cs` — `GetBundledGgufPath()` + `CreateFromLocalAsync()`: prefers local GGUF, falls back to Ollama Hub pull
 
 **New packages:**

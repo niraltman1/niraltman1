@@ -70,7 +70,7 @@ cd niraltman1
 | 8 | אריזת ה-backend (Express API + node_modules פרודקשן שטוח) |
 | 9 | dashboard + קובצי מיגרציה 001–077 + קורפוס חקיקה (batch files מ-`v-corpus-latest`) |
 | 10 | הורדת node.exe פורטבילי, OllamaSetup.exe, WebView2 bootstrapper |
-| 11 | הורדת מודל GGUF (`law-il-E2B-Q4_K_M.gguf`) ו-`sqlite-vec.dll` |
+| 11 | הורדת מודל GGUF (`gemma-4-E2B-it.BF16-mmproj.gguf`) ו-`sqlite-vec.dll` |
 | 12 | הזרקת BOM לסקריפטי PowerShell (תמיכת UTF-8 בחלונות) |
 
 **אפשרויות:**
@@ -145,7 +145,7 @@ FactumIL_Dist\
   legal-corpus\ קורפוס חקיקה (batches\*.jsonl.gz, נטען ל-SQLite בהפעלה ראשונה)
   runtime\      node.exe פורטבילי
   tools\        OllamaSetup.exe + WebView2 bootstrapper + sqlite-vec.dll
-  models\       law-il-E2B-Q4_K_M.gguf (מודל ה-AI, ~1.3GB)
+  models\       gemma-4-E2B-it.BF16-mmproj.gguf (מודל ה-AI, ~941 MB)
   powershell\   Legal Registry + סקריפטי עזר
 ```
 

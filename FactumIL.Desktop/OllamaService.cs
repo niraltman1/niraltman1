@@ -193,7 +193,7 @@ internal sealed class OllamaService
     {
         var factumRoot = Environment.GetEnvironmentVariable("FACTUM_IL_ROOT");
         if (string.IsNullOrEmpty(factumRoot)) return null;
-        var path = Path.GetFullPath(Path.Combine(factumRoot, "..", "models", "law-il-E2B-Q4_K_M.gguf"));
+        var path = Path.GetFullPath(Path.Combine(factumRoot, "..", "models", "gemma-4-E2B-it.BF16-mmproj.gguf"));
         return File.Exists(path) ? path : null;
     }
 
