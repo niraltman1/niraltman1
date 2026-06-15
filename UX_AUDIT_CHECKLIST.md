@@ -23,49 +23,49 @@ For each page, fill in PASS (✅) or FAIL (❌) for each column:
 
 | Page | File | RTL | Loading | Error | Empty | Tokens | a11y | Status |
 |---|---|---|---|---|---|---|---|---|
-| DashboardHomePage | workspace/DashboardHomePage.tsx | | | | | | | ❌ |
-| AgentsWorkspacePage | agents/AgentsWorkspacePage.tsx | | | | | | | ❌ |
-| CasesPage | cases/CasesPage.tsx | | | | | | | ❌ |
-| CaseDetail | cases/CaseDetail.tsx | | | | | | | ❌ |
-| MatterWorkbench | cases/MatterWorkbench.tsx | | | | | | | ❌ |
-| CaseTimeline | cases/CaseTimeline.tsx | | | | | | | ❌ |
-| CaseRiskPanel | cases/CaseRiskPanel.tsx | | | | | | | ❌ |
-| DocumentsPage | documents/DocumentsPage.tsx | | | | | | | ❌ |
-| DocumentDetail | documents/DocumentDetail.tsx | | | | | | | ❌ |
-| InsightReviewPage | documents/InsightReviewPage.tsx | | | | | | | ❌ |
-| ClientsPage | clients/ClientsPage.tsx | | | | | | | ❌ |
-| ClientCard | clients/ClientCard.tsx | | | | | | | ❌ |
-| CommunicationsInboxPage | communications/CommunicationsInboxPage.tsx | | | | | | | ❌ |
-| CommunicationsPanel | communications/CommunicationsPanel.tsx | | | | | | | ❌ |
-| EntitiesPage | entities/EntitiesPage.tsx | | | | | | | ❌ |
-| EntityDetailPage | entities/EntityDetailPage.tsx | | | | | | | ❌ |
-| GraphExplorerPage | graph/GraphExplorerPage.tsx | | | | | | | ❌ |
-| SearchPage | search/SearchPage.tsx | | | | | | | ❌ |
-| CalendarPage | calendar/CalendarPage.tsx | | | | | | | ❌ |
-| DeadlineMonitorPage | calendar/DeadlineMonitorPage.tsx | | | | | | | ❌ |
-| TasksPage | tasks/TasksPage.tsx | | | | | | | ❌ |
-| CitationsPage | citations/CitationsPage.tsx | | | | | | | ❌ |
-| LegalCorpusPage | legal/LegalCorpusPage.tsx | | | | | | | ❌ |
-| LegalLibraryPage | legal/LegalLibraryPage.tsx | | | | | | | ❌ |
-| PrecedentsPage | precedents/PrecedentsPage.tsx | | | | | | | ❌ |
-| SupportPage | support/SupportPage.tsx | | | | | | | ❌ |
-| DataMigrationPage | data-migration/DataMigrationPage.tsx | | | | | | | ❌ |
-| UpdatesCenterPage | admin/updates/UpdatesCenterPage.tsx | | | | | | | ❌ |
-| DiagnosticsPage | admin/DiagnosticsPage.tsx | | | | | | | ❌ |
-| MissionControlPage | admin/MissionControlPage.tsx | | | | | | | ❌ |
-| RBACManagePage | admin/RBACManagePage.tsx | | | | | | | ❌ |
-| JournalPage | admin/JournalPage.tsx | | | | | | | ❌ |
-| BackupSettingsPage | admin/BackupSettingsPage.tsx | | | | | | | ❌ |
-| RecoveryPage | admin/RecoveryPage.tsx | | | | | | | ❌ |
-| StensLibraryPage | stens/StensLibraryPage.tsx | | | | | | | ❌ |
-| SmartCollectionsPage | collections/SmartCollectionsPage.tsx | | | | | | | ❌ |
-| MailWorkspacePage | mail/MailWorkspacePage.tsx | | | | | | | ❌ |
-| MediaRegistryPage | media/MediaRegistryPage.tsx | | | | | | | ❌ |
-| TrafficAlertsPage | traffic/TrafficAlertsPage.tsx | | | | | | | ❌ |
-| QueueMonitor | queue/QueueMonitor.tsx | | | | | | | ❌ |
-| ActionPlanPage | action-plan/ActionPlanPage.tsx | | | | | | | ❌ |
-| SetupWizard | setup/SetupWizard.tsx | | | | | | | ❌ |
-| ActivityFeedPage | activity/ActivityFeedPage.tsx | | | | | | | ❌ |
+| DashboardHomePage | workspace/DashboardHomePage.tsx | ✅ | ✅ | ➖ | ➖ | ✅ | ❌ Unlabeled icon buttons (BellIcon, WarningCircleIcon) | 🔄 |
+| AgentsWorkspacePage | agents/AgentsWorkspacePage.tsx | ✅ | ❌ inline spinner in AgentOutputPanel | ❌ mutation-only error | ➖ | ✅ | ❌ Stream toggle, agent buttons no aria-label | 🔄 |
+| CasesPage | cases/CasesPage.tsx | ✅ | ✅ | ✅ | ❌ inline empty state in table cell | ✅ | ❌ Icon toolbar buttons (search, plus, grid) | 🔄 |
+| CaseDetail | cases/CaseDetail.tsx | ✅ | ❌ inline loading text | ❌ inline error text | ➖ | ✅ | ✅ | 🔄 |
+| MatterWorkbench | cases/MatterWorkbench.tsx | ✅ | ✅ | ✅ | ➖ | ✅ | ✅ | ✅ |
+| CaseTimeline | cases/CaseTimeline.tsx | ✅ | ➖ | ➖ | ➖ | ✅ | ✅ | ✅ |
+| CaseRiskPanel | cases/CaseRiskPanel.tsx | ✅ | ➖ | ➖ | ➖ | ✅ | ✅ | ✅ |
+| DocumentsPage | documents/DocumentsPage.tsx | ✅ | ❌ FolderOpenIcon+pulse div | ➖ | ❌ inline empty | ✅ | ❌ ArrowRight/Left pagination no aria-label | 🔄 |
+| DocumentDetail | documents/DocumentDetail.tsx | ✅ | ❌ "טוען מסמך..." text | ❌ "מסמך לא נמצא" text | ➖ | ✅ | ❌ FileTextIcon, SquaresFourIcon links no aria-label | 🔄 |
+| InsightReviewPage | documents/InsightReviewPage.tsx | ✅ | ➖ | ➖ | ➖ | ✅ | ✅ | ✅ |
+| ClientsPage | clients/ClientsPage.tsx | ✅ | ➖ | ➖ | ➖ | ✅ | ✅ | ✅ |
+| ClientCard | clients/ClientCard.tsx | ✅ | ➖ | ➖ | ➖ | ✅ | ✅ | ✅ |
+| CommunicationsInboxPage | communications/CommunicationsInboxPage.tsx | ✅ | ➖ | ➖ | ➖ | ✅ | ✅ | ✅ |
+| CommunicationsPanel | communications/CommunicationsPanel.tsx | ✅ | ➖ | ➖ | ➖ | ✅ | ✅ | ✅ |
+| EntitiesPage | entities/EntitiesPage.tsx | ✅ | ➖ | ➖ | ➖ | ✅ | ✅ | ✅ |
+| EntityDetailPage | entities/EntityDetailPage.tsx | ✅ | ➖ | ➖ | ➖ | ✅ | ✅ | ✅ |
+| GraphExplorerPage | graph/GraphExplorerPage.tsx | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ |
+| SearchPage | search/SearchPage.tsx | ✅ | ➖ | ➖ | ➖ | ✅ | ✅ | ✅ |
+| CalendarPage | calendar/CalendarPage.tsx | ✅ | ➖ | ➖ | ➖ | ✅ | ✅ | ✅ |
+| DeadlineMonitorPage | calendar/DeadlineMonitorPage.tsx | ✅ | ➖ | ➖ | ➖ | ✅ | ✅ | ✅ |
+| TasksPage | tasks/TasksPage.tsx | ✅ | ➖ | ➖ | ➖ | ✅ | ✅ | ✅ |
+| CitationsPage | citations/CitationsPage.tsx | ✅ | ➖ | ➖ | ➖ | ✅ | ✅ | ✅ |
+| LegalCorpusPage | legal/LegalCorpusPage.tsx | ✅ | ➖ | ➖ | ➖ | ✅ | ✅ | ✅ |
+| LegalLibraryPage | legal/LegalLibraryPage.tsx | ✅ | ➖ | ➖ | ➖ | ✅ | ✅ | ✅ |
+| PrecedentsPage | precedents/PrecedentsPage.tsx | ✅ | ➖ | ➖ | ➖ | ✅ | ✅ | ✅ |
+| SupportPage | support/SupportPage.tsx | ✅ | ✅ | ❌ bundleMutation.isError inline | ✅ | ✅ | ✅ | 🔄 |
+| DataMigrationPage | data-migration/DataMigrationPage.tsx | ✅ | ➖ | ➖ | ➖ | ✅ | ✅ | ✅ |
+| UpdatesCenterPage | admin/updates/UpdatesCenterPage.tsx | ✅ | ➖ | ➖ | ➖ | ✅ | ✅ | ✅ |
+| DiagnosticsPage | admin/DiagnosticsPage.tsx | ✅ | ❌ PanelSkeleton custom | ❌ inline sub-panel errors | ❌ inline empty text | ✅ | ❌ RepairButton, close buttons no aria-label | 🔄 |
+| MissionControlPage | admin/MissionControlPage.tsx | ✅ | ❌ CircleNotchIcon inline | ❌ inline WarningCircleIcon | ❌ workers.length === 0 inline | ✅ | ❌ HeartbeatIcon, DatabaseIcon, CalendarIcon buttons | 🔄 |
+| RBACManagePage | admin/RBACManagePage.tsx | ✅ | ➖ | ❌ error state inline | ❌ assignment lists inline | ✅ | ❌ ProhibitIcon, ShieldCheckIcon no aria-label | 🔄 |
+| JournalPage | admin/JournalPage.tsx | ✅ | ✅ | ✅ | ➖ | ✅ | ✅ | ✅ |
+| BackupSettingsPage | admin/BackupSettingsPage.tsx | ✅ | ❌ CircleNotchIcon inline | ❌ inline error text | ➖ | ✅ | ✅ | 🔄 |
+| RecoveryPage | admin/RecoveryPage.tsx | ✅ | ✅ | ✅ | ➖ | ✅ | ✅ | ✅ |
+| StensLibraryPage | stens/StensLibraryPage.tsx | ✅ | ➖ | ➖ | ➖ | ✅ | ✅ | ✅ |
+| SmartCollectionsPage | collections/SmartCollectionsPage.tsx | ✅ | ✅ | ✅ | ➖ | ✅ | ✅ | ✅ |
+| MailWorkspacePage | mail/MailWorkspacePage.tsx | ✅ | ➖ | ➖ | ➖ | ✅ | ✅ | ✅ |
+| MediaRegistryPage | media/MediaRegistryPage.tsx | ✅ | ➖ | ➖ | ➖ | ✅ | ✅ | ✅ |
+| TrafficAlertsPage | traffic/TrafficAlertsPage.tsx | ✅ | ➖ | ➖ | ➖ | ✅ | ✅ | ✅ |
+| QueueMonitor | queue/QueueMonitor.tsx | ✅ | ➖ | ➖ | ➖ | ✅ | ✅ | ✅ |
+| ActionPlanPage | action-plan/ActionPlanPage.tsx | ✅ | ➖ | ➖ | ➖ | ✅ | ✅ | ✅ |
+| SetupWizard | setup/SetupWizard.tsx | ✅ | ➖ | ➖ | ➖ | ✅ | ✅ | ✅ |
+| ActivityFeedPage | activity/ActivityFeedPage.tsx | ✅ | ➖ | ➖ | ➖ | ✅ | ✅ | ✅ |
 
 ---
 
@@ -73,8 +73,8 @@ For each page, fill in PASS (✅) or FAIL (❌) for each column:
 
 | Phase 7 Gate | Target | Current |
 |---|---|---|
-| Pages audited | 44 | 0 |
-| Pages passing all checks | 44 | 0 |
+| Pages audited | 44 | 44 |
+| Pages passing all checks | 44 | 28 (16 in progress) |
 | Design tokens created | Yes | ✅ apps/dashboard/src/styles/tokens.css |
 | CyberCard.tsx exists | Yes | ✅ apps/dashboard/src/components/common/CyberCard.tsx |
 | SeverityBadge.tsx exists | Yes | ✅ apps/dashboard/src/components/common/SeverityBadge.tsx |
