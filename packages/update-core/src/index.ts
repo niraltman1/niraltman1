@@ -6,6 +6,9 @@ export type {
   RollbackMetadata,
   UpdateState,
   UpdateValidationResult,
+  PatchManifest,
+  RecoveryPoint,
+  SystemState,
 } from './types.js';
 
 export { VersionManifestParser } from './VersionManifest.js';
@@ -26,3 +29,10 @@ export {
   waitForDbUnlock,
 } from './cleanup-utils.js';
 export type { DiskCheckResult } from './cleanup-utils.js';
+
+export { PatchValidator, TrustedSigningKeys } from './PatchValidator.js';
+export type { PatchValidationResult } from './PatchValidator.js';
+export { PatchManager } from './PatchManager.js';
+export type { PatchApplyResult } from './PatchManager.js';
+export { PatchRollbackManager } from './PatchRollbackManager.js';
+export type { RollbackPatchResult } from './PatchRollbackManager.js';

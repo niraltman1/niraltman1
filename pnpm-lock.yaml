@@ -631,6 +631,9 @@ importers:
 
   packages/update-core:
     dependencies:
+      '@factum-il/observability':
+        specifier: workspace:*
+        version: link:../observability
       '@factum-il/shared':
         specifier: workspace:*
         version: link:../shared

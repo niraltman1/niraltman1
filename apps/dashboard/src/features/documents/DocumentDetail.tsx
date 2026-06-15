@@ -8,6 +8,8 @@ import {
 import { useDocument, useDocumentInsights, useVerifyInsight, useEditInsight, useAgentContractReview, useHarvestCitations, useDocumentVersions } from '@/api/hooks.js';
 import type { AgentOutput, InsightEditFields, DocumentVersionRecord, DocumentInsightsData } from '@/api/hooks.js';
 import { DocumentSigningPanel } from './DocumentSigningPanel.js';
+import { LoadingPanel } from '@/components/common/LoadingPanel.js';
+import { ErrorPanel } from '@/components/common/ErrorPanel.js';
 import { AgentOutputPanel } from '@/components/common/AgentOutputPanel.js';
 import { AiApprovalBar } from '@/components/common/AiApprovalBar.js';
 import { ExportMenu } from '@/components/common/ExportMenu.js';
@@ -54,20 +56,15 @@ export function DocumentDetail() {
   const [harvestedCount, setHarvestedCount] = useState<number | null>(null);
   const { data: versionsData } = useDocumentVersions(docId > 0 ? docId : null);
 
-  if (isLoading) {
-    return (
-      <div className="flex items-center justify-center h-64 text-parchment/30 text-sm">
-        טוען מסמך...
-      </div>
-    );
-  }
+  if (isLoading) return <LoadingPanel label="טוען מסמך…" />;
 
   if (isError || !doc) {
     return (
-      <div className="flex flex-col items-center justify-center h-64 gap-3">
-        <FileTextIcon size={36} className="text-parchment/20" />
-        <p className="text-parchment/40 text-sm">מסמך לא נמצא</p>
-        <Link to="/documents" className="text-gold text-xs hover:underline">← חזרה לרשימת מסמכים</Link>
+      <div className="p-6">
+        <ErrorPanel message="מסמך לא נמצא." />
+        <div className="text-center mt-3">
+          <Link to="/documents" className="text-gold text-xs hover:underline">← חזרה לרשימת מסמכים</Link>
+        </div>
       </div>
     );
   }

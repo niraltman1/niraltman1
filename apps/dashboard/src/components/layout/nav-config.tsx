@@ -3,11 +3,11 @@ import {
   ScalesIcon, FolderIcon, UsersIcon, AddressBookIcon, CarIcon,
   FilesIcon, FileTextIcon, TrayIcon, CheckCircleIcon, BroomIcon, ImageIcon, VaultIcon, StackIcon,
   MagnifyingGlassIcon, BookOpenIcon, GavelIcon, NoteIcon,
-  RobotIcon,
+  RobotIcon, GraphIcon,
   CalendarIcon, WarningIcon, CheckSquareIcon, ChatCircleIcon, EnvelopeIcon, EnvelopeSimpleIcon,
   CurrencyCircleDollarIcon, PulseIcon, GraduationCapIcon,
   GearIcon, HardDriveIcon, ChartLineIcon, NotebookIcon, LockKeyIcon, CloudArrowUpIcon, ShieldWarningIcon,
-  DatabaseIcon,
+  DatabaseIcon, ArrowsClockwiseIcon,
 } from '@phosphor-icons/react';
 import type { Icon } from '@phosphor-icons/react';
 
@@ -81,6 +81,7 @@ export const NAV_GROUPS: NavGroup[] = [
       { to: '/library',          label: 'ספריית חקיקה ופסיקה', Icon: BookOpenIcon },
       { to: '/legal-corpus',     label: 'חוקים ישראליים',       Icon: BookOpenIcon },
       { to: '/entities',         label: 'ישויות',               Icon: AddressBookIcon },
+      { to: '/graph',            label: 'גרף הידע',             Icon: GraphIcon },
       { to: '/citations',        label: 'אסמכתאות',             Icon: GavelIcon },
       { to: '/insolvency',       label: 'הליכי חדלות',          Icon: ScalesIcon },
     ],
@@ -115,6 +116,7 @@ export const NAV_GROUPS: NavGroup[] = [
       { to: '/admin/rbac',            label: 'הרשאות',       Icon: LockKeyIcon },
       { to: '/admin/backup-settings', label: 'הגדרות גיבוי', Icon: CloudArrowUpIcon },
       { to: '/admin/recovery',        label: 'מצב שחזור',    Icon: ShieldWarningIcon },
+      { to: '/admin/updates',        label: 'מרכז עדכונים', Icon: ArrowsClockwiseIcon },
       { to: '/support',              label: 'תמיכה',         Icon: ShieldWarningIcon },
       { to: '/data-migration',       label: 'ייבוא נתונים',  Icon: DatabaseIcon },
     ],

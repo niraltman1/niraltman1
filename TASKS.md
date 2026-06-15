@@ -1,5 +1,76 @@
 # Factum-IL — Task Tracker
 
+## 🗓️ Session handoff — Phases 4–7 Complete (2026-06-15)
+
+**Branch:** `claude/factum-phases-4-7-yym4i8` — PR #112 (open, CI in progress)
+
+### הושלם הפעם — Release Candidate Phases 4, 6, 5, 7
+
+#### Pre-Execution Deliverables (PRE-1 through PRE-8) ✅
+- `PATCH_FORMAT_SPEC.md` — `.factumpatch` archive format spec with Ed25519 signing + key rotation
+- `API_BEHAVIOR_BASELINE.md` — snapshot of all routes with status codes and response shapes
+- `UX_AUDIT_CHECKLIST.md` — per-page UX audit table (44 pages)
+- `ConfigIntegrityValidator` in `packages/api/src/start.ts` — seeds missing FEATURE_* flags
+- Playwright E2E specs: `patch-workflow.spec.ts`, `support-export.spec.ts`, `graph-explorer.spec.ts`
+- `WORKSPACE_PERFORMANCE_BASELINE.md` — bundle sizes, API call counts, graph render times
+- Observability metrics registered in `packages/observability/src/metrics.ts`
+- `GraphCacheProvider` interface + `MemoryGraphCache` (LRU, 5000 entries, 15-min TTL)
+
+#### Phase 4 — Patch Delivery & Remote Support Platform ✅
+- `PatchValidator.ts` — Ed25519 signature verification, SHA-256 file integrity, version compat
+- `PatchManager.ts` — 9-step workflow with auto-rollback and verifyRecoveryPoint()
+- `PatchRollbackManager.ts` — rollback, restore, recovery point retention (10 newest or 30 days)
+- `SupportSessionExporter.ts` — `.factumsupport` bundle, 250 MB limit, RedactionPipeline
+- `patch-chaos.test.ts` — 4 chaos scenarios (disk full, migration cascade, health timeout, rollback failure)
+- Routes: `GET /api/updates/history`, `POST /api/updates/apply`, `GET /api/updates/health`
+- Route: `POST /api/diagnostics/support-export` (requireRole before feature flag)
+- `UpdatesCenterPage.tsx` at `/admin/updates`
+- `PHASE_4_COMPLETION_REPORT.md`, `PATCH_CHAOS_TEST_PLAN.md`, `PATCH_FORMAT_SPEC.md`
+
+#### Phase 6 — Architecture Hardening ✅
+- `scripts/check-architecture.ts` — AST-based critical/warning violation scanner (CI step, continue-on-error for 149 pre-existing violations)
+- `scripts/generate-repo-coverage.ts` — table → repository → consumer mapping
+- `packages/api/src/__tests__/api-contract.test.ts` — contract tests (fixed to use explicit `toEqual` not `toMatchSnapshot`)
+- `packages/database-intelligence/src/ImportPlanner.ts` — `ImportPlan` interface
+- `ARCHITECTURE_AUDIT.md`, `REPOSITORY_COVERAGE.md`, `DEPENDENCY_AUDIT.md`
+- `PHASE_6_COMPLETION_REPORT.md`
+
+#### Phase 5 — Knowledge Graph Intelligence ✅
+- `RelationshipDiscovery.ts` — findRelatedJudges, findRelatedCases, findRelatedDocuments, generateGraphInsights with 5s timeout + reasons[]
+- `GraphCacheInvalidationService.ts` — single-point cache invalidation
+- `GET /api/entities/related` — requireRole('attorney') + FEATURE_RELATIONSHIP_DISCOVERY
+- `GET /api/entities/insights` — requireRole('attorney') + FEATURE_GRAPH_INSIGHTS
+- `GraphExplorerPage.tsx` — type filters, reasons panel on node click, uses Phase 7 shared components
+- `EntityGraph.tsx` extended with `onNodeClick?` prop
+- Hooks: `useRelatedEntities`, `useGraphInsights`
+- `PHASE_5_COMPLETION_REPORT.md`
+
+#### Phase 7 — UX Consistency ✅ (shared components done; page adoption in progress)
+- `apps/dashboard/src/styles/tokens.css` — 6 CSS custom properties; imported in globals.css
+- `CyberCard.tsx`, `SeverityBadge.tsx`, `LoadingPanel.tsx`, `ErrorPanel.tsx`, `EmptyPanel.tsx`
+- Applied to: GraphExplorerPage (full), CasesPage (loading/error), SupportPage (loading/empty), BackupSettingsPage (dir="rtl" fix)
+- `WORKSPACE_PERFORMANCE_REPORT.md` — no regressions vs baseline
+- `PHASE_7_COMPLETION_REPORT.md`, `UX_AUDIT_CHECKLIST.md` (filled in, 44 pages audited)
+
+### CI Status (PR #112)
+- ✅ Typecheck (Linux + Windows)
+- ✅ Playwright E2E (all specs pass)
+- ✅ Test suites (logic + env + chaos)
+- 🔄 Architecture guard (continue-on-error — 149 pre-existing violations tracked in ARCHITECTURE_AUDIT.md)
+
+### מה לעשות עכשיו
+1. **Merge PR #112** when CI is green
+2. **Phase 7 follow-up** (tracked in UX_AUDIT_CHECKLIST.md):
+   - Apply LoadingPanel/ErrorPanel to 13 remaining pages
+   - Apply EmptyPanel with contextual messages to 12 remaining pages
+   - Add `aria-label` to icon-only buttons across 10 pages
+   - Wire `role="dialog"` + focus trap to NewCaseWizard and other modals
+3. **RC Audit** — run `scripts/generate-rc-audit.ts` to produce `RELEASE_CANDIDATE_AUDIT.md`
+4. **Rate limiting** — wire express-rate-limit to `/api/entities/related` (20/min) and `/insights` (10/min)
+5. **Update DEVELOPMENT.md** — document modules/, shared components, feature flags, check:arch
+
+---
+
 ## 🗓️ Session handoff — Phases 1, 2A, 3A, 3B Complete (2026-06-13)
 
 ### הושלם הפעם — Master Maturity Plan Phases 1–3

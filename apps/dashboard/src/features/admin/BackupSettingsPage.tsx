@@ -38,7 +38,7 @@ export function BackupSettingsPage() {
   const lastSnap = snaps?.[snaps.length - 1];
 
   return (
-    <div className="max-w-2xl mx-auto space-y-5 py-2">
+    <div className="max-w-2xl mx-auto space-y-5 py-2" dir="rtl">
       <div className="flex items-center gap-3 mb-6">
         <HardDriveIcon size={22} weight="duotone" style={{ color: 'var(--brand-cyan)' }} />
         <h1 className="text-xl font-bold text-parchment">הגדרות גיבוי</h1>
@@ -67,7 +67,7 @@ export function BackupSettingsPage() {
           />
           <button
             onClick={openFolderPicker}
-            title="בחר תיקייה"
+            aria-label="בחר תיקייה"
             className="btn-secondary px-3"
           >
             <FolderOpenIcon size={16} weight="duotone" />

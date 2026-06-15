@@ -10,7 +10,7 @@
 
 import { readFile, writeFile, mkdir } from 'node:fs/promises';
 import { join, dirname } from 'node:path';
-import type { UpdateState, UpdateChannel } from './types.js';
+import type { UpdateState, UpdateChannel, SystemState, RecoveryPoint } from './types.js';
 
 const DEFAULT_STATE: UpdateState = {
   currentVersion:  process.env['FACTUM_IL_VERSION'] ?? 'unknown',
@@ -19,6 +19,8 @@ const DEFAULT_STATE: UpdateState = {
   pendingManifest: null,
   rollback:        null,
   updateInProgress: false,
+  systemState:     'NORMAL',
+  recoveryPoints:  [],
 };
 
 export class UpdateStateStore {
@@ -79,6 +81,12 @@ export class UpdateStateStore {
         ? partial.channel
         : DEFAULT_STATE.channel;
 
+    const validStates: SystemState[] = ['NORMAL', 'UPDATING', 'ROLLING_BACK', 'SAFE_MODE'];
+    const systemState: SystemState =
+      (partial.systemState && validStates.includes(partial.systemState))
+        ? partial.systemState
+        : 'NORMAL';
+
     return {
       currentVersion:   typeof partial.currentVersion === 'string'
         ? partial.currentVersion
@@ -90,6 +98,8 @@ export class UpdateStateStore {
       updateInProgress: typeof partial.updateInProgress === 'boolean'
         ? partial.updateInProgress
         : false,
+      systemState,
+      recoveryPoints: Array.isArray(partial.recoveryPoints) ? partial.recoveryPoints as RecoveryPoint[] : [],
     };
   }
 }

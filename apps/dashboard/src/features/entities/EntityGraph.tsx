@@ -2,8 +2,9 @@ import { useMemo, useState } from 'react';
 import type { EntityGraphNode, EntityGraphEdge } from '@/api/hooks.js';
 
 interface Props {
-  nodes: EntityGraphNode[];
-  edges: EntityGraphEdge[];
+  nodes:        EntityGraphNode[];
+  edges:        EntityGraphEdge[];
+  onNodeClick?: (nodeId: number) => void;
 }
 
 const KIND_COLOR: Record<string, string> = {
@@ -51,7 +52,7 @@ function layout(nodes: EntityGraphNode[]): Map<number, { x: number; y: number }>
   return pos;
 }
 
-export function EntityGraph({ nodes, edges }: Props) {
+export function EntityGraph({ nodes, edges, onNodeClick }: Props) {
   const [hovered, setHovered] = useState<number | null>(null);
   const pos = useMemo(() => layout(nodes), [nodes]);
 
@@ -154,6 +155,7 @@ export function EntityGraph({ nodes, edges }: Props) {
               style={{ cursor: 'pointer' }}
               onMouseEnter={() => setHovered(n.id)}
               onMouseLeave={() => setHovered(null)}
+              onClick={() => onNodeClick?.(n.id)}
             >
               <circle
                 r={NODE_R + (isHovered ? 3 : 0)}

@@ -81,3 +81,29 @@ export function recordRetrievalCacheHit(hit: boolean): void {
 export function incrementAgentRacePrevented(): void {
   metrics.record('agent_race_prevented_total', 1, 'count', 'agent-core');
 }
+
+// ── Phase 4–5 metrics (pre-registered so feature code can emit on day one) ───
+
+export function recordPatchApplyDuration(durationMs: number): void {
+  metrics.record('patch_apply_duration_ms', durationMs, 'ms', 'patch-manager');
+}
+
+export function recordPatchRollbackDuration(durationMs: number): void {
+  metrics.record('patch_rollback_duration_ms', durationMs, 'ms', 'patch-rollback');
+}
+
+export function recordGraphQueryDuration(durationMs: number): void {
+  metrics.record('graph_query_duration_ms', durationMs, 'ms', 'graph');
+}
+
+export function recordGraphCacheHit(hit: boolean): void {
+  metrics.record('graph_cache_hit_ratio', hit ? 1 : 0, 'count', 'graph');
+}
+
+export function recordSupportExportDuration(durationMs: number): void {
+  metrics.record('support_export_duration_ms', durationMs, 'ms', 'support');
+}
+
+export function recordRecoveryPointVerifyDuration(durationMs: number): void {
+  metrics.record('recovery_point_verify_duration_ms', durationMs, 'ms', 'patch-rollback');
+}

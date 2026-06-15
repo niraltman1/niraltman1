@@ -1,7 +1,9 @@
 import { useState } from 'react';
 import { Link } from 'react-router-dom';
-import { FolderOpenIcon, RobotIcon, ArrowLeftIcon, ArrowRightIcon } from '@phosphor-icons/react';
+import { RobotIcon, ArrowLeftIcon, ArrowRightIcon } from '@phosphor-icons/react';
 import { useDocuments } from '@/api/hooks.js';
+import { LoadingPanel } from '@/components/common/LoadingPanel.js';
+import { EmptyPanel } from '@/components/common/EmptyPanel.js';
 
 const DOC_TYPE_LABELS: Record<string, string> = {
   court_ruling:      'פסק דין',
@@ -77,15 +79,12 @@ export function DocumentsPage() {
         </div>
 
         {isLoading ? (
-          <div className="flex items-center justify-center py-16 text-parchment/30 text-sm gap-2">
-            <FolderOpenIcon size={20} className="animate-pulse" />
-            טוען מסמכים...
-          </div>
+          <LoadingPanel label="טוען מסמכים…" />
         ) : docs.length === 0 ? (
-          <div className="flex flex-col items-center justify-center py-16 text-parchment/30 gap-3">
-            <FolderOpenIcon size={40} weight="thin" />
-            <span className="text-sm">אין מסמכים לתצוגה</span>
-          </div>
+          <EmptyPanel
+            message="אין מסמכים במאגר עדיין."
+            sub="ניתן להוסיף מסמכים דרך תור הקליטה או על ידי גרירה לתיק."
+          />
         ) : (
           docs.map((doc) => {
             const id        = Number(doc['id']);

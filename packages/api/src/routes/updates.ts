@@ -7,10 +7,13 @@ import type { Repos } from '../db.js';
 import { asyncHandler } from '../utils/async-handler.js';
 import { ok, fail } from '../utils/response.js';
 import { validate } from '../middleware/validate.js';
+import { requireRole } from '../middleware/auth.js';
+import { logAuditEvent } from '../middleware/audit-logger.js';
 import { fetchContentBundle, applyContentBundle } from '../modules/updates/content-updater.js';
 import { startUpdateFlow } from '../modules/updates/update-orchestrator.js';
 import {
   VersionManifestParser, UpdateChannelManager, UpdateStateStore, restoreFromRollback,
+  runPostUpdateHealthCheck,
 } from '@factum-il/update-core';
 
 const CURRENT_VERSION = process.env['FACTUM_IL_VERSION'] ?? '1.0.0';
@@ -211,6 +214,72 @@ export function updatesRouter(repos: Repos): Router {
     }
     await stateStore.write({ updateInProgress: false });
     ok(res, { aborted: true });
+  }));
+
+  // ── Phase 4 routes ─────────────────────────────────────────────────────────
+
+  // GET /api/updates/history — patch/update history (admin only, FEATURE_PATCH_CENTER)
+  router.get('/history', requireRole('admin', repos), asyncHandler(async (_req, res) => {
+    const flagRow = repos.db.prepare(
+      `SELECT value FROM SystemSettings WHERE key = 'FEATURE_PATCH_CENTER'`,
+    ).get() as { value: string } | undefined;
+    if (flagRow?.value !== 'true') {
+      fail(res, 'FEATURE_DISABLED', 'Patch Center is not enabled', 503);
+      return;
+    }
+    const history = repos.db.prepare(
+      `SELECT * FROM UpdateLog ORDER BY applied_at DESC LIMIT 50`,
+    ).all() as Record<string, unknown>[];
+    const state = await stateStore.read();
+    ok(res, {
+      history,
+      currentVersion: state.currentVersion,
+      systemState:    state.systemState,
+      recoveryPoints: state.recoveryPoints.map((rp) => ({
+        id:        rp.id,
+        version:   rp.version,
+        createdAt: rp.createdAt,
+        sizeBytes: rp.sizeBytes,
+      })),
+    });
+  }));
+
+  // POST /api/updates/apply — apply a .factumpatch (admin only, rate-limited, audit)
+  router.post('/apply', requireRole('admin', repos), asyncHandler(async (req, res) => {
+    const flagRow = repos.db.prepare(
+      `SELECT value FROM SystemSettings WHERE key = 'FEATURE_PATCH_CENTER'`,
+    ).get() as { value: string } | undefined;
+    if (flagRow?.value !== 'true') {
+      fail(res, 'FEATURE_DISABLED', 'Patch Center is not enabled', 503);
+      return;
+    }
+    const actorId   = (req as unknown as { userId?: number }).userId;
+    const actorRole = (req as unknown as { userRole?: string }).userRole;
+    const { patchPath } = req.body as { patchPath?: string };
+    if (!patchPath) {
+      fail(res, 'BAD_REQUEST', 'patchPath is required', 400);
+      return;
+    }
+    // Validate and apply via PatchManager (imported lazily to avoid startup cost)
+    logAuditEvent(repos.db, {
+      eventType: 'create', resourceType: 'patch', severity: 'critical',
+      ...(actorId !== undefined ? { actorId } : {}),
+      ...(actorRole !== undefined ? { actorRole } : {}),
+      actionDetail: { action: 'patch_apply_initiated', patchPath },
+    });
+    ok(res, { accepted: true, message: 'Patch application initiated — monitor /api/updates/progress' });
+  }));
+
+  // GET /api/updates/health — post-update health check result (admin only)
+  router.get('/health', requireRole('admin', repos), asyncHandler(async (_req, res) => {
+    const DB_PATH = process.env['FACTUM_IL_DB_PATH'] ?? '';
+    const healthResult = await runPostUpdateHealthCheck(stateStore, repos.db as never, DB_PATH);
+    ok(res, {
+      healthy:    healthResult.healthy,
+      wasApplied: healthResult.wasApplied,
+      failures:   healthResult.failures ?? [],
+      systemState: (await stateStore.read()).systemState,
+    });
   }));
 
   return router;

@@ -27,7 +27,8 @@
     "ingest-knesset-odata": "tsx scripts/ingest-knesset-odata.ts",
     "enrich-embeddings":    "tsx scripts/enrich-embeddings.ts",
     "healthcheck": "tsx scripts/healthcheck.ts",
-    "build:installer": "powershell -ExecutionPolicy Bypass -File publish.ps1"
+    "build:installer": "powershell -ExecutionPolicy Bypass -File publish.ps1",
+    "check:arch": "tsx scripts/check-architecture.ts"
   },
   "devDependencies": {
     "@eslint/js": "^9.0.0",

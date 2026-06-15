@@ -55,6 +55,45 @@ export interface RollbackMetadata {
   rollbackAvailable: boolean;
 }
 
+/** System state machine used by PatchManager. */
+export type SystemState = 'NORMAL' | 'UPDATING' | 'ROLLING_BACK' | 'SAFE_MODE';
+
+export interface PatchManifest {
+  /** Format version — PatchValidator rejects values it doesn't recognise */
+  formatVersion: number;
+  /** Minimum installed app version that can apply this patch */
+  minimumSupportedVersion: string;
+  /** Version this patch upgrades from */
+  version: string;
+  minCompatible: string;
+  targetVersion: string;
+  releaseDate: string;
+  releaseNotes: string;
+  /** Key ID in TrustedSigningKeys used to sign this patch */
+  signingKeyId: string;
+  /** Migration IDs that must already be applied on the target DB */
+  requiredMigrations: number[];
+  /** New migration IDs this patch introduces */
+  migrations: number[];
+  /** SHA-256 hex digest per file path */
+  sha256map: Record<string, string>;
+}
+
+export interface RecoveryPoint {
+  /** Unique identifier for this recovery point */
+  id: string;
+  /** Version at the time of snapshot */
+  version: string;
+  /** ISO8601 timestamp of snapshot creation */
+  createdAt: string;
+  /** Absolute path to the DB snapshot file */
+  dbSnapshotPath: string;
+  /** SHA-256 of the DB snapshot for verification */
+  dbSnapshotSha256: string;
+  /** Total snapshot size in bytes */
+  sizeBytes: number;
+}
+
 export interface UpdateState {
   /** Currently installed version string */
   currentVersion: string;
@@ -85,6 +124,18 @@ export interface UpdateState {
    * Prevents concurrent update attempts.
    */
   updateInProgress: boolean;
+
+  /**
+   * System state machine for patch lifecycle.
+   * SAFE_MODE: API starts but workspace is blocked; diagnostics remain active.
+   */
+  systemState: SystemState;
+
+  /**
+   * Recent recovery points, ordered newest-first.
+   * Retention: keep last 10 OR last 30 days, whichever is larger.
+   */
+  recoveryPoints: RecoveryPoint[];
 }
 
 export interface UpdateValidationResult {

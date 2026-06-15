@@ -236,6 +236,26 @@ const repos: Repos = {
   savedFilters:       new SavedFiltersRepository(db),
 };
 
+// ── ConfigIntegrityValidator — seed missing FEATURE_* flags (PRE-4) ───────────
+// Ensures no flag is ever undefined (prevents `undefined === true` bugs).
+{
+  const REQUIRED_FLAGS: Record<string, string> = {
+    FEATURE_PATCH_CENTER:           'false',
+    FEATURE_UPDATES_CENTER:         'false',
+    FEATURE_SUPPORT_EXPORT:         'false',
+    FEATURE_GRAPH_EXPLORER:         'false',
+    FEATURE_RELATIONSHIP_DISCOVERY: 'false',
+    FEATURE_GRAPH_INSIGHTS:         'false',
+  };
+  for (const [key, defaultValue] of Object.entries(REQUIRED_FLAGS)) {
+    try {
+      repos.db.prepare(
+        `INSERT OR IGNORE INTO SystemSettings (key, value) VALUES (?, ?)`,
+      ).run(key, defaultValue);
+    } catch { /* SystemSettings may not exist before migration 057 — skip silently */ }
+  }
+}
+
 // Release stale agent locks left over from a previous crash or restart.
 // Any agent that was status='running' when the process died can never
 // self-recover, so we mark them failed immediately on startup.

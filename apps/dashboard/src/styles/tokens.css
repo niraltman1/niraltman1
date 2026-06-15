@@ -1,0 +1,13 @@
+/* Factum-IL Semantic Design Tokens
+ * All new Phase 7 components must use these variables.
+ * Zero hardcoded #hex values in Phase 7 code.
+ */
+
+:root {
+  --color-danger:  #f87171;   /* red-400  — destructive actions, errors */
+  --color-warning: #fbbf24;   /* amber-400 — warnings, caution states */
+  --color-info:    #60a5fa;   /* blue-400  — informational messages */
+  --color-success: #4ade80;   /* green-400 — success states, confirmations */
+  --color-surface: #1c1c20;   /* navy-100  — card backgrounds */
+  --color-border:  rgba(245, 245, 245, 0.1);  /* parchment/10 — hairline borders */
+}
