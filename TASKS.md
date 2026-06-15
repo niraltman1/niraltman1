@@ -45,29 +45,23 @@
 - Hooks: `useRelatedEntities`, `useGraphInsights`
 - `PHASE_5_COMPLETION_REPORT.md`
 
-#### Phase 7 — UX Consistency ✅ (shared components done; page adoption in progress)
+#### Phase 7 — UX Consistency ✅ COMPLETE
 - `apps/dashboard/src/styles/tokens.css` — 6 CSS custom properties; imported in globals.css
 - `CyberCard.tsx`, `SeverityBadge.tsx`, `LoadingPanel.tsx`, `ErrorPanel.tsx`, `EmptyPanel.tsx`
-- Applied to: GraphExplorerPage (full), CasesPage (loading/error), SupportPage (loading/empty), BackupSettingsPage (dir="rtl" fix)
+- Applied to all 44 pages — LoadingPanel, ErrorPanel, EmptyPanel with contextual Hebrew messages
+- `aria-label` on all icon-only buttons; `dir="rtl"` throughout
+- CI fix: PSGallery trust step for `windows-latest` PowerShell 7 runners
 - `WORKSPACE_PERFORMANCE_REPORT.md` — no regressions vs baseline
-- `PHASE_7_COMPLETION_REPORT.md`, `UX_AUDIT_CHECKLIST.md` (filled in, 44 pages audited)
+- `PHASE_7_COMPLETION_REPORT.md`, `UX_AUDIT_CHECKLIST.md` — 44/44 pages ✅
 
-### CI Status (PR #112)
-- ✅ Typecheck (Linux + Windows)
-- ✅ Playwright E2E (all specs pass)
-- ✅ Test suites (logic + env + chaos)
-- 🔄 Architecture guard (continue-on-error — 149 pre-existing violations tracked in ARCHITECTURE_AUDIT.md)
+### PR #112 — ✅ MERGED (2026-06-15)
+All 5 CI checks passed. Squash-merged to main.
 
-### מה לעשות עכשיו
-1. **Merge PR #112** when CI is green
-2. **Phase 7 follow-up** (tracked in UX_AUDIT_CHECKLIST.md):
-   - Apply LoadingPanel/ErrorPanel to 13 remaining pages
-   - Apply EmptyPanel with contextual messages to 12 remaining pages
-   - Add `aria-label` to icon-only buttons across 10 pages
-   - Wire `role="dialog"` + focus trap to NewCaseWizard and other modals
-3. **RC Audit** — run `scripts/generate-rc-audit.ts` to produce `RELEASE_CANDIDATE_AUDIT.md`
-4. **Rate limiting** — wire express-rate-limit to `/api/entities/related` (20/min) and `/insights` (10/min)
-5. **Update DEVELOPMENT.md** — document modules/, shared components, feature flags, check:arch
+### מה לעשות עכשיו (Release Candidate)
+1. **RC Audit** — run `scripts/generate-rc-audit.ts` to produce `RELEASE_CANDIDATE_AUDIT.md`
+2. **Rate limiting** — wire express-rate-limit to `/api/entities/related` (20/min) and `/insights` (10/min)
+3. **Update DEVELOPMENT.md** — document modules/, shared components, feature flags, check:arch
+4. **NewCaseWizard modal** — `role="dialog"`, `aria-modal="true"`, focus trap (follow-up from Phase 7)
 
 ---
 
