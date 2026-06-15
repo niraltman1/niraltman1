@@ -26,7 +26,8 @@
     "ingest-registry": "node tools/ingest-legal-sources.mjs",
     "ingest-knesset-odata": "tsx scripts/ingest-knesset-odata.ts",
     "enrich-embeddings":    "tsx scripts/enrich-embeddings.ts",
-    "build:installer": "powershell -ExecutionPolicy Bypass -File publish.ps1"
+    "build:installer": "powershell -ExecutionPolicy Bypass -File publish.ps1",
+    "check:arch": "tsx scripts/check-architecture.ts"
   },
   "devDependencies": {
     "@eslint/js": "^9.0.0",

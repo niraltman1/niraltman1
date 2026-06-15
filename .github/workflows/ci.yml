@@ -32,6 +32,9 @@ jobs:
       - name: Lint
         run: pnpm -r lint
 
+      - name: Architecture guard
+        run: pnpm check:arch
+
       - name: Test (logic — all unit tests)
         id: test-logic
         run: pnpm test:logic
