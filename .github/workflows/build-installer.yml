@@ -40,7 +40,7 @@ jobs:
       - name: Install Hebrew language pack for Inno Setup
         shell: pwsh
         run: |
-          $url  = "https://raw.githubusercontent.com/jrsoftware/issrc/main/Files/Languages/Unofficial/Hebrew.isl"
+          $url  = "https://raw.githubusercontent.com/jrsoftware/issrc/main/Files/Languages/Hebrew.isl"
           $dest = "${env:ProgramFiles(x86)}\Inno Setup 6\Languages\Hebrew.isl"
           Invoke-WebRequest -Uri $url -OutFile $dest -UseBasicParsing
           Write-Host "Hebrew.isl installed to $dest"
