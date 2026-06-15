@@ -22,13 +22,6 @@ CREATE TABLE IF NOT EXISTS LegalDocumentEmbeddings (
 
 CREATE INDEX IF NOT EXISTS idx_legal_emb_doc ON LegalDocumentEmbeddings(document_id);
 
--- Native sqlite-vec KNN table (SKIP_ON_ERROR — sqlite-vec extension may not be loaded)
--- When available, provides sub-millisecond approximate nearest-neighbor search.
--- SKIP_ON_ERROR
-CREATE VIRTUAL TABLE IF NOT EXISTS vec_legal_documents USING vec0(
-  embedding float[768]
-);
-
 -- Chunked text for legal documents (for RAG — long documents need chunking)
 CREATE TABLE IF NOT EXISTS LegalDocumentChunks (
   id          INTEGER PRIMARY KEY AUTOINCREMENT,
