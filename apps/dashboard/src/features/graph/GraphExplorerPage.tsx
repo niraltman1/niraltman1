@@ -1,7 +1,10 @@
 import { useState } from 'react';
-import { CircleNotchIcon, GraphIcon, FunnelIcon } from '@phosphor-icons/react';
+import { GraphIcon, FunnelIcon } from '@phosphor-icons/react';
 import { useEntityGraph } from '@/api/hooks.js';
 import { EntityGraph } from '@/features/entities/EntityGraph.js';
+import { LoadingPanel } from '@/components/common/LoadingPanel.js';
+import { ErrorPanel } from '@/components/common/ErrorPanel.js';
+import { EmptyPanel } from '@/components/common/EmptyPanel.js';
 import type { EntityGraphNode, EntityGraphEdge } from '@/api/hooks.js';
 
 const KIND_FILTERS = ['Judge', 'Court', 'Case'] as const;
@@ -91,23 +94,25 @@ export function GraphExplorerPage() {
         {/* Graph canvas */}
         <div className="flex-1 overflow-hidden">
           {isLoading && (
-            <div className="flex items-center justify-center h-full gap-2 text-parchment/30">
-              <CircleNotchIcon size={20} className="animate-spin" />
-              <span className="text-sm">טוען גרף…</span>
+            <div className="flex items-center justify-center h-full">
+              <div className="w-64">
+                <LoadingPanel label="טוען גרף…" rows={3} />
+              </div>
             </div>
           )}
 
           {isError && (
-            <div className="flex items-center justify-center h-full text-red-400 text-sm">
-              שגיאה בטעינת הגרף. נסה שוב.
+            <div className="flex items-center justify-center h-full p-6">
+              <ErrorPanel message="שגיאה בטעינת גרף הישויות." />
             </div>
           )}
 
           {!isLoading && !isError && filteredNodes.length === 0 && (
-            <div className="flex flex-col items-center justify-center h-full gap-2 text-parchment/30">
-              <GraphIcon size={40} />
-              <p className="text-sm">אין ישויות בגרף עדיין.</p>
-              <p className="text-xs text-parchment/20">הפעל את מנוע הישויות כדי לבנות את הגרף.</p>
+            <div className="flex items-center justify-center h-full p-6">
+              <EmptyPanel
+                message="אין ישויות בגרף עדיין."
+                sub="הפעל את מנוע הישויות כדי לבנות את גרף הידע."
+              />
             </div>
           )}
 

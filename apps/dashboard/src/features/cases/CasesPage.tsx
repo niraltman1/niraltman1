@@ -11,6 +11,8 @@ import {
 } from '@phosphor-icons/react';
 import { useCases } from '@/api/hooks.js';
 import { NewCaseWizard } from '@/features/legal-engine/NewCaseWizard.js';
+import { LoadingPanel } from '@/components/common/LoadingPanel.js';
+import { ErrorPanel } from '@/components/common/ErrorPanel.js';
 
 const STATUS_LABELS: Record<string, string> = {
   open:      'פתוח · פעיל',
@@ -364,16 +366,8 @@ export function CasesPage() {
 
           {/* Table */}
           <div style={{ flex: 1, overflow: 'auto' }}>
-            {isLoading && (
-              <div style={{ padding: 48, textAlign: 'center', color: 'var(--fg-3)', fontSize: 12 }}>
-                טוען…
-              </div>
-            )}
-            {isError && (
-              <div style={{ padding: 48, textAlign: 'center', color: 'var(--bad)', fontSize: 12 }}>
-                שגיאה בטעינת הנתונים
-              </div>
-            )}
+            {isLoading && <LoadingPanel label="טוען תיקים…" />}
+            {isError && <ErrorPanel message="שגיאה בטעינת רשימת התיקים." />}
             {!isLoading && !isError && (
               <table className="tbl">
                 <thead>

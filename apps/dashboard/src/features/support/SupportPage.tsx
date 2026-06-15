@@ -7,6 +7,8 @@ import {
   HardDriveIcon, WarningCircleIcon, CheckCircleIcon, WarningIcon,
   ArrowClockwiseIcon, DownloadSimpleIcon, WrenchIcon,
 } from '@phosphor-icons/react';
+import { LoadingPanel } from '@/components/common/LoadingPanel.js';
+import { EmptyPanel } from '@/components/common/EmptyPanel.js';
 
 interface DiagnosticCheck {
   name:    string;
@@ -131,7 +133,7 @@ export function SupportPage() {
           </div>
           <div style={{ padding: '8px 12px' }}>
             {statusLoading ? (
-              <div className="animate-pulse" style={{ height: 60, background: 'var(--surface-2)', borderRadius: 6 }} />
+              <LoadingPanel rows={2} />
             ) : status ? (
               <>
                 <div className="flex items-center gap-2 mb-3 px-2">
@@ -214,12 +216,12 @@ export function SupportPage() {
           </div>
           <div style={{ padding: '8px 12px' }}>
             {recsLoading ? (
-              <div className="animate-pulse" style={{ height: 80, background: 'var(--surface-2)', borderRadius: 6 }} />
+              <LoadingPanel rows={3} />
             ) : recs.length === 0 ? (
-              <div className="flex items-center gap-2 px-2 py-3">
-                <CheckCircleIcon size={16} weight="fill" style={{ color: 'var(--ok)' }} />
-                <span style={{ color: 'var(--ok)', fontSize: 13 }}>אין המלצות תיקון — המערכת תקינה</span>
-              </div>
+              <EmptyPanel
+                message="אין המלצות תיקון."
+                sub="המערכת תקינה — לא זוהו בעיות הדורשות טיפול."
+              />
             ) : (
               <div className="flex flex-col gap-2">
                 {recs.map((rec) => (
