@@ -2,9 +2,15 @@ import { Router } from 'express';
 import { normalizeJudge, normalizeCourt } from '@factum-il/legal-ontology';
 import type { Repos } from '../db.js';
 import { asyncHandler } from '../utils/async-handler.js';
-import { ok } from '../utils/response.js';
+import { ok, fail } from '../utils/response.js';
 import { summarizeEntities, entityDetail } from '../utils/entity-grouping.js';
 import { backfillEntityGraph, entityGraphStats } from '../utils/entity-graph.js';
+import { requireRole } from '../middleware/auth.js';
+import {
+  findRelatedJudges, findRelatedCases, findRelatedDocuments,
+  generateGraphInsights, GraphQueryTimeoutError,
+} from '../modules/graph/RelationshipDiscovery.js';
+import { graphCache, CacheKeys } from '../utils/GraphInsightsCache.js';
 
 /**
  * Entity-Centric Navigation (M6) + persistent knowledge graph.
@@ -52,6 +58,80 @@ export function entitiesRouter(repos: Repos): Router {
   // One-shot backfill from existing DocumentInsights into the persisted graph.
   router.post('/backfill', asyncHandler((_req, res) => {
     ok(res, backfillEntityGraph(repos.db));
+  }));
+
+  // ── GET /api/entities/related (Phase 5) ──────────────────────────────────
+  // Returns related judges, cases, and documents for a case. Feature-flagged.
+  // requireRole('attorney') enforced before feature flag for correct 401/403.
+  router.get('/related', requireRole('attorney', repos), asyncHandler(async (req, res) => {
+    const flagRow = repos.db.prepare(
+      `SELECT value FROM SystemSettings WHERE key = 'FEATURE_RELATIONSHIP_DISCOVERY'`,
+    ).get() as { value: string } | undefined;
+    if (flagRow?.value !== 'true') {
+      fail(res, 'FEATURE_DISABLED', 'Relationship Discovery is not enabled', 503);
+      return;
+    }
+
+    const caseId  = Number(req.query['caseId']);
+    const page    = Math.max(1, Number(req.query['page'] ?? 1));
+    const pageSize = Math.min(100, Math.max(1, Number(req.query['pageSize'] ?? 20)));
+
+    if (!caseId || isNaN(caseId)) {
+      fail(res, 'INVALID_PARAM', 'caseId is required', 400);
+      return;
+    }
+
+    const cacheKey = `${CacheKeys.related(caseId)}:${page}:${pageSize}`;
+    const cached = await graphCache.get<unknown>(cacheKey);
+    if (cached !== undefined) { ok(res, cached); return; }
+
+    try {
+      const [judges, cases, documents] = await Promise.all([
+        findRelatedJudges(repos.db as never, caseId, page, pageSize),
+        findRelatedCases(repos.db as never, caseId, page, pageSize),
+        findRelatedDocuments(repos.db as never, caseId, page, pageSize),
+      ]);
+      const result = { judges, cases, documents };
+      await graphCache.set(cacheKey, result);
+      ok(res, result);
+    } catch (err) {
+      if (err instanceof GraphQueryTimeoutError) {
+        fail(res, 'QUERY_TIMEOUT', err.message, 504);
+        return;
+      }
+      throw err;
+    }
+  }));
+
+  // ── GET /api/entities/insights (Phase 5) ─────────────────────────────────
+  // Global graph insights (most active judges, courts). Feature-flagged.
+  router.get('/insights', requireRole('attorney', repos), asyncHandler(async (req, res) => {
+    const flagRow = repos.db.prepare(
+      `SELECT value FROM SystemSettings WHERE key = 'FEATURE_GRAPH_INSIGHTS'`,
+    ).get() as { value: string } | undefined;
+    if (flagRow?.value !== 'true') {
+      fail(res, 'FEATURE_DISABLED', 'Graph Insights is not enabled', 503);
+      return;
+    }
+
+    const limit   = Math.min(100, Math.max(1, Number(req.query['limit'] ?? 50)));
+    const page    = Math.max(1, Number(req.query['page'] ?? 1));
+    const pageSize = Math.min(100, Math.max(1, Number(req.query['pageSize'] ?? 50)));
+
+    const cached = await graphCache.get<unknown>(CacheKeys.insights);
+    if (cached !== undefined) { ok(res, cached); return; }
+
+    try {
+      const result = await generateGraphInsights(repos.db as never, { limit, page, pageSize });
+      await graphCache.set(CacheKeys.insights, result);
+      ok(res, result);
+    } catch (err) {
+      if (err instanceof GraphQueryTimeoutError) {
+        fail(res, 'QUERY_TIMEOUT', err.message, 504);
+        return;
+      }
+      throw err;
+    }
   }));
 
   router.get('/judges', asyncHandler((_req, res) => {

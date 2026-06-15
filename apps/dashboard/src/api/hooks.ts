@@ -2817,6 +2817,44 @@ export function useEntityGraph() {
   });
 }
 
+// ── Phase 5: Graph Intelligence ──────────────────────────────────────────────────
+
+export interface RelatedJudge    { judge: string; occurrenceCount: number; reasons: string[]; }
+export interface RelatedCase     { caseId: number; caseNumber: string | null; occurrenceCount: number; reasons: string[]; }
+export interface RelatedDocument { documentId: number; title: string | null; occurrenceCount: number; reasons: string[]; }
+export interface GraphInsight    { type: string; label: string; occurrenceCount: number; reasons: string[]; }
+
+interface Paginated<T> { items: T[]; total: number; page: number; pageSize: number; totalPages: number; }
+
+export interface RelatedEntitiesData {
+  judges:    Paginated<RelatedJudge>;
+  cases:     Paginated<RelatedCase>;
+  documents: Paginated<RelatedDocument>;
+}
+
+export function useRelatedEntities(caseId: number | null, page = 1, pageSize = 20) {
+  return useQuery({
+    queryKey: ['entities', 'related', caseId, page, pageSize],
+    queryFn:  () => fetchJSON<RelatedEntitiesData>(
+      `/api/entities/related?caseId=${caseId}&page=${page}&pageSize=${pageSize}`,
+    ),
+    enabled:   caseId !== null,
+    staleTime: 120_000,
+    retry:     false,
+  });
+}
+
+export function useGraphInsights(limit = 50, page = 1, pageSize = 50) {
+  return useQuery({
+    queryKey: ['entities', 'insights', limit, page, pageSize],
+    queryFn:  () => fetchJSON<Paginated<GraphInsight>>(
+      `/api/entities/insights?limit=${limit}&page=${page}&pageSize=${pageSize}`,
+    ),
+    staleTime: 300_000,
+    retry:     false,
+  });
+}
+
 // ── Smart Collections (M7) ──────────────────────────────────────────────────────
 export interface SmartCollectionMeta { key: string; label: string; count: number; }
 export interface SmartCollectionItem {

@@ -71,6 +71,7 @@ const DashboardHomePage  = lz(() => import('@/features/workspace/DashboardHomePa
 const SupportPage        = lz(() => import('@/features/support/SupportPage.js'),        'SupportPage');
 const DataMigrationPage  = lz(() => import('@/features/data-migration/DataMigrationPage.js'), 'DataMigrationPage');
 const UpdatesCenterPage  = lz(() => import('@/features/admin/updates/UpdatesCenterPage.js'), 'UpdatesCenterPage');
+const GraphExplorerPage  = lz(() => import('@/features/graph/GraphExplorerPage.js'),         'GraphExplorerPage');
 
 // ── Router ───────────────────────────────────────────────────────────────────
 
@@ -143,6 +144,7 @@ export const router: RemixRouter = createBrowserRouter([
       { path: 'admin/journal',          element: <JournalPage />        },
       { path: 'admin/rbac',             element: <RBACManagePage />     },
       { path: 'admin/updates',          element: <UpdatesCenterPage />  },
+      { path: 'graph',                  element: <GraphExplorerPage />  },
       { path: '*',                      element: <NotFoundPage />       },
     ],
   },
