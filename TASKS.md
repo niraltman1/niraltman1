@@ -2,7 +2,7 @@
 
 ## 🗓️ Session handoff — Phases 4–7 Complete (2026-06-15)
 
-**Branch:** `claude/factum-phases-4-7-yym4i8` — PR #112 (open, CI in progress)
+**Branch:** `claude/factum-phases-4-7-yym4i8` — PR #112 ✅ MERGED, PR #113 open (RC finalization)
 
 ### הושלם הפעם — Release Candidate Phases 4, 6, 5, 7
 
@@ -57,11 +57,16 @@
 ### PR #112 — ✅ MERGED (2026-06-15)
 All 5 CI checks passed. Squash-merged to main.
 
-### מה לעשות עכשיו (Release Candidate)
-1. **RC Audit** — run `scripts/generate-rc-audit.ts` to produce `RELEASE_CANDIDATE_AUDIT.md`
-2. **Rate limiting** — wire express-rate-limit to `/api/entities/related` (20/min) and `/insights` (10/min)
-3. **NewCaseWizard modal** — `role="dialog"`, `aria-modal="true"`, focus trap (follow-up from Phase 7)
-4. **Update DEVELOPMENT.md** — document modules/, shared components, feature flags, check:arch
+### RC Finalization — ✅ COMPLETE (PR #113)
+1. **RC Audit** ✅ — `scripts/generate-rc-audit.ts` created; `RELEASE_CANDIDATE_AUDIT.md` written (9/10 gates PASS)
+2. **Rate limiting** ✅ — `/api/entities/related` (20/min) + `/api/entities/insights` (10/min) in `app.ts`
+3. **NewCaseWizard modal** ✅ — `role="dialog"`, `aria-modal="true"`, `useFocusTrap` hook, Escape dismiss, aria-labels
+4. **Update DEVELOPMENT.md** ✅ — Phase 7 shared components, Feature Flags, Architecture Validation, CI PSGallery note
+
+### מה לעשות עכשיו
+1. **Merge PR #113** when CI is green
+2. **081+ migration** — only remaining RC gate failure; create when schema changes are needed
+3. RC_STATUS will flip to APPROVED once the Migrations gate passes
 
 ---
 
