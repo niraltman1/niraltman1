@@ -120,6 +120,7 @@ Source: "FactumIL_Dist\tools\MicrosoftEdgeWebview2Setup.exe";     DestDir: "{app
 Source: "FactumIL_Dist\tools\whisper-fast.exe";                   DestDir: "{app}\tools"; Flags: ignoreversion skipifsourcedoesntexist
 Source: "FactumIL_Dist\tools\ffmpeg.exe";                         DestDir: "{app}\tools"; Flags: ignoreversion skipifsourcedoesntexist
 Source: "FactumIL_Dist\tools\sqlite-vec.dll";                     DestDir: "{app}\tools"; Flags: ignoreversion skipifsourcedoesntexist
+Source: "FactumIL_Dist\tools\register-ollama-model.ps1";          DestDir: "{app}\tools"; Flags: ignoreversion skipifsourcedoesntexist
 
 ; ── AI model GGUF (bundled — no internet required on first launch) ────────────
 Source: "FactumIL_Dist\models\law-il-E2B-Q4_K_M.gguf"; DestDir: "{app}\models"; Flags: ignoreversion skipifsourcedoesntexist
@@ -190,7 +191,17 @@ Filename: "{app}\tools\OllamaSetup.exe"; \
   Flags: waituntilterminated skipifdoesntexist; \
   Check: NeedsOllama
 
-; ── 3. Launch app after install (the WPF shell handles everything else) ───────
+; ── 3. Register bundled GGUF with Ollama (offline — no internet required) ─────
+; Runs 'ollama create' against the on-disk GGUF so the model is immediately
+; available when the app first launches. Non-fatal: the WPF OllamaService
+; provides a first-run fallback if this step is skipped or fails.
+Filename: "powershell.exe"; \
+  Parameters: "-WindowStyle Hidden -NonInteractive -ExecutionPolicy Bypass -File ""{app}\tools\register-ollama-model.ps1"" -GgufPath ""{app}\models\law-il-E2B-Q4_K_M.gguf"""; \
+  StatusMsg: "מאתחל מודל AI (ייתכן שייקח מספר דקות)…"; \
+  Flags: waituntilterminated; \
+  Check: FileExists(ExpandConstant('{app}\models\law-il-E2B-Q4_K_M.gguf')) and FileExists(ExpandConstant('{app}\tools\register-ollama-model.ps1'))
+
+; ── 4. Launch app after install (the WPF shell handles everything else) ───────
 Filename: "{app}\{#AppExeName}"; \
   Description: "הפעל את Factum IL עכשיו"; \
   Flags: nowait postinstall skipifsilent skipifdoesntexist

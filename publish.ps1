@@ -69,6 +69,7 @@ $WorkspacePackages = @(
     'citation-engine', 'pipeline', 'evals', 'orchestrator', 'policy-engine',
     'agent-core', 'support-diagnostics', 'update-core',
     'enterprise-hooks', 'encrypted-backup', 'litigation-intelligence',
+    'database-intelligence', 'sdk',
     'api'
 )
 
@@ -747,6 +748,15 @@ if (-not (Test-Path $VecDll)) {
     }
 } else {
     Write-Host "  ✓ sqlite-vec already staged" -ForegroundColor Green
+}
+
+# Ollama model registration helper script (bundled into installer tools/)
+$OllamaRegScript = Join-Path $RepoRoot "scripts\register-ollama-model.ps1"
+if (Test-Path $OllamaRegScript) {
+    Copy-Item $OllamaRegScript (Join-Path $ToolsDst "register-ollama-model.ps1") -Force
+    Write-Host "  ✓ Ollama model registration script staged" -ForegroundColor Green
+} else {
+    Write-Host "  ⚠ scripts\register-ollama-model.ps1 not found — skipping" -ForegroundColor Yellow
 }
 
 StepElapsed
