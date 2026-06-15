@@ -333,6 +333,96 @@ All agents implement the base interface from `packages/agent-core` and run withi
 
 All agents: health-check Ollama before calling, degrade gracefully if down, never log document content.
 
+## Phase 7 — Shared UI Components
+
+All new dashboard components use CSS custom properties from `apps/dashboard/src/styles/tokens.css`
+(imported as the first line of `globals.css`). Never use hardcoded `#hex` colors in new components.
+
+| Token | Value |
+|-------|-------|
+| `--color-danger` | `#f87171` (red-400) |
+| `--color-warning` | `#fbbf24` (amber-400) |
+| `--color-info` | `#60a5fa` (blue-400) |
+| `--color-success` | `#4ade80` (green-400) |
+| `--color-surface` | `#1c1c20` |
+| `--color-border` | `rgba(245,245,245,0.1)` |
+
+### Shared Components (`apps/dashboard/src/components/common/`)
+
+| Component | Props | Use for |
+|-----------|-------|---------|
+| `LoadingPanel` | `label?, rows?` | Data-fetch loading states (not mutation spinners) |
+| `ErrorPanel` | `message?, onRetry?` | Data-fetch errors with Hebrew message + "נסה שוב" |
+| `EmptyPanel` | `message, sub?, action?` | Empty lists — must have contextual `message` + `sub` next-action |
+| `CyberCard` | `title, children, actions?, badge?, footer?` | Section cards |
+| `SeverityBadge` | `severity: 'critical'\|'warning'\|'info'\|'success', label?` | Status chips |
+
+**Rule:** `LoadingPanel`/`ErrorPanel` replace top-level data-fetch states only. Button-level pending
+spinners (mutation state) stay inline — do NOT wrap them in `LoadingPanel`.
+
+**EmptyPanel message standards:**
+BAD: `<EmptyPanel message="אין נתונים" />`
+GOOD: `<EmptyPanel message="אין תיקים פעילים." sub="ניתן ליצור תיק חדש דרך 'תיק חדש' בתפריט." />`
+
+### Focus Trap Hook (`apps/dashboard/src/hooks/useFocusTrap.ts`)
+
+Modals must use `useFocusTrap(ref)` + `role="dialog"` + `aria-modal="true"` + Escape key dismiss.
+Tab/Shift+Tab cycle only within the modal element while open; focus restores to trigger on close.
+
+## Feature Flags
+
+All major features are gated by boolean flags in the `SystemSettings` SQLite table.
+
+```sql
+SELECT value FROM SystemSettings WHERE key = 'FEATURE_GRAPH_EXPLORER';
+-- 'true' | 'false'
+```
+
+`ConfigIntegrityValidator` in `packages/api/src/start.ts` seeds missing flags with `'false'` on
+startup — never rely on `undefined === true`.
+
+| Flag | Feature |
+|------|---------|
+| `FEATURE_UPDATES_CENTER` | UpdatesCenterPage + patch history |
+| `FEATURE_PATCH_CENTER` | PatchManager + /api/updates/apply |
+| `FEATURE_SUPPORT_EXPORT` | SupportSessionExporter |
+| `FEATURE_GRAPH_EXPLORER` | GraphExplorerPage |
+| `FEATURE_RELATIONSHIP_DISCOVERY` | /api/entities/related |
+| `FEATURE_GRAPH_INSIGHTS` | /api/entities/insights |
+
+Backend pattern: check flag AFTER `requireRole()` to preserve correct 401/403 semantics.
+Frontend pattern: hide nav entry + redirect to `/workspace` if flag is `'false'`.
+
+## Architecture Validation
+
+```bash
+pnpm check:arch          # runs scripts/check-architecture.ts
+```
+
+**Critical violations** (exit code 1, fails CI): `db.prepare(` in route files, circular package
+imports, `apps/dashboard` imported from non-dashboard package.
+**Warnings** (logged to `ARCHITECTURE_AUDIT.md`, do not fail CI): map/filter in route handlers,
+route files >120 LOC.
+
+149 pre-existing warnings are tracked in `ARCHITECTURE_AUDIT.md`; only new Critical violations
+will block CI.
+
+## CI — Windows PowerShell 7 Notes
+
+On `windows-latest` GitHub Actions runners, PSGallery is registered but **untrusted** by default.
+`Install-Module` will fail with "No match was found" unless PSGallery is trusted first.
+
+The `.github/workflows/ci.yml` `check-powershell` job handles this with:
+
+```powershell
+Set-PSRepository -Name PSGallery -InstallationPolicy Trusted
+Install-Module -Name PSScriptAnalyzer -Force -Scope CurrentUser -Repository PSGallery
+Install-Module -Name Pester        -Force -Scope CurrentUser -Repository PSGallery -SkipPublisherCheck
+```
+
+Do **not** add `Install-PackageProvider -Name NuGet` — it is not needed in PowerShell 7 and will
+fail with a package tag mismatch error on these runners.
+
 ## Academic Hub
 
 Routes: `/studies/*` in API, `/studies` in dashboard.

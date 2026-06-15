@@ -1,4 +1,5 @@
-import { useState } from 'react';
+import { useState, useRef, useEffect } from 'react';
+import { useFocusTrap } from '@/hooks/useFocusTrap.js';
 import {
   GavelIcon, ArrowRightIcon, CheckCircleIcon,
   CalendarBlankIcon, XIcon, MagnifyingGlassIcon,
@@ -36,6 +37,15 @@ export function NewCaseWizard({ defaultClientId, onClose, onCreated }: Props) {
   const applyTpl     = useApplyTemplate();
   const { data: clientsData } = useClients(1, 200);
   const clients = (clientsData?.items ?? []) as Record<string, unknown>[];
+
+  const wizardRef = useRef<HTMLElement>(null);
+  useFocusTrap(wizardRef);
+
+  useEffect(() => {
+    const handler = (e: KeyboardEvent) => { if (e.key === 'Escape') onClose(); };
+    window.addEventListener('keydown', handler);
+    return () => window.removeEventListener('keydown', handler);
+  }, [onClose]);
 
   const [step,         setStep]         = useState<Step>('details');
   const [newCase,      setNewCase]      = useState<CasePayload | null>(null);
@@ -113,6 +123,10 @@ export function NewCaseWizard({ defaultClientId, onClose, onCreated }: Props) {
       onClick={(e) => { if (e.target === e.currentTarget) onClose(); }}
     >
       <aside
+        ref={wizardRef}
+        role="dialog"
+        aria-modal="true"
+        aria-label="יצירת תיק חדש"
         className="w-full max-w-lg bg-navy-100 border-r border-parchment/10 h-full flex flex-col shadow-2xl overflow-hidden"
         dir="rtl"
       >
@@ -122,8 +136,8 @@ export function NewCaseWizard({ defaultClientId, onClose, onCreated }: Props) {
             <GavelIcon size={20} weight="duotone" className="text-gold" />
             <h2 className="font-serif font-bold text-parchment text-lg">אשף תיק חדש</h2>
           </div>
-          <button onClick={onClose} className="text-parchment/40 hover:text-parchment/70">
-            <XIcon size={20} />
+          <button onClick={onClose} className="text-parchment/40 hover:text-parchment/70" aria-label="סגור">
+            <XIcon size={20} aria-hidden="true" />
           </button>
         </div>
 
