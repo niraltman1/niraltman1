@@ -2276,6 +2276,83 @@ export function useRunCaseLawTest() {
   });
 }
 
+// ── Verdict Corpus (Supreme Court + all Israeli courts) ──────────────────
+
+export interface VerdictStats {
+  verdicts: number;
+  embedded: number;
+  courts:   number;
+}
+
+export interface VerdictRow {
+  id:            number;
+  docKey:        string;
+  caseNumber:    string | null;
+  caseName:      string | null;
+  court:         string | null;
+  verdictType:   string | null;
+  verdictDate:   string | null;
+  year:          number | null;
+  judges:        string[];
+  parties:       string[];
+  lawyers:       string[];
+  verbatimText:  string;
+  charCount:     number;
+  sourceDataset: string;
+  snapshotLabel: string;
+  sourceLicense: string | null;
+}
+
+export interface VerdictSearchHit {
+  id:          number;
+  docKey:      string;
+  caseNumber:  string | null;
+  caseName:    string | null;
+  court:       string | null;
+  verdictType: string | null;
+  verdictDate: string | null;
+  year:        number | null;
+  snippet:     string;
+}
+
+export interface VerdictCorpusResponse {
+  stats:    VerdictStats;
+  verdicts: VerdictRow[];
+}
+
+export function useVerdictCorpus(opts?: { court?: string; limit?: number }) {
+  const qs = new URLSearchParams();
+  if (opts?.court) qs.set('court', opts.court);
+  if (opts?.limit) qs.set('limit', String(opts.limit));
+  return useQuery({
+    queryKey: ['verdict-corpus', opts ?? {}],
+    queryFn:  () => fetchJSON<VerdictCorpusResponse>(`/api/verdict-corpus/verdicts?${qs}`),
+    staleTime: 60_000,
+  });
+}
+
+export function useVerdictSearch(query: string, opts?: { court?: string }) {
+  const qs = new URLSearchParams({ q: query });
+  if (opts?.court) qs.set('court', opts.court);
+  return useQuery({
+    queryKey: ['verdict-search', query, opts ?? {}],
+    queryFn:  () => fetchJSON<VerdictSearchHit[]>(`/api/verdict-corpus/search?${qs}`),
+    enabled:  query.trim().length >= 2,
+    staleTime: 30_000,
+  });
+}
+
+export function useVerdictDetail(docKey: string | null) {
+  return useQuery({
+    queryKey: ['verdict-detail', docKey],
+    queryFn:  () => fetchJSON<VerdictRow>(
+      `/api/verdict-corpus/verdicts/${encodeURIComponent(docKey!)}`,
+    ),
+    enabled:  docKey !== null && docKey.trim() !== '',
+    staleTime: 300_000,
+  });
+}
+
 // ── Citations ────────────────────────────────────────────────────────────
 
 export interface CitationRecord {

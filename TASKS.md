@@ -117,7 +117,52 @@
 - New hooks: `useAgentDraftMotion`, `useAgentDraftLetter`, `useAgentEvidenceReview`
 
 ### מה לעשות עכשיו
-- **HARD STOP** — All Phases 1–3 + Priority B complete. Do not begin Phases 4–7 without explicit approval.
+- ~~HARD STOP~~ — אושר המשך. ראה Session 2026-06-14 למטה.
+
+---
+
+## 🗓️ Session handoff — Supreme Court Corpus Integration (2026-06-14)
+
+### הושלם הפעם
+
+#### Supreme Court Verdict Corpus UI Integration ✅
+**ענף:** `claude/factum-il-ux-audit-tr57sa`
+
+**Backend (existing, confirmed wired):**
+- `GET /api/verdict-corpus/verdicts?court=&limit=` — list recent rulings + stats
+- `GET /api/verdict-corpus/search?q=&court=` — FTS5 keyword search with snippets
+- `GET /api/verdict-corpus/verdicts/:docKey` — full verbatim text
+- Corpus: VerdictCorpus (migration 069) + SupremeCourtVerdicts (migration 075) + PrecedentChunks (076) + vec_precedent_verdicts (077)
+
+**New hooks** (`apps/dashboard/src/api/hooks.ts`):
+- `useVerdictCorpus(opts?)` — lists recent verdicts + stats
+- `useVerdictSearch(query, opts?)` — FTS5 search, enabled when query ≥ 2 chars
+- `useVerdictDetail(docKey)` — full text of one verdict
+- Types: `VerdictStats`, `VerdictRow`, `VerdictSearchHit`, `VerdictCorpusResponse`
+
+**New page:** `apps/dashboard/src/features/legal/SupremeCourtSearchPage.tsx`
+- Route: `/supreme-court` (registered in router/index.tsx)
+- Nav: added to מחקר משפטי group as "פסיקה ישראלית" (GavelIcon)
+- Two-panel split: results list (left) + full-text detail viewer (right)
+- Stats bar showing corpus size (verdicts/courts/embedded)
+- FTS5 keyword search + court filter (עליון/מחוזי/שלום/עבודה/משפחה/הכל)
+- Provenance badge on each verdict (sourceDataset · snapshotLabel · license)
+- Copy citation button
+
+**MatterWorkbench integration** (`apps/dashboard/src/features/cases/PrecedentSuggestionsPanel.tsx`):
+- Collapsible "פסיקה רלוונטית" panel added to right column of MatterWorkbench
+- Auto-searches using the case title keywords when panel is expanded
+- Shows top 5 relevant verdicts with snippets + "חפש עוד פסיקה" link to /supreme-court
+
+**DraftIntelligencePanel integration** (`apps/dashboard/src/features/drafting/DraftIntelligencePanel.tsx`):
+- New "פסיקה ישראלית" section added to "הצעות" tab
+- Searches verdict corpus using draft title as seed query
+- Each verdict can be sent to the draft shelf as 'precedent' type via "שלח למדף"
+
+### מה לעשות עכשיו
+- פתח PR עבור ענף זה, מזג, ובדוק שהדפים מוצגים כראוי
+- Migration slot הבא: **081**
+- עבודות ממתינות: GH2 Zod validation (31 routes), B4 observability metrics
 
 ---
 

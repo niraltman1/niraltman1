@@ -47,12 +47,10 @@ Describe 'Verify-Install.ps1 — parameters' {
     }
 
     It '-InstallDir has a default value of C:\Program Files\FactumIL' {
-        # Get-Command does not expose script parameter DefaultValue via reflection;
-        # use AST to read the literal default from the param() block instead.
-        $ast    = [System.Management.Automation.Language.Parser]::ParseFile($Script:ScriptPath, [ref]$null, [ref]$null)
-        $params = $ast.FindAll({ $args[0] -is [System.Management.Automation.Language.ParameterAst] }, $true)
-        $param  = $params | Where-Object { $_.Name.VariablePath.UserPath -eq 'InstallDir' }
-        $default = $param.DefaultValue.Value
+        # Get-Command returns $null for DefaultValue on external .ps1 files; use AST instead.
+        $ast      = [System.Management.Automation.Language.Parser]::ParseFile($Script:ScriptPath, [ref]$null, [ref]$null)
+        $paramAst = $ast.ParamBlock.Parameters | Where-Object { $_.Name.VariablePath.UserPath -eq 'InstallDir' }
+        $default  = $paramAst.DefaultValue.SafeGetValue()
         $default | Should -BeExactly 'C:\Program Files\FactumIL'
     }
 

@@ -44,8 +44,9 @@ export const NAV_GROUPS: NavGroup[] = [
   {
     id: 'cases', label: 'תיקים', Icon: ScalesIcon, defaultOpen: true,
     items: [
-      { to: '/cases',   label: 'כל התיקים',    Icon: FolderIcon },
-      { to: '/traffic', label: 'תיקי תנועה',   Icon: CarIcon },
+      { to: '/cases',              label: 'כל התיקים',    Icon: FolderIcon },
+      { to: '/traffic',            label: 'תיקי תנועה',   Icon: CarIcon },
+      { to: '/cases/0/workbench', label: 'ספסל עבודה',   Icon: ScalesIcon },
     ],
   },
   {
@@ -66,6 +67,7 @@ export const NAV_GROUPS: NavGroup[] = [
       { to: '/action-queue',    label: 'תור אישורים',    Icon: CheckCircleIcon },
       { to: '/action-plan',     label: 'תוכנית פעולה',  Icon: BroomIcon },
       { to: '/insights-review', label: 'בדיקת תובנות AI', Icon: RobotIcon },
+      { to: '/canvas/0',        label: 'קנבס מסמך',      Icon: NoteIcon },
     ],
   },
   {
@@ -75,6 +77,7 @@ export const NAV_GROUPS: NavGroup[] = [
       { to: '/rules',            label: 'כללי סדרי דין',       Icon: ScalesIcon },
       { to: '/stens',            label: 'טפסים (Stens)',        Icon: NoteIcon },
       { to: '/precedents',       label: 'תקדימים',              Icon: GavelIcon },
+      { to: '/supreme-court',    label: 'פסיקה ישראלית',         Icon: GavelIcon },
       { to: '/library',          label: 'ספריית חקיקה ופסיקה', Icon: BookOpenIcon },
       { to: '/legal-corpus',     label: 'חוקים ישראליים',       Icon: BookOpenIcon },
       { to: '/entities',         label: 'ישויות',               Icon: AddressBookIcon },
