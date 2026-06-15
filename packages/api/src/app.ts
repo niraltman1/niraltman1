@@ -128,6 +128,9 @@ export function createApp(
   app.use('/api/docx/', rateLimit({ windowMs: 60_000, max: 30, standardHeaders: true, legacyHeaders: false }));
   // Agent endpoints: strict limit prevents event-loop saturation from concurrent Ollama calls
   app.use('/api/agents/', rateLimit({ windowMs: 60_000, max: 3, standardHeaders: true, legacyHeaders: false }));
+  // Graph intelligence endpoints: CPU-intensive AI-backed queries
+  app.use('/api/entities/related',  rateLimit({ windowMs: 60_000, max: 20, standardHeaders: true, legacyHeaders: false }));
+  app.use('/api/entities/insights', rateLimit({ windowMs: 60_000, max: 10, standardHeaders: true, legacyHeaders: false }));
 
   app.use(correlationId);
   app.use(observabilityMiddleware());
