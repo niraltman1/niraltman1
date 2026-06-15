@@ -114,10 +114,10 @@ function ValidateArtifact([string]$Path, [string]$Type) {
             $size = (Get-Item $Path -ErrorAction SilentlyContinue).Length
             return $size -gt 100KB  # Sanity check: EXEs should be >100KB
         }
-        "gguf" { 
-            # GGUF files have 4-byte magic: 0x67 0x67 0x75 0x66 (gguF)
+        "gguf" {
+            # GGUF files have 4-byte magic: 0x47 0x47 0x55 0x46 ("GGUF" in ASCII, little-endian uint32 0x46554747)
             try {
-                [byte[]]$magic = @(0x67, 0x67, 0x75, 0x66)
+                [byte[]]$magic = @(0x47, 0x47, 0x55, 0x46)
                 $bytes = [System.IO.File]::ReadAllBytes($Path)
                 if ($bytes.Length -lt 4) { return $false }
                 for ($i = 0; $i -lt 4; $i++) {
