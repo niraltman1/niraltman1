@@ -60,8 +60,8 @@ All 5 CI checks passed. Squash-merged to main.
 ### מה לעשות עכשיו (Release Candidate)
 1. **RC Audit** — run `scripts/generate-rc-audit.ts` to produce `RELEASE_CANDIDATE_AUDIT.md`
 2. **Rate limiting** — wire express-rate-limit to `/api/entities/related` (20/min) and `/insights` (10/min)
-3. **Update DEVELOPMENT.md** — document modules/, shared components, feature flags, check:arch
-4. **NewCaseWizard modal** — `role="dialog"`, `aria-modal="true"`, focus trap (follow-up from Phase 7)
+3. **NewCaseWizard modal** — `role="dialog"`, `aria-modal="true"`, focus trap (follow-up from Phase 7)
+4. **Update DEVELOPMENT.md** — document modules/, shared components, feature flags, check:arch
 
 ---
 
