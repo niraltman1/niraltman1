@@ -366,6 +366,6 @@ FactumIL_Dist\
   migrations\   SQL files 001–079 (067 skipped; applied on first run)
   runtime\      Portable node.exe (no Node.js installation required on end-user machine)
   tools\        OllamaSetup.exe + WebView2 bootstrapper + sqlite-vec.dll
-  models\       law-il-E2B-Q4_K_M.gguf (~1.3 GB)
+  models\       gemma-4-E2B-it.BF16-mmproj.gguf (~941 MB)
   powershell\   Legal Registry + helper scripts
 ```

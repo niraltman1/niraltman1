@@ -164,8 +164,8 @@ try {
 
 New-Item -ItemType Directory -Force -Path "$OutDir\models" | Out-Null
 try {
-    Write-Host "  Downloading law-il-E2B-Q4_K_M.gguf (~1.3 GB) ..." -ForegroundColor Gray
-    Invoke-WebRequest -Uri "$DepsBase/law-il-E2B-Q4_K_M.gguf" -OutFile "$OutDir\models\law-il-E2B-Q4_K_M.gguf" -UseBasicParsing -TimeoutSec 1800
+    Write-Host "  Downloading gemma-4-E2B-it.BF16-mmproj.gguf (~941 MB) ..." -ForegroundColor Gray
+    Invoke-WebRequest -Uri "$DepsBase/gemma-4-E2B-it.BF16-mmproj.gguf" -OutFile "$OutDir\models\gemma-4-E2B-it.BF16-mmproj.gguf" -UseBasicParsing -TimeoutSec 1800
 } catch { Write-Host "  WARNING: Could not download GGUF — model will pull from Ollama Hub on first launch." -ForegroundColor Yellow }
 
 # ── Summary ───────────────────────────────────────────────────────────────────

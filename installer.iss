@@ -123,7 +123,7 @@ Source: "FactumIL_Dist\tools\sqlite-vec.dll";                     DestDir: "{app
 Source: "FactumIL_Dist\tools\register-ollama-model.ps1";          DestDir: "{app}\tools"; Flags: ignoreversion skipifsourcedoesntexist
 
 ; ── AI model GGUF (bundled — no internet required on first launch) ────────────
-Source: "FactumIL_Dist\models\law-il-E2B-Q4_K_M.gguf"; DestDir: "{app}\models"; Flags: ignoreversion skipifsourcedoesntexist
+Source: "FactumIL_Dist\models\gemma-4-E2B-it.BF16-mmproj.gguf"; DestDir: "{app}\models"; Flags: ignoreversion skipifsourcedoesntexist
 
 [Icons]
 ; Start Menu
@@ -196,10 +196,10 @@ Filename: "{app}\tools\OllamaSetup.exe"; \
 ; available when the app first launches. Non-fatal: the WPF OllamaService
 ; provides a first-run fallback if this step is skipped or fails.
 Filename: "powershell.exe"; \
-  Parameters: "-WindowStyle Hidden -NonInteractive -ExecutionPolicy Bypass -File ""{app}\tools\register-ollama-model.ps1"" -GgufPath ""{app}\models\law-il-E2B-Q4_K_M.gguf"""; \
+  Parameters: "-WindowStyle Hidden -NonInteractive -ExecutionPolicy Bypass -File ""{app}\tools\register-ollama-model.ps1"" -GgufPath ""{app}\models\gemma-4-E2B-it.BF16-mmproj.gguf"""; \
   StatusMsg: "מאתחל מודל AI (ייתכן שייקח מספר דקות)…"; \
   Flags: waituntilterminated; \
-  Check: FileExists(ExpandConstant('{app}\models\law-il-E2B-Q4_K_M.gguf')) and FileExists(ExpandConstant('{app}\tools\register-ollama-model.ps1'))
+  Check: FileExists(ExpandConstant('{app}\models\gemma-4-E2B-it.BF16-mmproj.gguf')) and FileExists(ExpandConstant('{app}\tools\register-ollama-model.ps1'))
 
 ; ── 4. Launch app after install (the WPF shell handles everything else) ───────
 Filename: "{app}\{#AppExeName}"; \

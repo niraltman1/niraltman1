@@ -35,7 +35,7 @@ param(
     [string] $NodeVersion      = "22.13.1",
     [switch] $SkipTests,
     [switch] $SkipGGUF,
-    [int]    $MaxDownloadRetries = 3,
+    [int]    $MaxDownloadRetries = 5,
     [int]    $DownloadTimeoutSec = 1800
 )
 
@@ -695,11 +695,31 @@ if (-not (Test-Path $OllamaExe)) {
     Write-Host "  ✓ OllamaSetup.exe already staged" -ForegroundColor Green
 }
 
-# WebView2 bootstrapper
+# WebView2 bootstrapper — self-hosted on v-assets-latest (avoids Microsoft CDN throttling in CI)
+$WV2Url            = "https://github.com/niraltman1/niraltman1/releases/download/v-assets-latest/MicrosoftEdgeWebView2RuntimeInstallerX64.exe"
+$Wv2ExpectedSha256 = "af1067d9cc7f107ca96ddd8d5212724bdae3bd9eb46e619d2ca5c1f3e3041612"
 $WV2Exe = Join-Path $ToolsDst "MicrosoftEdgeWebview2Setup.exe"
 if (-not (Test-Path $WV2Exe)) {
-    if (DownloadWithRetry "https://go.microsoft.com/fwlink/p/?LinkId=2124703" $WV2Exe 60 $MaxDownloadRetries) {
-        Write-Host "  ✓ WebView2 bootstrapper staged" -ForegroundColor Green
+    # Verify asset exists in release before attempting download
+    $wv2RelJson = Invoke-RestMethod `
+        -Uri "https://api.github.com/repos/niraltman1/niraltman1/releases/tags/v-assets-latest" `
+        -Headers $ApiHeaders -UseBasicParsing -ErrorAction Stop
+    $wv2Asset = $wv2RelJson.assets | Where-Object { $_.name -eq "MicrosoftEdgeWebView2RuntimeInstallerX64.exe" }
+    if (-not $wv2Asset) { throw "Required release asset 'MicrosoftEdgeWebView2RuntimeInstallerX64.exe' not found in v-assets-latest." }
+
+    if (DownloadWithRetry $WV2Url $WV2Exe 120 $MaxDownloadRetries) {
+        # Size check — WebView2 installer is ~192 MB; reject if truncated
+        $wv2Bytes = (Get-Item $WV2Exe).Length
+        if ($wv2Bytes -lt 150MB) {
+            throw "WebView2 download appears truncated ($([math]::Round($wv2Bytes/1MB,1)) MB < 150 MB threshold)."
+        }
+        # Fail-fast SHA-256 integrity check
+        $wv2Hash = (Get-FileHash -Path $WV2Exe -Algorithm SHA256).Hash
+        if ($wv2Hash -ne $Wv2ExpectedSha256.ToUpper()) {
+            Remove-Item $WV2Exe -Force -ErrorAction SilentlyContinue
+            throw "WebView2 SHA-256 mismatch — build halted.`n  Expected: $Wv2ExpectedSha256`n  Actual:   $wv2Hash"
+        }
+        Write-Host "  ✓ WebView2 bootstrapper staged and verified (SHA-256: $wv2Hash)" -ForegroundColor Green
     }
 } else {
     Write-Host "  ✓ WebView2 bootstrapper already staged" -ForegroundColor Green
@@ -707,41 +727,42 @@ if (-not (Test-Path $WV2Exe)) {
 
 # AI model GGUF (can be skipped with -SkipGGUF)
 # Self-hosted on niraltman1/niraltman1 GitHub releases — public, no authentication required.
-# Integrity: set $GgufExpectedSha256 to the SHA-256 of the canonical build to prevent
-# a tampered model from being bundled. Leave empty to skip the hash check.
-# To obtain the hash after uploading: Get-FileHash .\law-il-E2B-Q4_K_M.gguf -Algorithm SHA256
-$GgufUrl            = "https://github.com/niraltman1/niraltman1/releases/download/v-model-latest/law-il-E2B-Q4_K_M.gguf"
-$GgufExpectedSha256 = ""   # TODO: populate after first release upload
+# SHA-256 is locked to the canonical asset; any mismatch is a hard build failure.
+$GgufUrl            = "https://github.com/niraltman1/niraltman1/releases/download/v-model-latest/gemma-4-E2B-it.BF16-mmproj.gguf"
+$GgufExpectedSha256 = "a927f38e7a26d110575bf2b385a1b3ab314b5c949d0e5da3fb5199ccd3a86cf8"
 $GgufDst  = Join-Path $OutDir "models"
 New-Item -ItemType Directory -Force -Path $GgufDst | Out-Null
-$GgufFile = Join-Path $GgufDst "law-il-E2B-Q4_K_M.gguf"
+$GgufFile = Join-Path $GgufDst "gemma-4-E2B-it.BF16-mmproj.gguf"
 
 if (-not $SkipGGUF -and -not (Test-Path $GgufFile)) {
-    Write-Host "  Downloading law-il-E2B-Q4_K_M.gguf (~1.3 GB) from self-hosted release..." -ForegroundColor Gray
+    # Verify asset exists in release before attempting download
+    $ggufRelJson = Invoke-RestMethod `
+        -Uri "https://api.github.com/repos/niraltman1/niraltman1/releases/tags/v-model-latest" `
+        -Headers $ApiHeaders -UseBasicParsing -ErrorAction Stop
+    $ggufAsset = $ggufRelJson.assets | Where-Object { $_.name -eq "gemma-4-E2B-it.BF16-mmproj.gguf" }
+    if (-not $ggufAsset) { throw "Required release asset 'gemma-4-E2B-it.BF16-mmproj.gguf' not found in v-model-latest." }
+
+    Write-Host "  Downloading gemma-4-E2B-it.BF16-mmproj.gguf (~941 MB) from self-hosted release..." -ForegroundColor Gray
     if (DownloadWithRetry $GgufUrl $GgufFile $DownloadTimeoutSec $MaxDownloadRetries) {
-        # SHA-256 integrity check
-        if ($GgufExpectedSha256) {
-            $actualHash = (Get-FileHash -Path $GgufFile -Algorithm SHA256).Hash
-            if ($actualHash -ne $GgufExpectedSha256.ToUpper()) {
-                Write-Host "  ✗ SHA-256 mismatch — model may be tampered. Removing." -ForegroundColor Red
-                Write-Host "    Expected: $GgufExpectedSha256" -ForegroundColor Red
-                Write-Host "    Actual:   $actualHash" -ForegroundColor Red
-                Remove-Item $GgufFile -Force -ErrorAction SilentlyContinue
-            } else {
-                Write-Host "  ✓ SHA-256 verified: $actualHash" -ForegroundColor Green
-            }
-        } else {
-            $actualHash = (Get-FileHash -Path $GgufFile -Algorithm SHA256).Hash
-            Write-Host "  ℹ SHA-256 (unverified — set GgufExpectedSha256 to lock): $actualHash" -ForegroundColor DarkGray
+        # Size check — reject if file appears truncated (GGUF is ~941 MB)
+        $ggufBytes = (Get-Item $GgufFile).Length
+        if ($ggufBytes -lt 900MB) {
+            Remove-Item $GgufFile -Force -ErrorAction SilentlyContinue
+            throw "GGUF download appears truncated ($([math]::Round($ggufBytes/1MB,0)) MB < 900 MB threshold)."
         }
-        if (Test-Path $GgufFile) {
-            if (ValidateArtifact $GgufFile "gguf") {
-                $ggufSize = [math]::Round((Get-Item $GgufFile).Length/1GB,2)
-                Write-Host "  ✓ GGUF: $ggufSize GB (validated)" -ForegroundColor Green
-            } else {
-                Write-Host "  ✗ GGUF validation failed — file may be corrupted" -ForegroundColor Red
-                Remove-Item $GgufFile -Force -ErrorAction SilentlyContinue
-            }
+        # Fail-fast SHA-256 integrity check
+        $actualHash = (Get-FileHash -Path $GgufFile -Algorithm SHA256).Hash
+        if ($actualHash -ne $GgufExpectedSha256.ToUpper()) {
+            Remove-Item $GgufFile -Force -ErrorAction SilentlyContinue
+            throw "GGUF SHA-256 mismatch — build halted.`n  Expected: $GgufExpectedSha256`n  Actual:   $actualHash"
+        }
+        Write-Host "  ✓ SHA-256 verified: $actualHash" -ForegroundColor Green
+        if (ValidateArtifact $GgufFile "gguf") {
+            $ggufSize = [math]::Round((Get-Item $GgufFile).Length/1GB,2)
+            Write-Host "  ✓ GGUF: $ggufSize GB (validated)" -ForegroundColor Green
+        } else {
+            Remove-Item $GgufFile -Force -ErrorAction SilentlyContinue
+            throw "GGUF magic-byte validation failed — file may be corrupted."
         }
     }
 } elseif ($SkipGGUF) {
@@ -886,7 +907,7 @@ Write-Host ""
 Write-Host "  Optional components:" -ForegroundColor Cyan
 Write-Host "    tools\OllamaSetup.exe             $(if (Test-Path "$OutDir\tools\OllamaSetup.exe") {'✓'} else {'⚠ missing (manual install)'})" -ForegroundColor White
 Write-Host "    tools\sqlite-vec.dll              $(if (Test-Path "$OutDir\tools\sqlite-vec.dll") {'✓'} else {'⚠ missing (JS fallback)'})" -ForegroundColor White
-Write-Host "    models\law-il-E2B-Q4_K_M.gguf    $(if (Test-Path "$OutDir\models\law-il-E2B-Q4_K_M.gguf") {'✓'} else {'⚠ missing (Ollama Hub on first launch)'})" -ForegroundColor White
+Write-Host "    models\gemma-4-E2B-it.BF16-mmproj.gguf    $(if (Test-Path "$OutDir\models\gemma-4-E2B-it.BF16-mmproj.gguf") {'✓'} else {'⚠ missing (Ollama Hub on first launch)'})" -ForegroundColor White
 Write-Host ""
 Write-Host "  📝 Build log: $LogFile" -ForegroundColor Gray
 Write-Host ""

@@ -64,7 +64,7 @@ export class EnvironmentSnapshot {
    */
   collectModelInfo(): ModelInfo {
     const modelsPath = this._modelsPath();
-    const ggufFilename = 'law-il-E2B-Q4_K_M.gguf';
+    const ggufFilename = 'gemma-4-E2B-it.BF16-mmproj.gguf';
     const ggufPath = join(modelsPath, 'BrainboxAI', ggufFilename);
 
     const ggufPresent = existsSync(ggufPath);
@@ -86,7 +86,7 @@ export class EnvironmentSnapshot {
   collectInstallerDiagnostics(): InstallerDiagnostics {
     const installPath  = process.env['FACTUM_IL_ROOT'] ?? process.cwd();
     const modelsPath   = this._modelsPath();
-    const ggufFilename = 'law-il-E2B-Q4_K_M.gguf';
+    const ggufFilename = 'gemma-4-E2B-it.BF16-mmproj.gguf';
     const ggufPath     = join(modelsPath, 'BrainboxAI', ggufFilename);
     const ggufPresent  = existsSync(ggufPath);
 
