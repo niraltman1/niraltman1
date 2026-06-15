@@ -58,9 +58,9 @@ export function legalKnowledgeRouter(svc: LegalKnowledgeService): Router {
     if (!Number.isFinite(limit) || !Number.isFinite(offset)) throw new ValidationError('invalid pagination');
 
     ok(res, svc.listDocuments({
-      court:         typeof court         === 'string' ? court         : undefined,
-      sourceDataset: typeof sourceDataset === 'string' ? sourceDataset : undefined,
-      documentType:  typeof documentType  === 'string' ? documentType as never : undefined,
+      ...(typeof court         === 'string' ? { court }                              : {}),
+      ...(typeof sourceDataset === 'string' ? { sourceDataset }                      : {}),
+      ...(typeof documentType  === 'string' ? { documentType: documentType as never } : {}),
       limit,
       offset,
     }));
@@ -89,9 +89,9 @@ export function legalKnowledgeRouter(svc: LegalKnowledgeService): Router {
     if (!Number.isFinite(limit)) throw new ValidationError('invalid limit');
 
     ok(res, svc.search(q, {
-      court:         typeof court         === 'string' ? court         : undefined,
-      sourceDataset: typeof sourceDataset === 'string' ? sourceDataset : undefined,
-      documentType:  typeof documentType  === 'string' ? documentType as never : undefined,
+      ...(typeof court         === 'string' ? { court }                              : {}),
+      ...(typeof sourceDataset === 'string' ? { sourceDataset }                      : {}),
+      ...(typeof documentType  === 'string' ? { documentType: documentType as never } : {}),
       limit,
     }));
   }));

@@ -115,7 +115,7 @@ export class LegalSourceLoader {
     if (!source) throw new Error(`Source not registered: ${sourceId}`);
 
     // Start / resume ingestion
-    const progress = this.ingestionProgress.start(sourceId, records.length);
+    this.ingestionProgress.start(sourceId, records.length);
     const resumeBatch = opts.resumeFrom?.batch ?? 0;
 
     this.knowledgeService.emitStart(sourceId, records.length);
@@ -256,7 +256,7 @@ function extractIsraeliCitations(text: string, sourceDocumentId: string): Verdic
       results.push({
         sourceDocumentId,
         citationText,
-        citationType: type as VerdictCitationInput['citationType'],
+        citationType: type as NonNullable<VerdictCitationInput['citationType']>,
         confidence:   0.85,
         contextSnippet: ctx.slice(0, 200),
       });
