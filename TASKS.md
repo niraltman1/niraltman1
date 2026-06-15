@@ -63,10 +63,17 @@ All 5 CI checks passed. Squash-merged to main.
 3. **NewCaseWizard modal** ✅ — `role="dialog"`, `aria-modal="true"`, `useFocusTrap` hook, Escape dismiss, aria-labels
 4. **Update DEVELOPMENT.md** ✅ — Phase 7 shared components, Feature Flags, Architecture Validation, CI PSGallery note
 
+### PR #113 — ✅ MERGED (2026-06-15)
+All CI checks passed. Squash-merged to main.
+
+### Migration Gate Fix — ✅ COMPLETE (PR #114)
+- `migrations/081_patch_system.sql` — adds `PatchApplicationLog` + `SupportExportLog` tables
+- RC_STATUS: **APPROVED** — all 10 gates PASS
+- `RELEASE_CANDIDATE_AUDIT.md` regenerated: 10/10 ✅
+
 ### מה לעשות עכשיו
-1. **Merge PR #113** when CI is green
-2. **081+ migration** — only remaining RC gate failure; create when schema changes are needed
-3. RC_STATUS will flip to APPROVED once the Migrations gate passes
+- **שלב הבא:** הפצה (publish.ps1 + Inno Setup installer build)
+- Minor: `DashboardHomePage.tsx:35` — `overdue tasks` counter awaits `GET /api/tasks?status=overdue`
 
 ---
 
