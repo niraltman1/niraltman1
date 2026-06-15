@@ -10,6 +10,9 @@ import { useCase, useCaseContacts, useDocuments, useCaseInsights, useCaseActivit
 import type { CaseContactRecord, CaseInsightRecord, ActivityEventRow, AgentOutput } from '@/api/hooks.js';
 import { AgentOutputPanel } from '@/components/common/AgentOutputPanel.js';
 import { ExportMenu } from '@/components/common/ExportMenu.js';
+import { LoadingPanel } from '@/components/common/LoadingPanel.js';
+import { ErrorPanel } from '@/components/common/ErrorPanel.js';
+import { EmptyPanel } from '@/components/common/EmptyPanel.js';
 import { CaseRiskPanel } from './CaseRiskPanel.js';
 import { CaseTimeline } from './CaseTimeline.js';
 import { CaseCitations } from './CaseCitations.js';
@@ -51,20 +54,15 @@ export function CaseDetail() {
   const caseNotes = (tasksData?.items ?? []).filter((t) => t.source === 'note')
     .sort((a, b) => b.createdAt.localeCompare(a.createdAt));
 
-  if (isLoading) {
-    return (
-      <div className="flex items-center justify-center h-64 text-parchment/30 text-sm">
-        טוען תיק...
-      </div>
-    );
-  }
+  if (isLoading) return <LoadingPanel label="טוען תיק…" />;
 
   if (isError || !caseData) {
     return (
-      <div className="flex flex-col items-center justify-center h-64 gap-3">
-        <GavelIcon size={36} className="text-parchment/20" />
-        <p className="text-parchment/40 text-sm">תיק לא נמצא</p>
-        <Link to="/cases" className="text-gold text-xs hover:underline">← חזרה לרשימת התיקים</Link>
+      <div className="p-6">
+        <ErrorPanel message="תיק לא נמצא." />
+        <div className="text-center mt-3">
+          <Link to="/cases" className="text-gold text-xs hover:underline">← חזרה לרשימת התיקים</Link>
+        </div>
       </div>
     );
   }
@@ -214,7 +212,7 @@ export function CaseDetail() {
       {tab === 'documents' && (
         <ul className="space-y-2">
           {caseDocs.length === 0 && (
-            <li className="text-center text-parchment/30 py-10 text-sm">אין מסמכים משויכים לתיק זה</li>
+            <li><EmptyPanel message="אין מסמכים משויכים לתיק זה." sub="ניתן להוסיף מסמכים דרך עמוד המסמכים ולשייך אותם לתיק." /></li>
           )}
           {caseDocs.map((doc: Record<string, unknown>) => (
             <li key={doc['id'] as number}>
@@ -244,7 +242,7 @@ export function CaseDetail() {
       {tab === 'contacts' && (
         <ul className="space-y-2">
           {contacts.length === 0 && (
-            <li className="text-center text-parchment/30 py-10 text-sm">אין אנשי קשר משויכים</li>
+            <li><EmptyPanel message="אין אנשי קשר משויכים לתיק זה." sub="ניתן לשייך אנשי קשר דרך עמוד אנשי הקשר." /></li>
           )}
           {contacts.map((ct: CaseContactRecord) => (
             <li key={ct.id}
@@ -264,11 +262,10 @@ export function CaseDetail() {
       {tab === 'insights' && (
         <div className="space-y-3">
           {caseInsights.length === 0 ? (
-            <div className="bg-navy-100 border border-parchment/10 rounded-xl p-5">
-              <p className="text-parchment/30 text-sm text-center py-6">
-                תובנות AI יוצגו כאן לאחר עיבוד מסמכי התיק על ידי מנוע law-il-E2B
-              </p>
-            </div>
+            <EmptyPanel
+              message="אין תובנות AI לתיק זה עדיין."
+              sub="תובנות יוצגו לאחר עיבוד מסמכי התיק על ידי מנוע law-il-E2B."
+            />
           ) : (
             caseInsights.map((ins: CaseInsightRecord) => (
               <div key={ins.document_id} className="bg-navy-100 border border-parchment/10 rounded-xl p-4" dir="rtl">
@@ -292,10 +289,10 @@ export function CaseDetail() {
       {tab === 'activity' && (
         <div className="bg-navy-100 border border-parchment/10 rounded-xl overflow-hidden">
           {activityEvents.length === 0 ? (
-            <div className="flex flex-col items-center gap-3 py-12">
-              <PulseIcon size={28} className="text-parchment/20" />
-              <p className="text-parchment/30 text-sm">אין אירועי פעילות לתיק זה</p>
-            </div>
+            <EmptyPanel
+              message="אין אירועי פעילות לתיק זה."
+              sub="פעולות שיבוצעו בתיק יופיעו כאן."
+            />
           ) : (
             activityEvents.map((ev: ActivityEventRow) => (
               <div key={ev.id} className="flex items-start gap-3 px-4 py-3 border-b border-parchment/5 last:border-0" dir="rtl">
@@ -372,10 +369,10 @@ export function CaseDetail() {
 
           {/* Notes list */}
           {caseNotes.length === 0 ? (
-            <div className="flex flex-col items-center gap-3 py-10 text-parchment/30">
-              <NotePencilIcon size={28} weight="duotone" />
-              <p className="text-sm">אין הערות לתיק זה עדיין</p>
-            </div>
+            <EmptyPanel
+              message="אין הערות לתיק זה עדיין."
+              sub="הקלד הערה בשדה למעלה ולחץ Ctrl+Enter לשמירה."
+            />
           ) : (
             <ul className="space-y-2">
               {caseNotes.map((note) => (

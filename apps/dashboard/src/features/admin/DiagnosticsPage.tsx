@@ -10,6 +10,7 @@ import {
   deleteJSON,
 } from '@/api/hooks.js';
 import type { UpdateLogRecord, VacuumSessionData, EncryptedBackupManifest } from '@/api/hooks.js';
+import { LoadingPanel } from '@/components/common/LoadingPanel.js';
 import {
   HeartbeatIcon, FolderOpenIcon, DatabaseIcon, WrenchIcon,
   CheckCircleIcon, WarningCircleIcon, CircleNotchIcon,
@@ -431,12 +432,7 @@ function AiHealthPanel() {
 }
 
 function PanelSkeleton({ label }: { label: string }) {
-  return (
-    <div className="flex items-center gap-2 text-parchment/40 text-sm py-4 justify-center">
-      <CircleNotchIcon size={14} className="animate-spin" />
-      {label}
-    </div>
-  );
+  return <LoadingPanel label={label} rows={2} />;
 }
 
 // ─────────────────────────────────────────────────────────────────────────────

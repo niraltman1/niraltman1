@@ -3,6 +3,7 @@ import {
   CircleNotchIcon, ArrowsClockwiseIcon, UserPlusIcon,
   ProhibitIcon, ShieldCheckIcon,
 } from '@phosphor-icons/react';
+import { EmptyPanel } from '@/components/common/EmptyPanel.js';
 
 // ─────────────────────────────────────────────────────────────────────────────
 //  Types
@@ -242,9 +243,10 @@ function CaseAssignmentsPanel() {
         <>
           {assignments.length === 0
             ? (
-              <div className="text-center py-8 text-parchment/30 text-sm">
-                אין שיוכים פעילים
-              </div>
+              <EmptyPanel
+                message="אין שיוכי תיקים עבור משתמש זה."
+                sub="ניתן להוסיף שיוך דרך הטופס למטה."
+              />
             )
             : (
               <div className="overflow-x-auto rounded border border-parchment/10">

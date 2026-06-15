@@ -13,6 +13,7 @@ import { useCases } from '@/api/hooks.js';
 import { NewCaseWizard } from '@/features/legal-engine/NewCaseWizard.js';
 import { LoadingPanel } from '@/components/common/LoadingPanel.js';
 import { ErrorPanel } from '@/components/common/ErrorPanel.js';
+import { EmptyPanel } from '@/components/common/EmptyPanel.js';
 
 const STATUS_LABELS: Record<string, string> = {
   open:      'פתוח · פעיל',
@@ -383,8 +384,11 @@ export function CasesPage() {
                 <tbody>
                   {filtered.length === 0 ? (
                     <tr>
-                      <td colSpan={6} style={{ padding: 48, textAlign: 'center', color: 'var(--fg-3)' }}>
-                        {search ? `אין תוצאות עבור "${search}"` : 'אין תיקים לתצוגה'}
+                      <td colSpan={6}>
+                        <EmptyPanel
+                          message={search ? `אין תוצאות עבור "${search}".` : 'אין תיקים פעילים.'}
+                          sub={search ? 'נסה לשנות את מונח החיפוש או לנקות את הפילטרים.' : 'ניתן ליצור תיק חדש דרך כפתור "תיק חדש" בראש הדף.'}
+                        />
                       </td>
                     </tr>
                   ) : (

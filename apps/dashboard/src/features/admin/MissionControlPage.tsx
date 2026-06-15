@@ -6,6 +6,9 @@ import {
 } from '@phosphor-icons/react';
 import { useMissionControl } from '@/api/hooks.js';
 import type { MissionControlSnapshot } from '@/api/hooks.js';
+import { LoadingPanel } from '@/components/common/LoadingPanel.js';
+import { ErrorPanel } from '@/components/common/ErrorPanel.js';
+import { EmptyPanel } from '@/components/common/EmptyPanel.js';
 import { HealthStatusPanel } from '@/components/admin/HealthStatusPanel.js';
 
 function SectionCard({ title, icon, children }: {
@@ -55,7 +58,7 @@ function QueuePanel({ data }: { data: MissionControlSnapshot['queues'] }) {
 
 function WorkersPanel({ workers }: { data: MissionControlSnapshot['workers']; workers: MissionControlSnapshot['workers'] }) {
   if (workers.length === 0) {
-    return <p className="text-parchment/30 text-sm">אין פועלים רשומים</p>;
+    return <EmptyPanel message="אין פועלים רשומים." sub="הפועלים יופיעו כאן לאחר הפעלת ה-API." />;
   }
   return (
     <div className="space-y-1">
@@ -119,7 +122,7 @@ function DatabasePanel({ database, writeMutex }: {
 
 function SchedulersPanel({ schedulers }: { schedulers: MissionControlSnapshot['schedulers'] }) {
   if (schedulers.length === 0) {
-    return <p className="text-parchment/30 text-sm">אין מתזמנים</p>;
+    return <EmptyPanel message="אין מתזמנים פעילים." sub="מתזמנים כגון SLA Radar יופיעו כאן לאחר הפעלתם." />;
   }
   return (
     <div className="space-y-1">
@@ -169,21 +172,12 @@ function RecentFailuresPanel({ failures }: { failures: MissionControlSnapshot['r
 export function MissionControlPage() {
   const { data, isLoading, isError, refetch } = useMissionControl();
 
-  if (isLoading) {
-    return (
-      <div className="flex items-center justify-center h-64 gap-2 text-parchment/30 text-sm">
-        <CircleNotchIcon size={16} className="animate-spin" />
-        טוען מידע...
-      </div>
-    );
-  }
+  if (isLoading) return <LoadingPanel label="טוען נתוני Mission Control…" />;
 
   if (isError || !data) {
     return (
-      <div className="flex flex-col items-center justify-center h-64 gap-3">
-        <WarningCircleIcon size={32} className="text-red-400/40" />
-        <p className="text-parchment/40 text-sm">שגיאה בטעינת נתוני Mission Control</p>
-        <button onClick={() => void refetch()} className="text-gold text-xs hover:underline">נסה שוב</button>
+      <div className="p-6">
+        <ErrorPanel message="שגיאה בטעינת נתוני Mission Control." onRetry={() => void refetch()} />
       </div>
     );
   }
