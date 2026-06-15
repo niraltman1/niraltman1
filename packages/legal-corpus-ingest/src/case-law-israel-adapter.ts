@@ -126,7 +126,7 @@ export class CaseLawIsraelAdapter {
         const parties        = normalizeStringArray(record['parties'] ?? record['Parties']);
         const lawyers        = normalizeStringArray(record['lawyers'] ?? record['Lawyers']);
         const caseNumber     = record['case_number'] ? String(record['case_number']).trim() : null;
-        const proceedingType = inferProceedingType(court, record) as LegalDocumentInput['proceedingType'];
+        const proceedingType = inferProceedingType(court, record) as NonNullable<LegalDocumentInput['proceedingType']> | null;
         const documentType   = inferDocumentType(record) as LegalDocumentInput['documentType'];
 
         let year: number | null = null;

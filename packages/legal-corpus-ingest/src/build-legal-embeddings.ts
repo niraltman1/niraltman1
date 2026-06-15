@@ -46,9 +46,9 @@ async function embedText(text: string): Promise<number[] | null> {
 }
 
 async function main(): Promise<void> {
-  const db = new DatabaseConnection(DB_PATH);
+  const db = new DatabaseConnection({ path: DB_PATH });
   const runner = new MigrationRunner(db, MIGRATIONS_DIR);
-  runner.runAll();
+  runner.run();
 
   const legalDocuments = new LegalDocumentRepository(db);
   const embeddings     = new LegalDocumentEmbeddingRepository(db);

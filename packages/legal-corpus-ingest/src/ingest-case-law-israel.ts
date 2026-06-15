@@ -75,7 +75,7 @@ function extractCitations(text: string, sourceDocumentId: string): VerdictCitati
       results.push({
         sourceDocumentId,
         citationText,
-        citationType: type as VerdictCitationInput['citationType'],
+        citationType: type as NonNullable<VerdictCitationInput['citationType']>,
         confidence: 0.85,
         contextSnippet: ctx,
       });
@@ -103,9 +103,9 @@ async function main(): Promise<void> {
   const startTime = Date.now();
   process.stdout.write(`[ingest-case-law-israel] Starting: ${INPUT_FILE}\n`);
 
-  const db     = new DatabaseConnection(DB_PATH);
+  const db     = new DatabaseConnection({ path: DB_PATH });
   const runner = new MigrationRunner(db, MIGRATIONS_DIR);
-  runner.runAll();
+  runner.run();
 
   const legalDocs    = new LegalDocumentRepository(db);
   const sourceReg    = new LegalSourceRegistryRepository(db);
