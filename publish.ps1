@@ -706,47 +706,42 @@ if (-not (Test-Path $WV2Exe)) {
 }
 
 # AI model GGUF (can be skipped with -SkipGGUF)
-$GgufDst = Join-Path $OutDir "models"
+# Self-hosted on niraltman1/niraltman1 GitHub releases — public, no authentication required.
+# Integrity: set $GgufExpectedSha256 to the SHA-256 of the canonical build to prevent
+# a tampered model from being bundled. Leave empty to skip the hash check.
+# To obtain the hash after uploading: Get-FileHash .\law-il-E2B-Q4_K_M.gguf -Algorithm SHA256
+$GgufUrl            = "https://github.com/niraltman1/niraltman1/releases/download/v-model-latest/law-il-E2B-Q4_K_M.gguf"
+$GgufExpectedSha256 = ""   # TODO: populate after first release upload
+$GgufDst  = Join-Path $OutDir "models"
 New-Item -ItemType Directory -Force -Path $GgufDst | Out-Null
 $GgufFile = Join-Path $GgufDst "law-il-E2B-Q4_K_M.gguf"
 
 if (-not $SkipGGUF -and -not (Test-Path $GgufFile)) {
-    Write-Host "  Downloading law-il-E2B-Q4_K_M.gguf (~1.3 GB) ..." -ForegroundColor Gray
-    $HfToken = $env:HF_TOKEN
-    $GgufUrl = "https://huggingface.co/BrainboxAI/law-il-E2B-GGUF/resolve/main/law-il-E2B-Q4_K_M.gguf"
-    if (-not $HfToken) {
-        Write-Host "  ⚠ HF_TOKEN not set — GGUF download will fail for private models." -ForegroundColor Yellow
-    }
-    $downloaded = $false
-    for ($attempt = 1; $attempt -le $MaxDownloadRetries -and -not $downloaded; $attempt++) {
-        try {
-            Write-Host "  Downloading law-il-E2B-Q4_K_M.gguf (Attempt $attempt/$MaxDownloadRetries) ..." -ForegroundColor Gray
-            $iwrParams = @{
-                Uri             = $GgufUrl
-                OutFile         = $GgufFile
-                UseBasicParsing = $true
-                TimeoutSec      = $DownloadTimeoutSec
-                ErrorAction     = 'Stop'
-            }
-            if ($HfToken) { $iwrParams['Headers'] = @{ 'Authorization' = "Bearer $HfToken" } }
-            Invoke-WebRequest @iwrParams
-            $downloaded = $true
-        } catch {
-            if ($attempt -lt $MaxDownloadRetries) {
-                Write-Host "  ⚠ Attempt $attempt failed: $_ — retrying in 5 s..." -ForegroundColor Yellow
-                Start-Sleep -Seconds 5
+    Write-Host "  Downloading law-il-E2B-Q4_K_M.gguf (~1.3 GB) from self-hosted release..." -ForegroundColor Gray
+    if (DownloadWithRetry $GgufUrl $GgufFile $DownloadTimeoutSec $MaxDownloadRetries) {
+        # SHA-256 integrity check
+        if ($GgufExpectedSha256) {
+            $actualHash = (Get-FileHash -Path $GgufFile -Algorithm SHA256).Hash
+            if ($actualHash -ne $GgufExpectedSha256.ToUpper()) {
+                Write-Host "  ✗ SHA-256 mismatch — model may be tampered. Removing." -ForegroundColor Red
+                Write-Host "    Expected: $GgufExpectedSha256" -ForegroundColor Red
+                Write-Host "    Actual:   $actualHash" -ForegroundColor Red
+                Remove-Item $GgufFile -Force -ErrorAction SilentlyContinue
             } else {
-                Write-Host "  ✗ GGUF download failed after $MaxDownloadRetries attempts: $_" -ForegroundColor Red
+                Write-Host "  ✓ SHA-256 verified: $actualHash" -ForegroundColor Green
             }
-        }
-    }
-    if ($downloaded) {
-        if (ValidateArtifact $GgufFile "gguf") {
-            $ggufSize = [math]::Round((Get-Item $GgufFile).Length/1GB,2)
-            Write-Host "  ✓ GGUF: $ggufSize GB (validated)" -ForegroundColor Green
         } else {
-            Write-Host "  ✗ GGUF validation failed - file may be corrupted" -ForegroundColor Red
-            Remove-Item $GgufFile -Force -ErrorAction SilentlyContinue
+            $actualHash = (Get-FileHash -Path $GgufFile -Algorithm SHA256).Hash
+            Write-Host "  ℹ SHA-256 (unverified — set GgufExpectedSha256 to lock): $actualHash" -ForegroundColor DarkGray
+        }
+        if (Test-Path $GgufFile) {
+            if (ValidateArtifact $GgufFile "gguf") {
+                $ggufSize = [math]::Round((Get-Item $GgufFile).Length/1GB,2)
+                Write-Host "  ✓ GGUF: $ggufSize GB (validated)" -ForegroundColor Green
+            } else {
+                Write-Host "  ✗ GGUF validation failed — file may be corrupted" -ForegroundColor Red
+                Remove-Item $GgufFile -Force -ErrorAction SilentlyContinue
+            }
         }
     }
 } elseif ($SkipGGUF) {
