@@ -191,7 +191,16 @@ Filename: "{app}\tools\OllamaSetup.exe"; \
   Flags: waituntilterminated skipifdoesntexist; \
   Check: NeedsOllama
 
-; ── 3. Register bundled GGUF with Ollama (offline — no internet required) ─────
+; ── 3. Wait for Ollama to accept connections (up to 60 s) ────────────────────
+; Ollama may need a few seconds to start its HTTP listener after install.
+; Non-fatal: if Ollama never responds, model registration falls back to the
+; OllamaService first-run flow inside the WPF shell.
+Filename: "powershell.exe"; \
+  Parameters: "-WindowStyle Hidden -NonInteractive -ExecutionPolicy Bypass -Command ""& { $max=30; $i=0; while($i -lt $max){ try{ Invoke-WebRequest -UseBasicParsing -TimeoutSec 2 http://127.0.0.1:11434/api/tags -ErrorAction Stop | Out-Null; exit 0 } catch{} ; Start-Sleep -Seconds 2; $i++ } exit 0 }"""; \
+  StatusMsg: "בודק זמינות מנוע AI…"; \
+  Flags: waituntilterminated
+
+; ── 4. Register bundled GGUF with Ollama (offline — no internet required) ─────
 ; Runs 'ollama create' against the on-disk GGUF so the model is immediately
 ; available when the app first launches. Non-fatal: the WPF OllamaService
 ; provides a first-run fallback if this step is skipped or fails.
@@ -201,7 +210,7 @@ Filename: "powershell.exe"; \
   Flags: waituntilterminated; \
   Check: FileExists(ExpandConstant('{app}\models\gemma-4-E2B-it.BF16-mmproj.gguf')) and FileExists(ExpandConstant('{app}\tools\register-ollama-model.ps1'))
 
-; ── 4. Launch app after install (the WPF shell handles everything else) ───────
+; ── 5. Launch app after install (the WPF shell handles everything else) ───────
 Filename: "{app}\{#AppExeName}"; \
   Description: "הפעל את Factum IL עכשיו"; \
   Flags: nowait postinstall skipifsilent skipifdoesntexist

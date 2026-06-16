@@ -115,16 +115,23 @@ function ValidateArtifact([string]$Path, [string]$Type) {
             return $size -gt 100KB  # Sanity check: EXEs should be >100KB
         }
         "gguf" {
-            # GGUF files have 4-byte magic: 0x47 0x47 0x55 0x46 ("GGUF" in ASCII, little-endian uint32 0x46554747)
+            # GGUF files have 4-byte magic: 0x47 0x47 0x55 0x46 ("GGUF" in ASCII)
+            # ReadAllBytes would OOM on ~1 GB files on CI runners — read only the header.
             try {
                 [byte[]]$magic = @(0x47, 0x47, 0x55, 0x46)
-                $bytes = [System.IO.File]::ReadAllBytes($Path)
-                if ($bytes.Length -lt 4) { return $false }
-                for ($i = 0; $i -lt 4; $i++) {
-                    if ($bytes[$i] -ne $magic[$i]) { return $false }
+                $fs = [System.IO.File]::OpenRead($Path)
+                try {
+                    [byte[]]$header = New-Object byte[] 4
+                    $read = $fs.Read($header, 0, 4)
+                } finally {
+                    $fs.Close()
                 }
-                # Also verify reasonable size (at least 100MB for quantized model)
-                return $bytes.Length -gt 100MB
+                if ($read -lt 4) { return $false }
+                for ($i = 0; $i -lt 4; $i++) {
+                    if ($header[$i] -ne $magic[$i]) { return $false }
+                }
+                # Size check uses Get-Item, not in-memory buffer
+                return (Get-Item $Path).Length -gt 100MB
             } catch {
                 Log "  WARN: GGUF validation error: $_"
                 return $false
