@@ -1,5 +1,58 @@
 # Factum-IL — Task Tracker
 
+## 🗓️ Session handoff — Unified Legal Knowledge Platform (2026-06-16)
+
+**Branch:** `claude/factum-il-legal-platform-tvei7l` — PR #122 ✅ MERGED to main (`3efb905`)
+
+### הושלם הפעם — Unified Legal Knowledge Platform (Phases 1-22)
+
+#### Architecture
+- Canonical `LegalDocument` model — all public legal sources normalize to one schema
+- Stable `FDOC-XXXXXXXX` internal identifiers via `LegalDocumentIdSeq`
+- `LegalSourceRegistry` — single registry for all data sources (3 seeded)
+- `VisibilityScope`: PUBLIC / PRIVATE / SHARED separation
+- Cross-dataset deduplication via SHA-256 content hash
+- Corpus versioning (SHA-256 + `CorpusVersionHistory` table)
+
+#### Migrations (4 new files)
+- `082_legal_knowledge_foundation.sql` — `LegalSourceRegistry`, `LegalDocuments` + FTS5 triggers, `LegalDocumentIdSeq`, `LegalIngestionProgress`, `CorpusVersionHistory`; seeds 3 sources
+- `083_verdict_citations.sql` — `VerdictCitations`, `LegalJudges`, `LegalCourts` (7 seeded), `IngestValidationReports`
+- `084_legal_document_embeddings.sql` — `LegalDocumentEmbeddings`, `LegalDocumentChunks` + FTS5, `LegalCorpusBenchmark`
+- `085_vec_legal_documents.sql` — `vec_legal_documents USING vec0` (SKIP_ON_ERROR on line 1)
+
+#### Database repositories (5 new)
+- `LegalDocumentRepository` — FDOC ID generation, FTS5 search, content-hash dedup, stats
+- `LegalSourceRegistryRepository` — source upsert, lookup, mark-ingested
+- `VerdictCitationRepository` — bulk insert, citation resolution, top-cited, stats
+- `LegalDocumentEmbeddingRepository` — upsert, KNN via vec0, JS cosine fallback
+- `LegalIngestionProgressRepository` — start, update, complete, fail, resume state
+
+#### API
+- `LegalKnowledgeService extends EventEmitter` — progress events + semantic search
+- `LegalSourceLoader` — generic batch ingestion: validation, dedup, crash recovery, telemetry
+- 9 routes under `/api/legal/`: stats, sources, documents, search, citations, top-cited, ingestion/progress
+- `LogCategory` extended with `'legal-knowledge'` | `'legal-loader'`
+
+#### Ingestion tools (`packages/legal-corpus-ingest/`)
+- `CaseLawIsraelAdapter` — normalizes `guychuk/case-law-israel` → canonical `LegalDocument`
+- `ingest-case-law-israel.ts` — CLI with `--input/--batch-size/--max/--extract-citations/--resume`
+- `build-legal-embeddings.ts` — incremental embedding generation via Ollama
+- Israeli citation extraction: 9 regex patterns (בג"ץ, ע"א, רע"א, ע"פ, עב"ל, ת"א, עת"מ, תמ"ש, בש"א)
+
+#### Tests
+- 10 database repository tests (`legal-documents.test.ts`)
+- 14 API route tests (`legal-knowledge.test.ts`)
+- All CI checks green after 4 fix commits (TS errors, lint, SKIP_ON_ERROR migration split)
+
+### מה לעשות עכשיו
+- הפעלת ingestion ראשון: `pnpm tsx packages/legal-corpus-ingest/src/ingest-case-law-israel.ts --input=/path/to/file.jsonl`
+- בניית ממשק חיפוש משפטי מאוחד בדאשבורד (Phase 17-18)
+- חיבור גרף הידע (Phase 19) — UI לשופטים, בתי משפט, צדדים
+- הטמעת עדכונים מצטברים (Phase 20) — manifest-based incremental updates
+- שקול bundling קורפוס ב-installer (Phase 23)
+
+---
+
 ## 🗓️ Session handoff — Phases 4–7 Complete (2026-06-15)
 
 **Branch:** `claude/factum-phases-4-7-yym4i8` — PR #112 ✅ MERGED, PR #113 open (RC finalization)
