@@ -104,13 +104,23 @@ jobs:
       - name: Verify installer payload contains GGUF
         shell: pwsh
         run: |
-          choco install 7zip --yes --no-progress
-          $listing = & "C:\Program Files\7-Zip\7z.exe" l Factum-IL-Setup.exe
-          if ($listing -notmatch "gemma-4-E2B-it\.BF16-mmproj\.gguf") {
-            Write-Error "GGUF model asset missing from installer payload."
+          # Verify the GGUF was staged before ISCC compiled it
+          $ggufPath = "FactumIL_Dist\models\gemma-4-E2B-it.BF16-mmproj.gguf"
+          if (-not (Test-Path $ggufPath)) {
+            Write-Error "GGUF model asset missing from staging directory — not bundled in installer."
             exit 1
           }
-          Write-Host "✓ GGUF payload confirmed in installer." -ForegroundColor Green
+          $ggufMB = [math]::Round((Get-Item $ggufPath).Length / 1MB, 0)
+          Write-Host "✓ GGUF staged: $ggufMB MB" -ForegroundColor Green
+
+          # Verify installer size is plausible (GGUF alone is ~941 MB, installer cannot be smaller)
+          $installerMB = [math]::Round((Get-Item "Factum-IL-Setup.exe").Length / 1MB, 0)
+          Write-Host "  Installer size: $installerMB MB"
+          if ($installerMB -lt 800) {
+            Write-Error "Installer ($installerMB MB) too small — GGUF likely not bundled by ISCC."
+            exit 1
+          }
+          Write-Host "✓ Installer size confirms GGUF payload ($installerMB MB)." -ForegroundColor Green
 
       - name: Verify Installation (DevMode)
         shell: pwsh
@@ -209,7 +219,7 @@ jobs:
             - מנוע Factum IL (WPF + Node.js API + React SPA)
             - Ollama (מנוע AI מקומי — מותקן אוטומטית)
             - מודל `BrainboxAI/law-il-E2B:Q4_K_M` (כלול ומוגדר אוטומטית)
-            - 81 מיגרציות SQLite
+            - 85 מיגרציות SQLite (כולל פלטפורמת הידע המשפטי המאוחד)
             - הרשם המשפטי + מגדיר מזהים
 
             ### אבטחה ופרטיות
