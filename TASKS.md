@@ -1,39 +1,46 @@
 # Factum-IL — Task Tracker
 
-## 🗓️ Session handoff — Open Tasks Work Plan (2026-06-16)
+## 🗓️ Session handoff — Open Tasks Work Plan (בדיקת קוד) (2026-06-16)
 
 **Branch:** `claude/open-tasks-work-plan-j3w8vk`
 
-### תוכנית עבודה — פערים פתוחים (16.06.2026)
+### ✅ פריטים שנמצאו ממושמים בקוד (היו מסומנים פתוח בטעות)
 
-#### 🔴 עדיפות גבוהה — ניתן לביצוע עכשיו
+| פריט | מיקום בקוד |
+|------|------------|
+| `GET /api/admin/metrics` | `packages/api/src/routes/admin.ts:495` |
+| `GET /api/admin/journal` (AgentExecutionEvents) | `packages/api/src/routes/admin.ts:516` |
+| Knowledge Graph UI | `apps/dashboard/src/features/graph/GraphExplorerPage.tsx` (SVG graph קיים) |
+| ProceduralChecklist auto-seed | `packages/api/src/routes/cases.ts:115` — נקרא בעת יצירת תיק |
+| AI tagging על הודעות נכנסות | `packages/api/src/routes/communications.ts:540` — `classifyInboundMessage` עם Ollama graceful fallback |
+| Legal Search UI (בסיסי) | `apps/dashboard/src/features/search/SearchPage.tsx` — מחפש FTS5 |
+| Zod validation | **40/57** route files כבר מאומתים — נותרו 6 prod routes בלבד |
 
-| פריט | תיאור | קבצים מרכזיים |
-|------|--------|---------------|
-| **GH2 — Zod (31 routes)** | אימות קלט חסר ב-31 קבצי routes (אבטחה קריטית). 3/34 הושלמו (agents/admin/erasure). | `packages/api/src/routes/*.ts` + רשימה ב-`reports/דוח-חוב-טכני.md` |
-| **`GET /api/tasks?status=overdue`** | Endpoint חסר ל-counter ב-`DashboardHomePage.tsx:35` | `packages/api/src/routes/tasks.ts` |
-| **B4 Observability** | `GET /api/admin/metrics`, Ollama health metrics, response times | `packages/observability`, `packages/api/src/routes/` |
-| **B4 Reliability** | Ollama fallback לכל נתיבי pipeline (לא רק ai package) | `packages/pipeline`, `packages/api/src/routes/` |
-| **AgentExecutionEvents API** | `GET /api/admin/journal` — טבלה קיימת, route חסר | `packages/api/src/routes/agents.ts` |
+### 🔴 פערים אמיתיים שנותרו (אומת בקוד)
 
-#### 🟡 עדיפות בינונית — לפני v1.0
+#### 1. `GET /api/tasks?status=overdue` — חסר
+`packages/api/src/routes/tasks.ts` מאפשר `status` רק מ-`['pending','in_progress','checked','cancelled']`.  
+`DashboardHomePage.tsx:35` ממתין לזה. **תיקון קל:** הוסף overdue כ-computed filter (due_date < today AND status IN ('pending','in_progress')).
 
-| פריט | תיאור |
-|------|--------|
-| **Legal Search UI (Phases 17-18)** | דף `/legal-search` — FTS5 + semantic search מעל `LegalDocuments` |
-| **Knowledge Graph UI (Phase 19)** | דף `/knowledge-graph` — SVG force-layout, Entities/EntityRelations |
-| **Incremental corpus updates (Phase 20)** | manifest-based diff על `CorpusVersionHistory` |
-| **ProceduralChecklist auto-seed** | קריאה ל-`seedProceduralChecklist()` ב-`POST /api/cases` |
-| **AI tagging on inbound messages** | חיבור `routeInbound` ל-Ollama urgency/tags |
+#### 2. GH2 — Zod ל-6 קבצי routes (לא 31)
+הנותרים ללא Zod: `health.ts`, `search.ts`, `enterprise.ts`, `legal-corpus.ts`, `verdict-corpus.ts`, `plugins.ts`.
 
-#### 🔵 חסומי-סביבה (קוד מוכן)
+#### 3. B4 Reliability — Ollama fallback ב-pipeline enrichment
+`packages/pipeline/src/engine.ts` — שלבי `stageClassify` ו-`stageEnrich` אין try/catch עם graceful fallback כשOllama מושבת.  
+קיים ב-ai package (circuit breaker) וב-communications — חסר ב-pipeline engine עצמו.
 
-- **C1 Telegram live** — חסום: `api.telegram.org` לא ב-allowlist
-- **C2 WhatsApp** — חסום: whatsapp-web.js דורש דפדפן מקומי
-- **C5/C6 Whisper** — חסום: דורש מודל Whisper מקומי
+#### 4. Legal Search מעל LegalDocuments החדש (Phases 17-18)
+`SearchPage.tsx` מחפש ב-`LegalSections` (קורפוס ישן). הטבלה החדשה `LegalDocuments` (migration 082, מ-Phase 1-22) **לא מחוברת** לממשק החיפוש עדיין.
 
-#### ⚪ עדיפות נמוכה / post-beta
+#### 5. Incremental corpus updates (Phase 20)
+`CorpusVersionHistory` קיים (migration 082) אך אין לוגיקת manifest-based diff לעדכון מצטבר.
 
+### 🔵 חסומי-סביבה (קוד מוכן)
+- **C1 Telegram live** — `api.telegram.org` לא ב-allowlist
+- **C2 WhatsApp** — whatsapp-web.js דורש דפדפן מקומי
+- **C5/C6 Whisper** — דורש מודל Whisper מקומי
+
+### ⚪ עדיפות נמוכה / post-beta
 - Corpus bundling ב-installer (Phase 23) — החלטת עיצוב
 - RBAC v2 — CaseAssignments table (hook point ב-`case-isolation-domain.ts`)
 - vec_chunks backfill — one-time migration
@@ -42,14 +49,14 @@
 - Build Beta Installer — GitHub Actions → "Build Beta Installer" → main → v1.0-beta.1 (ידני)
 - מחיקת 22 ענפים ישנים — GitHub UI בלבד (רשימה בסשן 2026-06-05)
 
-#### Migration slot הבא: **086**
+### Migration slot הבא: **086**
 
-#### סדר ביצוע מומלץ
-1. GH2 Zod (31 routes) + overdue tasks endpoint
-2. B4 Observability + AgentExecutionEvents API + Reliability
-3. Legal Search UI (17-18) + ProceduralChecklist auto-seed
-4. Knowledge Graph UI (19) + AI tagging on inbound
-5. Phase 20 (incremental) + corpus bundling decision
+### סדר ביצוע מומלץ (מעודכן לאחר בדיקת קוד)
+1. `GET /api/tasks?status=overdue` — תיקון מהיר
+2. B4 Reliability — Ollama fallback ב-`packages/pipeline/src/engine.ts`
+3. Zod ל-6 routes (health, search, enterprise, legal-corpus, verdict-corpus, plugins)
+4. LegalDocuments search integration ב-SearchPage (Phases 17-18)
+5. Phase 20 incremental corpus updates
 
 ---
 
