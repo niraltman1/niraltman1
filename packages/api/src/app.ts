@@ -68,6 +68,8 @@ import { enterpriseRouter }  from './routes/enterprise.js';
 import { recordActivity }    from './utils/resource-controller.js';
 import { RagHealingService } from './utils/rag-healing.js';
 import { logWhisperHealthAtStartup } from './modules/transcription/whisper.js';
+import { legalKnowledgeRouter } from './routes/legal-knowledge.js';
+import { LegalKnowledgeService } from './services/legal-knowledge-service.js';
 
 export function createApp(
   repos: Repos,
@@ -196,6 +198,14 @@ export function createApp(
   app.use('/api/legal-brain',   legalBrainRouter(repos));
   app.use('/api/plugins',       pluginsRouter());
   app.use('/api/enterprise',    enterpriseRouter());
+  // Unified Legal Knowledge Platform (Phase 24)
+  app.use('/api/legal', legalKnowledgeRouter(new LegalKnowledgeService(
+    repos.legalDocuments,
+    repos.legalSourceRegistry,
+    repos.verdictCitations,
+    repos.legalDocumentEmbeddings,
+    repos.legalIngestionProgress,
+  )));
 
   // Track activity for Day/Night resource controller
   app.use((_req, _res, next) => { recordActivity(); next(); });
