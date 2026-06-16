@@ -196,7 +196,7 @@ Filename: "{app}\tools\OllamaSetup.exe"; \
 ; Non-fatal: if Ollama never responds, model registration falls back to the
 ; OllamaService first-run flow inside the WPF shell.
 Filename: "powershell.exe"; \
-  Parameters: "-WindowStyle Hidden -NonInteractive -ExecutionPolicy Bypass -Command ""& { $max=30; $i=0; while($i -lt $max){ try{ Invoke-WebRequest -UseBasicParsing -TimeoutSec 2 http://127.0.0.1:11434/api/tags -ErrorAction Stop | Out-Null; exit 0 } catch{} ; Start-Sleep -Seconds 2; $i++ } exit 0 }"""; \
+  Parameters: "-WindowStyle Hidden -NonInteractive -ExecutionPolicy Bypass -Command ""& {{ $max=30; $i=0; while($i -lt $max){{ try{{ Invoke-WebRequest -UseBasicParsing -TimeoutSec 2 http://127.0.0.1:11434/api/tags -ErrorAction Stop | Out-Null; exit 0 }} catch{{}} ; Start-Sleep -Seconds 2; $i++ }} exit 0 }}"""; \
   StatusMsg: "בודק זמינות מנוע AI…"; \
   Flags: waituntilterminated
 
