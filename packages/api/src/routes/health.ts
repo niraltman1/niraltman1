@@ -18,7 +18,7 @@ interface CheckResult {
   durationMs: number;
 }
 
-const LATEST_MIGRATION_VERSION = 85;
+const LATEST_MIGRATION_VERSION = 84;
 const MIN_FREE_DISK_MB = 100;
 
 // Ollama cache — avoids blocking requests during model loading
