@@ -18,7 +18,7 @@ export default defineConfig({
   webServer: [
     {
       command: `pnpm exec tsx ../../packages/api/src/start.ts`,
-      url: 'http://localhost:3001/api/health',
+      url: 'http://localhost:3001/api/health/ping',
       reuseExistingServer: !process.env['CI'],
       timeout: 30_000,
       env: {
