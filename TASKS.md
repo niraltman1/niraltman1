@@ -1,5 +1,58 @@
 # Factum-IL — Task Tracker
 
+## 🗓️ Session handoff — Open Tasks Work Plan (2026-06-16)
+
+**Branch:** `claude/open-tasks-work-plan-j3w8vk`
+
+### תוכנית עבודה — פערים פתוחים (16.06.2026)
+
+#### 🔴 עדיפות גבוהה — ניתן לביצוע עכשיו
+
+| פריט | תיאור | קבצים מרכזיים |
+|------|--------|---------------|
+| **GH2 — Zod (31 routes)** | אימות קלט חסר ב-31 קבצי routes (אבטחה קריטית). 3/34 הושלמו (agents/admin/erasure). | `packages/api/src/routes/*.ts` + רשימה ב-`reports/דוח-חוב-טכני.md` |
+| **`GET /api/tasks?status=overdue`** | Endpoint חסר ל-counter ב-`DashboardHomePage.tsx:35` | `packages/api/src/routes/tasks.ts` |
+| **B4 Observability** | `GET /api/admin/metrics`, Ollama health metrics, response times | `packages/observability`, `packages/api/src/routes/` |
+| **B4 Reliability** | Ollama fallback לכל נתיבי pipeline (לא רק ai package) | `packages/pipeline`, `packages/api/src/routes/` |
+| **AgentExecutionEvents API** | `GET /api/admin/journal` — טבלה קיימת, route חסר | `packages/api/src/routes/agents.ts` |
+
+#### 🟡 עדיפות בינונית — לפני v1.0
+
+| פריט | תיאור |
+|------|--------|
+| **Legal Search UI (Phases 17-18)** | דף `/legal-search` — FTS5 + semantic search מעל `LegalDocuments` |
+| **Knowledge Graph UI (Phase 19)** | דף `/knowledge-graph` — SVG force-layout, Entities/EntityRelations |
+| **Incremental corpus updates (Phase 20)** | manifest-based diff על `CorpusVersionHistory` |
+| **ProceduralChecklist auto-seed** | קריאה ל-`seedProceduralChecklist()` ב-`POST /api/cases` |
+| **AI tagging on inbound messages** | חיבור `routeInbound` ל-Ollama urgency/tags |
+
+#### 🔵 חסומי-סביבה (קוד מוכן)
+
+- **C1 Telegram live** — חסום: `api.telegram.org` לא ב-allowlist
+- **C2 WhatsApp** — חסום: whatsapp-web.js דורש דפדפן מקומי
+- **C5/C6 Whisper** — חסום: דורש מודל Whisper מקומי
+
+#### ⚪ עדיפות נמוכה / post-beta
+
+- Corpus bundling ב-installer (Phase 23) — החלטת עיצוב
+- RBAC v2 — CaseAssignments table (hook point ב-`case-isolation-domain.ts`)
+- vec_chunks backfill — one-time migration
+- Annotations pixel-level — דורש hOCR
+- OCR fallback — wire `runOCRInWorker`
+- Build Beta Installer — GitHub Actions → "Build Beta Installer" → main → v1.0-beta.1 (ידני)
+- מחיקת 22 ענפים ישנים — GitHub UI בלבד (רשימה בסשן 2026-06-05)
+
+#### Migration slot הבא: **086**
+
+#### סדר ביצוע מומלץ
+1. GH2 Zod (31 routes) + overdue tasks endpoint
+2. B4 Observability + AgentExecutionEvents API + Reliability
+3. Legal Search UI (17-18) + ProceduralChecklist auto-seed
+4. Knowledge Graph UI (19) + AI tagging on inbound
+5. Phase 20 (incremental) + corpus bundling decision
+
+---
+
 ## 🗓️ Session handoff — Unified Legal Knowledge Platform (2026-06-16)
 
 **Branch:** `claude/factum-il-legal-platform-tvei7l` — PR #122 ✅ MERGED to main (`3efb905`)
