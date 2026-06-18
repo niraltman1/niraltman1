@@ -7,7 +7,8 @@ import { createHash } from 'node:crypto';
 import { logger } from '@factum-il/shared';
 import type { Repos } from '../db.js';
 import type { VerdictInput } from '@factum-il/database';
-import { rawGuychukRowToVerdict, GUYCHUK_PROVENANCE } from '../modules/verdict-corpus/ingest.js';
+import { rawGuychukRowToVerdict } from '../modules/verdict-corpus/transform.js';
+import { GUYCHUK_PROVENANCE } from '../modules/verdict-corpus/ingest.js';
 
 // SystemSettings keys
 const SIG_KEY      = 'verdict_corpus_artifact_sig';
