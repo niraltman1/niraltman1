@@ -1,8 +1,8 @@
 import { useState, useMemo, useEffect } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { MagnifyingGlassIcon, SpinnerGapIcon, WarningCircleIcon, PlusCircleIcon } from '@phosphor-icons/react';
-import { useSearch, useAddToShelf, useCreateDraft } from '@/api/hooks.js';
-import type { SearchHit } from '@/api/hooks.js';
+import { useSearch, useAddToShelf, useCreateDraft, useLegalDocumentSearch } from '@/api/hooks.js';
+import type { SearchHit, LegalDocumentSearchHit } from '@/api/hooks.js';
 import { useUIStore } from '@/store/index.js';
 import {
   ENTITY_META,
@@ -51,6 +51,7 @@ export function SearchPage() {
   const trimmed = query.trim();
   const tooShort = trimmed.length > 0 && trimmed.length < 2;
   const { data, isFetching, isError, error } = useSearch(query);
+  const { data: legalDocs, isFetching: legalFetching } = useLegalDocumentSearch(trimmed);
 
   const allHits: SearchHit[] = useMemo(() => data ?? [], [data]);
   const hits = useMemo(
@@ -58,6 +59,8 @@ export function SearchPage() {
     [allHits, filter],
   );
   const groups = useMemo(() => groupHits(hits), [hits]);
+  const hasAnyResults = hits.length > 0 || (legalDocs !== undefined && legalDocs.length > 0);
+  const noResultsText = legalFetching ? 'מחפש…' : `אין תוצאות עבור "${trimmed}"`;
 
   return (
     <div className="space-y-4" dir="rtl">
@@ -126,8 +129,8 @@ export function SearchPage() {
         </div>
       ) : isFetching && allHits.length === 0 ? (
         <EmptyHint icon="spinner" text="מחפש…" />
-      ) : hits.length === 0 ? (
-        <EmptyHint icon="search" text={`אין תוצאות עבור “${trimmed}”`} />
+      ) : !hasAnyResults ? (
+        <EmptyHint icon={legalFetching ? 'spinner' : 'search'} text={noResultsText} />
       ) : (
         <div className="space-y-5">
           {groups.map((group) => {
@@ -178,9 +181,57 @@ export function SearchPage() {
               </section>
             );
           })}
+
+          {/* Legal Documents (corpus) results */}
+          {legalDocs && legalDocs.length > 0 && (
+            <LegalDocSection docs={legalDocs} query={trimmed} />
+          )}
         </div>
       )}
     </div>
+  );
+}
+
+function LegalDocSection({ docs, query }: { docs: LegalDocumentSearchHit[]; query: string }) {
+  return (
+    <section>
+      <div className="flex items-center gap-2 mb-1.5">
+        <span className="text-amber-400">⚖</span>
+        <h2 className="text-[11px] font-semibold uppercase tracking-widest text-parchment/40">
+          ידע משפטי
+        </h2>
+        <span className="text-parchment/25 text-[11px]">{docs.length}</span>
+      </div>
+      <ul className="space-y-1.5">
+        {docs.map((doc) => (
+          <li key={doc.documentId}>
+            <div className="flex flex-col gap-1 bg-navy-100 border border-parchment/10 rounded-lg px-4 py-3 hover:border-gold/40 hover:bg-navy-100/70 transition-colors">
+              <div className="flex items-center gap-2 flex-wrap">
+                <span className="text-parchment text-sm font-medium">
+                  <Highlight text={doc.title ?? doc.documentId} query={query} />
+                </span>
+                {doc.court && (
+                  <span className="text-[10px] px-1.5 py-0.5 rounded bg-amber-400/10 text-amber-400 border border-amber-400/20">
+                    {doc.court}
+                  </span>
+                )}
+                <span className="text-[10px] px-1.5 py-0.5 rounded bg-parchment/5 text-parchment/40 border border-parchment/10">
+                  {doc.sourceDataset}
+                </span>
+                {doc.date && (
+                  <span className="text-parchment/30 text-[11px]">{doc.date.slice(0, 10)}</span>
+                )}
+              </div>
+              {doc.snippet && (
+                <p className="text-parchment/50 text-xs leading-relaxed line-clamp-2" dir="rtl">
+                  <Highlight text={doc.snippet} query={query} />
+                </p>
+              )}
+            </div>
+          </li>
+        ))}
+      </ul>
+    </section>
   );
 }
 

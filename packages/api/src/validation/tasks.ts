@@ -25,8 +25,10 @@ export const updateTaskSchema = z.object({
   caseId:      z.number().int().positive().nullable().optional(),
 }).strict();
 
+const listStatusValues = [...taskStatusValues, 'overdue'] as const;
+
 export const listTasksQuerySchema = z.object({
-  status:   z.enum(taskStatusValues).optional(),
+  status:   z.enum(listStatusValues).optional(),
   clientId: z.coerce.number().int().positive().optional(),
   caseId:   z.coerce.number().int().positive().optional(),
   page:     z.coerce.number().int().min(1).optional(),

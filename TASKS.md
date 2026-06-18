@@ -1,5 +1,91 @@
 # Factum-IL — Task Tracker
 
+## 🗓️ Session handoff — Open Tasks completion (2026-06-18)
+
+**Branch:** `claude/open-tasks-work-plan-j3w8vk` — PR #125 (draft)
+
+### ✅ הושלם בסשן זה
+
+| פריט | קומיט |
+|------|-------|
+| `GET /api/tasks?status=overdue` (DB filter + validation + 5 tests) | `9b48bc7` |
+| Zod validation ל-`packages/api/src/routes/search.ts` | `9b48bc7` |
+| `useLegalDocumentSearch` hook + `LegalDocumentSearchHit` type ב-hooks.ts | `ac3bc55` |
+| SearchPage "ידע משפטי" section — corpus hits below main results | `ac3bc55` |
+
+### 🔴 פערים שנותרו
+
+1. **B4 Reliability** — Ollama fallback ב-`packages/pipeline/src/engine.ts` (`stageClassify`/`stageEnrich`)
+2. **Phase 20** — Incremental corpus updates (manifest-based diff על `CorpusVersionHistory`)
+
+### 🔵 חסומי-סביבה / post-beta
+- C1 Telegram live, C2 WhatsApp, C5/C6 Whisper — חסומי-סביבה
+- Corpus bundling ב-installer (Phase 23), RBAC v2, vec_chunks backfill, Annotations pixel-level, OCR fallback, Build Beta Installer, מחיקת ענפים ישנים
+
+### Migration slot הבא: **086**
+
+---
+
+## 🗓️ Session handoff — Open Tasks Work Plan (בדיקת קוד) (2026-06-16)
+
+**Branch:** `claude/open-tasks-work-plan-j3w8vk`
+
+### ✅ פריטים שנמצאו ממושמים בקוד (היו מסומנים פתוח בטעות)
+
+| פריט | מיקום בקוד |
+|------|------------|
+| `GET /api/admin/metrics` | `packages/api/src/routes/admin.ts:495` |
+| `GET /api/admin/journal` (AgentExecutionEvents) | `packages/api/src/routes/admin.ts:516` |
+| Knowledge Graph UI | `apps/dashboard/src/features/graph/GraphExplorerPage.tsx` (SVG graph קיים) |
+| ProceduralChecklist auto-seed | `packages/api/src/routes/cases.ts:115` — נקרא בעת יצירת תיק |
+| AI tagging על הודעות נכנסות | `packages/api/src/routes/communications.ts:540` — `classifyInboundMessage` עם Ollama graceful fallback |
+| Legal Search UI (בסיסי) | `apps/dashboard/src/features/search/SearchPage.tsx` — מחפש FTS5 |
+| Zod validation | **40/57** route files כבר מאומתים — נותרו 6 prod routes בלבד |
+
+### 🔴 פערים אמיתיים שנותרו (אומת בקוד)
+
+#### 1. `GET /api/tasks?status=overdue` — חסר
+`packages/api/src/routes/tasks.ts` מאפשר `status` רק מ-`['pending','in_progress','checked','cancelled']`.  
+`DashboardHomePage.tsx:35` ממתין לזה. **תיקון קל:** הוסף overdue כ-computed filter (due_date < today AND status IN ('pending','in_progress')).
+
+#### 2. GH2 — Zod ל-6 קבצי routes (לא 31)
+הנותרים ללא Zod: `health.ts`, `search.ts`, `enterprise.ts`, `legal-corpus.ts`, `verdict-corpus.ts`, `plugins.ts`.
+
+#### 3. B4 Reliability — Ollama fallback ב-pipeline enrichment
+`packages/pipeline/src/engine.ts` — שלבי `stageClassify` ו-`stageEnrich` אין try/catch עם graceful fallback כשOllama מושבת.  
+קיים ב-ai package (circuit breaker) וב-communications — חסר ב-pipeline engine עצמו.
+
+#### 4. Legal Search מעל LegalDocuments החדש (Phases 17-18)
+`SearchPage.tsx` מחפש ב-`LegalSections` (קורפוס ישן). הטבלה החדשה `LegalDocuments` (migration 082, מ-Phase 1-22) **לא מחוברת** לממשק החיפוש עדיין.
+
+#### 5. Incremental corpus updates (Phase 20)
+`CorpusVersionHistory` קיים (migration 082) אך אין לוגיקת manifest-based diff לעדכון מצטבר.
+
+### 🔵 חסומי-סביבה (קוד מוכן)
+- **C1 Telegram live** — `api.telegram.org` לא ב-allowlist
+- **C2 WhatsApp** — whatsapp-web.js דורש דפדפן מקומי
+- **C5/C6 Whisper** — דורש מודל Whisper מקומי
+
+### ⚪ עדיפות נמוכה / post-beta
+- Corpus bundling ב-installer (Phase 23) — החלטת עיצוב
+- RBAC v2 — CaseAssignments table (hook point ב-`case-isolation-domain.ts`)
+- vec_chunks backfill — one-time migration
+- Annotations pixel-level — דורש hOCR
+- OCR fallback — wire `runOCRInWorker`
+- Build Beta Installer — GitHub Actions → "Build Beta Installer" → main → v1.0-beta.1 (ידני)
+- מחיקת 22 ענפים ישנים — GitHub UI בלבד (רשימה בסשן 2026-06-05)
+
+### Migration slot הבא: **086**
+
+### סדר ביצוע מומלץ (מעודכן לאחר בדיקת קוד)
+1. `GET /api/tasks?status=overdue` — תיקון מהיר
+2. B4 Reliability — Ollama fallback ב-`packages/pipeline/src/engine.ts`
+3. Zod ל-6 routes (health, search, enterprise, legal-corpus, verdict-corpus, plugins)
+4. LegalDocuments search integration ב-SearchPage (Phases 17-18)
+5. Phase 20 incremental corpus updates
+
+---
+
 ## 🗓️ Session handoff — Unified Legal Knowledge Platform (2026-06-16)
 
 **Branch:** `claude/factum-il-legal-platform-tvei7l` — PR #122 ✅ MERGED to main (`3efb905`)

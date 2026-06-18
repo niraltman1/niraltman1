@@ -19,7 +19,11 @@ export function tasksRouter(repos: Repos): Router {
   router.get('/', validate(listTasksQuerySchema, 'query'), asyncHandler((req, res) => {
     const q = req.query as unknown as z.infer<typeof listTasksQuerySchema>;
     const listOpts: Parameters<typeof tasks.list>[0] = {};
-    if (q.status)   listOpts.status   = q.status;
+    if (q.status === 'overdue') {
+      listOpts.overdue = true;
+    } else if (q.status) {
+      listOpts.status = q.status;
+    }
     if (q.clientId) listOpts.clientId = q.clientId;
     if (q.caseId)   listOpts.caseId   = q.caseId;
     listOpts.page  = q.page     ?? 1;

@@ -20,18 +20,25 @@ export class TaskRepository {
 
   list(options: {
     status?:   string;
+    overdue?:  boolean;
     clientId?: number;
     caseId?:   number;
     limit?:    number;
     page?:     number;
   } = {}): { items: Task[]; total: number; hasNextPage: boolean } {
-    const { status, clientId, caseId, limit = 50, page = 1 } = options;
+    const { status, overdue, clientId, caseId, limit = 50, page = 1 } = options;
     const offset = (page - 1) * limit;
 
     const conditions: string[] = [];
     const args: unknown[]      = [];
 
-    if (status)   { conditions.push('t.status = ?');    args.push(status);   }
+    if (overdue) {
+      conditions.push("t.due_date < datetime('now')");
+      conditions.push("t.status IN ('pending', 'in_progress')");
+    } else if (status) {
+      conditions.push('t.status = ?');
+      args.push(status);
+    }
     if (clientId) { conditions.push('t.client_id = ?'); args.push(clientId); }
     if (caseId)   { conditions.push('t.case_id = ?');   args.push(caseId);   }
 
