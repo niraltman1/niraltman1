@@ -3472,6 +3472,32 @@ export function useLegalCorpusSearch(query: string, sourceKey?: string) {
   });
 }
 
+// ── Legal Knowledge — unified LegalDocuments search (Phase 17-18) ────────────
+
+export interface LegalDocumentSearchHit {
+  documentId:    string;
+  title:         string | null;
+  caseNumber:    string | null;
+  court:         string | null;
+  date:          string | null;
+  sourceDataset: string;
+  snippet:       string;
+  rank:          number;
+}
+
+export function useLegalDocumentSearch(query: string, opts?: { court?: string; source?: string }) {
+  const qs = new URLSearchParams({ q: query });
+  if (opts?.court)  qs.set('court',  opts.court);
+  if (opts?.source) qs.set('source', opts.source);
+  return useQuery({
+    queryKey: ['legal-documents', 'search', query, opts?.court ?? '', opts?.source ?? ''],
+    queryFn:  () => fetchJSON<LegalDocumentSearchHit[]>(`/api/legal/search?${qs}`),
+    enabled:  query.trim().length >= 2,
+    staleTime: 30_000,
+    retry: false,
+  });
+}
+
 // ── Legal Drafts ──────────────────────────────────────────────────────────────
 
 export interface DraftRecord {
