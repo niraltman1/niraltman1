@@ -1,3 +1,4 @@
+<<<<<<< HEAD
 import { createHash } from 'node:crypto';
 import type { DatabaseConnection } from '../connection.js';
 
@@ -411,5 +412,3 @@ export class LegalDocumentRepository {
     return (this.db.prepare(
       'SELECT COUNT(*) as n FROM LegalDocuments WHERE source_dataset = ? AND is_active = 1',
     ).get(sourceDataset) as { n: number }).n;
-  }
-}

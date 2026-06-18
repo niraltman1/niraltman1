@@ -638,6 +638,43 @@ if ($corpusBatchCount -eq 0) {
     Write-Host "    Run: pnpm ingest-knesset-odata -- --embed" -ForegroundColor Yellow
 }
 
+# Verdict corpus — guychuk/case-law-israel (all Israeli court levels, ~10K judgments)
+# Stored at FactumIL_Dist\verdict-corpus\ → deployed to {app}\app\verdict-corpus\
+# Runtime loader: packages/api/src/utils/verdict-corpus-loader.ts
+$VcDst  = Join-Path $OutDir "verdict-corpus"
+New-Item -ItemType Directory -Force -Path $VcDst | Out-Null
+$VcFile  = Join-Path $VcDst "case-law-il.jsonl.gz"
+$VcMeta  = Join-Path $VcDst "corpus-metadata.json"
+
+if (-not (Test-Path $VcFile)) {
+    try {
+        # Reuse $rel (already fetched above for the Knesset corpus)
+        $vcAsset = $rel.assets | Where-Object { $_.name -eq 'case-law-il.jsonl.gz' } | Select-Object -First 1
+        if ($vcAsset) {
+            if (DownloadWithRetry $vcAsset.url $VcFile 300 2) {
+                $vcMB = [math]::Round((Get-Item $VcFile).Length / 1MB, 1)
+                Write-Host "  ✓ Verdict corpus: case-law-il.jsonl.gz (${vcMB} MB)" -ForegroundColor Green
+            }
+            # Also download companion metadata (corpus version + SHA-256) if present
+            $metaAsset = $rel.assets | Where-Object { $_.name -eq 'corpus-metadata.json' -and $_.url -like '*verdict-corpus*' } | Select-Object -First 1
+            if (-not $metaAsset) {
+                $metaAsset = $rel.assets | Where-Object { $_.name -eq 'corpus-metadata.json' } | Select-Object -Last 1
+            }
+            if ($metaAsset) {
+                DownloadWithRetry $metaAsset.url $VcMeta 30 2 | Out-Null
+                Write-Host "    ✓ corpus-metadata.json" -ForegroundColor Gray
+            }
+        } else {
+            Write-Host "  ⚠ case-law-il.jsonl.gz not yet in v-corpus-latest — app will boot without case law corpus" -ForegroundColor DarkYellow
+            Write-Host "    Trigger: .github/workflows/ingest-caselawil-corpus.yml" -ForegroundColor DarkYellow
+        }
+    } catch {
+        Write-Host "  ⚠ Verdict corpus download skipped: $_ — app will boot without case law corpus" -ForegroundColor DarkYellow
+    }
+} else {
+    Write-Host "  ✓ Verdict corpus already staged ($([math]::Round((Get-Item $VcFile).Length / 1MB, 1)) MB)" -ForegroundColor Green
+}
+
 StepElapsed
 
 # ═══════════════════════════════════════════════════════════════════════════════

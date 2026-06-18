@@ -105,6 +105,12 @@ Source: "FactumIL_Dist\migrations\*"; DestDir: "{app}\app\migrations"; Flags: ig
 ; by `pnpm ingest-knesset-odata`; skipifsourcedoesntexist so packaging works without it.
 Source: "FactumIL_Dist\legal-corpus\*"; DestDir: "{app}\app\legal-corpus"; Flags: ignoreversion skipifsourcedoesntexist createallsubdirs recursesubdirs
 
+; ── Bundled verdict corpus (guychuk/case-law-israel, all court levels) ───────
+; Loader: packages/api/src/utils/verdict-corpus-loader.ts
+; FACTUM_IL_ROOT\verdict-corpus\ = {app}\app\verdict-corpus\
+Source: "FactumIL_Dist\verdict-corpus\case-law-il.jsonl.gz";   DestDir: "{app}\app\verdict-corpus"; Flags: ignoreversion skipifsourcedoesntexist
+Source: "FactumIL_Dist\verdict-corpus\corpus-metadata.json";   DestDir: "{app}\app\verdict-corpus"; Flags: ignoreversion skipifsourcedoesntexist
+
 
 ; ── Legal Registry + PowerShell helpers ──────────────────────────────────────
 Source: "FactumIL_Dist\powershell\lib\Legal_Registry.json";  DestDir: "{app}\powershell\lib"; Flags: ignoreversion

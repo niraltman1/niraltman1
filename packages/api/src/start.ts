@@ -73,6 +73,7 @@ import { startDeadlineTracker, stopDeadlineTracker } from './utils/deadline-trac
 import { startSlaRadarScheduler, stopSlaRadarScheduler } from './utils/sla-radar-scheduler.js';
 import { initRegistry } from './utils/legal-registry-loader.js';
 import { initLegalCorpus } from './utils/legal-corpus-loader.js';
+import { initVerdictCorpus } from './utils/verdict-corpus-loader.js';
 import { seedDefaultAdmin } from './middleware/auth.js';
 import { initLogger } from './utils/logger.js';
 import { logger } from '@factum-il/shared';
@@ -312,6 +313,7 @@ initRegistry();
 // Load the bundled, offline legislation corpus into the DB on first run (idempotent,
 // graceful if the artifact is absent). No network — reads a static JSONL only.
 await initLegalCorpus(repos);
+await initVerdictCorpus(repos);
 
 // Wire infrastructure spine — metrics persistence + domain event bus
 // repos.db (DatabaseConnection) satisfies the duck-typed DbHandle in both packages
