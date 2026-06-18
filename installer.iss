@@ -86,7 +86,7 @@ Source: "FactumIL_Dist\shell\*"; DestDir: "{app}"; Flags: ignoreversion recurses
 Source: "FactumIL_Dist\runtime\node.exe"; DestDir: "{app}\app\node"; Flags: ignoreversion
 
 ; ── Express API + workspace packages + node_modules ─────────────────────────
-Source: "FactumIL_Dist\backend\*"; DestDir: "{app}\app\api"; Flags: ignoreversion recursesubdirs createallsubdirs
+Source: "FactumIL_Dist\api\*"; DestDir: "{app}\app\api"; Flags: ignoreversion recursesubdirs createallsubdirs
 
 ; ── React dashboard (dist\ preserved so API resolves correctly) ──────────────
 ; API entry (app\api\dist\start.js) resolves dashboard via:
@@ -111,6 +111,12 @@ Source: "FactumIL_Dist\powershell\lib\Legal_Registry.json";  DestDir: "{app}\pow
 Source: "FactumIL_Dist\powershell\lib\Config.ps1";           DestDir: "{app}\powershell\lib"; Flags: ignoreversion skipifsourcedoesntexist
 Source: "FactumIL_Dist\powershell\lib\IdentifierParser.ps1"; DestDir: "{app}\powershell\lib"; Flags: ignoreversion skipifsourcedoesntexist
 
+; ── Bootstrap and maintenance scripts ────────────────────────────────────────
+Source: "FactumIL_Dist\scripts\*"; DestDir: "{app}\scripts"; Flags: ignoreversion
+
+; ── Dependency checksum manifest ─────────────────────────────────────────────
+Source: "FactumIL_Dist\deps-manifest.json"; DestDir: "{app}"; Flags: ignoreversion skipifsourcedoesntexist
+
 ; ── App icon ──────────────────────────────────────────────────────────────────
 Source: "assets\logo\factum-il-icon.ico"; DestDir: "{app}\assets\logo"; Flags: ignoreversion
 
@@ -126,11 +132,16 @@ Source: "FactumIL_Dist\tools\register-ollama-model.ps1";          DestDir: "{app
 Source: "FactumIL_Dist\models\gemma-4-E2B-it.BF16-mmproj.gguf"; DestDir: "{app}\models"; Flags: ignoreversion skipifsourcedoesntexist
 
 [Icons]
-; Start Menu
-Name: "{group}\{#AppName}";      Filename: "{app}\{#AppExeName}"; IconFilename: "{app}\assets\logo\factum-il-icon.ico"; Tasks: startmenu
-Name: "{group}\הסר התקנה";       Filename: "{uninstallexe}";                                                            Tasks: startmenu
+; Start Menu — main application
+Name: "{group}\{#AppName}";           Filename: "{app}\{#AppExeName}"; IconFilename: "{app}\assets\logo\factum-il-icon.ico"; Tasks: startmenu
+; Start Menu — repair tool
+Name: "{group}\Repair Factum-IL";     Filename: "powershell.exe"; \
+  Parameters: "-ExecutionPolicy Bypass -File ""{app}\scripts\Repair-FactumIL.ps1"" -RepairAll"; \
+  WorkingDir: "{app}\scripts"; Tasks: startmenu
+; Start Menu — uninstall
+Name: "{group}\הסר התקנה";           Filename: "{uninstallexe}"; Tasks: startmenu
 ; Desktop shortcut
-Name: "{autodesktop}\{#AppName}"; Filename: "{app}\{#AppExeName}"; IconFilename: "{app}\assets\logo\factum-il-icon.ico"; Tasks: desktopicon
+Name: "{autodesktop}\{#AppName}";     Filename: "{app}\{#AppExeName}"; IconFilename: "{app}\assets\logo\factum-il-icon.ico"; Tasks: desktopicon
 
 [Registry]
 ; FACTUM_IL_ROOT — the app\ subdirectory so Node finds migrations and assets correctly
@@ -210,10 +221,17 @@ Filename: "powershell.exe"; \
   Flags: waituntilterminated; \
   Check: FileExists(ExpandConstant('{app}\models\gemma-4-E2B-it.BF16-mmproj.gguf')) and FileExists(ExpandConstant('{app}\tools\register-ollama-model.ps1'))
 
-; ── 5. Launch app after install (the WPF shell handles everything else) ───────
-Filename: "{app}\{#AppExeName}"; \
+; ── 5. Run bootstrap-world.ps1 — validates AI environment then launches app ───
+; IMPORTANT: Desktop.exe is NOT launched directly.
+; bootstrap-world.ps1 performs all validation steps, writes BOOTSTRAP_DONE.flag,
+; and only then launches FactumIL.Desktop.exe.
+; The application refuses normal startup if BOOTSTRAP_DONE.flag is absent.
+Filename: "powershell.exe"; \
+  Parameters: "-NonInteractive -ExecutionPolicy Bypass -WindowStyle Hidden -File ""{app}\scripts\bootstrap-world.ps1"" -AppDir ""{app}"""; \
+  StatusMsg: "מאמת סביבת AI מקומית…"; \
   Description: "הפעל את Factum IL עכשיו"; \
-  Flags: nowait postinstall skipifsilent skipifdoesntexist
+  Flags: waituntilterminated postinstall skipifsilent; \
+  Check: FileExists(ExpandConstant('{app}\scripts\bootstrap-world.ps1'))
 
 [InstallDelete]
 ; Purge stale compiled output and native bindings from any previous installation.
@@ -223,6 +241,10 @@ Filename: "{app}\{#AppExeName}"; \
 Type: filesandordirs; Name: "{app}\app\api\node_modules"
 Type: filesandordirs; Name: "{app}\app\api\dist"
 Type: filesandordirs; Name: "{app}\app\dashboard\dist"
+; Remove stale bootstrap flag so fresh bootstrap always runs after upgrade
+Type: files; Name: "{app}\runtime\BOOTSTRAP_DONE.flag"
+Type: files; Name: "{app}\runtime\AI_HEALTH.json"
+Type: files; Name: "{app}\runtime\ModelHealth.json"
 
 [UninstallDelete]
 ; Remove runtime-generated files on uninstall (leaves %LOCALAPPDATA%\FactumIL intact)
@@ -342,13 +364,45 @@ begin
          and not FileExists(ExpandConstant('{pf}\Ollama\ollama.exe'));
 end;
 
-// ── Pre-wizard checks — abort early if .NET 8 Desktop Runtime is missing ──────
+// ── Minimum RAM check (8 GB required) ────────────────────────────────────────
+function HasMinimumRAM(): Boolean;
+var
+  RamKB: Cardinal;
+begin
+  RamKB := GetPhysicalMemoryMB() * 1024;
+  Result := (GetPhysicalMemoryMB() >= 7500);
+end;
+
+// ── Minimum disk space check (15 GB required) ────────────────────────────────
+function HasMinimumDiskSpace(): Boolean;
+var
+  FreeBytes: Int64;
+begin
+  GetSpaceOnDisk(ExpandConstant('{autopf}'), False, FreeBytes, FreeBytes);
+  Result := (FreeBytes >= Int64(16106127360));
+end;
+
+// ── Pre-wizard checks — abort early if requirements are not met ──────────────
 function InitializeSetup(): Boolean;
 var
   ErrCode: Integer;
   ExistingVer: String;
+  RamMB: Integer;
 begin
   Result := True;
+
+  // ── Minimum RAM check ──────────────────────────────────────────────────────
+  RamMB := GetPhysicalMemoryMB();
+  if RamMB < 7500 then
+  begin
+    MsgBox(
+      'Factum IL requires at least 8 GB RAM.' + #13#10 +
+      'Detected: ' + IntToStr(RamMB div 1024) + ' GB' + #13#10#13#10 +
+      'The AI model cannot be loaded with insufficient RAM.',
+      mbInformation, MB_OK);
+    Result := False;
+    Exit;
+  end;
 
   if not IsDotNet8DesktopInstalled() then
   begin

@@ -1,5 +1,81 @@
 # Factum-IL — Task Tracker
 
+## 🗓️ Session handoff — Installer & Bootstrap Hardening (2026-06-18)
+
+**Branch:** `claude/factum-il-installer-bootstrap-ah1h06` — PR open (12-phase hardening)
+
+### הושלם הפעם — Installer & Bootstrap Hardening Program (Phases 1-12)
+
+#### Phase 1 — Installer/Publish Consistency Audit ✅
+- Renamed `FactumIL_Dist\backend\` → `FactumIL_Dist\api\` in `publish.ps1` and `installer.iss`
+- Added `scripts/` directory staging in `publish.ps1`
+- Added `deps-manifest.json` copy to staging
+- Created `docs/INSTALLER_AUDIT.md` with complete artifact inventory
+
+#### Phase 2 — First-Run Bootstrap Orchestrator ✅
+- Created `apps/installer/bootstrap-world.ps1` — 11-step validation sequence
+- Implements `BOOTSTRAP_DONE.flag` protocol (required before Desktop.exe launches)
+- Startup state machine: INSTALLING → BOOTSTRAPPING → VERIFYING → READY → MAINTENANCE
+
+#### Phase 3 — Ollama Installation Management ✅
+- `Install-OllamaIfMissing()` in bootstrap-world.ps1
+- Detects, installs, waits 60s, verifies localhost:11434
+
+#### Phase 4 — Local Model Registration ✅
+- Updated `scripts/register-ollama-model.ps1`: checksum verify + warmup inference + ModelHealth.json
+- `Ensure-LocalModel()` in bootstrap-world.ps1
+
+#### Phase 5 — AI Health Check Framework ✅
+- Created `powershell/scripts/Test-AIHealth.ps1`
+- Writes `runtime/AI_HEALTH.json` with latency, inference status, policy compliance
+
+#### Phase 6 — Remove Unsafe Fallbacks ✅
+- Rewrote `01-SystemCheck.ps1`: hardware detection only, no model selection
+- Rewrote `02-SetupAIModels.ps1`: registers only `BrainboxAI/law-il-E2B:Q4_K_M`
+- Fixed `START-HERE.ps1`: removed `gemma2:2b` fallback and "LEGAL-OS" banner
+- Created `docs/AI_EXECUTION_POLICY.md`
+
+#### Phase 7 — Checksum Validation ✅
+- Created `deps-manifest.json` with SHA-256 for GGUF and WebView2
+- Model registration verifies GGUF checksum before `ollama create`
+
+#### Phase 8 — WebView2 Management ✅
+- `Install-WebView2IfMissing()` in bootstrap-world.ps1
+- Blocks startup if installation fails
+
+#### Phase 9 — System Requirement Validation ✅
+- Created `powershell/scripts/Test-SystemRequirements.ps1`
+- Disk 15GB, RAM 8GB min/16GB rec, x64 CPU, Windows 10 22H2+
+- Writes `runtime/SYSTEM_HEALTH.json`
+- RAM check added to `installer.iss` InitializeSetup()
+
+#### Phase 10 — Recovery Mode ✅
+- Created `powershell/scripts/Repair-FactumIL.ps1`
+- Capabilities: reinstall Ollama, re-register model, rebuild migrations, regenerate flags
+- Exposed via "Repair Factum-IL" Start Menu shortcut
+
+#### Phase 11 — Installer Execution Flow ✅
+- `installer.iss` [Run] now calls `bootstrap-world.ps1` (not Desktop.exe directly)
+- Stale flag cleanup in [InstallDelete] for upgrades
+
+#### Phase 12 — Startup State Machine ✅
+- Implemented in bootstrap-world.ps1 with 6 states
+- BOOTSTRAP_DONE.flag written only after all 10 validation steps pass
+
+### מה לעשות עכשיו — What to Do Next
+- **CRITICAL**: Implement BOOTSTRAP_DONE.flag check in `FactumIL.Desktop/App.xaml.cs` or `MainWindow.xaml.cs`
+  - Read `{app}\runtime\BOOTSTRAP_DONE.flag` at startup
+  - If absent: show repair dialog, offer to run `Repair-FactumIL.ps1`
+  - If present but `aiWarmupPassed: false`: enter MAINTENANCE mode
+- **TEST**: Run `powershell/scripts/Verify-Install.ps1 -DevMode` to check local state
+- **TEST**: Run `powershell/scripts/Test-AIHealth.ps1` to verify AI health reporting
+- **TEST**: Run `powershell/scripts/Test-SystemRequirements.ps1` to verify system check
+- **BUILD**: Run `.\publish.ps1` to verify renamed `api/` directory is produced correctly
+- **REVIEW**: Update `node.exe` SHA-256 in `deps-manifest.json` at build time
+- Update `deps-manifest.json` whenever GGUF is updated (new model release)
+
+---
+
 ## 🗓️ Session handoff — Unified Legal Knowledge Platform (2026-06-16)
 
 **Branch:** `claude/factum-il-legal-platform-tvei7l` — PR #122 ✅ MERGED to main (`3efb905`)

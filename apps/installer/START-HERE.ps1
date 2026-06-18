@@ -78,7 +78,7 @@ function Write-Err  { param([string]$M) Write-Host "[ERR] $M" -ForegroundColor R
 Write-Host @"
 
   ╔══════════════════════════════════════════════════════╗
-  ║          L E G A L - O S   v1.0.0                   ║
+  ║          F a c t u m - I L   v1.0.0                 ║
   ║     אלטמן משרד עורכי דין — סדר 2026                 ║
   ╚══════════════════════════════════════════════════════╝
   Mode: $Mode
@@ -231,10 +231,11 @@ function Verify-EnvPaths {
     }
 
     $ollamaModel = [System.Environment]::GetEnvironmentVariable('OLLAMA_MODEL', 'Machine') ?? $env:OLLAMA_MODEL
-    if ($ollamaModel -ne 'legal-brain') {
-        Write-Warn "OLLAMA_MODEL = '$ollamaModel' (expected 'legal-brain') — 02-SetupAIModels will correct this."
+    $expectedModel = 'BrainboxAI/law-il-E2B:Q4_K_M'
+    if ($ollamaModel -ne $expectedModel) {
+        Write-Warn "OLLAMA_MODEL = '$ollamaModel' (expected '$expectedModel') — 02-SetupAIModels will correct this."
     } else {
-        Write-Ok "OLLAMA_MODEL = legal-brain"
+        Write-Ok "OLLAMA_MODEL = $expectedModel"
     }
 }
 
@@ -247,16 +248,11 @@ function Initialize-OllamaModels {
         Join-Path $PSScriptRoot '..\..\powershell\scripts\02-SetupAIModels.ps1'
     }
     if (Test-Path $setupScript) {
-        Write-Step "מתקין מנוע AI (legal-brain / tier: $($Script:AI_TIER ?? 'standard'))..."
+        Write-Step "מתקין מנוע AI (BrainboxAI/law-il-E2B:Q4_K_M)..."
         & $setupScript
     } else {
-        Write-Warn "02-SetupAIModels.ps1 not found — pulling gemma2:2b as last-resort fallback."
-        if (Get-Command ollama -ErrorAction SilentlyContinue) {
-            Start-Process 'ollama' -ArgumentList 'serve' -WindowStyle Hidden -ErrorAction SilentlyContinue
-            Start-Sleep -Seconds 4
-            ollama pull 'gemma2:2b'
-            [System.Environment]::SetEnvironmentVariable('OLLAMA_MODEL', 'gemma2:2b', 'Machine')
-        }
+        Write-Warn "02-SetupAIModels.ps1 not found — model registration deferred to bootstrap-world.ps1."
+        Write-Warn "bootstrap-world.ps1 will block application launch until the model is registered."
     }
 }
 
