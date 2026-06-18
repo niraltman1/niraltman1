@@ -1,5 +1,31 @@
 # Factum-IL — Task Tracker
 
+## 🗓️ Session handoff — Open Tasks completion (2026-06-18)
+
+**Branch:** `claude/open-tasks-work-plan-j3w8vk` — PR #125 (draft)
+
+### ✅ הושלם בסשן זה
+
+| פריט | קומיט |
+|------|-------|
+| `GET /api/tasks?status=overdue` (DB filter + validation + 5 tests) | `9b48bc7` |
+| Zod validation ל-`packages/api/src/routes/search.ts` | `9b48bc7` |
+| `useLegalDocumentSearch` hook + `LegalDocumentSearchHit` type ב-hooks.ts | `ac3bc55` |
+| SearchPage "ידע משפטי" section — corpus hits below main results | `ac3bc55` |
+
+### 🔴 פערים שנותרו
+
+1. **B4 Reliability** — Ollama fallback ב-`packages/pipeline/src/engine.ts` (`stageClassify`/`stageEnrich`)
+2. **Phase 20** — Incremental corpus updates (manifest-based diff על `CorpusVersionHistory`)
+
+### 🔵 חסומי-סביבה / post-beta
+- C1 Telegram live, C2 WhatsApp, C5/C6 Whisper — חסומי-סביבה
+- Corpus bundling ב-installer (Phase 23), RBAC v2, vec_chunks backfill, Annotations pixel-level, OCR fallback, Build Beta Installer, מחיקת ענפים ישנים
+
+### Migration slot הבא: **086**
+
+---
+
 ## 🗓️ Session handoff — Open Tasks Work Plan (בדיקת קוד) (2026-06-16)
 
 **Branch:** `claude/open-tasks-work-plan-j3w8vk`
