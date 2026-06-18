@@ -367,7 +367,7 @@ StepElapsed
 
 Step "Staging API backend (artifact copy + pnpm install --prod --node-linker=hoisted)"
 
-$BackendOut = Join-Path $OutDir "backend"
+$BackendOut = Join-Path $OutDir "api"
 
 # 8.0  Kill node.exe — releases VS Code TS-server locks on packages\*\dist\*.d.ts
 Write-Host "  Stopping node.exe processes (releasing file locks) ..." -ForegroundColor Gray
@@ -546,7 +546,7 @@ if ($IsWindows) {
     }
     Pop-Location
 }
-Write-Host "  ✓ Backend staged: $BackendOut" -ForegroundColor Green
+Write-Host "  ✓ API backend staged: $BackendOut" -ForegroundColor Green
 
 StepElapsed
 
@@ -580,6 +580,55 @@ foreach ($f in @("Config.ps1", "IdentifierParser.ps1")) {
     if (Test-Path $src) { Copy-Item $src $LibDst -Force }
 }
 Write-Host "  ✓ Legal Registry and PowerShell helpers staged" -ForegroundColor Green
+
+# Stage bootstrap and maintenance scripts → FactumIL_Dist\scripts\
+# These are installed to {app}\scripts\ and called by the installer [Run] section.
+$ScriptsDst = Join-Path $OutDir "scripts"
+New-Item -ItemType Directory -Force -Path $ScriptsDst | Out-Null
+
+# Copy bootstrap-world.ps1 from apps/installer/
+$bootstrapSrc = Join-Path $RepoRoot "apps\installer\bootstrap-world.ps1"
+if (Test-Path $bootstrapSrc) {
+    Copy-Item $bootstrapSrc $ScriptsDst -Force
+    Write-Host "  ✓ bootstrap-world.ps1 staged" -ForegroundColor Green
+} else {
+    Write-Host "  ⚠ bootstrap-world.ps1 not found at $bootstrapSrc" -ForegroundColor Yellow
+}
+
+# Copy powershell maintenance scripts
+$maintScripts = @(
+    "Test-AIHealth.ps1",
+    "Test-SystemRequirements.ps1",
+    "Repair-FactumIL.ps1",
+    "Verify-Install.ps1"
+)
+foreach ($ms in $maintScripts) {
+    $msSrc = Join-Path $RepoRoot "powershell\scripts\$ms"
+    if (Test-Path $msSrc) {
+        Copy-Item $msSrc $ScriptsDst -Force
+        Write-Host "  ✓ $ms staged" -ForegroundColor DarkGray
+    } else {
+        Write-Host "  ⊘ SKIP: $ms (not found)" -ForegroundColor DarkGray
+    }
+}
+
+# Copy register-ollama-model.ps1 into scripts/ (also goes to tools/ below)
+$regSrc = Join-Path $RepoRoot "scripts\register-ollama-model.ps1"
+if (Test-Path $regSrc) {
+    Copy-Item $regSrc $ScriptsDst -Force
+    Write-Host "  ✓ register-ollama-model.ps1 staged in scripts/" -ForegroundColor DarkGray
+}
+
+# Copy deps-manifest.json to dist root (installed as {app}\deps-manifest.json)
+$manifestSrc = Join-Path $RepoRoot "deps-manifest.json"
+if (Test-Path $manifestSrc) {
+    Copy-Item $manifestSrc $OutDir -Force
+    Write-Host "  ✓ deps-manifest.json staged" -ForegroundColor Green
+} else {
+    Write-Host "  ⚠ deps-manifest.json not found at $manifestSrc" -ForegroundColor Yellow
+}
+
+Write-Host "  ✓ Scripts staged: $ScriptsDst" -ForegroundColor Green
 
 # Bundled legislation corpus (offline KB)
 # The v-corpus-latest release contains batch files: batch-<domain>.jsonl.gz + corpus-domain-index.json
@@ -846,7 +895,7 @@ $ValidationResults = @()
 # Define artifacts to validate (Path, Type, Name)
 $ArtifactsToValidate = @(
     @{ Path = "$OutDir\shell\FactumIL.Desktop.exe"; Type = "exe"; Name = "WPF Shell" }
-    @{ Path = "$OutDir\backend\dist\start.js"; Type = "generic"; Name = "API Entry Point" }
+    @{ Path = "$OutDir\api\dist\start.js"; Type = "generic"; Name = "API Entry Point" }
     @{ Path = "$OutDir\dashboard\dist\index.html"; Type = "generic"; Name = "Dashboard Entry" }
     @{ Path = "$OutDir\runtime\node.exe"; Type = "exe"; Name = "Node.exe Runtime" }
     @{ Path = "$OutDir\tools\OllamaSetup.exe"; Type = "exe"; Name = "Ollama" }
@@ -905,7 +954,7 @@ Write-Host ""
 Write-Host "  Core artifacts:" -ForegroundColor Cyan
 Write-Host "    shell\FactumIL.Desktop.exe        $(if (Test-Path "$OutDir\shell\FactumIL.Desktop.exe") {'✓'} else {'✗ MISSING'})" -ForegroundColor White
 Write-Host "    runtime\node.exe                  $(if (Test-Path "$OutDir\runtime\node.exe") {'✓'} else {'⚠ MISSING (optional)'})" -ForegroundColor White
-Write-Host "    backend\dist\start.js             $(if (Test-Path "$OutDir\backend\dist\start.js") {'✓'} else {'✗ MISSING'})" -ForegroundColor White
+Write-Host "    api\dist\start.js                 $(if (Test-Path "$OutDir\api\dist\start.js") {'✓'} else {'✗ MISSING'})" -ForegroundColor White
 Write-Host "    dashboard\dist\index.html         $(if (Test-Path "$OutDir\dashboard\dist\index.html") {'✓'} else {'✗ MISSING'})" -ForegroundColor White
 Write-Host ""
 Write-Host "  Database & Migrations:" -ForegroundColor Cyan

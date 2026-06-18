@@ -1,0 +1,15 @@
+{
+  "_comment": "SHA-256 checksums for bundled Factum-IL dependencies. Installer verifies all downloads against these hashes. Any mismatch is a hard build failure.",
+  "_updated": "2026-06-18",
+  "_algorithm": "SHA-256",
+  "gemma-4-E2B-it.BF16-mmproj.gguf": "a927f38e7a26d110575bf2b385a1b3ab314b5c949d0e5da3fb5199ccd3a86cf8",
+  "MicrosoftEdgeWebView2RuntimeInstallerX64.exe": "af1067d9cc7f107ca96ddd8d5212724bdae3bd9eb46e619d2ca5c1f3e3041612",
+  "node.exe": "",
+  "OllamaSetup.exe": "",
+  "_notes": {
+    "node.exe": "Checksum depends on NodeVersion param in publish.ps1. Populated at build time.",
+    "OllamaSetup.exe": "Ollama does not publish stable release checksums. Verified by size threshold (>20MB) during download.",
+    "gemma-4-E2B-it.BF16-mmproj.gguf": "Canonical hash for BrainboxAI/law-il-E2B:Q4_K_M GGUF. Build fails if download hash differs.",
+    "MicrosoftEdgeWebView2RuntimeInstallerX64.exe": "Self-hosted on v-assets-latest. Build fails if hash differs."
+  }
+}

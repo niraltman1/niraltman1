@@ -1,94 +1,124 @@
 #Requires -Version 5.1
 <#
 .SYNOPSIS
-    Pull the hardware-appropriate AI base model and create the 'legal-brain' Ollama alias.
-    Relies on $Script:AI_* variables populated by 01-SystemCheck.ps1.
-    Falls back to gemma2:2b if both primary model and standard fallback fail.
+    Register the bundled BrainboxAI/law-il-E2B:Q4_K_M model with Ollama.
+
+.DESCRIPTION
+    Registers the bundled GGUF as the Factum-IL AI model with the local Ollama instance.
+    This script does NOT pull models from the internet (except the initial Ollama install).
+    The GGUF must already be present in the models/ directory.
+
+    POLICY: Only BrainboxAI/law-il-E2B:Q4_K_M is permitted.
+    No fallback models. No external AI providers. Local inference only.
+    See docs/AI_EXECUTION_POLICY.md.
+
+.PARAMETER GgufDir
+    Directory containing the GGUF file. Default: {repo-root}\models\
+    or {install-dir}\models\ depending on context.
 #>
+param(
+    [string] $GgufDir = ""
+)
 
-$ModelfileRoot = Join-Path (Resolve-Path (Join-Path $PSScriptRoot '..\..')).Path
+$ModelTag  = "BrainboxAI/law-il-E2B:Q4_K_M"
+$OllamaUrl = "http://127.0.0.1:11434"
 
-function Write-Step { param([string]$M) Write-Host ">> $M" -ForegroundColor Magenta }
+function Write-Step { param([string]$M) Write-Host ">> $M"     -ForegroundColor Magenta }
 function Write-Ok   { param([string]$M) Write-Host "[OK] $M"   -ForegroundColor Green  }
 function Write-Warn { param([string]$M) Write-Host "[WARN] $M" -ForegroundColor Yellow }
 function Write-Err  { param([string]$M) Write-Host "[ERR] $M"  -ForegroundColor Red    }
 
-# ── Defaults (if called standalone without 01-SystemCheck having run) ──────────
-if (-not $Script:AI_BASE_MODEL) {
-    Write-Warn "Hardware profile not set — running 01-SystemCheck.ps1..."
-    $checkScript = Join-Path $PSScriptRoot '01-SystemCheck.ps1'
-    if (Test-Path $checkScript) { & $checkScript } else {
-        $Script:AI_TIER       = 'standard'
-        $Script:AI_BASE_MODEL = 'gemma2:9b'
-        $Script:AI_MODELFILE  = 'Modelfile.gemma2'
-        $Script:AI_ALIAS      = 'legal-brain'
+# ── Resolve GgufDir ────────────────────────────────────────────────────────────
+if (-not $GgufDir) {
+    $repoRoot = Resolve-Path (Join-Path $PSScriptRoot '..\..')
+    $GgufDir  = Join-Path $repoRoot "models"
+    if (-not (Test-Path $GgufDir)) {
+        # Try install layout
+        $installRoot = Join-Path (Split-Path $PSScriptRoot) "models"
+        if (Test-Path $installRoot) { $GgufDir = $installRoot }
     }
 }
 
-$PrimaryModel = $Script:AI_BASE_MODEL
-$AliasName    = $Script:AI_ALIAS      # always 'legal-brain'
-$ModelfileName = $Script:AI_MODELFILE  # 'Modelfile' or 'Modelfile.gemma2'
-$ModelfilePath = Join-Path $ModelfileRoot $ModelfileName
-
-if (-not (Get-Command ollama -ErrorAction SilentlyContinue)) {
-    Write-Warn "ollama not in PATH — skipping AI model setup."
-    return
+# ── Find GGUF ──────────────────────────────────────────────────────────────────
+$ggufFile = $null
+if (Test-Path $GgufDir) {
+    $ggufFile = Get-ChildItem $GgufDir -Filter "*.gguf" -ErrorAction SilentlyContinue | Select-Object -First 1
 }
 
-# ── Start Ollama service (idempotent) ──────────────────────────────────────────
+if (-not $ggufFile) {
+    Write-Warn "No GGUF file found in '$GgufDir'."
+    Write-Warn "The model will need to be registered manually or via Repair-FactumIL.ps1."
+    Write-Warn "bootstrap-world.ps1 will block application launch until the model is registered."
+    exit 0
+}
+
+Write-Ok "Found GGUF: $($ggufFile.FullName) ($([math]::Round($ggufFile.Length/1GB,2)) GB)"
+
+# ── Locate ollama.exe ──────────────────────────────────────────────────────────
+$candidates = @(
+    "$env:LOCALAPPDATA\Programs\Ollama\ollama.exe",
+    "$env:ProgramFiles\Ollama\ollama.exe",
+    "${env:ProgramFiles(x86)}\Ollama\ollama.exe"
+)
+$ollama = $candidates | Where-Object { Test-Path $_ } | Select-Object -First 1
+if (-not $ollama) {
+    $ollama = (Get-Command ollama -ErrorAction SilentlyContinue)?.Source
+}
+if (-not $ollama) {
+    Write-Warn "ollama.exe not found. bootstrap-world.ps1 will install Ollama during first-run bootstrap."
+    exit 0
+}
+Write-Ok "Ollama found: $ollama"
+
+# ── Start Ollama service ───────────────────────────────────────────────────────
 Write-Step "Starting Ollama service..."
-Start-Process 'ollama' -ArgumentList 'serve' -WindowStyle Hidden -ErrorAction SilentlyContinue
-Start-Sleep -Seconds 4
-
-# ── For low-end tier: rewrite FROM line in Modelfile.gemma2 to gemma2:2b ──────
-if ($Script:AI_TIER -eq 'low' -and (Test-Path $ModelfilePath)) {
-    Write-Step "Low-end hardware: patching Modelfile.gemma2 to use gemma2:2b..."
-    $content = Get-Content $ModelfilePath -Raw
-    $content = $content -replace '^FROM gemma2:\w+', 'FROM gemma2:2b'
-    Set-Content $ModelfilePath -Value $content -Encoding UTF8 -NoNewline
-    Write-Ok "Modelfile.gemma2 patched → FROM gemma2:2b"
+Start-Process $ollama -ArgumentList "serve" -WindowStyle Hidden -ErrorAction SilentlyContinue
+$started = $false
+for ($i = 0; $i -lt 15; $i++) {
+    Start-Sleep -Seconds 2
+    try {
+        $null = Invoke-RestMethod "$OllamaUrl/api/tags" -TimeoutSec 2 -ErrorAction Stop
+        $started = $true; break
+    } catch {}
 }
+if (-not $started) {
+    Write-Warn "Ollama service did not respond within 30s — bootstrap-world.ps1 will retry."
+    exit 0
+}
+Write-Ok "Ollama service is running."
 
-# ── Pull base model ────────────────────────────────────────────────────────────
-Write-Step "Pulling base model '$PrimaryModel' (Tier: $Script:AI_TIER)..."
-ollama pull $PrimaryModel 2>&1 | Out-Null
-$primaryOk = ($LASTEXITCODE -eq 0)
-
-if (-not $primaryOk) {
-    Write-Warn "Pull of '$PrimaryModel' failed — trying gemma2:2b as last resort..."
-    ollama pull 'gemma2:2b' 2>&1 | Out-Null
-    if ($LASTEXITCODE -ne 0) {
-        Write-Err "All model pulls failed. AI features will be unavailable."
-        [System.Environment]::SetEnvironmentVariable('OLLAMA_MODEL', 'legal-brain', 'Machine')
-        return
+# ── Check if already registered ────────────────────────────────────────────────
+try {
+    $tags     = Invoke-RestMethod "$OllamaUrl/api/tags" -TimeoutSec 10 -ErrorAction Stop
+    $existing = $tags.models | ForEach-Object { $_.name }
+    $searchBase = ($ModelTag -replace ":Q4_K_M$","").ToLower()
+    $alreadyReg = $existing | Where-Object { $_.ToLower() -like "*$searchBase*" }
+    if ($alreadyReg) {
+        Write-Ok "Model already registered: $($alreadyReg -join ', ')"
+        [System.Environment]::SetEnvironmentVariable('OLLAMA_MODEL', $ModelTag, 'Machine')
+        exit 0
     }
-    $PrimaryModel  = 'gemma2:2b'
-    $ModelfileName = 'Modelfile.gemma2'
-    $ModelfilePath = Join-Path $ModelfileRoot $ModelfileName
-    Write-Ok "gemma2:2b ready (minimal fallback)."
-} else {
-    Write-Ok "Model '$PrimaryModel' downloaded."
+} catch {
+    Write-Warn "Cannot query Ollama tags: $_ — proceeding with registration."
 }
 
-# ── Create 'legal-brain' alias ─────────────────────────────────────────────────
-if (Test-Path $ModelfilePath) {
-    Write-Step "Creating Ollama alias '$AliasName' from $ModelfileName..."
-    ollama create $AliasName -f $ModelfilePath
-    if ($LASTEXITCODE -eq 0) {
-        Write-Ok "Alias '$AliasName' registered — Israeli Legal Brain ready."
-    } else {
-        Write-Warn "Alias creation failed; '$PrimaryModel' will be used directly."
-        [System.Environment]::SetEnvironmentVariable('OLLAMA_MODEL', $PrimaryModel, 'Machine')
-        return
-    }
-} else {
-    Write-Warn "Modelfile '$ModelfileName' not found at $ModelfilePath — alias skipped."
-    [System.Environment]::SetEnvironmentVariable('OLLAMA_MODEL', $PrimaryModel, 'Machine')
-    return
+# ── Register model from GGUF ───────────────────────────────────────────────────
+Write-Step "Registering '$ModelTag' from bundled GGUF (no internet required)..."
+$mfTmp = Join-Path ([IO.Path]::GetTempPath()) "factumil-modelfile-$PID.txt"
+"FROM $($ggufFile.FullName)" | Set-Content $mfTmp -Encoding UTF8
+
+try {
+    & $ollama create $ModelTag --file $mfTmp
+    $exitCode = $LASTEXITCODE
+} finally {
+    Remove-Item $mfTmp -Force -ErrorAction SilentlyContinue
 }
 
-# ── Set machine-level OLLAMA_MODEL = 'legal-brain' ────────────────────────────
-[System.Environment]::SetEnvironmentVariable('OLLAMA_MODEL', $AliasName, 'Machine')
-Write-Ok "OLLAMA_MODEL set to '$AliasName' (machine-level)."
-Write-Host ""
-Write-Host "  [AI] Tier: $Script:AI_TIER | Base: $PrimaryModel | Alias: $AliasName" -ForegroundColor Cyan
+if ($exitCode -ne 0) {
+    Write-Warn "ollama create exited $exitCode — bootstrap-world.ps1 will retry during first-run bootstrap."
+    exit 0
+}
+
+Write-Ok "'$ModelTag' registered successfully."
+[System.Environment]::SetEnvironmentVariable('OLLAMA_MODEL', $ModelTag, 'Machine')
+Write-Ok "OLLAMA_MODEL set to '$ModelTag' (machine-level)."
