@@ -1,5 +1,40 @@
 # Factum-IL — Task Tracker
 
+## 🗓️ Session handoff — guychuk/case-law-israel corpus wired (2026-06-19)
+
+**Branch:** `claude/factum-phases-4-7-yym4i8` — PR #126 ✅ MERGED to main
+
+### הושלם הפעם — verdict corpus pipeline: guychuk/case-law-israel
+
+#### New files
+- `.github/workflows/ingest-caselawil-corpus.yml` — `workflow_dispatch` CI workflow that pages
+  through `datasets-server.huggingface.co` (100 rows/request), writes
+  `assets/verdict-corpus/case-law-il.jsonl.gz` + `corpus-metadata.json`,
+  creates/updates `v-corpus-latest` GitHub release, and uploads the artifact via `gh release upload --clobber`.
+- `packages/api/src/utils/verdict-corpus-loader.ts` — startup loader analogous to `legal-corpus-loader.ts`:
+  signature-based skip, SHA-256 integrity check, resume-on-crash, row validation, deduplication,
+  batch upsert of 500 via `repos.verdictCorpus.bulkUpsert()`.
+- `scripts/build-verdict-embeddings.ts` — dev CLI to backfill `vec_legal_documents` via Ollama `nomic-embed-text`.
+- `vercel.json` — disables the irrelevant Vercel GitHub App integration.
+
+#### Modified files
+- `packages/api/src/start.ts` — added `await initVerdictCorpus(repos)` after `await initLegalCorpus(repos)`.
+- `publish.ps1` — downloads `case-law-il.jsonl.gz` + `corpus-metadata.json` from `v-corpus-latest`.
+- `installer.iss` — two `Source:` lines for verdict corpus files with `skipifsourcedoesntexist`.
+
+#### Note on migrations
+Migrations 082-085 were added on this branch but superseded during rebase by the "Unified Legal
+Knowledge Platform" (PR #122, main commit `3efb905`) which added the same slots with more
+comprehensive implementations. All our migrations were dropped; main's versions are canonical.
+
+### מה לעשות עכשיו
+1. **Trigger `ingest-caselawil-corpus.yml`** (workflow_dispatch on main) to produce the first
+   real `case-law-il.jsonl.gz` artifact from HuggingFace datasets-server, upload to `v-corpus-latest`.
+2. **Trigger `build-installer.yml`** after corpus artifact is in place.
+3. **Future:** Phase 17-25 (LegalSearchService, LegalKnowledgeService, AI/RAG readiness).
+
+---
+
 ## 🗓️ Session handoff — Unified Legal Knowledge Platform (2026-06-16)
 
 **Branch:** `claude/factum-il-legal-platform-tvei7l` — PR #122 ✅ MERGED to main (`3efb905`)
