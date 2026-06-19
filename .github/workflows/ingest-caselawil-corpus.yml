@@ -1,0 +1,198 @@
+name: Ingest guychuk/case-law-israel Corpus
+
+on:
+  workflow_dispatch:
+    inputs:
+      max_rows:
+        description: 'Max rows to fetch (0 = all, default = all)'
+        required: false
+        default: '0'
+
+concurrency:
+  group: caselawil-corpus-ingest
+  cancel-in-progress: false
+
+permissions:
+  contents: write
+
+jobs:
+  download-and-publish:
+    name: Download guychuk/case-law-israel → v-corpus-latest
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Fetch dataset from HuggingFace datasets-server
+        run: |
+          mkdir -p assets/verdict-corpus
+          python3 << 'EOF'
+          import urllib.request, json, gzip, sys, time, os
+
+          DATASET = 'guychuk/case-law-israel'
+          CONFIG  = 'default'
+          SPLIT   = 'judgments'
+          PAGE    = 100
+          MAX     = int(os.environ.get('MAX_ROWS', '0'))  # 0 = unlimited
+          OUTFILE = 'assets/verdict-corpus/case-law-il.jsonl.gz'
+
+          base_url = (
+            f'https://datasets-server.huggingface.co/rows'
+            f'?dataset={DATASET.replace("/", "%2F")}'
+            f'&config={CONFIG}&split={SPLIT}'
+          )
+
+          rows = []
+          offset = 0
+          retries = 3
+
+          while True:
+              url = f'{base_url}&offset={offset}&length={PAGE}'
+              data = None
+              for attempt in range(retries):
+                  try:
+                      req = urllib.request.Request(url, headers={
+                          'User-Agent': 'Factum-IL/corpus-ingest',
+                      })
+                      with urllib.request.urlopen(req, timeout=60) as resp:
+                          data = json.load(resp)
+                      break
+                  except Exception as e:
+                      wait = 2 ** attempt
+                      print(f'[retry {attempt+1}/{retries}] offset={offset}: {e} — wait {wait}s', flush=True)
+                      time.sleep(wait)
+              if data is None:
+                  print(f'ERROR: all retries failed at offset {offset}', file=sys.stderr)
+                  sys.exit(1)
+
+              page = data.get('rows', [])
+              rows.extend(item['row'] for item in page)
+              print(f'Fetched {len(rows)} rows (offset={offset})', flush=True)
+
+              if len(page) < PAGE:
+                  break
+              if MAX > 0 and len(rows) >= MAX:
+                  rows = rows[:MAX]
+                  break
+              offset += PAGE
+              time.sleep(0.3)  # polite rate-limit
+
+          print(f'Total: {len(rows)} rows')
+
+          with gzip.open(OUTFILE, 'wt', encoding='utf-8') as f:
+              for row in rows:
+                  f.write(json.dumps(row, ensure_ascii=False) + '\n')
+          print(f'Written: {OUTFILE}')
+          EOF
+        env:
+          MAX_ROWS: ${{ inputs.max_rows }}
+
+      - name: Validate artifact
+        run: |
+          python3 << 'EOF'
+          import gzip, json, sys
+
+          path = 'assets/verdict-corpus/case-law-il.jsonl.gz'
+          rows = 0
+          rejected = 0
+          first_ok = False
+
+          with gzip.open(path, 'rt', encoding='utf-8') as f:
+              for line in f:
+                  trimmed = line.strip()
+                  if not trimmed:
+                      continue
+                  try:
+                      row = json.loads(trimmed)
+                  except json.JSONDecodeError:
+                      rejected += 1
+                      continue
+                  rows += 1
+                  if not first_ok:
+                      assert 'judgment_id'   in row, "Missing judgment_id"
+                      assert 'document_text' in row, "Missing document_text"
+                      assert isinstance(row['document_text'], str) and len(row['document_text']) > 20, \
+                          "document_text too short"
+                      first_ok = True
+
+          print(f'Validation OK: {rows} rows, {rejected} malformed')
+          if rows == 0:
+              print('ERROR: artifact is empty', file=sys.stderr)
+              sys.exit(1)
+          EOF
+          echo "::notice::Validated case-law-il.jsonl.gz"
+
+      - name: Generate corpus metadata (SHA-256 + version)
+        id: metadata
+        run: |
+          python3 << 'EOF'
+          import hashlib, gzip, json, datetime, os
+
+          path = 'assets/verdict-corpus/case-law-il.jsonl.gz'
+          sha  = hashlib.sha256()
+          with open(path, 'rb') as f:
+              for chunk in iter(lambda: f.read(65536), b''):
+                  sha.update(chunk)
+          digest = sha.hexdigest()
+
+          # Count rows
+          count = 0
+          with gzip.open(path, 'rt', encoding='utf-8') as f:
+              for line in f:
+                  if line.strip():
+                      count += 1
+
+          size_mb = os.path.getsize(path) / (1024 * 1024)
+          version = datetime.date.today().strftime('%Y.%m.%d')
+
+          meta = {
+            'version':     version,
+            'sha256':      digest,
+            'row_count':   count,
+            'size_bytes':  os.path.getsize(path),
+            'generated_at': datetime.datetime.utcnow().isoformat() + 'Z',
+            'source':      'guychuk/case-law-israel',
+          }
+          with open('assets/verdict-corpus/corpus-metadata.json', 'w') as f:
+              json.dump(meta, f, indent=2)
+
+          print(f'Version: {version}')
+          print(f'SHA-256: {digest}')
+          print(f'Rows:    {count}')
+          print(f'Size:    {size_mb:.1f} MB')
+          EOF
+          echo "::notice::Metadata generated"
+
+      - name: Create release v-corpus-latest (idempotent)
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release create v-corpus-latest \
+            --repo niraltman1/niraltman1 \
+            --title "Legal Corpus (latest)" \
+            --notes "Auto-generated: Knesset statute corpus + guychuk/case-law-israel verdict corpus. Not a product release — consumed by publish.ps1 during the Windows installer build." \
+            || true
+
+      - name: Upload verdict corpus artifact
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release upload v-corpus-latest \
+            --repo niraltman1/niraltman1 \
+            --clobber \
+            assets/verdict-corpus/case-law-il.jsonl.gz \
+            assets/verdict-corpus/corpus-metadata.json
+
+      - name: Annotate
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          URL=$(gh release view v-corpus-latest \
+            --repo niraltman1/niraltman1 --json url -q .url 2>/dev/null || echo "(unavailable)")
+          python3 -c "
+          import json
+          with open('assets/verdict-corpus/corpus-metadata.json') as f:
+              m = json.load(f)
+          print(f'::notice::Corpus published — {m[\"row_count\"]} verdicts, SHA-256: {m[\"sha256\"][:16]}… → {\"$URL\"!r}')
+          "
