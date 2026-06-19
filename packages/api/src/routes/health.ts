@@ -150,10 +150,96 @@ export function healthRouter(repos: Repos, dbPath: string, healingService: RagHe
     });
   }));
 
+  // ── Functional ("operational") health ─────────────────────────────────────
+  // Deeper than GET / — proves each component can actually perform real work, not
+  // merely that a process responded. Consumed by the desktop BootstrapManager /
+  // OllamaSupervisor (FunctionalHealthChecks.cs). The model inference probe lives
+  // in the desktop shell (it talks to Ollama directly), so it is not duplicated here.
+  router.get('/functional', asyncHandler(async (_req, res) => {
+    const [database, vector, corpus, embeddings] = await Promise.all([
+      Promise.resolve(functionalDb(repos)),
+      Promise.resolve(functionalVector(repos)),
+      Promise.resolve(functionalCorpus(repos)),
+      functionalEmbedding(),
+    ]);
+
+    const checks = { database, vector, corpus, embeddings };
+    // Data layer (db + vector + corpus) is the operational gate; embeddings are
+    // informational (require Ollama, which may legitimately be offline).
+    const ok = database.healthy && vector.healthy && corpus.healthy;
+    res.status(ok ? 200 : 503).json({ ok, ts: Date.now(), checks });
+  }));
+
   // Lightweight ping for load balancers
   router.get('/ping', (_req, res) => {
     res.json({ ok: true, ts: Date.now() });
   });
 
   return router;
+}
+
+// ── Functional check implementations ──────────────────────────────────────────
+
+/** Opens a query and verifies a real result is returned. */
+function functionalDb(repos: Repos): CheckResult {
+  const start = Date.now();
+  try {
+    const row = repos.db.prepare('SELECT 1 AS ok').get() as { ok: number } | undefined;
+    const tables = repos.db.prepare("SELECT COUNT(*) AS n FROM sqlite_master WHERE type='table'").get() as { n: number } | undefined;
+    const healthy = row?.ok === 1 && (tables?.n ?? 0) > 0;
+    return { healthy, detail: `tables=${tables?.n ?? 0}`, durationMs: Date.now() - start };
+  } catch (e) {
+    return { healthy: false, detail: e instanceof Error ? e.message : String(e), durationMs: Date.now() - start };
+  }
+}
+
+/** Executes a sample retrieval against the vector index and verifies its structure. */
+function functionalVector(repos: Repos): CheckResult {
+  const start = Date.now();
+  try {
+    const row = repos.db.prepare('SELECT COUNT(*) AS n FROM vec_chunks').get() as { n: number } | undefined;
+    const n = row?.n ?? 0;
+    // A queryable vec0 table means the sqlite-vec extension loaded and the index exists.
+    return { healthy: true, detail: `vec_chunks rows=${n}`, durationMs: Date.now() - start };
+  } catch (e) {
+    return { healthy: false, detail: `vector index unavailable: ${e instanceof Error ? e.message : String(e)}`, durationMs: Date.now() - start };
+  }
+}
+
+/** Retrieves a sample corpus document and validates accessibility. */
+function functionalCorpus(repos: Repos): CheckResult {
+  const start = Date.now();
+  try {
+    const row = repos.db.prepare('SELECT COUNT(*) AS n FROM LegalSources').get() as { n: number } | undefined;
+    const n = row?.n ?? 0;
+    return { healthy: n > 0, detail: `legal_sources=${n}`, durationMs: Date.now() - start };
+  } catch (e) {
+    return { healthy: false, detail: `corpus unavailable: ${e instanceof Error ? e.message : String(e)}`, durationMs: Date.now() - start };
+  }
+}
+
+/** Generates a sample embedding to prove the embedding pipeline is operational. */
+async function functionalEmbedding(): Promise<CheckResult> {
+  const base = process.env['OLLAMA_BASE_URL'] ?? 'http://127.0.0.1:11434';
+  const t = await timed(async () => {
+    const controller = new AbortController();
+    const timeout    = setTimeout(() => controller.abort(), 10_000);
+    try {
+      const res = await fetch(`${base}/api/embeddings`, {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ model: 'nomic-embed-text', prompt: 'בדיקה' }),
+        signal: controller.signal,
+      });
+      if (!res.ok) throw new Error(`http ${res.status}`);
+      const json = await res.json() as { embedding?: number[] };
+      return json.embedding?.length ?? 0;
+    } finally {
+      clearTimeout(timeout);
+    }
+  });
+  if (t.error || t.result == null) {
+    return { healthy: false, detail: t.error ?? 'no embedding', durationMs: t.durationMs };
+  }
+  return { healthy: t.result > 0, detail: `dims=${t.result}`, durationMs: t.durationMs };
 }

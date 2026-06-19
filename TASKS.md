@@ -1,5 +1,64 @@
 # Factum-IL — Task Tracker
 
+## 🗓️ Session handoff — installer failure root-cause + startup lifecycle (2026-06-19)
+
+**Branch:** `claude/factum-il-installer-analysis-c85kcf`
+
+### הושלם הפעם — installer no longer blocks; resumable first-launch bootstrap
+
+**Root cause:** `installer.iss` `[Run]` Step 4 ran `ollama create` (model
+registration) with `waituntilterminated` and **no timeout** — blocking installer
+completion for 10–60+ min, or hanging forever. Build was healthy; install/runtime
+was not. (No Electron in this repo — shell is C# WPF + WebView2.)
+
+#### New files
+- `INSTALLER_FAILURE_ANALYSIS.md` — full root-cause report (blocking ops, races,
+  missing timeouts/retries, silent-install incompat, readiness/offline/FS deps).
+- `INSTALLER_ORCHESTRATION_SPEC.md` — install/dependency/startup graphs, retry &
+  timeout strategy, offline behavior, first-launch & recovery, failure-mode matrix.
+- `FactumIL.Desktop/RetryPolicy.cs` — reusable exp-backoff retry (bounded; logged).
+- `FactumIL.Desktop/OllamaLifecycle.cs` — deterministic runtime/model state machine.
+- `FactumIL.Desktop/StartupLogger.cs` — structured `bootstrap.jsonl` + perf budgets
+  + `bootstrap-summary.json` + `health-summary.json` (failure analytics).
+- `FactumIL.Desktop/BootstrapManager.cs` — **resumable** first-launch bootstrap
+  (deps→webview2→ollama→model→database→vector→corpus); versioned state;
+  Ok / RecoverableOffline / Fatal classification.
+- `FactumIL.Desktop/OllamaSupervisor.cs` — runtime monitoring + bounded recovery +
+  escalation to safe mode.
+- `FactumIL.Desktop/SafeModeManager.cs` — degrade (keep non-AI usable) instead of
+  shutting down; seamless return on recovery.
+- `FactumIL.Desktop/FunctionalHealthChecks.cs` — operational checks incl. model
+  inference probe.
+- `FactumIL.Desktop/RepairManager.cs` — self-heal (Repair button + admin endpoints).
+- `packages/api/src/__tests__/health-functional.test.ts` — tests for the new endpoint.
+
+#### Modified files
+- `installer.iss` — removed `[Run]` Steps 3 (Ollama-wait loop) & 4 (model register);
+  installer is now files + prerequisites + config + launch only.
+- `scripts/register-ollama-model.ps1` — manual/recovery tool; `ollama create` now
+  bounded by `-TimeoutSec` (`Wait-Job`) + `-MaxRetries`.
+- `FactumIL.Desktop/OllamaService.cs` — lifecycle states, env-configurable timeouts,
+  `RetryPolicy` around model registration, public ping/model probes.
+- `FactumIL.Desktop/App.xaml.cs` — drives `BootstrapManager`; `WaitForApiAsync` no
+  longer fatal (90 s budget → `RecoveryWindow`); starts supervisor; wires safe mode.
+- `FactumIL.Desktop/MainWindow.xaml.cs` — AI unavailable/restored tray notifications.
+- `FactumIL.Desktop/RecoveryWindow.xaml(.cs)` — **Repair installation** button.
+- `packages/api/src/routes/health.ts` — `GET /api/health/functional` deep checks.
+- `.github/workflows/build-installer.yml` — comment: registration deferred to first launch.
+
+### אומת
+- `pnpm -r typecheck` → 0; `tsc --noEmit` on `@factum-il/api` → 0.
+- `health-functional.test.ts` → 3/3 pass.
+- C# build + installer + first-launch resume + failure matrix require the Windows
+  CI job (`build-installer.yml`) / a Windows runtime (see spec §11) — not runnable here.
+
+### מה לעשות עכשיו
+1. Run `build-installer.yml` on Windows; confirm silent install completes promptly.
+2. Manually verify first-launch model registration + mid-step resume on a clean VM.
+3. Walk the §11 failure-mode matrix.
+
+---
+
 ## 🗓️ Session handoff — guychuk/case-law-israel corpus wired (2026-06-19)
 
 **Branch:** `claude/factum-phases-4-7-yym4i8` — PR #126 ✅ MERGED to main

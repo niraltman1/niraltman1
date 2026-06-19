@@ -197,26 +197,22 @@ Filename: "{app}\tools\OllamaSetup.exe"; \
   Flags: waituntilterminated skipifdoesntexist; \
   Check: NeedsOllama
 
-; ── 3. Wait for Ollama to accept connections (up to 60 s) ────────────────────
-; Ollama may need a few seconds to start its HTTP listener after install.
-; Non-fatal: if Ollama never responds, model registration falls back to the
-; OllamaService first-run flow inside the WPF shell.
-Filename: "powershell.exe"; \
-  Parameters: "-WindowStyle Hidden -NonInteractive -ExecutionPolicy Bypass -Command ""& {{ $max=30; $i=0; while($i -lt $max){{ try{{ Invoke-WebRequest -UseBasicParsing -TimeoutSec 2 http://127.0.0.1:11434/api/tags -ErrorAction Stop | Out-Null; exit 0 }} catch{{}} ; Start-Sleep -Seconds 2; $i++ }} exit 0 }}"""; \
-  StatusMsg: "בודק זמינות מנוע AI…"; \
-  Flags: waituntilterminated
+; ── Heavy AI initialization is intentionally NOT done here ────────────────────
+; Previous versions waited for Ollama and ran 'ollama create' (model registration)
+; inside the installer with waituntilterminated and no timeout. On a clean machine
+; that blocked installer completion for many minutes — and could hang forever.
+;
+; Model registration is now a FIRST-LAUNCH responsibility of the WPF shell
+; (BootstrapManager + OllamaService), which is resumable, retried with bounded
+; timeouts, and reported to the user via the splash screen. The installer's job is
+; limited to: install files, install prerequisites (WebView2 + Ollama), set
+; configuration (registry), and launch the app.
+;
+; The bundled GGUF and tools\register-ollama-model.ps1 are still staged: the GGUF
+; is consumed by the first-launch bootstrap (offline, no internet required), and
+; the script remains available as a manual / recovery tool.
 
-; ── 4. Register bundled GGUF with Ollama (offline — no internet required) ─────
-; Runs 'ollama create' against the on-disk GGUF so the model is immediately
-; available when the app first launches. Non-fatal: the WPF OllamaService
-; provides a first-run fallback if this step is skipped or fails.
-Filename: "powershell.exe"; \
-  Parameters: "-WindowStyle Hidden -NonInteractive -ExecutionPolicy Bypass -File ""{app}\tools\register-ollama-model.ps1"" -GgufPath ""{app}\models\gemma-4-E2B-it.BF16-mmproj.gguf"""; \
-  StatusMsg: "מאתחל מודל AI (ייתכן שייקח מספר דקות)…"; \
-  Flags: waituntilterminated; \
-  Check: FileExists(ExpandConstant('{app}\models\gemma-4-E2B-it.BF16-mmproj.gguf')) and FileExists(ExpandConstant('{app}\tools\register-ollama-model.ps1'))
-
-; ── 5. Launch app after install (the WPF shell handles everything else) ───────
+; ── 3. Launch app after install (the WPF shell handles everything else) ───────
 Filename: "{app}\{#AppExeName}"; \
   Description: "הפעל את Factum IL עכשיו"; \
   Flags: nowait postinstall skipifsilent skipifdoesntexist

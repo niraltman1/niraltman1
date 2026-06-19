@@ -41,6 +41,32 @@ public partial class MainWindow : Window
         WebView.Source = new Uri($"http://localhost:{_apiPort}");
     }
 
+    /// <summary>Notifies the user that AI features are temporarily unavailable (safe mode).</summary>
+    public void NotifyAiUnavailable(string? reason = null)
+    {
+        try
+        {
+            TrayIcon.ShowBalloonTip(
+                "Factum IL — מצב מוגבל",
+                reason ?? "מנוע ה-AI אינו זמין כעת. ניהול תיקים ומסמכים ממשיך לפעול כרגיל.",
+                Hardcodet.Wpf.TaskbarNotification.BalloonIcon.Warning);
+        }
+        catch { /* tray may be disposed during shutdown */ }
+    }
+
+    /// <summary>Notifies the user that AI features have recovered.</summary>
+    public void NotifyAiRestored()
+    {
+        try
+        {
+            TrayIcon.ShowBalloonTip(
+                "Factum IL — AI זמין שוב",
+                "מנוע ה-AI התאושש. תכונות ה-AI פעילות מחדש.",
+                Hardcodet.Wpf.TaskbarNotification.BalloonIcon.Info);
+        }
+        catch { /* tray may be disposed during shutdown */ }
+    }
+
     private void MainWindow_Closing(object? sender, System.ComponentModel.CancelEventArgs e)
     {
         // Minimise to tray instead of closing

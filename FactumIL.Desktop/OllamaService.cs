@@ -26,7 +26,38 @@ internal sealed class OllamaService
             "Ollama", "ollama.exe"),
     ];
 
+    private readonly StartupLogger _logger;
     private Process? _ollamaProcess;
+
+    /// <summary>Explicit, deterministic runtime + model state for diagnostics.</summary>
+    public OllamaLifecycle Lifecycle { get; }
+
+    public OllamaService(StartupLogger? logger = null)
+    {
+        _logger   = logger ?? new StartupLogger();
+        Lifecycle = new OllamaLifecycle((field, state) =>
+            _logger.Log("ollama", $"{field}={state}", LogStatus.Ok));
+        Lifecycle.SetRuntime(IsOllamaInstalled()
+            ? OllamaRuntimeState.Installed
+            : OllamaRuntimeState.NotInstalled);
+    }
+
+    // ── Configurable timeouts (env-overridable; never unbounded) ────────────────
+
+    private static TimeSpan ReadyTimeout =>
+        TimeSpan.FromSeconds(EnvInt("FACTUM_IL_OLLAMA_READY_TIMEOUT_SEC", 30));
+
+    private static TimeSpan CreateTimeout =>
+        TimeSpan.FromMinutes(EnvInt("FACTUM_IL_OLLAMA_CREATE_TIMEOUT_MIN", 30));
+
+    private static TimeSpan PullTimeout =>
+        TimeSpan.FromMinutes(EnvInt("FACTUM_IL_OLLAMA_PULL_TIMEOUT_MIN", 60));
+
+    private static int EnvInt(string name, int fallback)
+    {
+        var raw = Environment.GetEnvironmentVariable(name);
+        return int.TryParse(raw, out var v) && v > 0 ? v : fallback;
+    }
 
     /// <summary>
     /// True when Ollama is reachable and the required model is present (or was pulled).
@@ -62,10 +93,20 @@ internal sealed class OllamaService
         try
         {
             // Already reachable — nothing to do.
-            if (await PingAsync()) return;
+            if (await PingAsync())
+            {
+                Lifecycle.SetRuntime(OllamaRuntimeState.Ready);
+                return;
+            }
 
             var exe = FindOllamaExe();
-            if (exe is null) return; // not installed — caller will warn
+            if (exe is null)
+            {
+                Lifecycle.SetRuntime(OllamaRuntimeState.NotInstalled);
+                return; // not installed — caller will warn
+            }
+
+            Lifecycle.SetRuntime(OllamaRuntimeState.Starting);
 
             var psi = new ProcessStartInfo
             {
@@ -82,6 +123,7 @@ internal sealed class OllamaService
         }
         catch (Exception ex)
         {
+            Lifecycle.SetRuntime(OllamaRuntimeState.Failed);
             LogWarning($"StartAsync failed: {ex.Message}");
         }
     }
@@ -95,19 +137,30 @@ internal sealed class OllamaService
     {
         try
         {
-            var deadline = DateTime.UtcNow.AddSeconds(30);
+            var deadline = DateTime.UtcNow.Add(ReadyTimeout);
             while (DateTime.UtcNow < deadline)
             {
                 if (ct.IsCancellationRequested) return false;
-                if (await PingAsync()) return true;
+                if (await PingAsync())
+                {
+                    Lifecycle.SetRuntime(OllamaRuntimeState.Ready);
+                    return true;
+                }
                 await Task.Delay(500, ct);
             }
         }
         catch (OperationCanceledException) { }
         catch (Exception ex) { LogWarning($"WaitForReadyAsync failed: {ex.Message}"); }
 
+        Lifecycle.SetRuntime(OllamaRuntimeState.Failed);
         return false;
     }
+
+    /// <summary>Public, non-throwing reachability probe (used by supervisor/repair).</summary>
+    public Task<bool> PingPublicAsync() => PingAsync();
+
+    /// <summary>Public, non-throwing check that the required model is registered.</summary>
+    public Task<bool> IsModelRegisteredAsync() => ModelExistsAsync();
 
     /// <summary>
     /// Checks whether <see cref="RequiredModel"/> is present in Ollama.
@@ -123,6 +176,7 @@ internal sealed class OllamaService
             if (!await PingAsync())
             {
                 LogWarning("EnsureModelAsync: Ollama not reachable.");
+                Lifecycle.SetModel(OllamaModelState.Failed);
                 IsAvailable = false;
                 return;
             }
@@ -132,26 +186,58 @@ internal sealed class OllamaService
             if (await ModelExistsAsync())
             {
                 progress?.Report((100, "מודל AI מוכן"));
+                Lifecycle.SetModel(OllamaModelState.Ready);
                 IsAvailable = true;
                 return;
             }
 
+            Lifecycle.SetModel(OllamaModelState.Registering);
+
             var localGguf = GetBundledGgufPath();
-            if (localGguf is not null)
+
+            // Registration can be lengthy and occasionally fails mid-stream; retry with
+            // bounded exponential backoff so first-launch bootstrap is resilient but never
+            // hangs forever. Each attempt is itself bounded by the create/pull HTTP timeout.
+            var registered = await RetryPolicy.RunAsync(
+                async _ =>
+                {
+                    if (localGguf is not null)
+                    {
+                        progress?.Report((0, "טוען מודל AI מהדיסק…"));
+                        await CreateFromLocalAsync(localGguf, progress);
+                    }
+                    else
+                    {
+                        progress?.Report((0, "מוריד מודל AI (עשוי לקחת מספר דקות)…"));
+                        await PullModelAsync(progress);
+                    }
+                    // Confirm the model is actually present before declaring success.
+                    return await ModelExistsAsync();
+                },
+                new RetryOptions
+                {
+                    Operation    = "ollama-model-register",
+                    MaxAttempts  = 3,
+                    InitialDelay = TimeSpan.FromSeconds(3),
+                    MaxDelay     = TimeSpan.FromSeconds(20),
+                },
+                log: msg => _logger.Log("ollama", "model-register", LogStatus.Started, error: msg));
+
+            if (registered)
             {
-                progress?.Report((0, "טוען מודל AI מהדיסק…"));
-                await CreateFromLocalAsync(localGguf, progress);
+                Lifecycle.SetModel(OllamaModelState.Ready);
+                IsAvailable = true;
             }
             else
             {
-                progress?.Report((0, "מוריד מודל AI (עשוי לקחת מספר דקות)…"));
-                await PullModelAsync(progress);
+                Lifecycle.SetModel(OllamaModelState.Failed);
+                IsAvailable = false;
             }
-            IsAvailable = true;
         }
         catch (Exception ex)
         {
             LogWarning($"EnsureModelAsync failed: {ex.Message}");
+            Lifecycle.SetModel(OllamaModelState.Failed);
             IsAvailable = false;
         }
     }
@@ -203,7 +289,7 @@ internal sealed class OllamaService
         var body      = JsonSerializer.Serialize(new { model = RequiredModel, modelfile, stream = true });
         var content   = new StringContent(body, Encoding.UTF8, "application/json");
 
-        using var createClient = new HttpClient { Timeout = TimeSpan.FromMinutes(30) };
+        using var createClient = new HttpClient { Timeout = CreateTimeout };
         using var response     = await createClient.PostAsync("http://localhost:11434/api/create", content);
         response.EnsureSuccessStatusCode();
 
@@ -233,7 +319,7 @@ internal sealed class OllamaService
         var content = new StringContent(body, Encoding.UTF8, "application/json");
 
         // Use a long-timeout client for the pull (model can be several GB).
-        using var pullClient = new HttpClient { Timeout = TimeSpan.FromMinutes(60) };
+        using var pullClient = new HttpClient { Timeout = PullTimeout };
         using var response   = await pullClient.PostAsync(
             "http://localhost:11434/api/pull", content);
 
