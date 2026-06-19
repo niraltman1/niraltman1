@@ -178,8 +178,10 @@ function DownloadWithRetry([string]$Uri, [string]$OutFile, [int]$TimeoutSec, [in
             $LastError = $_
             $RetryCount++
             if ($RetryCount -lt $MaxRetries) {
-                Write-Host "  ⚠ Download attempt $RetryCount failed. Retrying in 5 seconds..." -ForegroundColor Yellow
-                Start-Sleep -Seconds 5
+                # Exponential backoff capped at 40s: 5 → 10 → 20 → 40 …
+                $backoff = [int][math]::Min(5 * [math]::Pow(2, $RetryCount - 1), 40)
+                Write-Host "  ⚠ Download attempt $RetryCount failed ($($LastError.Exception.Message)). Retrying in $backoff seconds..." -ForegroundColor Yellow
+                Start-Sleep -Seconds $backoff
             }
         }
     }
@@ -808,11 +810,22 @@ if (-not $SkipGGUF -and -not (Test-Path $GgufFile)) {
             Remove-Item $GgufFile -Force -ErrorAction SilentlyContinue
             throw "GGUF magic-byte validation failed — file may be corrupted."
         }
+    } else {
+        # DownloadWithRetry returned $false (all retries exhausted). The GGUF is a
+        # REQUIRED build artifact — fail loudly here instead of silently continuing
+        # and only surfacing as a confusing "missing GGUF" at the later verify gate.
+        throw "GGUF download failed after $MaxDownloadRetries retries — build aborted. (URL: $GgufUrl)"
     }
 } elseif ($SkipGGUF) {
     Write-Host "  ⊘ SKIP: GGUF download (-SkipGGUF flag set)" -ForegroundColor Yellow
 } elseif (Test-Path $GgufFile) {
     Write-Host "  ✓ GGUF already staged" -ForegroundColor Green
+}
+
+# Fail-fast safety net: unless explicitly skipped, the model MUST be present after
+# this stage. Guarantees no code path proceeds to ISCC without the required model.
+if (-not $SkipGGUF -and -not (Test-Path $GgufFile)) {
+    throw "GGUF model missing after staging — required build artifact. Build aborted."
 }
 
 # sqlite-vec  -  native KNN extension for SQLite
