@@ -28,7 +28,7 @@ jobs:
         run: |
           mkdir -p assets/verdict-corpus
           python3 << 'EOF'
-          import urllib.request, json, gzip, sys, time, os
+          import urllib.request, urllib.error, json, gzip, sys, time, os
 
           DATASET = 'guychuk/case-law-israel'
           CONFIG  = 'default'
@@ -45,7 +45,7 @@ jobs:
 
           rows = []
           offset = 0
-          retries = 3
+          retries = 6
 
           while True:
               url = f'{base_url}&offset={offset}&length={PAGE}'
@@ -58,6 +58,16 @@ jobs:
                       with urllib.request.urlopen(req, timeout=60) as resp:
                           data = json.load(resp)
                       break
+                  except urllib.error.HTTPError as e:
+                      if e.code == 429:
+                          # Respect rate limit — wait much longer
+                          wait = 30 * (2 ** attempt)
+                          print(f'[retry {attempt+1}/{retries}] offset={offset}: HTTP 429 — wait {wait}s', flush=True)
+                          time.sleep(wait)
+                      else:
+                          wait = 2 ** attempt
+                          print(f'[retry {attempt+1}/{retries}] offset={offset}: HTTP {e.code} — wait {wait}s', flush=True)
+                          time.sleep(wait)
                   except Exception as e:
                       wait = 2 ** attempt
                       print(f'[retry {attempt+1}/{retries}] offset={offset}: {e} — wait {wait}s', flush=True)
@@ -76,7 +86,7 @@ jobs:
                   rows = rows[:MAX]
                   break
               offset += PAGE
-              time.sleep(0.3)  # polite rate-limit
+              time.sleep(1.5)  # ~40 req/min — well under HF rate limit
 
           print(f'Total: {len(rows)} rows')
 
