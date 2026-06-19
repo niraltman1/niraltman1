@@ -135,10 +135,6 @@
                   Content="המשך בכל זאת"
                   Click="ContinueButton_Click"
                   Margin="0,0,0,0"/>
-          <Button x:Name="RepairButton"
-                  Style="{StaticResource ActionButton}"
-                  Content="תקן התקנה"
-                  Click="RepairButton_Click"/>
           <Button x:Name="BundleButton"
                   Style="{StaticResource ActionButton}"
                   Content="ייצא חבילת תמיכה"

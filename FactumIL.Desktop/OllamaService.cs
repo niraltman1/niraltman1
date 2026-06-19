@@ -35,8 +35,9 @@ internal sealed class OllamaService
     public OllamaService(StartupLogger? logger = null)
     {
         _logger   = logger ?? new StartupLogger();
-        Lifecycle = new OllamaLifecycle((field, state) =>
-            _logger.Log("ollama", $"{field}={state}", LogStatus.Ok));
+        Lifecycle = new OllamaLifecycle(
+            onTransition: (field, state) => _logger.Log("ollama", $"{field}={state}", LogStatus.Ok),
+            onIllegal:    msg => _logger.Log("ollama", "illegal-transition", LogStatus.Warn, error: msg));
         Lifecycle.SetRuntime(IsOllamaInstalled()
             ? OllamaRuntimeState.Installed
             : OllamaRuntimeState.NotInstalled);

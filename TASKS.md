@@ -1,5 +1,81 @@
 # Factum-IL — Task Tracker
 
+## 🗓️ Session handoff — review-driven trim + hardening (2026-06-19)
+
+**Branch:** `claude/factum-il-installer-analysis-c85kcf` (PR #130)
+
+Architecture review (`IMPLEMENTATION_REVIEW.md`) → scope locked to the **minimal
+mandatory set**; deferred infra removed; remaining bootstrap hardened.
+
+### Removed (deferred)
+`FactumIL.Desktop/OllamaSupervisor.cs` · `RepairManager.cs` · `BootstrapHarness.cs`
+(+ `--bootstrap-check` branch) · RecoveryWindow Repair button · `installer-pipeline.yml`
+· `powershell/ci/*` · `StartupLogger` failure-analytics + `health-summary.json` ·
+`FACTUM_IL_MIN_DISK_MB`.
+
+### Hardened (kept)
+- **R1** `OllamaLifecycle` = single source of truth (legal-transition table; illegal → log+ignore).
+- **R2** `BootstrapManager` atomic state (`.tmp`→validate→rename) + corruption recovery.
+- **R3** numeric step IDs (10–70) + version reconciliation.
+- **R7** named mutex (`Global\FactumIL.Bootstrap`, `Local\` fallback); 2nd launch attaches.
+- **R8** early Safe Mode on first recoverable AI-infra failure; RecoveryWindow = fatal only.
+- **R9** per-step telemetry → `bootstrap-summary.json` (slowest/avg).
+- **R4 (min)** `/api/health/functional` made fast (embedding probe removed).
+
+### New docs
+`IMPLEMENTATION_REVIEW.md`; updated `INSTALLER_FAILURE_ANALYSIS.md` (§4 hardening),
+`INSTALLER_ORCHESTRATION_SPEC.md` (§0 status, §2a state machine, deferred markers).
+
+### אומת
+`@factum-il/api tsc --noEmit` 0 · `health-functional.test.ts` 3/3 · ESLint 0.
+C# (`FactumIL.Desktop`) compiles on Windows CI only.
+
+### מה לעשות עכשיו
+1. Windows CI: confirm `FactumIL.Desktop` builds + installer smoke test green.
+2. Manual: first-launch model registration; kill mid-step → resume; corrupt
+   `bootstrap-state.json` → clean recovery; 2nd concurrent launch → attaches.
+
+---
+
+## 🗓️ Session handoff — staged installer CI/CD pipeline (2026-06-19)
+
+**Branch:** `claude/factum-il-installer-analysis-c85kcf` (PR #130)
+
+### הושלם הפעם — deterministic Build → Install → Bootstrap → Failure pipeline
+
+Decisions: headless harness · real Ollama+model (cached) · lightweight `-SkipGGUF`
+installer for validation · new workflow (release build untouched).
+
+#### New files
+- `.github/workflows/installer-pipeline.yml` — 4 staged jobs (`build-installer` →
+  `installer-validation` → `bootstrap-validation` → `failure-matrix-tests`), each
+  re-installing from the immutable `installer-package` artifact (no cross-job state).
+- `FactumIL.Desktop/BootstrapHarness.cs` — headless `--bootstrap-check` mode
+  (`--api-port`, `--expect`; exit 0/2/1/3) running `BootstrapManager` +
+  `FunctionalHealthChecks` without the WPF GUI; writes `functional-test-results.json`.
+- `powershell/ci/Register-CIModel.ps1` — register real model from GGUF release asset
+  (reuses `scripts/register-ollama-model.ps1`; idempotent/cached).
+- `powershell/ci/Validate-Install.ps1` — wraps `Verify-Install.ps1` + emits `system-state.json`.
+- `powershell/ci/Invoke-BootstrapValidation.ps1` — runs harness, asserts sequential
+  completion + deterministic resume (2nd pass skips completed steps).
+- `powershell/ci/Invoke-FailureScenario.ps1` — 7 scenarios (ollama-down, model-missing,
+  disk-low, network-disabled, corrupted-corpus, interrupted-bootstrap, slow-api).
+
+#### Modified files
+- `FactumIL.Desktop/App.xaml.cs` — branch to harness when `--bootstrap-check` is passed.
+- `FactumIL.Desktop/BootstrapManager.cs` — `FACTUM_IL_MIN_DISK_MB` env override for disk-low.
+- `INSTALLER_ORCHESTRATION_SPEC.md` — new §12 (pipeline) + §11 now automated.
+
+### אומת
+- `installer-pipeline.yml` parses (job graph sequential). C# harness + PS glue
+  validated only when the pipeline runs on Windows (`workflow_dispatch`).
+
+### מה לעשות עכשיו
+1. `workflow_dispatch` the pipeline; confirm Stage 1 artifact → Stages 2–4 re-install,
+   Stage 3 resume test passes, Stage 4 matrix all end in safe-mode/recovery (no hang).
+
+---
+
 ## 🗓️ Session handoff — installer failure root-cause + startup lifecycle (2026-06-19)
 
 **Branch:** `claude/factum-il-installer-analysis-c85kcf`

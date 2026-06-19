@@ -35,11 +35,8 @@ public static class StartupBudgets
 /// lifecycle (Enhancement 9 observability). Writes newline-delimited JSON to
 /// <c>%LOCALAPPDATA%\FactumIL\logs\bootstrap.jsonl</c> with a stable schema
 /// (<c>timestamp, component, event, status, durationMs, error</c>) and maintains
-/// two aggregate artifacts for support:
-/// <list type="bullet">
-///   <item><c>bootstrap-summary.json</c> — last bootstrap outcome snapshot.</item>
-///   <item><c>health-summary.json</c> — rolling failure analytics across runs.</item>
-/// </list>
+/// <c>bootstrap-summary.json</c> — the last bootstrap outcome snapshot with per-step
+/// telemetry — for support.
 /// All methods are best-effort and never throw.
 /// </summary>
 public sealed class StartupLogger
@@ -48,9 +45,8 @@ public sealed class StartupLogger
         Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
         "FactumIL", "logs");
 
-    private static readonly string JsonlPath        = Path.Combine(LogDir, "bootstrap.jsonl");
-    private static readonly string SummaryPath      = Path.Combine(LogDir, "bootstrap-summary.json");
-    private static readonly string HealthSummaryPath = Path.Combine(LogDir, "health-summary.json");
+    private static readonly string JsonlPath   = Path.Combine(LogDir, "bootstrap.jsonl");
+    private static readonly string SummaryPath = Path.Combine(LogDir, "bootstrap-summary.json");
 
     private static readonly object _gate = new();
 
@@ -135,38 +131,16 @@ public sealed class StartupLogger
         }
         catch { return null; }
     }
+}
 
-    /// <summary>
-    /// Appends a field-failure record to the rolling <c>health-summary.json</c>
-    /// aggregate (Enhancement 10). Keeps the most recent 100 records.
-    /// </summary>
-    public void RecordFailureAnalytics(FailureRecord record)
-    {
-        try
-        {
-            Directory.CreateDirectory(LogDir);
-            lock (_gate)
-            {
-                var list = new List<FailureRecord>();
-                if (File.Exists(HealthSummaryPath))
-                {
-                    try
-                    {
-                        var existing = JsonSerializer.Deserialize<List<FailureRecord>>(
-                            File.ReadAllText(HealthSummaryPath), _json);
-                        if (existing is not null) list = existing;
-                    }
-                    catch { /* corrupt aggregate — start fresh */ }
-                }
-
-                list.Add(record);
-                if (list.Count > 100) list.RemoveRange(0, list.Count - 100);
-
-                File.WriteAllText(HealthSummaryPath, JsonSerializer.Serialize(list, _jsonPretty));
-            }
-        }
-        catch { /* best effort */ }
-    }
+/// <summary>Per-step telemetry captured for every bootstrap step (R9).</summary>
+public sealed record StepTelemetry
+{
+    public int    StepId     { get; init; }
+    public string StepName   { get; init; } = "";
+    public long   DurationMs { get; init; }
+    public int    RetryCount { get; init; }
+    public string Result     { get; init; } = "";
 }
 
 /// <summary>Snapshot written to <c>bootstrap-summary.json</c>.</summary>
@@ -175,19 +149,10 @@ public sealed record BootstrapSummary
     public int     BootstrapVersion { get; init; }
     public string? LastSuccessUtc   { get; init; }
     public string? LastFailureUtc   { get; init; }
-    public string? FailedStep       { get; init; }
+    public int?    FailedStepId     { get; init; }
     public int     AttemptCount     { get; init; }
     public double  DurationSeconds  { get; init; }
-    public List<string> RecoveryActions { get; init; } = new();
-}
-
-/// <summary>One field-failure datapoint appended to <c>health-summary.json</c>.</summary>
-public sealed record FailureRecord
-{
-    public string  TimestampUtc     { get; init; } = DateTime.UtcNow.ToString("o");
-    public string  Category         { get; init; } = "";
-    public string  Component        { get; init; } = "";
-    public int     RetryCount       { get; init; }
-    public string  RecoveryOutcome  { get; init; } = "";
-    public double? TimeToRecoverySeconds { get; init; }
+    public int?    SlowestStepId    { get; init; }
+    public long    AvgStepDurationMs { get; init; }
+    public List<StepTelemetry> Steps { get; init; } = new();
 }

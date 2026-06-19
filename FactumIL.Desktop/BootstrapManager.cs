@@ -32,27 +32,30 @@ public sealed record BootstrapResult(
     List<string> Warnings,
     List<string> Errors);
 
+/// <summary>Outcome of one step run: severity, human detail, and retry count (R9).</summary>
+public readonly record struct StepResult(StepOutcome Outcome, string Detail, int RetryCount = 0);
+
 /// <summary>Progress emitted while bootstrap runs (mapped to the splash UI by App).</summary>
 public sealed record BootstrapProgress(int StepIndex, int StepCount, string StepName, int Percent, string Detail);
 
 /// <summary>
-/// Resumable first-launch bootstrap (Phase 6). All heavy initialization that used
-/// to block the installer (model registration, verification) runs here instead, on
-/// the first launch of the WPF shell. Progress is persisted to
-/// <c>%LOCALAPPDATA%\FactumIL\bootstrap-state.json</c>; if a step fails or the app
-/// is killed mid-way, the next launch <b>resumes at the first incomplete step</b>
-/// rather than restarting from scratch.
-///
-/// The persisted state carries a <c>bootstrapVersion</c> (Enhancement 6): when a
-/// new app version introduces new steps, previously completed steps stay complete
-/// and only the new steps run. Each step is classified as
-/// <see cref="StepOutcome.Ok"/>, <see cref="StepOutcome.RecoverableOffline"/> or
-/// <see cref="StepOutcome.Fatal"/> (Enhancement 8 offline-first).
+/// Resumable first-launch bootstrap. All heavy initialization that used to block the
+/// installer (model registration, verification) runs here instead, on first launch
+/// of the WPF shell. Progress is persisted (atomically, R2) to
+/// <c>%LOCALAPPDATA%\FactumIL\bootstrap-state.json</c> keyed by <b>stable numeric
+/// step IDs</b> (R3); if a step fails or the app is killed, the next launch
+/// <b>resumes at the first incomplete step</b>. A named mutex (R7) guarantees only
+/// one bootstrap runs at a time. On the first recoverable AI-infra failure the app
+/// enters Safe Mode immediately (R8). Per-step telemetry feeds
+/// <c>bootstrap-summary.json</c> (R9). Runtime/model state is owned by
+/// <see cref="OllamaLifecycle"/> (R1).
 /// </summary>
 public sealed class BootstrapManager
 {
     /// <summary>Bump when adding/removing steps so upgrades re-run only new work.</summary>
     public const int CurrentVersion = 1;
+
+    private const string MutexName = @"Global\FactumIL.Bootstrap";
 
     private static readonly string StatePath = Path.Combine(
         Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
@@ -62,7 +65,15 @@ public sealed class BootstrapManager
     private readonly StartupLogger _logger;
     private readonly int _apiPort;
 
-    private sealed record Step(string Id, string DisplayName, Func<IProgress<(int, string)>?, CancellationToken, Task<(StepOutcome Outcome, string Detail)>> Run);
+    // Stable numeric step IDs (R3) — never change once shipped.
+    private const int IdDeps = 10, IdWebView2 = 20, IdOllamaRuntime = 30, IdOllamaModel = 40,
+                      IdDatabase = 50, IdVectorIndex = 60, IdCorpus = 70;
+
+    private sealed record Step(
+        int Id,
+        string Name,
+        string DisplayName,
+        Func<IProgress<(int, string)>?, CancellationToken, Task<StepResult>> Run);
 
     public BootstrapManager(OllamaService ollama, StartupLogger logger, int apiPort)
     {
@@ -73,19 +84,56 @@ public sealed class BootstrapManager
 
     /// <summary>
     /// Runs (or resumes) the bootstrap. Reports progress, writes
-    /// <c>bootstrap-summary.json</c>, and records field-failure analytics.
-    /// Never throws.
+    /// <c>bootstrap-summary.json</c>. Never throws.
     /// </summary>
     public async Task<BootstrapResult> RunAsync(
         IProgress<BootstrapProgress>? progress = null,
         CancellationToken ct = default)
     {
-        var warnings = new List<string>();
-        var errors   = new List<string>();
-        var recoveryActions = new List<string>();
+        // ── Concurrency guard (R7): only one bootstrap at a time across processes ──
+        Mutex? mutex = null;
+        var owned = false;
+        try
+        {
+            try { mutex = new Mutex(false, MutexName); }
+            catch { mutex = new Mutex(false, @"Local\FactumIL.Bootstrap"); }
+            try { owned = mutex.WaitOne(TimeSpan.FromSeconds(2)); }
+            catch (AbandonedMutexException) { owned = true; }
+
+            if (!owned)
+            {
+                // Another launch is bootstrapping — attach to its persisted progress
+                // instead of re-running (prevents duplicate model registration).
+                _logger.Log("bootstrap", "attach", LogStatus.Skipped);
+                var st = LoadState();
+                var attachOutcome = IsBootstrapComplete()
+                    ? BootstrapOutcome.Success
+                    : BootstrapOutcome.Degraded;
+                return new BootstrapResult(attachOutcome, new List<string>(), new List<string>());
+            }
+
+            return await RunExclusiveAsync(progress, ct);
+        }
+        finally
+        {
+            if (owned) { try { mutex!.ReleaseMutex(); } catch { } }
+            mutex?.Dispose();
+        }
+    }
+
+    private async Task<BootstrapResult> RunExclusiveAsync(
+        IProgress<BootstrapProgress>? progress, CancellationToken ct)
+    {
+        var warnings  = new List<string>();
+        var errors    = new List<string>();
+        var telemetry = new List<StepTelemetry>();
+        var safeModeEntered = false;
 
         var state = LoadState();
+        ReconcileVersion(state);
         state.AttemptCount += 1;
+        state.Status = "Running";
+        SaveState(state);
 
         var resuming = state.CompletedSteps.Count > 0;
         var overallStart = DateTime.UtcNow;
@@ -99,74 +147,90 @@ public sealed class BootstrapManager
 
         var steps   = BuildSteps();
         var outcome = BootstrapOutcome.Success;
-        string? failedStep = null;
+        int? failedStepId = null;
 
         for (var i = 0; i < steps.Count; i++)
         {
             var step = steps[i];
             if (ct.IsCancellationRequested) break;
 
+            var key = step.Id.ToString();
+
             // ── Resume: skip steps already completed under the current version ──
-            if (state.CompletedSteps.ContainsKey(step.Id))
+            if (state.CompletedSteps.ContainsKey(key))
             {
-                _logger.Log("bootstrap", step.Id, LogStatus.Skipped);
+                _logger.Log("bootstrap", step.Name, LogStatus.Skipped);
                 progress?.Report(new BootstrapProgress(i + 1, steps.Count, step.DisplayName, 100, "כבר הושלם ✓"));
                 continue;
             }
+
+            state.CurrentStepId = step.Id;
+            SaveState(state);
 
             progress?.Report(new BootstrapProgress(i + 1, steps.Count, step.DisplayName, 0, step.DisplayName));
             var stepStart = DateTime.UtcNow;
             var stepProgress = new Progress<(int Percent, string Detail)>(p =>
                 progress?.Report(new BootstrapProgress(i + 1, steps.Count, step.DisplayName, p.Percent, p.Detail)));
 
-            StepOutcome stepOutcome;
-            string stepDetail;
+            StepResult result;
             try
             {
-                (stepOutcome, stepDetail) = await step.Run(stepProgress, ct);
+                result = await step.Run(stepProgress, ct);
             }
             catch (Exception ex)
             {
-                stepOutcome = StepOutcome.RecoverableOffline;
-                stepDetail  = ex.Message;
+                result = new StepResult(StepOutcome.RecoverableOffline, ex.Message);
             }
 
             var durationMs = (long)(DateTime.UtcNow - stepStart).TotalMilliseconds;
+            telemetry.Add(new StepTelemetry
+            {
+                StepId = step.Id, StepName = step.Name, DurationMs = durationMs,
+                RetryCount = result.RetryCount, Result = result.Outcome.ToString(),
+            });
 
-            switch (stepOutcome)
+            switch (result.Outcome)
             {
                 case StepOutcome.Ok:
-                    state.CompletedSteps[step.Id] = DateTime.UtcNow.ToString("o");
+                    state.CompletedSteps[key] = DateTime.UtcNow.ToString("o");
                     SaveState(state);
-                    _logger.Log("bootstrap", step.Id, LogStatus.Ok, durationMs, stepDetail);
+                    _logger.Log("bootstrap", step.Name, LogStatus.Ok, durationMs, result.Detail);
                     break;
 
                 case StepOutcome.RecoverableOffline:
-                    warnings.Add($"{step.DisplayName}: {stepDetail}");
-                    recoveryActions.Add($"retry:{step.Id}");
+                    warnings.Add($"{step.DisplayName}: {result.Detail}");
                     outcome = BootstrapOutcome.Degraded;
-                    _logger.Log("bootstrap", step.Id, LogStatus.Warn, durationMs, stepDetail);
+                    _logger.Log("bootstrap", step.Name, LogStatus.Warn, durationMs, result.Detail);
+                    // R8 — enter Safe Mode immediately on the first recoverable AI-infra
+                    // failure so the app stays usable for non-AI work right away.
+                    if (!safeModeEntered && (step.Id == IdOllamaRuntime || step.Id == IdOllamaModel))
+                    {
+                        SafeModeManager.Instance.Enter(
+                            "מנוע ה-AI אינו זמין כעת — המערכת פועלת במצב מוגבל (ללא AI).");
+                        safeModeEntered = true;
+                    }
                     // not marked complete — retried on next launch
                     break;
 
                 case StepOutcome.Fatal:
-                    errors.Add($"{step.DisplayName}: {stepDetail}");
-                    failedStep = step.Id;
+                    errors.Add($"{step.DisplayName}: {result.Detail}");
+                    failedStepId = step.Id;
                     outcome = BootstrapOutcome.Fatal;
-                    _logger.Log("bootstrap", step.Id, LogStatus.Failed, durationMs, stepDetail);
+                    _logger.Log("bootstrap", step.Name, LogStatus.Failed, durationMs, result.Detail);
                     break;
 
                 case StepOutcome.Skipped:
-                    _logger.Log("bootstrap", step.Id, LogStatus.Skipped, durationMs, stepDetail);
+                    _logger.Log("bootstrap", step.Name, LogStatus.Skipped, durationMs, result.Detail);
                     break;
             }
 
             if (outcome == BootstrapOutcome.Fatal) break;
         }
 
-        // Upgrade the persisted version once a full pass has run.
         state.BootstrapVersion = CurrentVersion;
         state.LastError = errors.Count > 0 ? string.Join("; ", errors) : null;
+        state.Status    = outcome == BootstrapOutcome.Fatal ? "Failed" : "Complete";
+        state.UpdatedUtc = DateTime.UtcNow.ToString("o");
         SaveState(state);
 
         var overallSeconds = (DateTime.UtcNow - overallStart).TotalSeconds;
@@ -174,29 +238,7 @@ public sealed class BootstrapManager
             (long)(overallSeconds * 1000),
             resuming ? StartupBudgets.BootstrapResume : StartupBudgets.AppLaunch);
 
-        var nowIso = DateTime.UtcNow.ToString("o");
-        var summary = new BootstrapSummary
-        {
-            BootstrapVersion = CurrentVersion,
-            LastSuccessUtc   = outcome != BootstrapOutcome.Fatal ? nowIso : ReadPreviousSuccess(),
-            LastFailureUtc   = outcome == BootstrapOutcome.Fatal ? nowIso : null,
-            FailedStep       = failedStep,
-            AttemptCount     = state.AttemptCount,
-            DurationSeconds  = Math.Round(overallSeconds, 2),
-            RecoveryActions  = recoveryActions,
-        };
-        _logger.WriteBootstrapSummary(summary);
-
-        if (outcome != BootstrapOutcome.Success)
-        {
-            _logger.RecordFailureAnalytics(new FailureRecord
-            {
-                Category        = outcome == BootstrapOutcome.Fatal ? "bootstrap-fatal" : "bootstrap-degraded",
-                Component       = failedStep ?? (warnings.Count > 0 ? "ai-stack" : "unknown"),
-                RetryCount      = state.AttemptCount,
-                RecoveryOutcome = outcome.ToString().ToLowerInvariant(),
-            });
-        }
+        WriteSummary(state, telemetry, outcome, failedStepId, overallSeconds);
 
         _logger.Log("bootstrap", "complete", outcome == BootstrapOutcome.Fatal ? LogStatus.Failed : LogStatus.Ok,
             error: outcome == BootstrapOutcome.Fatal ? state.LastError : null);
@@ -204,99 +246,127 @@ public sealed class BootstrapManager
         return new BootstrapResult(outcome, warnings, errors);
     }
 
+    private void WriteSummary(
+        BootstrapState state, List<StepTelemetry> telemetry,
+        BootstrapOutcome outcome, int? failedStepId, double overallSeconds)
+    {
+        var nowIso = DateTime.UtcNow.ToString("o");
+        int? slowest = telemetry.Count > 0
+            ? telemetry.OrderByDescending(t => t.DurationMs).First().StepId
+            : null;
+        long avg = telemetry.Count > 0
+            ? (long)telemetry.Average(t => t.DurationMs)
+            : 0;
+
+        _logger.WriteBootstrapSummary(new BootstrapSummary
+        {
+            BootstrapVersion  = CurrentVersion,
+            LastSuccessUtc    = outcome != BootstrapOutcome.Fatal ? nowIso : ReadPreviousSuccess(),
+            LastFailureUtc    = outcome == BootstrapOutcome.Fatal ? nowIso : null,
+            FailedStepId      = failedStepId,
+            AttemptCount      = state.AttemptCount,
+            DurationSeconds   = Math.Round(overallSeconds, 2),
+            SlowestStepId     = slowest,
+            AvgStepDurationMs = avg,
+            Steps             = telemetry,
+        });
+    }
+
     // ── Step definitions ────────────────────────────────────────────────────────
 
     private List<Step> BuildSteps() =>
     [
-        new("deps",          "בודק תלויות מערכת…",       (_, _)  => Task.FromResult(CheckDependencies())),
-        new("webview2",      "בודק WebView2…",            (_, _)  => Task.FromResult(CheckWebView2())),
-        new("ollama-runtime","מפעיל מנוע AI…",            RunOllamaRuntime),
-        new("ollama-model",  "מאתחל מודל AI…",            RunOllamaModel),
-        new("database",      "מאמת מסד נתונים…",          (_, ct) => VerifyDatabaseAsync(ct)),
-        new("vector-index",  "מאמת אינדקס וקטורי…",       (_, ct) => VerifyFunctionalAsync("vector", ct)),
-        new("corpus",        "מאמת מאגר משפטי…",          (_, ct) => VerifyFunctionalAsync("corpus", ct)),
+        new(IdDeps,          "VerifyDependencies",  "בודק תלויות מערכת…", (_, _)  => Task.FromResult(CheckDependencies())),
+        new(IdWebView2,      "VerifyWebView2",      "בודק WebView2…",      (_, _)  => Task.FromResult(CheckWebView2())),
+        new(IdOllamaRuntime, "EnsureOllamaRunning", "מפעיל מנוע AI…",      RunOllamaRuntime),
+        new(IdOllamaModel,   "EnsureModelRegistered","מאתחל מודל AI…",     RunOllamaModel),
+        new(IdDatabase,      "VerifyDatabase",      "מאמת מסד נתונים…",    (_, ct) => VerifyDatabaseAsync(ct)),
+        new(IdVectorIndex,   "VerifyVectorIndex",   "מאמת אינדקס וקטורי…", (_, ct) => VerifyFunctionalAsync("vector", ct)),
+        new(IdCorpus,        "VerifyCorpus",        "מאמת מאגר משפטי…",    (_, ct) => VerifyFunctionalAsync("corpus", ct)),
     ];
 
-    private (StepOutcome, string) CheckDependencies()
+    private static StepResult CheckDependencies()
     {
         var root = Environment.GetEnvironmentVariable("FACTUM_IL_ROOT");
         if (string.IsNullOrWhiteSpace(root) || !Directory.Exists(root))
-            return (StepOutcome.Fatal, "FACTUM_IL_ROOT לא מוגדר או לא קיים");
+            return new StepResult(StepOutcome.Fatal, "FACTUM_IL_ROOT לא מוגדר או לא קיים");
 
         var nodePath = Path.GetFullPath(Path.Combine(root, "..", "app", "node", "node.exe"));
         if (!File.Exists(nodePath))
-            return (StepOutcome.Fatal, $"node.exe לא נמצא: {nodePath}");
+            return new StepResult(StepOutcome.Fatal, $"node.exe לא נמצא: {nodePath}");
 
         try
         {
             var drive = new DriveInfo(Path.GetPathRoot(root)!);
             var freeMb = drive.AvailableFreeSpace / (1024L * 1024L);
             if (freeMb < 200)
-                return (StepOutcome.Fatal, $"שטח דיסק נמוך: {freeMb}MB");
+                return new StepResult(StepOutcome.Fatal, $"שטח דיסק נמוך: {freeMb}MB (נדרש 200MB)");
         }
         catch { /* disk probe best-effort */ }
 
-        return (StepOutcome.Ok, "תלויות תקינות");
+        return new StepResult(StepOutcome.Ok, "תלויות תקינות");
     }
 
-    private static (StepOutcome, string) CheckWebView2()
+    private static StepResult CheckWebView2()
     {
         // Informational — MainWindow surfaces a clear installer prompt if missing.
-        var installed = WebView2Installed();
-        return installed
-            ? (StepOutcome.Ok, "WebView2 מותקן")
-            : (StepOutcome.RecoverableOffline, "WebView2 חסר — יותקן/ידרוש התקנה");
+        return WebView2Installed()
+            ? new StepResult(StepOutcome.Ok, "WebView2 מותקן")
+            : new StepResult(StepOutcome.RecoverableOffline, "WebView2 חסר — יותקן/ידרוש התקנה");
     }
 
-    private async Task<(StepOutcome, string)> RunOllamaRuntime(IProgress<(int, string)>? progress, CancellationToken ct)
+    private async Task<StepResult> RunOllamaRuntime(IProgress<(int, string)>? progress, CancellationToken ct)
     {
         if (!OllamaService.IsOllamaInstalled())
-            return (StepOutcome.RecoverableOffline, "Ollama אינו מותקן — מצב ללא AI");
+            return new StepResult(StepOutcome.RecoverableOffline, "Ollama אינו מותקן — מצב ללא AI");
 
         await _ollama.StartAsync();
+        var attempts = 0;
         var ready = await RetryPolicy.RunAsync(
             _ => _ollama.PingPublicAsync(),
             new RetryOptions { Operation = "ollama-ready", MaxAttempts = 6, InitialDelay = TimeSpan.FromSeconds(1), MaxDelay = TimeSpan.FromSeconds(5), OverallTimeout = StartupBudgets.OllamaReady },
             log: msg => _logger.Log("bootstrap", "ollama-ready", LogStatus.Started, error: msg),
+            onAttempt: n => attempts = n,
             ct: ct);
 
+        var retries = Math.Max(0, attempts - 1);
         return ready
-            ? (StepOutcome.Ok, "מנוע AI פעיל")
-            : (StepOutcome.RecoverableOffline, "מנוע AI לא הגיב — מצב ללא AI");
+            ? new StepResult(StepOutcome.Ok, "מנוע AI פעיל", retries)
+            : new StepResult(StepOutcome.RecoverableOffline, "מנוע AI לא הגיב — מצב ללא AI", retries);
     }
 
-    private async Task<(StepOutcome, string)> RunOllamaModel(IProgress<(int, string)>? progress, CancellationToken ct)
+    private async Task<StepResult> RunOllamaModel(IProgress<(int, string)>? progress, CancellationToken ct)
     {
         if (!OllamaService.IsOllamaInstalled() || !await _ollama.PingPublicAsync())
-            return (StepOutcome.RecoverableOffline, "מנוע AI לא זמין — רישום מודל יידחה");
+            return new StepResult(StepOutcome.RecoverableOffline, "מנוע AI לא זמין — רישום מודל יידחה");
 
         var modelProgress = new Progress<(int Percent, string Status)>(t => progress?.Report((t.Percent, t.Status)));
         await _ollama.EnsureModelAsync(modelProgress);
 
+        // Runtime/model truth is owned by OllamaLifecycle (R1).
         return _ollama.Lifecycle.Model == OllamaModelState.Ready
-            ? (StepOutcome.Ok, "מודל AI רשום ומוכן")
-            : (StepOutcome.RecoverableOffline, "רישום מודל לא הושלם — יבוצע בהפעלה הבאה");
+            ? new StepResult(StepOutcome.Ok, "מודל AI רשום ומוכן")
+            : new StepResult(StepOutcome.RecoverableOffline, "רישום מודל לא הושלם — יבוצע בהפעלה הבאה");
     }
 
-    private async Task<(StepOutcome, string)> VerifyDatabaseAsync(CancellationToken ct)
+    private async Task<StepResult> VerifyDatabaseAsync(CancellationToken ct)
     {
         var health = await GetHealthAsync("/api/health", ct);
         if (health is null)
-            return (StepOutcome.Fatal, "API לא הגיב לבדיקת מסד נתונים");
+            return new StepResult(StepOutcome.Fatal, "API לא הגיב לבדיקת מסד נתונים");
 
-        var dbHealthy = TryReadCheck(health.Value, "db");
-        return dbHealthy
-            ? (StepOutcome.Ok, "מסד נתונים תקין")
-            : (StepOutcome.Fatal, "מסד נתונים אינו תקין");
+        return TryReadCheck(health.Value, "db")
+            ? new StepResult(StepOutcome.Ok, "מסד נתונים תקין")
+            : new StepResult(StepOutcome.Fatal, "מסד נתונים אינו תקין");
     }
 
-    private async Task<(StepOutcome, string)> VerifyFunctionalAsync(string component, CancellationToken ct)
+    private async Task<StepResult> VerifyFunctionalAsync(string component, CancellationToken ct)
     {
         var result = await FunctionalHealthChecks.CheckApiFunctionalAsync(_apiPort, ct);
         // Vector index / corpus are non-fatal: the app degrades to FTS-only / no-corpus.
         return result.Healthy
-            ? (StepOutcome.Ok, $"{component}: {result.Detail}")
-            : (StepOutcome.RecoverableOffline, $"{component} מוגבל: {result.Detail}");
+            ? new StepResult(StepOutcome.Ok, $"{component}: {result.Detail}")
+            : new StepResult(StepOutcome.RecoverableOffline, $"{component} מוגבל: {result.Detail}");
     }
 
     // ── Health helpers ──────────────────────────────────────────────────────────
@@ -344,7 +414,7 @@ public sealed class BootstrapManager
         catch { return false; }
     }
 
-    // ── State persistence ───────────────────────────────────────────────────────
+    // ── State persistence (R2 atomic + corruption recovery) ──────────────────────
 
     private static readonly JsonSerializerOptions _json = new()
     {
@@ -355,12 +425,26 @@ public sealed class BootstrapManager
     private sealed class BootstrapState
     {
         public int BootstrapVersion { get; set; } = CurrentVersion;
-        public Dictionary<string, string> CompletedSteps { get; set; } = new();
+        public int CurrentStepId { get; set; }
+        public string Status { get; set; } = "Idle";
+        public string? UpdatedUtc { get; set; }
         public string? LastError { get; set; }
         public int AttemptCount { get; set; }
+        public Dictionary<string, string> CompletedSteps { get; set; } = new();
     }
 
-    private static BootstrapState LoadState()
+    /// <summary>Drop completed-step IDs no longer present in the current step set (R3/R6).</summary>
+    private void ReconcileVersion(BootstrapState state)
+    {
+        if (state.BootstrapVersion == CurrentVersion) return;
+        var validIds = BuildSteps().Select(s => s.Id.ToString()).ToHashSet();
+        foreach (var key in state.CompletedSteps.Keys.Where(k => !validIds.Contains(k)).ToList())
+            state.CompletedSteps.Remove(key);
+        _logger.Log("bootstrap", "version-reconcile", LogStatus.Ok,
+            extra: new Dictionary<string, object?> { ["from"] = state.BootstrapVersion, ["to"] = CurrentVersion });
+    }
+
+    private BootstrapState LoadState()
     {
         try
         {
@@ -369,31 +453,54 @@ public sealed class BootstrapManager
                 var json = File.ReadAllText(StatePath);
                 var state = JsonSerializer.Deserialize<BootstrapState>(json, _json);
                 if (state is not null) return state;
+                throw new JsonException("deserialized to null");
             }
         }
-        catch { /* corrupt state — start clean */ }
+        catch (Exception ex)
+        {
+            // Corruption recovery (R2): back up the bad file, log, start clean.
+            try
+            {
+                var backup = StatePath + $".corrupt-{DateTime.UtcNow:yyyyMMddHHmmss}";
+                if (File.Exists(StatePath)) File.Move(StatePath, backup, overwrite: true);
+            }
+            catch { /* best effort */ }
+            _logger.Log("bootstrap", "state-corrupt", LogStatus.Warn, error: ex.Message);
+        }
         return new BootstrapState();
     }
 
-    private static void SaveState(BootstrapState state)
+    private void SaveState(BootstrapState state)
     {
         try
         {
             Directory.CreateDirectory(Path.GetDirectoryName(StatePath)!);
-            File.WriteAllText(StatePath, JsonSerializer.Serialize(state, _json));
+            var tmp  = StatePath + ".tmp";
+            var json = JsonSerializer.Serialize(state, _json);
+            File.WriteAllText(tmp, json);
+            // Validate the temp file parses before atomically replacing the live file.
+            _ = JsonSerializer.Deserialize<BootstrapState>(File.ReadAllText(tmp), _json);
+            File.Move(tmp, StatePath, overwrite: true);
         }
-        catch { /* best effort */ }
+        catch (Exception ex)
+        {
+            _logger.Log("bootstrap", "state-save-failed", LogStatus.Warn, error: ex.Message);
+        }
     }
 
     private string? ReadPreviousSuccess() => _logger.ReadBootstrapSummary()?.LastSuccessUtc;
 
-    /// <summary>True once every step has been recorded complete under the current version.</summary>
+    /// <summary>True once the non-AI critical steps are complete under the current version.</summary>
     public static bool IsBootstrapComplete()
     {
-        var state = LoadState();
-        if (state.BootstrapVersion != CurrentVersion) return false;
-        // The non-AI critical steps must be complete; AI steps may be deferred.
-        return state.CompletedSteps.ContainsKey("deps")
-            && state.CompletedSteps.ContainsKey("database");
+        try
+        {
+            if (!File.Exists(StatePath)) return false;
+            var state = JsonSerializer.Deserialize<BootstrapState>(File.ReadAllText(StatePath), _json);
+            if (state is null || state.BootstrapVersion != CurrentVersion) return false;
+            return state.CompletedSteps.ContainsKey(IdDeps.ToString())
+                && state.CompletedSteps.ContainsKey(IdDatabase.ToString());
+        }
+        catch { return false; }
     }
 }

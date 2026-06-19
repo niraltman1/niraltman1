@@ -113,3 +113,25 @@ bounded timeouts and reported on the splash screen.
 
 See `INSTALLER_ORCHESTRATION_SPEC.md` for the full target architecture, dependency
 graph, and the failure-mode test matrix.
+
+---
+
+## 4. Hardening pass (applied)
+
+After review (`IMPLEMENTATION_REVIEW.md`) the fix was hardened and scoped to the
+**minimal mandatory set**:
+- **R1** `OllamaLifecycle` is the single source of truth (legal-transition table).
+- **R2** bootstrap state is written **atomically** (`.tmp` → validate → rename) with
+  corruption detection/recovery logged via `StartupLogger`.
+- **R3** progress is keyed by **stable numeric step IDs** (10–70), with version
+  reconciliation so upgrades re-run only new steps.
+- **R7** a **named mutex** (`Global\FactumIL.Bootstrap`, `Local\` fallback) ensures
+  only one bootstrap runs; a second launch attaches instead of re-registering.
+- **R8** Safe Mode is entered **immediately** on the first recoverable AI-infra
+  failure, so the app stays usable; `RecoveryWindow` is reserved for fatal errors.
+- **R9** per-step telemetry (`stepId, durationMs, retryCount, result`) →
+  `bootstrap-summary.json` (slowest step, average duration).
+- **R4 (minimal)** `/api/health/functional` is a **fast** tier (no embedding probe).
+
+**Deferred** (see spec "Deferred / future"): `OllamaSupervisor`, `RepairManager`,
+`health-summary.json`, `/api/health/full`, and the staged CI pipeline + harness.

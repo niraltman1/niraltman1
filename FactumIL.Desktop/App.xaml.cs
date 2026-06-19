@@ -6,8 +6,7 @@ public partial class App : Application
 {
     private ApiHostService?    _apiHost;
     private OllamaService?     _ollama;
-    private OllamaSupervisor?  _supervisor;
-    private readonly StartupLogger    _logger      = new();
+    private readonly StartupLogger      _logger      = new();
     private readonly DiagnosticsService _diagnostics = new();
 
     protected override void OnStartup(StartupEventArgs e)
@@ -64,15 +63,13 @@ public partial class App : Application
 
         if (!apiReady)
         {
-            // API never came up — this is the only hard prerequisite. Offer recovery
-            // instead of an immediate fatal exit (Shutdown), so the user can export a
-            // support bundle, open logs, or retry in safe mode.
+            // API never came up — the only hard prerequisite. Offer recovery instead of
+            // an immediate fatal Shutdown, so the user can export a bundle / open logs.
             _logger.Log("app", "api-timeout", LogStatus.Failed);
             ShowRecoveryWindow(
                 splash,
                 new List<string>(),
-                new List<string> { "שרת ה-API לא הגיב בזמן. ראה לוגים לפרטים." },
-                apiPort);
+                new List<string> { "שרת ה-API לא הגיב בזמן. ראה לוגים לפרטים." });
             return;
         }
 
@@ -81,6 +78,8 @@ public partial class App : Application
 
         // Step c — Resumable first-launch bootstrap: ensure Ollama + model + verify
         //          database / vector / corpus. Heavy init lives here (NOT the installer).
+        //          BootstrapManager enters Safe Mode itself on the first recoverable
+        //          AI-infra failure (R8), so the app stays usable for non-AI work.
         var bootstrap = new BootstrapManager(_ollama, _logger, apiPort);
         var progress  = new Progress<BootstrapProgress>(p =>
             splash.SetOllamaProgress(p.Percent, $"{p.StepName} {p.Detail}".Trim()));
@@ -105,19 +104,14 @@ public partial class App : Application
             var errors = new List<string>(validationResult.Errors);
             errors.AddRange(bootstrapResult.Errors);
 
-            ShowRecoveryWindow(splash, warnings, errors, apiPort);
+            ShowRecoveryWindow(splash, warnings, errors);
             return;
         }
 
-        // Degraded (AI unavailable) is non-fatal: enter safe mode so the app stays
-        // usable for non-AI work; the supervisor keeps retrying and exits safe mode
-        // automatically when the AI stack recovers.
-        if (bootstrapResult.Outcome == BootstrapOutcome.Degraded && !_ollama.Lifecycle.IsFullyReady)
-            SafeModeManager.Instance.Enter("מנוע ה-AI אינו זמין כעת — המערכת פועלת במצב מוגבל (ללא AI).");
-
         splash.Dispatcher.Invoke(() => splash.Close());
 
-        // Step f — Boot complete: open main window on the UI thread.
+        // Step f — Boot complete: open main window on the UI thread (degraded/safe mode
+        //          still shows the full UI; AI-backed features degrade gracefully).
         Dispatcher.Invoke(() =>
         {
             var main = new MainWindow();
@@ -126,26 +120,19 @@ public partial class App : Application
         });
 
         _logger.LogTiming("app", "boot-complete", (long)(DateTime.UtcNow - bootStart).TotalMilliseconds, StartupBudgets.AppLaunch);
-
-        // Step g — Start the runtime supervisor (after startup; never blocks it).
-        _supervisor = new OllamaSupervisor(_ollama, _logger, SafeModeManager.Instance,
-            onEscalate: () => Dispatcher.InvokeAsync(() =>
-                (MainWindow as FactumIL.Desktop.MainWindow)?.NotifyAiUnavailable()));
-        _supervisor.Start();
     }
 
     /// <summary>
     /// Shows the recovery window on the UI thread. If the user chooses to continue,
     /// restarts the API in safe mode and opens the main window in degraded state.
     /// </summary>
-    private void ShowRecoveryWindow(SplashWindow splash, List<string> warnings, List<string> errors, int apiPort)
+    private void ShowRecoveryWindow(SplashWindow splash, List<string> warnings, List<string> errors)
     {
-        var repair = _ollama is not null ? new RepairManager(_ollama, _logger, apiPort) : null;
         bool shouldContinue = false;
         splash.Dispatcher.Invoke(() =>
         {
             splash.Close();
-            var recovery = new RecoveryWindow(warnings, errors, _diagnostics, repair);
+            var recovery = new RecoveryWindow(warnings, errors, _diagnostics);
             shouldContinue = recovery.ShowDialog() == true;
         });
 
@@ -246,7 +233,6 @@ public partial class App : Application
 
     protected override void OnExit(ExitEventArgs e)
     {
-        _supervisor?.Stop();
         _apiHost?.Stop();
         _ollama?.Stop();
         _logger.Log("app", "exit", LogStatus.Ok);

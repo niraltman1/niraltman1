@@ -150,22 +150,17 @@ export function healthRouter(repos: Repos, dbPath: string, healingService: RagHe
     });
   }));
 
-  // ── Functional ("operational") health ─────────────────────────────────────
-  // Deeper than GET / — proves each component can actually perform real work, not
-  // merely that a process responded. Consumed by the desktop BootstrapManager /
-  // OllamaSupervisor (FunctionalHealthChecks.cs). The model inference probe lives
-  // in the desktop shell (it talks to Ollama directly), so it is not duplicated here.
+  // ── Functional ("operational") health — FAST tier ──────────────────────────
+  // Proves the data layer can perform real work (queryable DB, vector index, and a
+  // corpus sample) without expensive AI calls, so it is cheap enough for the desktop
+  // BootstrapManager to poll. Embedding/inference are deliberately NOT here (they
+  // require Ollama); the desktop shell probes the model directly.
   router.get('/functional', asyncHandler(async (_req, res) => {
-    const [database, vector, corpus, embeddings] = await Promise.all([
-      Promise.resolve(functionalDb(repos)),
-      Promise.resolve(functionalVector(repos)),
-      Promise.resolve(functionalCorpus(repos)),
-      functionalEmbedding(),
-    ]);
+    const database = functionalDb(repos);
+    const vector   = functionalVector(repos);
+    const corpus   = functionalCorpus(repos);
 
-    const checks = { database, vector, corpus, embeddings };
-    // Data layer (db + vector + corpus) is the operational gate; embeddings are
-    // informational (require Ollama, which may legitimately be offline).
+    const checks = { database, vector, corpus };
     const ok = database.healthy && vector.healthy && corpus.healthy;
     res.status(ok ? 200 : 503).json({ ok, ts: Date.now(), checks });
   }));
@@ -216,30 +211,4 @@ function functionalCorpus(repos: Repos): CheckResult {
   } catch (e) {
     return { healthy: false, detail: `corpus unavailable: ${e instanceof Error ? e.message : String(e)}`, durationMs: Date.now() - start };
   }
-}
-
-/** Generates a sample embedding to prove the embedding pipeline is operational. */
-async function functionalEmbedding(): Promise<CheckResult> {
-  const base = process.env['OLLAMA_BASE_URL'] ?? 'http://127.0.0.1:11434';
-  const t = await timed(async () => {
-    const controller = new AbortController();
-    const timeout    = setTimeout(() => controller.abort(), 10_000);
-    try {
-      const res = await fetch(`${base}/api/embeddings`, {
-        method: 'POST',
-        headers: { 'content-type': 'application/json' },
-        body: JSON.stringify({ model: 'nomic-embed-text', prompt: 'בדיקה' }),
-        signal: controller.signal,
-      });
-      if (!res.ok) throw new Error(`http ${res.status}`);
-      const json = await res.json() as { embedding?: number[] };
-      return json.embedding?.length ?? 0;
-    } finally {
-      clearTimeout(timeout);
-    }
-  });
-  if (t.error || t.result == null) {
-    return { healthy: false, detail: t.error ?? 'no embedding', durationMs: t.durationMs };
-  }
-  return { healthy: t.result > 0, detail: `dims=${t.result}`, durationMs: t.durationMs };
 }

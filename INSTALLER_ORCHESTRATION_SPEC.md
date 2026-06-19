@@ -10,6 +10,26 @@ child process; the dashboard (React) is served by the API and hosted in WebView2
 
 ---
 
+## 0. Status & scope (implemented vs deferred)
+
+Per the architecture review (`IMPLEMENTATION_REVIEW.md`) the **minimal mandatory
+set** is implemented; some sections below describe **deferred** future work.
+
+**Implemented:** lightweight installer · `OllamaService` timeouts ·
+`register-ollama-model.ps1` bounded timeout · `RetryPolicy` · `OllamaLifecycle`
+(single source of truth, §2a) · resumable **`BootstrapManager`** (atomic state,
+numeric step IDs, mutex, early Safe Mode, per-step telemetry) · `StartupLogger`
+(`bootstrap.jsonl` + `bootstrap-summary.json`) · `SafeModeManager` ·
+non-fatal API wait → `RecoveryWindow` · fast `GET /api/health/functional`.
+
+**Deferred (documented but not in the codebase):** `OllamaSupervisor` (runtime
+monitoring + auto-exit of Safe Mode) · `RepairManager` · `health-summary.json`
+analytics · `GET /api/health/full` deep tier · `BootstrapHarness` +
+`installer-pipeline.yml` + `powershell/ci/*`. These appear in §6, §7 (deep tier),
+§11–§12 and are collected under **"Deferred / future"** at the end.
+
+---
+
 ## 1. Installation flow (installer.iss)
 
 The installer is intentionally **thin** — files, prerequisites, configuration,
@@ -65,6 +85,31 @@ WebView2 ──► Desktop Shell (WPF) ──► API (Express) ──► Databas
 | RAG / AI | All of the above | `/api/health/functional` ok | Supervisor + repair | AI features off |
 
 No node starts before its dependency is **verified healthy** (not merely started).
+
+---
+
+## 2a. Ollama lifecycle state machine (R1 — single source of truth)
+
+`OllamaLifecycle` is the **authoritative** runtime/model state; `BootstrapManager`
+and `SafeModeManager` read it (no independent flags). `Ready` is set only after a
+verified ping. Illegal transitions are logged (`illegal-transition`) and ignored.
+
+```
+Runtime:
+  NotInstalled ──► Installing ──► Installed ──► Starting ──► Ready
+       │                              │            │           │
+       └──────────────► (any) ────────┴────────────┴──► Failed ─┘ (Failed ─► Starting/Ready/Installed)
+
+Model:
+  NotFound ──► Registering ──► Ready
+      │            │            │
+      └─► (any) ───┴──► Failed ─┘   (Failed ─► Registering/Ready)
+```
+
+Legal transitions (others rejected): every state → `Failed`; `Failed` may recover
+to `Starting`/`Ready`/`Installed` (runtime) or `Registering`/`Ready` (model);
+same-state writes are no-ops. The model reaching `Ready` requires a confirmed
+presence check after `ollama create`/`pull`.
 
 ---
 
@@ -142,26 +187,28 @@ the **Repair** button in `RecoveryWindow` and the dashboard's existing
 
 ## 6. Runtime supervision & safe mode
 
-- **`OllamaSupervisor` (Enhancement 1):** background loop (default 30 s) checking
-  process/API/model + memory pressure. On degradation it attempts bounded
-  recovery (restart + re-register); on success it records time-to-recovery; on
-  exhaustion it enters safe mode and escalates to the UI. Never blocks startup.
-- **`SafeModeManager` (Enhancement 2):** keeps the app usable without AI — case &
+- **`SafeModeManager` (implemented):** keeps the app usable without AI — case &
   document management, DB access, local search, UI navigation stay ENABLED; RAG,
   AI chat, embeddings, inference are DISABLED. The Node API already disables
   AI-backed workers under `FACTUM_IL_SAFE_MODE=1`; the dashboard degrades on
-  `/api/health` `ai_ready=false`. The supervisor calls `Exit()` for a seamless
-  return when the AI stack recovers. **Failure degrades, never shuts down.**
+  `/api/health` `ai_ready=false`. `BootstrapManager` enters Safe Mode on the first
+  recoverable AI-infra failure (R8). **Failure degrades, never shuts down.**
+- **`OllamaSupervisor` (DEFERRED):** a background loop for mid-session
+  process/API/model monitoring + bounded recovery + automatic Safe Mode *exit*.
+  Not implemented in the minimal set — until then, AI features re-enable on the
+  live `/api/health ai_ready` and the C# Safe-Mode banner clears on next launch.
 
 ---
 
 ## 7. Functional ("operational") health (Enhancement 3)
 
 - `GET /api/health` — liveness (db/migrations/ollama/queue/disk/rag).
-- `GET /api/health/functional` — proves real work: DB query, vec_chunks retrieval,
-  `LegalSources` sample, sample embedding. `ok = db && vector && corpus`
-  (embeddings informational). Consumed by `FunctionalHealthChecks.cs`, which adds
-  a model **inference** probe (`POST /api/generate`, 1 token) the API cannot do.
+- `GET /api/health/functional` — **fast** operational tier: DB query, `vec_chunks`
+  retrieval, `LegalSources` sample. `ok = db && vector && corpus`. No embedding/AI
+  calls (cheap enough to poll). Consumed by `BootstrapManager` (steps 60/70) and
+  `FunctionalHealthChecks.cs`.
+- `GET /api/health/full` — **DEFERRED** deep tier (embedding generation, vector
+  retrieval, sample RAG, inference probe). Not implemented in the minimal set.
 
 ---
 
@@ -202,8 +249,11 @@ recovery detection < 10 s — actual timings logged, budget breaches logged as w
 
 ## 11. Failure-mode test matrix (Phase 10)
 
-Manual verification (requires a Windows runtime + Ollama; not runnable in CI/Linux).
-Expected behavior for each injected failure:
+Most of these are now **automated** by the staged CI/CD pipeline
+`.github/workflows/installer-pipeline.yml` (Stage 4 `failure-matrix-tests`), which
+runs the headless bootstrap harness (`FactumIL.Desktop.exe --bootstrap-check`)
+against a real Windows install + real Ollama/model. See §12. The table below is the
+behavioral contract each scenario asserts:
 
 | # | Injected failure | How to simulate | Expected result |
 |---|---|---|---|
@@ -220,3 +270,31 @@ Expected behavior for each injected failure:
 
 Record outcomes against `bootstrap.jsonl` / `bootstrap-summary.json` /
 `health-summary.json`.
+
+---
+
+## 12. Staged CI/CD pipeline (`installer-pipeline.yml`) — DEFERRED
+
+> **Deferred / future.** The staged pipeline, the `--bootstrap-check`
+> `BootstrapHarness`, and `powershell/ci/*` are **not** in the codebase (they would
+> be test-only infrastructure). The design is retained here for when CI validation
+> of the Windows install→bootstrap→failure paths is prioritized. Until then, the
+> `build-installer.yml` smoke test (silent install + `/api/health`) is the gate.
+
+A `workflow_dispatch`/path-triggered pipeline validates the real Windows install →
+first-launch bootstrap → failure/recovery paths. Each stage consumes the immutable
+installer artifact from Stage 1 and **re-installs from scratch** — no job relies on
+another job's environment state. It uses a lightweight `-SkipGGUF` installer; the
+full GGUF-bundled release installer remains `build-installer.yml`.
+
+| Stage | Job | Does | Artifacts |
+|---|---|---|---|
+| 1 | `build-installer` | build + typecheck + test → `publish.ps1 -SkipGGUF` → ISCC → SHA256. **No install/runtime.** | `installer-package` (exe + `checksum.txt`), `build-logs` |
+| 2 | `installer-validation` | verify SHA → `/VERYSILENT` install → `Validate-Install.ps1` (files/registry/WebView2/Ollama) → start API once in safe mode. **No bootstrap.** | `install-state` (`system-state.json`, `install-log.txt`) |
+| 3 | `bootstrap-validation` | re-install → cache + `Register-CIModel.ps1` (real model from GGUF asset) → `Invoke-BootstrapValidation.ps1` (sequential completion + resume test) | `bootstrap-state` (`bootstrap.jsonl`, `bootstrap-summary.json`, `functional-test-results.json`) |
+| 4 | `failure-matrix-tests` | re-install → matrix of 7 scenarios via `Invoke-FailureScenario.ps1` (bounded timeout, asserts safe-mode/recovery + diagnostics) | `failure-<scenario>` (`failure-report.json`, traces) |
+
+Enablers: the **headless harness** (`BootstrapHarness.cs`, `--bootstrap-check
+[--api-port N] [--expect success\|degraded\|fatal]`, exit 0/2/1/3) runs bootstrap
+without the WPF GUI; the **`FACTUM_IL_MIN_DISK_MB`** env knob makes the disk-low
+scenario deterministic. CI glue lives in `powershell/ci/`.

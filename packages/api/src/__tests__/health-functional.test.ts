@@ -1,10 +1,10 @@
 /**
  * health-functional.test.ts — Contract tests for GET /api/health/functional.
  *
- * Verifies the deep ("operational") health endpoint exercises the database,
- * vector index and corpus with real queries and returns a stable response shape.
- * The embedding probe hits Ollama, so global fetch is stubbed to keep the test
- * fast and deterministic (embeddings are informational and do not gate `ok`).
+ * Verifies the FAST functional health tier exercises the database, vector index
+ * and corpus with real queries and returns a stable response shape. Embedding /
+ * inference are intentionally NOT part of this tier (the desktop shell probes the
+ * model directly), so this endpoint makes no network calls.
  */
 
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
@@ -41,18 +41,15 @@ function buildApp(db: DatabaseConnection): express.Express {
   return app;
 }
 
-describe('GET /api/health/functional', () => {
+describe('GET /api/health/functional (fast tier)', () => {
   let db: DatabaseConnection;
 
   beforeEach(() => {
     db = new DatabaseConnection({ path: ':memory:' });
     db.exec(SCHEMA);
-    // Embeddings probe → fail fast so the test does not wait on Ollama.
-    vi.stubGlobal('fetch', vi.fn().mockRejectedValue(new Error('offline')));
   });
 
   afterEach(() => {
-    vi.unstubAllGlobals();
     vi.clearAllMocks();
   });
 
@@ -66,12 +63,11 @@ describe('GET /api/health/functional', () => {
     expect(res.body.checks).toHaveProperty('database');
     expect(res.body.checks).toHaveProperty('vector');
     expect(res.body.checks).toHaveProperty('corpus');
-    expect(res.body.checks).toHaveProperty('embeddings');
+    // Fast tier must NOT include the expensive embedding probe.
+    expect(res.body.checks).not.toHaveProperty('embeddings');
     expect(res.body.checks.database.healthy).toBe(true);
     expect(res.body.checks.vector.healthy).toBe(true);
     expect(res.body.checks.corpus.healthy).toBe(true);
-    // Ollama is offline in the test → embeddings degraded but not fatal.
-    expect(res.body.checks.embeddings.healthy).toBe(false);
   });
 
   it('returns 503 when the corpus is empty (operational gate fails)', async () => {

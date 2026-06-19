@@ -32,9 +32,8 @@ public sealed record RetryOptions
 /// <summary>
 /// Reusable async retry helper with exponential backoff, a configurable overall
 /// timeout, cancellation, structured logging, and user-visible progress messages.
-/// Used by <see cref="BootstrapManager"/>, <see cref="OllamaService"/> and
-/// <see cref="OllamaSupervisor"/> so that every wait in the startup/runtime
-/// pipeline is bounded and observable.
+/// Used by <see cref="BootstrapManager"/> and <see cref="OllamaService"/> so that
+/// every wait in the startup pipeline is bounded and observable.
 /// </summary>
 public static class RetryPolicy
 {
@@ -48,6 +47,7 @@ public static class RetryPolicy
         RetryOptions options,
         Action<string>? log = null,
         IProgress<string>? progress = null,
+        Action<int>? onAttempt = null,
         CancellationToken ct = default)
     {
         using var timeoutCts = CancellationTokenSource.CreateLinkedTokenSource(ct);
@@ -68,6 +68,7 @@ public static class RetryPolicy
 
             try
             {
+                onAttempt?.Invoke(attempt);
                 progress?.Report($"{options.Operation} (ניסיון {attempt}/{attempts})…");
                 if (await action(token).ConfigureAwait(false))
                 {

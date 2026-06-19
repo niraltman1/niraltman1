@@ -12,8 +12,8 @@ namespace FactumIL.Desktop;
 /// (see <see cref="ApiHostService.Start"/>), and the dashboard reacts to
 /// <c>/api/health</c> <c>ai_ready=false</c>. Subscribers (App / MainWindow) react
 /// to <see cref="SafeModeChanged"/> to restart the API in safe mode and surface a
-/// user notification. <see cref="OllamaSupervisor"/> keeps retrying in the
-/// background and calls <see cref="Exit"/> for a seamless return to normal mode.
+/// user notification. (A future runtime supervisor — deferred — would call
+/// <see cref="Exit"/> for a seamless automatic return to normal mode.)
 /// </summary>
 public sealed class SafeModeManager
 {

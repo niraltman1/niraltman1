@@ -19,7 +19,6 @@ public partial class RecoveryWindow : Window
         "FactumIL", "logs");
 
     private readonly DiagnosticsService _diagnostics;
-    private readonly RepairManager?     _repair;
 
     // ── Constructor ───────────────────────────────────────────────────────────
 
@@ -29,15 +28,12 @@ public partial class RecoveryWindow : Window
     /// <param name="warnings">Non-fatal issues from the validator.</param>
     /// <param name="errors">Fatal issues from the validator.</param>
     /// <param name="diagnostics">Service used to handle support bundle requests.</param>
-    /// <param name="repair">Optional self-heal manager backing the "Repair installation" action.</param>
     public RecoveryWindow(
         List<string> warnings,
         List<string> errors,
-        DiagnosticsService diagnostics,
-        RepairManager? repair = null)
+        DiagnosticsService diagnostics)
     {
         _diagnostics = diagnostics;
-        _repair      = repair;
         InitializeComponent();
         PopulateIssues(errors, warnings);
     }
@@ -127,42 +123,6 @@ public partial class RecoveryWindow : Window
             BundleButton.Content = "שגיאה בשליחה";
         }
         // Re-enable after a short visual delay (no blocking sleep — just leave the label)
-    }
-
-    private async void RepairButton_Click(object sender, RoutedEventArgs e)
-    {
-        if (_repair is null)
-        {
-            MessageBox.Show("פעולת התיקון אינה זמינה כעת.",
-                "Factum IL", MessageBoxButton.OK, MessageBoxImage.Information);
-            return;
-        }
-
-        RepairButton.IsEnabled = false;
-        var original = RepairButton.Content;
-        try
-        {
-            var progress = new Progress<string>(msg =>
-                Dispatcher.InvokeAsync(() => RepairButton.Content = msg));
-            var report = await _repair.RepairAsync(progress);
-            RepairButton.Content = report.AllHealthy ? "התיקון הושלם ✓" : "תוקן חלקית";
-
-            var lines = string.Join("\n",
-                report.Items.ConvertAll(i => $"{(i.Healthy ? "✓" : "✖")} {i.Component}: {i.Detail}"));
-            MessageBox.Show(lines, "Factum IL — תוצאות תיקון",
-                MessageBoxButton.OK,
-                report.AllHealthy ? MessageBoxImage.Information : MessageBoxImage.Warning);
-        }
-        catch (Exception ex)
-        {
-            RepairButton.Content = original;
-            MessageBox.Show($"התיקון נכשל:\n{ex.Message}",
-                "Factum IL — שגיאה", MessageBoxButton.OK, MessageBoxImage.Error);
-        }
-        finally
-        {
-            RepairButton.IsEnabled = true;
-        }
     }
 
     private void LogsButton_Click(object sender, RoutedEventArgs e)
