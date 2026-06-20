@@ -7,14 +7,12 @@ import { createHash } from 'node:crypto';
 import { logger } from '@factum-il/shared';
 import type { Repos } from '../db.js';
 import type { VerdictInput } from '@factum-il/database';
-import { rawGuychukRowToVerdict } from '../modules/verdict-corpus/transform.js';
-import { GUYCHUK_PROVENANCE } from '../modules/verdict-corpus/ingest.js';
-
-// SystemSettings keys
-const SIG_KEY      = 'verdict_corpus_artifact_sig';
-const SHA256_KEY   = 'verdict_corpus_sha256';
-const VERSION_KEY  = 'verdict_corpus_version';
-const PROGRESS_KEY = 'verdict_corpus_progress';
+import {
+  rawGuychukRowToVerdict,
+  rawRowToVerdict,
+  type DatasetProvenance,
+} from '../modules/verdict-corpus/transform.js';
+import { GUYCHUK_PROVENANCE, SUPREME_COURT_PROVENANCE } from '../modules/verdict-corpus/ingest.js';
 
 const BATCH_SIZE      = 500;
 const MIN_TEXT_LENGTH = 50;
@@ -24,17 +22,73 @@ const __dirname = dirname(fileURLToPath(import.meta.url));
 // from dist/utils → api → packages → repo-root (same shape as legal-corpus-loader.ts).
 const REPO_ROOT = process.env['FACTUM_IL_ROOT'] ?? join(__dirname, '..', '..', '..', '..');
 
-let _loaded = false;
+/**
+ * One bundled verdict dataset. The installer stages every dataset's `.jsonl.gz`
+ * into `verdict-corpus/`; each loads into the SAME `VerdictCorpus` table but tracks
+ * its own idempotency/resume state under a distinct SystemSettings key prefix so the
+ * datasets never overwrite each other's progress.
+ */
+interface VerdictDataset {
+  readonly name:         string; // log/telemetry label
+  readonly fileName:     string; // gzip artifact in verdict-corpus/
+  readonly metaFileName: string; // companion metadata (corpus version)
+  readonly idField:      string; // raw-row id column (validation)
+  readonly textField:    string; // raw-row text column (validation)
+  readonly transform:    (row: Record<string, unknown>, prov: DatasetProvenance) => VerdictInput | null;
+  readonly provenance:   DatasetProvenance;
+  readonly keys:         { sig: string; sha256: string; version: string; progress: string };
+}
 
-function resolveArtifactPath(): { jsonl: string; meta: string | null } | null {
+// guychuk keeps the original `verdict_corpus_*` keys so installs that already loaded
+// it before the Supreme Court corpus was added do NOT re-import on upgrade.
+const VERDICT_DATASETS: readonly VerdictDataset[] = [
+  {
+    name:         'guychuk',
+    fileName:     'case-law-il.jsonl.gz',
+    metaFileName: 'corpus-metadata.json',
+    idField:      'judgment_id',
+    textField:    'document_text',
+    transform:    rawGuychukRowToVerdict,
+    provenance:   GUYCHUK_PROVENANCE,
+    keys: {
+      sig:      'verdict_corpus_artifact_sig',
+      sha256:   'verdict_corpus_sha256',
+      version:  'verdict_corpus_version',
+      progress: 'verdict_corpus_progress',
+    },
+  },
+  {
+    name:         'supreme-court',
+    fileName:     'supreme-court-il.jsonl.gz',
+    metaFileName: 'supreme-court-metadata.json',
+    idField:      'document_hash',
+    textField:    'text',
+    transform:    rawRowToVerdict,
+    provenance:   SUPREME_COURT_PROVENANCE,
+    keys: {
+      sig:      'supreme_court_corpus_artifact_sig',
+      sha256:   'supreme_court_corpus_sha256',
+      version:  'supreme_court_corpus_version',
+      progress: 'supreme_court_corpus_progress',
+    },
+  },
+];
+
+// Per-dataset in-process load guard (keyed by dataset name).
+const _loaded = new Set<string>();
+
+function resolveArtifactPath(
+  fileName: string,
+  metaFileName: string,
+): { jsonl: string; meta: string | null } | null {
   const bases = [
     join(REPO_ROOT, 'verdict-corpus'),
     join(REPO_ROOT, 'assets', 'verdict-corpus'),
   ];
   for (const base of bases) {
-    const jsonl = join(base, 'case-law-il.jsonl.gz');
+    const jsonl = join(base, fileName);
     if (existsSync(jsonl)) {
-      const meta = join(base, 'corpus-metadata.json');
+      const meta = join(base, metaFileName);
       return { jsonl, meta: existsSync(meta) ? meta : null };
     }
   }
@@ -75,11 +129,21 @@ function writeSetting(repos: Repos, key: string, value: string): void {
   } catch { /* best-effort — missing table just means we reload next boot */ }
 }
 
-function validateRow(row: Record<string, unknown>): string | null {
-  if (typeof row['judgment_id'] !== 'string' || !row['judgment_id'].trim())
-    return 'missing_judgment_id';
-  const text = typeof row['document_text'] === 'string' ? row['document_text'].trim() : '';
-  if (!text)                         return 'missing_document_text';
+/** Coerce a raw id column (string or number) into a trimmed non-empty string, or ''. */
+function idString(raw: unknown): string {
+  if (typeof raw === 'string') return raw.trim();
+  if (typeof raw === 'number') return String(raw);
+  return '';
+}
+
+function validateRow(
+  row: Record<string, unknown>,
+  idField: string,
+  textField: string,
+): string | null {
+  if (!idString(row[idField])) return 'missing_id';
+  const text = typeof row[textField] === 'string' ? (row[textField] as string).trim() : '';
+  if (!text)                         return 'missing_text';
   if (text.length < MIN_TEXT_LENGTH) return 'text_too_short';
   return null; // valid
 }
@@ -95,11 +159,9 @@ interface IngestTelemetry {
 }
 
 /**
- * First-run loader for the bundled Israeli court verdicts corpus.
- *
- * Reads `verdict-corpus/case-law-il.jsonl.gz` produced by the
- * `ingest-caselawil-corpus.yml` CI workflow and imports it into
- * `VerdictCorpus` via `VerdictCorpusRepository`.
+ * First-run loader for ONE bundled verdict dataset. Reads
+ * `verdict-corpus/<dataset.fileName>` produced by the corresponding ingest CI
+ * workflow and imports it into `VerdictCorpus` via `VerdictCorpusRepository`.
  *
  * Behaviour:
  *   - Idempotent: skips load when SHA-256 of the artifact is unchanged.
@@ -108,14 +170,14 @@ interface IngestTelemetry {
  *   - Graceful: if the artifact is absent (dev machine without full corpus),
  *     logs a hint and returns — never throws.
  */
-export async function initVerdictCorpus(repos: Repos): Promise<void> {
-  if (_loaded) return;
-  _loaded = true;
+async function loadDataset(repos: Repos, dataset: VerdictDataset): Promise<void> {
+  if (_loaded.has(dataset.name)) return;
+  _loaded.add(dataset.name);
 
-  const paths = resolveArtifactPath();
+  const paths = resolveArtifactPath(dataset.fileName, dataset.metaFileName);
   if (!paths) {
     logger.warn(
-      '[verdict-corpus] artifact not found — run: pnpm ingest-verdict-corpus',
+      `[verdict-corpus:${dataset.name}] artifact ${dataset.fileName} not found — skipping`,
       { category: 'system' },
     );
     return;
@@ -125,14 +187,14 @@ export async function initVerdictCorpus(repos: Repos): Promise<void> {
 
   // Quick sig check to skip unchanged artifacts before computing SHA-256
   const sig = artifactSignature(artifactPath);
-  if (readSetting(repos, SIG_KEY) === sig) return;
+  if (readSetting(repos, dataset.keys.sig) === sig) return;
 
-  // SHA-256 integrity check (Enhancement 1 / Phase 5)
+  // SHA-256 integrity check
   const sha256 = await computeSha256(artifactPath);
-  const storedSha = readSetting(repos, SHA256_KEY);
+  const storedSha = readSetting(repos, dataset.keys.sha256);
   if (storedSha && storedSha === sha256) {
     // Same content, different mtime (e.g. re-extracted) — update the sig and skip.
-    writeSetting(repos, SIG_KEY, sig);
+    writeSetting(repos, dataset.keys.sig, sig);
     return;
   }
 
@@ -148,11 +210,11 @@ export async function initVerdictCorpus(repos: Repos): Promise<void> {
 
   const startMs = Date.now();
 
-  // Resume support (Enhancement 2 / Phase 6): read last committed line number
-  const savedProgress = readSetting(repos, PROGRESS_KEY);
+  // Resume support: read last committed line number
+  const savedProgress = readSetting(repos, dataset.keys.progress);
   const resumeFrom    = savedProgress ? (Number(savedProgress) || 0) : 0;
   if (resumeFrom > 0) {
-    logger.info(`[verdict-corpus] resuming from line ${resumeFrom}`, { category: 'system' });
+    logger.info(`[verdict-corpus:${dataset.name}] resuming from line ${resumeFrom}`, { category: 'system' });
   }
 
   const telemetry: IngestTelemetry = {
@@ -169,13 +231,12 @@ export async function initVerdictCorpus(repos: Repos): Promise<void> {
     telemetry.ingested += batch.length;
     telemetry.batchesCompleted += 1;
     batch = [];
-    // Persist checkpoint so a crash mid-load can resume (Enhancement 2)
-    writeSetting(repos, PROGRESS_KEY, String(telemetry.linesRead));
+    // Persist checkpoint so a crash mid-load can resume
+    writeSetting(repos, dataset.keys.progress, String(telemetry.linesRead));
   };
 
-  // Progress reporting (Enhancement 3 / Phase 7)
-  logger.info('[verdict-corpus] start — loading case-law-il.jsonl.gz', {
-    category: 'system', event: 'verdict-corpus:start', corpusVersion,
+  logger.info(`[verdict-corpus:${dataset.name}] start — loading ${dataset.fileName}`, {
+    category: 'system', event: 'verdict-corpus:start', dataset: dataset.name, corpusVersion,
   });
 
   const input = createReadStream(artifactPath).pipe(createGunzip());
@@ -188,7 +249,6 @@ export async function initVerdictCorpus(repos: Repos): Promise<void> {
     const trimmed = line.trim();
     if (!trimmed) continue;
 
-    // Validation (Enhancement 4 / Phase 8)
     let row: Record<string, unknown>;
     try {
       row = JSON.parse(trimmed) as Record<string, unknown>;
@@ -199,33 +259,32 @@ export async function initVerdictCorpus(repos: Repos): Promise<void> {
       continue;
     }
 
-    const reason = validateRow(row);
+    const reason = validateRow(row, dataset.idField, dataset.textField);
     if (reason) {
       telemetry.rejected += 1;
       telemetry.rejectionReasons[reason] = (telemetry.rejectionReasons[reason] ?? 0) + 1;
       continue;
     }
 
-    // Cross-dataset deduplication within this run (Enhancement 5 / Phase 9)
-    const docKey = `guychuk:${String(row['judgment_id']).trim()}`;
-    if (seenKeys.has(docKey)) {
+    const verdict = dataset.transform(row, dataset.provenance);
+    if (!verdict) { telemetry.skipped += 1; continue; }
+
+    // Per-run dedup on the transform's namespaced docKey (guychuk:<id> vs raw hash)
+    if (seenKeys.has(verdict.docKey)) {
       telemetry.rejected += 1;
       telemetry.rejectionReasons['duplicate_id'] =
         (telemetry.rejectionReasons['duplicate_id'] ?? 0) + 1;
       continue;
     }
-    seenKeys.add(docKey);
+    seenKeys.add(verdict.docKey);
 
-    const input = rawGuychukRowToVerdict(row, GUYCHUK_PROVENANCE);
-    if (!input) { telemetry.skipped += 1; continue; }
-
-    batch.push(input);
+    batch.push(verdict);
     if (batch.length >= BATCH_SIZE) flushBatch();
 
-    // Periodic progress log every 2 000 rows (Enhancement 3)
+    // Periodic progress log every 2 000 rows
     if (telemetry.linesRead % 2_000 === 0) {
-      logger.info('[verdict-corpus] progress', {
-        category: 'system', event: 'verdict-corpus:progress',
+      logger.info(`[verdict-corpus:${dataset.name}] progress`, {
+        category: 'system', event: 'verdict-corpus:progress', dataset: dataset.name,
         processed: telemetry.ingested, linesRead: telemetry.linesRead,
       });
     }
@@ -234,21 +293,21 @@ export async function initVerdictCorpus(repos: Repos): Promise<void> {
   flushBatch(); // flush any remaining partial batch
 
   // Persist corpus version metadata and clear the in-progress checkpoint
-  writeSetting(repos, SIG_KEY, sig);
-  writeSetting(repos, SHA256_KEY, sha256);
-  writeSetting(repos, VERSION_KEY, corpusVersion);
-  writeSetting(repos, PROGRESS_KEY, ''); // cleared — load complete
+  writeSetting(repos, dataset.keys.sig, sig);
+  writeSetting(repos, dataset.keys.sha256, sha256);
+  writeSetting(repos, dataset.keys.version, corpusVersion);
+  writeSetting(repos, dataset.keys.progress, ''); // cleared — load complete
 
   telemetry.elapsedMs = Date.now() - startMs;
 
-  // Structured completion telemetry (Enhancement 13 / Phase 21)
   logger.info(
-    `[verdict-corpus] loaded ${telemetry.ingested} rulings, ${telemetry.skipped} skipped, ` +
+    `[verdict-corpus:${dataset.name}] loaded ${telemetry.ingested} rulings, ${telemetry.skipped} skipped, ` +
     `${telemetry.rejected} rejected (${telemetry.batchesCompleted} batches) — ` +
     `${telemetry.elapsedMs}ms`,
     {
       category: 'system',
       event: 'verdict-corpus:completed',
+      dataset: dataset.name,
       corpusVersion,
       sha256,
       ...telemetry,
@@ -256,7 +315,19 @@ export async function initVerdictCorpus(repos: Repos): Promise<void> {
   );
 }
 
-/** Test-only: reset the in-process load guard. */
+/**
+ * First-run loader for ALL bundled verdict corpora (guychuk full-hierarchy +
+ * LevMuchnik Supreme Court). Each dataset is loaded independently and is
+ * idempotent/resumable/graceful — a missing or already-loaded dataset is skipped
+ * without affecting the others.
+ */
+export async function initVerdictCorpus(repos: Repos): Promise<void> {
+  for (const dataset of VERDICT_DATASETS) {
+    await loadDataset(repos, dataset);
+  }
+}
+
+/** Test-only: reset the in-process load guards. */
 export function _resetVerdictCorpusLoadGuard(): void {
-  _loaded = false;
+  _loaded.clear();
 }
