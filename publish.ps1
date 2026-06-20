@@ -177,7 +177,7 @@ function DownloadWithRetry([string]$Uri, [string]$OutFile, [int]$TimeoutSec, [in
                 $curlOut = & $curl.Source -L --fail -sS `
                     --connect-timeout 30 --max-time $TimeoutSec `
                     -C - -o $OutFile $Uri 2>&1
-                if ($LASTEXITCODE -ne 0) { throw "curl.exe exited $LASTEXITCODE: $curlOut" }
+                if ($LASTEXITCODE -ne 0) { throw "curl.exe exited ${LASTEXITCODE}: $curlOut" }
             } else {
                 Invoke-WebRequest -Uri $Uri `
                     -OutFile $OutFile `
