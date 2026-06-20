@@ -166,11 +166,29 @@ function DownloadWithRetry([string]$Uri, [string]$OutFile, [int]$TimeoutSec, [in
     while ($RetryCount -lt $MaxRetries -and -not $Downloaded) {
         try {
             Write-Host "  Downloading $(Split-Path $OutFile -Leaf) (Attempt $($RetryCount+1)/$MaxRetries) ..." -ForegroundColor Gray
-            Invoke-WebRequest -Uri $Uri `
-                -OutFile $OutFile `
-                -UseBasicParsing `
-                -TimeoutSec $TimeoutSec `
-                -ErrorAction Stop
+
+            # curl.exe (preinstalled on windows-latest) is far more reliable than
+            # Invoke-WebRequest for very large files (e.g. the ~941 MB GGUF):
+            #   -L follow release→CDN redirects · --fail non-zero on HTTP >=400 ·
+            #   -C - resume a partial file across our retry loop · -sS quiet but show errors ·
+            #   --max-time bounds the attempt. Fall back to Invoke-WebRequest if curl is absent.
+            $curl = Get-Command curl.exe -ErrorAction SilentlyContinue
+            if ($curl) {
+                $curlOut = & $curl.Source -L --fail -sS `
+                    --connect-timeout 30 --max-time $TimeoutSec `
+                    -C - -o $OutFile $Uri 2>&1
+                if ($LASTEXITCODE -ne 0) { throw "curl.exe exited $LASTEXITCODE: $curlOut" }
+            } else {
+                Invoke-WebRequest -Uri $Uri `
+                    -OutFile $OutFile `
+                    -UseBasicParsing `
+                    -TimeoutSec $TimeoutSec `
+                    -ErrorAction Stop
+            }
+
+            if (-not (Test-Path $OutFile) -or (Get-Item $OutFile).Length -eq 0) {
+                throw "downloaded file is missing or empty after transfer"
+            }
             $Downloaded = $true
             $size = [math]::Round((Get-Item $OutFile).Length / 1MB, 1)
             Write-Host "  ✓ Downloaded ($size MB)" -ForegroundColor Green
