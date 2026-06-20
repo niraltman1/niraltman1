@@ -154,10 +154,12 @@ function ValidateArtifact([string]$Path, [string]$Type) {
     }
 }
 
-function DownloadWithRetry([string]$Uri, [string]$OutFile, [int]$TimeoutSec, [int]$MaxRetries) {
+function DownloadWithRetry([string]$Uri, [string]$OutFile, [int]$TimeoutSec, [int]$MaxRetries, [hashtable]$Headers = $null) {
     <#
     .SYNOPSIS
         Downloads a file with automatic retry and detailed diagnostics.
+        $Headers (optional) is sent on every request — required for private-repo
+        GitHub release assets (Authorization: Bearer + Accept: application/octet-stream).
     #>
     $RetryCount = 0
     $Downloaded = $false
@@ -174,16 +176,20 @@ function DownloadWithRetry([string]$Uri, [string]$OutFile, [int]$TimeoutSec, [in
             #   --max-time bounds the attempt. Fall back to Invoke-WebRequest if curl is absent.
             $curl = Get-Command curl.exe -ErrorAction SilentlyContinue
             if ($curl) {
-                $curlOut = & $curl.Source -L --fail -sS `
-                    --connect-timeout 30 --max-time $TimeoutSec `
-                    -C - -o $OutFile $Uri 2>&1
+                $curlArgs = [System.Collections.Generic.List[string]]@(
+                    '-L', '--fail', '-sS',
+                    '--connect-timeout', '30', '--max-time', "$TimeoutSec",
+                    '-C', '-', '-o', $OutFile)
+                if ($Headers) {
+                    foreach ($k in $Headers.Keys) { $curlArgs.Add('--header'); $curlArgs.Add("${k}: $($Headers[$k])") }
+                }
+                $curlArgs.Add($Uri)
+                $curlOut = & $curl.Source @curlArgs 2>&1
                 if ($LASTEXITCODE -ne 0) { throw "curl.exe exited ${LASTEXITCODE}: $curlOut" }
             } else {
-                Invoke-WebRequest -Uri $Uri `
-                    -OutFile $OutFile `
-                    -UseBasicParsing `
-                    -TimeoutSec $TimeoutSec `
-                    -ErrorAction Stop
+                $iwrParams = @{ Uri = $Uri; OutFile = $OutFile; UseBasicParsing = $true; TimeoutSec = $TimeoutSec; ErrorAction = 'Stop' }
+                if ($Headers) { $iwrParams['Headers'] = $Headers }
+                Invoke-WebRequest @iwrParams
             }
 
             if (-not (Test-Path $OutFile) -or (Get-Item $OutFile).Length -eq 0) {
@@ -608,8 +614,19 @@ $CorpusDst        = Join-Path $OutDir "legal-corpus"
 $CorpusBatchesDst = Join-Path $CorpusDst "batches"
 New-Item -ItemType Directory -Force -Path $CorpusBatchesDst | Out-Null
 
+# Shared headers for GitHub API + release-asset downloads. The repo's release
+# assets require auth (private repo): without the Bearer token the asset download
+# 404s even though the API lists it. Accept: application/octet-stream makes the
+# API asset URL ($asset.url) return the binary (curl follows the 302 to the CDN,
+# dropping the auth header on the cross-host redirect, which is correct).
 $ApiHeaders = @{ 'User-Agent' = 'Factum-IL-Build' }
 if ($env:GH_TOKEN) { $ApiHeaders['Authorization'] = "Bearer $($env:GH_TOKEN)" }
+
+$DlHeaders = @{
+    'User-Agent' = 'Factum-IL-Build'
+    'Accept'     = 'application/octet-stream'
+}
+if ($env:GH_TOKEN) { $DlHeaders['Authorization'] = "Bearer $($env:GH_TOKEN)" }
 
 $corpusBatchCount = 0
 Write-Host "  Trying to download legal corpus batches from GitHub Release v-corpus-latest..." -ForegroundColor Gray
@@ -618,17 +635,11 @@ try {
         -Uri "https://api.github.com/repos/niraltman1/niraltman1/releases/tags/v-corpus-latest" `
         -Headers $ApiHeaders -UseBasicParsing -ErrorAction Stop
 
-    $DlHeaders = @{
-        'User-Agent' = 'Factum-IL-Build'
-        'Accept'     = 'application/octet-stream'
-    }
-    if ($env:GH_TOKEN) { $DlHeaders['Authorization'] = "Bearer $($env:GH_TOKEN)" }
-
     # Download all batch-*.jsonl.gz files into batches/ subdirectory.
     foreach ($asset in $rel.assets) {
         if ($asset.name -match '^batch-.+\.jsonl\.gz$') {
             $dst = Join-Path $CorpusBatchesDst $asset.name
-            if (DownloadWithRetry $asset.url $dst 300 2) {
+            if (DownloadWithRetry $asset.url $dst 300 2 $DlHeaders) {
                 $corpusBatchCount++
                 Write-Host "    ✓ $($asset.name)" -ForegroundColor Gray
             }
@@ -639,7 +650,7 @@ try {
     $indexAsset = $rel.assets | Where-Object { $_.name -eq 'corpus-domain-index.json' } | Select-Object -First 1
     if ($indexAsset) {
         $indexDst = Join-Path $CorpusBatchesDst 'corpus-domain-index.json'
-        DownloadWithRetry $indexAsset.url $indexDst 30 2 | Out-Null
+        DownloadWithRetry $indexAsset.url $indexDst 30 2 $DlHeaders | Out-Null
         Write-Host "    ✓ corpus-domain-index.json" -ForegroundColor Gray
     }
 
@@ -671,7 +682,7 @@ if (-not (Test-Path $VcFile)) {
         # Reuse $rel (already fetched above for the Knesset corpus)
         $vcAsset = $rel.assets | Where-Object { $_.name -eq 'case-law-il.jsonl.gz' } | Select-Object -First 1
         if ($vcAsset) {
-            if (DownloadWithRetry $vcAsset.url $VcFile 300 2) {
+            if (DownloadWithRetry $vcAsset.url $VcFile 300 2 $DlHeaders) {
                 $vcMB = [math]::Round((Get-Item $VcFile).Length / 1MB, 1)
                 Write-Host "  ✓ Verdict corpus: case-law-il.jsonl.gz (${vcMB} MB)" -ForegroundColor Green
             }
@@ -681,7 +692,7 @@ if (-not (Test-Path $VcFile)) {
                 $metaAsset = $rel.assets | Where-Object { $_.name -eq 'corpus-metadata.json' } | Select-Object -Last 1
             }
             if ($metaAsset) {
-                DownloadWithRetry $metaAsset.url $VcMeta 30 2 | Out-Null
+                DownloadWithRetry $metaAsset.url $VcMeta 30 2 $DlHeaders | Out-Null
                 Write-Host "    ✓ corpus-metadata.json" -ForegroundColor Gray
             }
         } else {
@@ -771,7 +782,9 @@ if (-not (Test-Path $WV2Exe)) {
     $wv2Asset = $wv2RelJson.assets | Where-Object { $_.name -eq "MicrosoftEdgeWebView2RuntimeInstallerX64.exe" }
     if (-not $wv2Asset) { throw "Required release asset 'MicrosoftEdgeWebView2RuntimeInstallerX64.exe' not found in v-assets-latest." }
 
-    if (DownloadWithRetry $WV2Url $WV2Exe 120 $MaxDownloadRetries) {
+    # Download via the API asset URL ($wv2Asset.url) with auth headers — required
+    # because the repo's release assets are not anonymously downloadable.
+    if (DownloadWithRetry $wv2Asset.url $WV2Exe 120 $MaxDownloadRetries $DlHeaders) {
         # Size check — WebView2 installer is ~192 MB; reject if truncated
         $wv2Bytes = (Get-Item $WV2Exe).Length
         if ($wv2Bytes -lt 150MB) {
@@ -790,7 +803,8 @@ if (-not (Test-Path $WV2Exe)) {
 }
 
 # AI model GGUF (can be skipped with -SkipGGUF)
-# Self-hosted on niraltman1/niraltman1 GitHub releases — public, no authentication required.
+# Self-hosted on niraltman1/niraltman1 GitHub releases. Release assets require auth,
+# so the download goes through the API asset URL ($ggufAsset.url) with $DlHeaders.
 # SHA-256 is locked to the canonical asset; any mismatch is a hard build failure.
 $GgufUrl            = "https://github.com/niraltman1/niraltman1/releases/download/v-model-latest/gemma-4-E2B-it.BF16-mmproj.gguf"
 $GgufExpectedSha256 = "a927f38e7a26d110575bf2b385a1b3ab314b5c949d0e5da3fb5199ccd3a86cf8"
@@ -807,7 +821,7 @@ if (-not $SkipGGUF -and -not (Test-Path $GgufFile)) {
     if (-not $ggufAsset) { throw "Required release asset 'gemma-4-E2B-it.BF16-mmproj.gguf' not found in v-model-latest." }
 
     Write-Host "  Downloading gemma-4-E2B-it.BF16-mmproj.gguf (~941 MB) from self-hosted release..." -ForegroundColor Gray
-    if (DownloadWithRetry $GgufUrl $GgufFile $DownloadTimeoutSec $MaxDownloadRetries) {
+    if (DownloadWithRetry $ggufAsset.url $GgufFile $DownloadTimeoutSec $MaxDownloadRetries $DlHeaders) {
         # Size check — reject if file appears truncated (GGUF is ~941 MB)
         $ggufBytes = (Get-Item $GgufFile).Length
         if ($ggufBytes -lt 900MB) {
