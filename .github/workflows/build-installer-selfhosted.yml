@@ -1,0 +1,217 @@
+name: Build Windows Installer (self-hosted)
+
+# Self-hosted variant of build-installer.yml — runs the full installer build on a
+# self-hosted Windows runner (free; no GitHub-hosted minutes). Use this when the
+# account's GitHub-hosted Actions minutes / spending limit are unavailable.
+#
+# Prerequisites on the runner machine (one-time):
+#   - A registered self-hosted runner with labels: self-hosted, Windows, X64
+#     (repo → Settings → Actions → Runners → New self-hosted runner → Windows x64)
+#   - Chocolatey (for auto-installing Inno Setup / sqlite) OR Inno Setup 6 pre-installed
+#   - VS 2022 C++ Build Tools (VCTools workload) — required to compile better-sqlite3
+#   Node / .NET / pnpm are provisioned by the setup-* actions below.
+#
+# secrets.GITHUB_TOKEN is injected automatically (even on self-hosted), so the private
+# release-asset downloads in publish.ps1 authenticate with no manual token.
+
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: 'Version to stamp (e.g. 1.0.0 or 1.0-beta.2)'
+        required: false
+        default: '1.0.0'
+      skip_tests:
+        description: 'Skip pnpm -r test (faster build)'
+        type: boolean
+        default: false
+      run_smoke_test:
+        description: 'Silent-install onto THIS machine to verify layout (needs an elevated runner)'
+        type: boolean
+        default: false
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    name: Build Windows EXE Installer (self-hosted)
+    runs-on: [self-hosted, windows, x64]
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: pnpm/action-setup@v4
+        with:
+          version: '9.4.0'
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: pnpm
+          cache-dependency-path: pnpm-lock.yaml
+
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '8.0.x'
+
+      - name: Ensure Inno Setup 6 + Hebrew language pack
+        shell: pwsh
+        run: |
+          $iscc = "${env:ProgramFiles(x86)}\Inno Setup 6\ISCC.exe"
+          if (-not (Test-Path $iscc)) {
+            if (Get-Command choco -ErrorAction SilentlyContinue) {
+              Write-Host "Inno Setup not found — installing via Chocolatey..."
+              choco install innosetup --yes --no-progress
+            } else {
+              Write-Error "Inno Setup 6 not found and Chocolatey is unavailable. Install Inno Setup 6 on this runner (https://jrsoftware.org/isdl.php) and re-run."
+              exit 1
+            }
+          }
+          $dest = "${env:ProgramFiles(x86)}\Inno Setup 6\Languages\Hebrew.isl"
+          if (-not (Test-Path $dest)) {
+            Invoke-WebRequest -Uri "https://raw.githubusercontent.com/jrsoftware/issrc/main/Files/Languages/Hebrew.isl" -OutFile $dest -UseBasicParsing
+            Write-Host "Hebrew.isl installed to $dest"
+          }
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Inject version into build files
+        shell: pwsh
+        run: |
+          $ver = "${{ inputs.version }}".TrimStart('v')
+          if ([string]::IsNullOrWhiteSpace($ver)) { $ver = '1.0.0' }
+          Write-Host "Stamping version: $ver"
+
+          # installer.iss
+          (Get-Content installer.iss -Encoding UTF8) `
+            -replace '#define AppVersion\s+"[^"]*"', "#define AppVersion `"$ver`"" |
+            Set-Content installer.iss -Encoding UTF8
+
+          # FactumIL.Desktop.csproj
+          (Get-Content FactumIL.Desktop\FactumIL.Desktop.csproj -Encoding UTF8) `
+            -replace '<Version>[^<]*</Version>', "<Version>$ver</Version>" |
+            Set-Content FactumIL.Desktop\FactumIL.Desktop.csproj -Encoding UTF8
+
+          # package.json (root)
+          $pkg = Get-Content package.json -Raw | ConvertFrom-Json
+          $pkg.version = $ver
+          $pkg | ConvertTo-Json -Depth 20 | Set-Content package.json -Encoding UTF8
+
+      - name: Typecheck
+        run: pnpm -r typecheck
+
+      - name: Test
+        if: ${{ !inputs.skip_tests }}
+        run: pnpm -r test
+
+      - name: Build & stage (publish.ps1)
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          .\publish.ps1 -SkipTests
+
+      - name: Compile installer (ISCC)
+        shell: pwsh
+        run: |
+          $iscc = "${env:ProgramFiles(x86)}\Inno Setup 6\ISCC.exe"
+          & $iscc installer.iss
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+
+      - name: Verify installer payload contains GGUF
+        shell: pwsh
+        run: |
+          $ggufPath = "FactumIL_Dist\models\gemma-4-E2B-it.BF16-mmproj.gguf"
+          if (-not (Test-Path $ggufPath)) {
+            Write-Error "GGUF model asset missing from staging directory — not bundled in installer."
+            exit 1
+          }
+          $ggufMB = [math]::Round((Get-Item $ggufPath).Length / 1MB, 0)
+          Write-Host "GGUF staged: $ggufMB MB"
+
+          $installerMB = [math]::Round((Get-Item "Factum-IL-Setup.exe").Length / 1MB, 0)
+          Write-Host "Installer size: $installerMB MB"
+          if ($installerMB -lt 800) {
+            Write-Error "Installer ($installerMB MB) too small — GGUF likely not bundled by ISCC."
+            exit 1
+          }
+          Write-Host "Installer size confirms GGUF payload ($installerMB MB)."
+
+      - name: Verify Installation (DevMode)
+        shell: pwsh
+        run: powershell -File powershell\scripts\Verify-Install.ps1 -DevMode
+
+      - name: Install & verify production layout (optional)
+        if: ${{ inputs.run_smoke_test }}
+        shell: pwsh
+        run: |
+          # WARNING: this installs Factum-IL onto THIS runner machine (Program Files +
+          # HKLM) and requires the runner to be running elevated.
+          if (Get-Command choco -ErrorAction SilentlyContinue) {
+            choco install sqlite --yes --no-progress
+          } else {
+            Write-Warning "Chocolatey not found — sqlite3 CLI may be missing; migration count check may be skipped."
+          }
+
+          # Silent install of the compiled EXE. Model registration is intentionally NOT
+          # done by the installer — it is a first-launch responsibility of the WPF
+          # BootstrapManager. A fast, clean exit here is expected; this smoke test only
+          # validates files, registry and DB health.
+          Write-Host "Running silent install..."
+          $proc = Start-Process -FilePath .\Factum-IL-Setup.exe `
+            -ArgumentList '/VERYSILENT', '/SUPPRESSMSGBOXES', '/NORESTART' `
+            -Wait -PassThru
+          if ($proc.ExitCode -ne 0) {
+            Write-Error "Installer exited with code $($proc.ExitCode)"
+            exit 1
+          }
+          Write-Host "Silent install complete."
+
+          $installDir = "C:\Program Files\FactumIL"
+          $apiEntry   = Join-Path $installDir "app\api\dist\start.js"
+          $apiProc    = $null
+
+          if (Test-Path $apiEntry) {
+            $env:FACTUM_IL_SAFE_MODE = '1'
+            $nodeExe = Join-Path $installDir "app\node\node.exe"
+            $apiProc = Start-Process -FilePath $nodeExe -ArgumentList $apiEntry -PassThru
+            Write-Host "API process started (PID $($apiProc.Id))."
+          } else {
+            Write-Warning "API bundle not found at $apiEntry — migration checks will be skipped."
+          }
+
+          $healthy = $false
+          for ($i = 0; $i -lt 30; $i++) {
+            Start-Sleep -Seconds 2
+            try {
+              $r = Invoke-RestMethod 'http://localhost:3001/api/health' -TimeoutSec 3 -EA Stop
+              if ($r.ok) { $healthy = $true; break }
+            } catch { }
+          }
+          if ($healthy) { Write-Host "API healthy — DB migrations complete." }
+          else          { Write-Warning "API not healthy — migration checks will be skipped." }
+
+          powershell -File powershell\scripts\Verify-Install.ps1 -InstallDir $installDir
+          $verifyExit = $LASTEXITCODE
+
+          if ($apiProc -and -not $apiProc.HasExited) {
+            Stop-Process -Id $apiProc.Id -Force -ErrorAction SilentlyContinue
+          }
+          exit $verifyExit
+
+      - name: Upload installer artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: FactumIL-Installer-${{ inputs.version || '1.0.0' }}
+          path: Factum-IL-Setup.exe
+          retention-days: 90
+
+      - name: Upload build log on failure
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: build-log-${{ github.run_id }}
+          path: Deployment-Log.txt
+          retention-days: 14

@@ -132,6 +132,24 @@ niraltman1\Factum-IL-Setup.exe   (כ-1GB ומעלה — הגודל מעיד שה
 | רוצה בנייה מהירה בלי הרצת הבדיקות | `.\publish.ps1 -SkipTests` |
 | רוצה קובץ קטן יותר בלי המודל המצורף | `.\publish.ps1 -SkipGGUF` (המודל יירשם בהפעלה הראשונה במקום להיות מצורף) |
 
+### חלופה: בנייה דרך Self-Hosted GitHub Runner (חינמי, ללא דקות בתשלום)
+
+במקום להריץ ידנית, אפשר להריץ את הבנייה כ-GitHub Action על **runner עצמי** במחשב ה-Windows
+שלך — חינמי לחלוטין (לא צורך דקות מתשלום) ועוקף את חסימת החיוב. ה-token (`GITHUB_TOKEN`)
+מסופק אוטומטית, כך שהורדת המודל והקורפוסים מאומתת ללא הגדרה ידנית.
+
+1. **רישום ה-runner:** במאגר → **Settings → Actions → Runners → New self-hosted runner →
+   Windows / x64**, והרץ את פקודות ההורדה ו-`config.cmd --url … --token …` שמוצגות, ואז
+   `run.cmd` (או התקן כשירות). התוויות הנדרשות: `self-hosted, Windows, X64`.
+2. **כלים חד-פעמיים על המכונה:** Chocolatey (או Inno Setup 6 מותקן מראש) ו-**VS 2022 C++
+   Build Tools** (workload של C++, נדרש ל-`better-sqlite3`). Node/.NET/pnpm מסופקים
+   אוטומטית ע"י ה-workflow.
+3. **הרצה:** טאב **Actions → "Build Windows Installer (self-hosted)" → Run workflow →**
+   ענף `main`. (סמן `run_smoke_test` רק אם תרצה שההתקנה תיבדק על המכונה הזו — דורש runner
+   מורם הרשאות.)
+4. **התוצאה:** הורד את ה-artifact ‏`Factum-IL-Setup.exe`, או מצא אותו בתיקיית העבודה של
+   ה-runner.
+
 ## הפעלה למפתחים
 
 ```bash
