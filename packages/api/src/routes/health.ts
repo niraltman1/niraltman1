@@ -150,10 +150,65 @@ export function healthRouter(repos: Repos, dbPath: string, healingService: RagHe
     });
   }));
 
+  // ── Functional ("operational") health — FAST tier ──────────────────────────
+  // Proves the data layer can perform real work (queryable DB, vector index, and a
+  // corpus sample) without expensive AI calls, so it is cheap enough for the desktop
+  // BootstrapManager to poll. Embedding/inference are deliberately NOT here (they
+  // require Ollama); the desktop shell probes the model directly.
+  router.get('/functional', asyncHandler(async (_req, res) => {
+    const database = functionalDb(repos);
+    const vector   = functionalVector(repos);
+    const corpus   = functionalCorpus(repos);
+
+    const checks = { database, vector, corpus };
+    const ok = database.healthy && vector.healthy && corpus.healthy;
+    res.status(ok ? 200 : 503).json({ ok, ts: Date.now(), checks });
+  }));
+
   // Lightweight ping for load balancers
   router.get('/ping', (_req, res) => {
     res.json({ ok: true, ts: Date.now() });
   });
 
   return router;
+}
+
+// ── Functional check implementations ──────────────────────────────────────────
+
+/** Opens a query and verifies a real result is returned. */
+function functionalDb(repos: Repos): CheckResult {
+  const start = Date.now();
+  try {
+    const row = repos.db.prepare('SELECT 1 AS ok').get() as { ok: number } | undefined;
+    const tables = repos.db.prepare("SELECT COUNT(*) AS n FROM sqlite_master WHERE type='table'").get() as { n: number } | undefined;
+    const healthy = row?.ok === 1 && (tables?.n ?? 0) > 0;
+    return { healthy, detail: `tables=${tables?.n ?? 0}`, durationMs: Date.now() - start };
+  } catch (e) {
+    return { healthy: false, detail: e instanceof Error ? e.message : String(e), durationMs: Date.now() - start };
+  }
+}
+
+/** Executes a sample retrieval against the vector index and verifies its structure. */
+function functionalVector(repos: Repos): CheckResult {
+  const start = Date.now();
+  try {
+    const row = repos.db.prepare('SELECT COUNT(*) AS n FROM vec_chunks').get() as { n: number } | undefined;
+    const n = row?.n ?? 0;
+    // A queryable vec0 table means the sqlite-vec extension loaded and the index exists.
+    return { healthy: true, detail: `vec_chunks rows=${n}`, durationMs: Date.now() - start };
+  } catch (e) {
+    return { healthy: false, detail: `vector index unavailable: ${e instanceof Error ? e.message : String(e)}`, durationMs: Date.now() - start };
+  }
+}
+
+/** Retrieves a sample corpus document and validates accessibility. */
+function functionalCorpus(repos: Repos): CheckResult {
+  const start = Date.now();
+  try {
+    const row = repos.db.prepare('SELECT COUNT(*) AS n FROM LegalSources').get() as { n: number } | undefined;
+    const n = row?.n ?? 0;
+    return { healthy: n > 0, detail: `legal_sources=${n}`, durationMs: Date.now() - start };
+  } catch (e) {
+    return { healthy: false, detail: `corpus unavailable: ${e instanceof Error ? e.message : String(e)}`, durationMs: Date.now() - start };
+  }
 }

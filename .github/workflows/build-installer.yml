@@ -132,7 +132,10 @@ jobs:
           # Install sqlite3 CLI so Verify-Install.ps1 can check migration count
           choco install sqlite --yes --no-progress
 
-          # Silent install of the compiled EXE
+          # Silent install of the compiled EXE.
+          # NOTE: model registration is intentionally NOT done by the installer — it is a
+          # first-launch responsibility of the WPF BootstrapManager. So a fast, clean exit
+          # here is expected; this smoke test only validates files, registry and DB health.
           Write-Host "Running silent install..."
           $proc = Start-Process -FilePath .\Factum-IL-Setup.exe `
             -ArgumentList '/VERYSILENT', '/SUPPRESSMSGBOXES', '/NORESTART' `

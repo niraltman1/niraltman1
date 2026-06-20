@@ -1,13 +1,18 @@
 #!/usr/bin/env pwsh
 <#
 .SYNOPSIS
-    Registers the bundled GGUF model with Ollama during Factum IL installation.
+    Manual / recovery tool: registers the bundled GGUF model with Ollama.
     No internet connection required — the GGUF is already on disk.
 
 .DESCRIPTION
-    Called by installer.iss [Run] after OllamaSetup.exe completes.
-    Uses 'ollama create' with a Modelfile pointing to the bundled GGUF so the
-    model is immediately available without any post-install configuration step.
+    As of v1.0.0 model registration is performed automatically on FIRST LAUNCH by
+    the WPF shell (BootstrapManager + OllamaService), which is resumable and
+    retried with bounded timeouts. The installer no longer calls this script — it
+    is retained for manual recovery (e.g. "repair installation" or offline setup).
+
+    Uses 'ollama create' with a Modelfile pointing to the bundled GGUF so the model
+    becomes available without any download. The 'ollama create' call is bounded by
+    -TimeoutSec and retried up to -MaxRetries times so it can never hang forever.
 
 .PARAMETER GgufPath
     Absolute path to the bundled GGUF file (e.g. C:\Program Files\FactumIL\models\...).
@@ -15,11 +20,19 @@
 .PARAMETER ModelTag
     Ollama model tag to register under.
     Default: BrainboxAI/law-il-E2B:Q4_K_M  (the only permitted model for Factum IL).
+
+.PARAMETER TimeoutSec
+    Maximum seconds to wait for a single 'ollama create' attempt. Default: 1800 (30 min).
+
+.PARAMETER MaxRetries
+    How many times to retry 'ollama create' on failure/timeout. Default: 1.
 #>
 param(
     [Parameter(Mandatory)]
     [string] $GgufPath,
-    [string] $ModelTag = "BrainboxAI/law-il-E2B:Q4_K_M"
+    [string] $ModelTag   = "BrainboxAI/law-il-E2B:Q4_K_M",
+    [int]    $TimeoutSec = 1800,
+    [int]    $MaxRetries = 1
 )
 
 $ErrorActionPreference = 'Stop'
@@ -75,15 +88,43 @@ $mf = Join-Path ([System.IO.Path]::GetTempPath()) "factum-il-modelfile-$PID.txt"
 "FROM $GgufPath" | Set-Content $mf -Encoding UTF8
 
 # ── Register the model (no download — all data is on-disk) ───────────────────
-Write-Status "Registering '$ModelTag' from bundled GGUF (no internet required)..."
-& $ollama create $ModelTag --file $mf
-$exitCode = $LASTEXITCODE
+# Each attempt runs in a background job bounded by $TimeoutSec so the registration
+# can never block indefinitely. Retried up to $MaxRetries times on failure/timeout.
+function Invoke-OllamaCreate {
+    param([string]$Exe, [string]$Tag, [string]$ModelFile, [int]$TimeoutSec)
+
+    $job = Start-Job -ScriptBlock {
+        param($exe, $tag, $mf)
+        & $exe create $tag --file $mf
+        $LASTEXITCODE
+    } -ArgumentList $Exe, $Tag, $ModelFile
+
+    if (Wait-Job $job -Timeout $TimeoutSec) {
+        $code = Receive-Job $job
+        Remove-Job $job -Force -ErrorAction SilentlyContinue
+        # Coerce the last emitted value to an int exit code.
+        return [int]($code | Select-Object -Last 1)
+    }
+
+    Write-Warning "ollama create exceeded ${TimeoutSec}s — cancelling attempt."
+    Stop-Job   $job -ErrorAction SilentlyContinue
+    Remove-Job $job -Force -ErrorAction SilentlyContinue
+    return 124   # timeout sentinel
+}
+
+$exitCode = 1
+for ($attempt = 0; $attempt -le $MaxRetries; $attempt++) {
+    if ($attempt -gt 0) { Write-Status "Retrying model registration (attempt $($attempt + 1))…" }
+    Write-Status "Registering '$ModelTag' from bundled GGUF (no internet required)..."
+    $exitCode = Invoke-OllamaCreate -Exe $ollama -Tag $ModelTag -ModelFile $mf -TimeoutSec $TimeoutSec
+    if ($exitCode -eq 0) { break }
+}
 
 Remove-Item $mf -ErrorAction SilentlyContinue
 
 if ($exitCode -ne 0) {
-    Write-Warning "ollama create exited $exitCode — model registration incomplete."
-    exit 0   # non-fatal: WPF OllamaService handles first-run fallback
+    Write-Warning "ollama create did not complete (last exit $exitCode) — model registration incomplete."
+    exit 0   # non-fatal: the WPF first-launch bootstrap will retry on next start
 }
 
 Write-Status "'$ModelTag' registered successfully — Factum IL AI is ready."
