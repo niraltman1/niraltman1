@@ -166,11 +166,29 @@ function DownloadWithRetry([string]$Uri, [string]$OutFile, [int]$TimeoutSec, [in
     while ($RetryCount -lt $MaxRetries -and -not $Downloaded) {
         try {
             Write-Host "  Downloading $(Split-Path $OutFile -Leaf) (Attempt $($RetryCount+1)/$MaxRetries) ..." -ForegroundColor Gray
-            Invoke-WebRequest -Uri $Uri `
-                -OutFile $OutFile `
-                -UseBasicParsing `
-                -TimeoutSec $TimeoutSec `
-                -ErrorAction Stop
+
+            # curl.exe (preinstalled on windows-latest) is far more reliable than
+            # Invoke-WebRequest for very large files (e.g. the ~941 MB GGUF):
+            #   -L follow release→CDN redirects · --fail non-zero on HTTP >=400 ·
+            #   -C - resume a partial file across our retry loop · -sS quiet but show errors ·
+            #   --max-time bounds the attempt. Fall back to Invoke-WebRequest if curl is absent.
+            $curl = Get-Command curl.exe -ErrorAction SilentlyContinue
+            if ($curl) {
+                $curlOut = & $curl.Source -L --fail -sS `
+                    --connect-timeout 30 --max-time $TimeoutSec `
+                    -C - -o $OutFile $Uri 2>&1
+                if ($LASTEXITCODE -ne 0) { throw "curl.exe exited $LASTEXITCODE: $curlOut" }
+            } else {
+                Invoke-WebRequest -Uri $Uri `
+                    -OutFile $OutFile `
+                    -UseBasicParsing `
+                    -TimeoutSec $TimeoutSec `
+                    -ErrorAction Stop
+            }
+
+            if (-not (Test-Path $OutFile) -or (Get-Item $OutFile).Length -eq 0) {
+                throw "downloaded file is missing or empty after transfer"
+            }
             $Downloaded = $true
             $size = [math]::Round((Get-Item $OutFile).Length / 1MB, 1)
             Write-Host "  ✓ Downloaded ($size MB)" -ForegroundColor Green
@@ -178,8 +196,10 @@ function DownloadWithRetry([string]$Uri, [string]$OutFile, [int]$TimeoutSec, [in
             $LastError = $_
             $RetryCount++
             if ($RetryCount -lt $MaxRetries) {
-                Write-Host "  ⚠ Download attempt $RetryCount failed. Retrying in 5 seconds..." -ForegroundColor Yellow
-                Start-Sleep -Seconds 5
+                # Exponential backoff capped at 40s: 5 → 10 → 20 → 40 …
+                $backoff = [int][math]::Min(5 * [math]::Pow(2, $RetryCount - 1), 40)
+                Write-Host "  ⚠ Download attempt $RetryCount failed ($($LastError.Exception.Message)). Retrying in $backoff seconds..." -ForegroundColor Yellow
+                Start-Sleep -Seconds $backoff
             }
         }
     }
@@ -808,11 +828,22 @@ if (-not $SkipGGUF -and -not (Test-Path $GgufFile)) {
             Remove-Item $GgufFile -Force -ErrorAction SilentlyContinue
             throw "GGUF magic-byte validation failed — file may be corrupted."
         }
+    } else {
+        # DownloadWithRetry returned $false (all retries exhausted). The GGUF is a
+        # REQUIRED build artifact — fail loudly here instead of silently continuing
+        # and only surfacing as a confusing "missing GGUF" at the later verify gate.
+        throw "GGUF download failed after $MaxDownloadRetries retries — build aborted. (URL: $GgufUrl)"
     }
 } elseif ($SkipGGUF) {
     Write-Host "  ⊘ SKIP: GGUF download (-SkipGGUF flag set)" -ForegroundColor Yellow
 } elseif (Test-Path $GgufFile) {
     Write-Host "  ✓ GGUF already staged" -ForegroundColor Green
+}
+
+# Fail-fast safety net: unless explicitly skipped, the model MUST be present after
+# this stage. Guarantees no code path proceeds to ISCC without the required model.
+if (-not $SkipGGUF -and -not (Test-Path $GgufFile)) {
+    throw "GGUF model missing after staging — required build artifact. Build aborted."
 }
 
 # sqlite-vec  -  native KNN extension for SQLite
