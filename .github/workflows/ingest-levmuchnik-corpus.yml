@@ -28,7 +28,7 @@ jobs:
         run: |
           mkdir -p assets/verdict-corpus
           python3 << 'EOF'
-          import urllib.request, urllib.error, json, gzip, sys, time, os
+          import urllib.request, urllib.error, json, gzip, sys, time, os, re
 
           DATASET = 'LevMuchnik/SupremeCourtOfIsrael'
           CONFIG  = 'default'
@@ -44,15 +44,43 @@ jobs:
             'meta_judge', 'meta_side_nm', 'meta_lawyer_nm', 'meta_case_nbr',
           }
 
+          # Hebrew Unicode: main block (alef–tav) + extended + presentation forms
+          HE_BLOCK = re.compile(r'[א-תװ-״יִ-פֿ]')
+          HE_MIN   = 15  # minimum Hebrew characters required for valid text
+
+          def fix_text_encoding(text):
+              """
+              Ensure text contains valid Hebrew Unicode.
+              Returns (fixed_text, was_recovered: bool).
+              Raises ValueError if text is unrecoverably garbled.
+
+              Root cause: ~29% of dataset rows are older verdicts stored as
+              CP1255 (Windows-1255 / Hebrew) bytes that were decoded as
+              ISO-8859-1 (Latin-1), producing garbled Latin characters instead
+              of Hebrew Unicode.  Recovery: re-encode the garbled string as
+              Latin-1 to restore the original bytes, then decode as CP1255.
+              """
+              if len(HE_BLOCK.findall(text)) >= HE_MIN:
+                  return text, False          # already valid Hebrew
+              try:
+                  recovered = text.encode('latin-1').decode('cp1255')
+                  if len(HE_BLOCK.findall(recovered)) >= HE_MIN:
+                      return recovered, True  # encoding fixed
+              except (UnicodeEncodeError, UnicodeDecodeError):
+                  pass
+              raise ValueError('unrecoverable_encoding')
+
           base_url = (
             f'https://datasets-server.huggingface.co/rows'
             f'?dataset={DATASET.replace("/", "%2F")}'
             f'&config={CONFIG}&split={SPLIT}'
           )
 
-          rows = []
-          offset = 0
-          retries = 6
+          rows             = []
+          offset           = 0
+          retries          = 6
+          n_recovered      = 0
+          n_garbled_skip   = 0
 
           while True:
               url = f'{base_url}&offset={offset}&length={PAGE}'
@@ -84,13 +112,27 @@ jobs:
 
               page = data.get('rows', [])
               for item in page:
-                  row = item['row']
+                  row  = item['row']
                   text = row.get('text', '')
-                  if not isinstance(text, str) or len(text.strip()) < 100:
+                  if not isinstance(text, str):
                       continue
+                  try:
+                      text, was_recovered = fix_text_encoding(text)
+                  except ValueError:
+                      n_garbled_skip += 1
+                      continue
+                  if len(text.strip()) < 100:
+                      continue
+                  row['text'] = text  # write back the (possibly fixed) text
+                  if was_recovered:
+                      n_recovered += 1
                   rows.append({k: row[k] for k in KEEP_FIELDS if k in row})
 
-              print(f'Fetched {len(rows)} rows (offset={offset})', flush=True)
+              print(
+                f'Fetched {len(rows)} rows '
+                f'(offset={offset}, recovered={n_recovered}, garbled_skip={n_garbled_skip})',
+                flush=True,
+              )
 
               if len(page) < PAGE:
                   break
@@ -100,12 +142,19 @@ jobs:
               offset += PAGE
               time.sleep(1.5)  # ~40 req/min — well under HF rate limit
 
-          print(f'Total: {len(rows)} rows')
+          print(
+            f'Total: {len(rows)} rows '
+            f'({n_recovered} encoding-recovered, {n_garbled_skip} garbled-skipped)'
+          )
 
           with gzip.open(OUTFILE, 'wt', encoding='utf-8') as f:
               for row in rows:
                   f.write(json.dumps(row, ensure_ascii=False) + '\n')
           print(f'Written: {OUTFILE}')
+
+          # Persist encoding stats for the metadata step
+          with open('assets/verdict-corpus/.encoding-stats', 'w') as f:
+              json.dump({'recovered': n_recovered, 'garbled_skipped': n_garbled_skip}, f)
           EOF
         env:
           MAX_ROWS: ${{ inputs.max_rows }}
@@ -113,10 +162,11 @@ jobs:
       - name: Validate artifact
         run: |
           python3 << 'EOF'
-          import gzip, json, sys
+          import gzip, json, sys, re
 
-          path = 'assets/verdict-corpus/supreme-court-il.jsonl.gz'
-          rows = 0
+          path     = 'assets/verdict-corpus/supreme-court-il.jsonl.gz'
+          HE_BLOCK = re.compile(r'[א-תװ-״יִ-פֿ]')
+          rows     = 0
           rejected = 0
           first_ok = False
 
@@ -134,8 +184,11 @@ jobs:
                   if not first_ok:
                       assert 'document_hash' in row, "Missing document_hash"
                       assert 'text' in row, "Missing text"
-                      assert isinstance(row['text'], str) and len(row['text']) > 100, \
-                          "text too short"
+                      text = row['text']
+                      assert isinstance(text, str) and len(text) > 100, "text too short"
+                      he_count = len(HE_BLOCK.findall(text))
+                      assert he_count >= 15, \
+                          f"First row has only {he_count} Hebrew chars — encoding not fixed"
                       first_ok = True
 
           print(f'Validation OK: {rows} rows, {rejected} malformed')
@@ -166,21 +219,34 @@ jobs:
           size_mb = os.path.getsize(path) / (1024 * 1024)
           version = datetime.date.today().strftime('%Y.%m.%d')
 
+          enc_stats_path = 'assets/verdict-corpus/.encoding-stats'
+          try:
+              with open(enc_stats_path) as f:
+                  enc = json.load(f)
+              enc_recovered      = enc.get('recovered', 0)
+              enc_garbled_skip   = enc.get('garbled_skipped', 0)
+          except FileNotFoundError:
+              enc_recovered = enc_garbled_skip = 0
+
           meta = {
-            'version':      version,
-            'sha256':       digest,
-            'row_count':    count,
-            'size_bytes':   os.path.getsize(path),
-            'generated_at': datetime.datetime.utcnow().isoformat() + 'Z',
-            'source':       'LevMuchnik/SupremeCourtOfIsrael',
+            'version':               version,
+            'sha256':                digest,
+            'row_count':             count,
+            'size_bytes':            os.path.getsize(path),
+            'generated_at':          datetime.datetime.utcnow().isoformat() + 'Z',
+            'source':                'LevMuchnik/SupremeCourtOfIsrael',
+            'encoding_recovered':    enc_recovered,
+            'encoding_garbled_skip': enc_garbled_skip,
           }
           with open('assets/verdict-corpus/supreme-court-metadata.json', 'w') as f:
               json.dump(meta, f, indent=2)
 
-          print(f'Version: {version}')
-          print(f'SHA-256: {digest}')
-          print(f'Rows:    {count}')
-          print(f'Size:    {size_mb:.1f} MB')
+          print(f'Version:          {version}')
+          print(f'SHA-256:          {digest}')
+          print(f'Rows:             {count}')
+          print(f'Size:             {size_mb:.1f} MB')
+          print(f'Encoding fixed:   {enc_recovered}')
+          print(f'Garbled skipped:  {enc_garbled_skip}')
           EOF
           echo "::notice::Metadata generated"
 
