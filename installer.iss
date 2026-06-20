@@ -110,6 +110,9 @@ Source: "FactumIL_Dist\legal-corpus\*"; DestDir: "{app}\app\legal-corpus"; Flags
 ; FACTUM_IL_ROOT\verdict-corpus\ = {app}\app\verdict-corpus\
 Source: "FactumIL_Dist\verdict-corpus\case-law-il.jsonl.gz";   DestDir: "{app}\app\verdict-corpus"; Flags: ignoreversion skipifsourcedoesntexist
 Source: "FactumIL_Dist\verdict-corpus\corpus-metadata.json";   DestDir: "{app}\app\verdict-corpus"; Flags: ignoreversion skipifsourcedoesntexist
+; ── Bundled Supreme Court corpus (LevMuchnik/SupremeCourtOfIsrael) ───────────
+Source: "FactumIL_Dist\verdict-corpus\supreme-court-il.jsonl.gz";   DestDir: "{app}\app\verdict-corpus"; Flags: ignoreversion skipifsourcedoesntexist
+Source: "FactumIL_Dist\verdict-corpus\supreme-court-metadata.json"; DestDir: "{app}\app\verdict-corpus"; Flags: ignoreversion skipifsourcedoesntexist
 
 
 ; ── Legal Registry + PowerShell helpers ──────────────────────────────────────

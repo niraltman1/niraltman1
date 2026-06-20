@@ -706,6 +706,38 @@ if (-not (Test-Path $VcFile)) {
     Write-Host "  ✓ Verdict corpus already staged ($([math]::Round((Get-Item $VcFile).Length / 1MB, 1)) MB)" -ForegroundColor Green
 }
 
+# Supreme Court corpus — LevMuchnik/SupremeCourtOfIsrael (verbatim verdicts, added 2026-06)
+# Stored at FactumIL_Dist\verdict-corpus\ → deployed to {app}\app\verdict-corpus\
+# Loaded by the same verdict-corpus-loader.ts (separate SystemSettings key prefix).
+$ScFile  = Join-Path $VcDst "supreme-court-il.jsonl.gz"
+$ScMeta  = Join-Path $VcDst "supreme-court-metadata.json"
+
+if (-not (Test-Path $ScFile)) {
+    try {
+        # Reuse $rel (already fetched above for the Knesset corpus)
+        $scAsset = $rel.assets | Where-Object { $_.name -eq 'supreme-court-il.jsonl.gz' } | Select-Object -First 1
+        if ($scAsset) {
+            if (DownloadWithRetry $scAsset.url $ScFile 600 2 $DlHeaders) {
+                $scMB = [math]::Round((Get-Item $ScFile).Length / 1MB, 1)
+                Write-Host "  ✓ Supreme Court corpus: supreme-court-il.jsonl.gz (${scMB} MB)" -ForegroundColor Green
+            }
+            # Also download companion metadata (corpus version + SHA-256) if present
+            $scMetaAsset = $rel.assets | Where-Object { $_.name -eq 'supreme-court-metadata.json' } | Select-Object -First 1
+            if ($scMetaAsset) {
+                DownloadWithRetry $scMetaAsset.url $ScMeta 30 2 $DlHeaders | Out-Null
+                Write-Host "    ✓ supreme-court-metadata.json" -ForegroundColor Gray
+            }
+        } else {
+            Write-Host "  ⚠ supreme-court-il.jsonl.gz not yet in v-corpus-latest — app will boot without Supreme Court corpus" -ForegroundColor DarkYellow
+            Write-Host "    Trigger: .github/workflows/ingest-levmuchnik-corpus.yml" -ForegroundColor DarkYellow
+        }
+    } catch {
+        Write-Host "  ⚠ Supreme Court corpus download skipped: $_ — app will boot without Supreme Court corpus" -ForegroundColor DarkYellow
+    }
+} else {
+    Write-Host "  ✓ Supreme Court corpus already staged ($([math]::Round((Get-Item $ScFile).Length / 1MB, 1)) MB)" -ForegroundColor Green
+}
+
 StepElapsed
 
 # ═══════════════════════════════════════════════════════════════════════════════
