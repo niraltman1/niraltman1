@@ -1,5 +1,43 @@
 # Factum-IL — Task Tracker
 
+## 🗓️ Session handoff — installer remediation landed + full corpus bundling (2026-06-20)
+
+**Merged to `main` (@ `800c294`):** PR #130 (installer fix + first-launch bootstrap),
+PR #136 (Supreme Court corpus end-to-end + non-technical build README). Download
+hotfixes #131–#133 and Supreme Court ingest encoding fix #135 also on `main`.
+
+### הושלם הפעם
+- **PR #130 מוזג** — תוקנה תקיעת ההתקנה: `installer.iss` כבר לא מריץ `ollama create` חוסם
+  (`[Run]` שלבים 3–4 הוסרו); רישום המודל עבר לאתחול ראשון resumable ב-WPF
+  (`BootstrapManager` + hardening R1–R9). המתנת ה-API כבר לא קטלנית → `RecoveryWindow`.
+- **תוקנה הורדת ה-assets בבנייה** — `publish.ps1` מאמת מול GitHub (Bearer דרך API asset URL)
+  ומשתמש ב-`curl.exe` עם retries ל-GGUF; נכשל מהר אם asset חובה חסר (hotfixes #131–#133).
+- **PR #136 מוזג** — קורפוס בית המשפט העליון (LevMuchnik) מחווט מקצה-לקצה: הורדה ב-`publish.ps1`,
+  אריזה ב-`installer.iss`, וטעינה ב-`verdict-corpus-loader.ts` (guychuk + עליון, מפתחות
+  idempotency נפרדים, docKeys מרחביים) + `verdict-corpus-loader.test.ts` + מדריך בנייה
+  לא-טכני בעברית ב-`README.md`.
+
+### אומת (אחרי המיזוג, על `main`)
+- `pnpm -r typecheck` 0 · `pnpm -r test` ירוק בכל החבילות (api 392 · dashboard 66 ·
+  database 116 · legal-corpus-ingest 123 · … 1,200+ בדיקות).
+- שרשרת הקורפוס עקבית: `publish.ps1` → `installer.iss` → loader (אותם 4 שמות, DestDir תואם).
+- ביקורת C# סטטית נקייה: SDK-glob כולל את כל הקבצים החדשים · אין `TreatWarningsAsErrors` ·
+  namespaces אחידים · אין הפניות מתות לקלאסים שהוסרו · חתימות `App.xaml.cs` ↔
+  `BootstrapManager`/`RecoveryWindow`/`BootstrapProgress` תואמות.
+
+### חסום / בתהליך
+- **GitHub Actions חסום בגלל חיוב/spending-limit** — כל ה-jobs נכשלים ב-startup
+  (`runner_id: 0`, ~2 שניות, ללא logs). מצב חשבון, לא בעיית קוד. לכן CI ו-`build-installer.yml`
+  לא רצים ב-GitHub כרגע.
+
+### מה לעשות עכשיו
+1. **בנייה מקומית על Windows** לפי `README.md` (שלבים 0–6) — שם מתבצעת הקומפילציה האמיתית של
+   ה-C# + יצירת `Factum-IL-Setup.exe` + אימות ההפעלה הראשונה. זה הצעד הקריטי שנותר.
+2. אם תופיע שגיאת קומפילציה ב-C# בשלב "Publishing WPF shell" — לתקן forward ולבנות שוב.
+3. חלופות ל-CI ללא תשלום: להמתין לאיפוס הדקות החודשי, או self-hosted runner על Windows.
+
+---
+
 ## 🗓️ Session handoff — review-driven trim + hardening (2026-06-19)
 
 **Branch:** `claude/factum-il-installer-analysis-c85kcf` (PR #130)
