@@ -14,7 +14,7 @@
 - אפליקציית ה-desktop המלאה (WPF + WebView2), שרת ה-API, וממשק המשתמש
 - WebView2 Runtime + Ollama (מנוע ה-AI)
 - מודל ה-AI `BrainboxAI/law-il-E2B:Q4_K_M` (כ-941MB, מצורף ונרשם בהפעלה הראשונה)
-- sqlite-vec.dll (הרחבת חיפוש וקטורי) + 78 מיגרציות DB
+- sqlite-vec.dll (הרחבת חיפוש וקטורי) + מיגרציות DB (001–085, 067 מדולג; נטענות בהפעלה ראשונה)
 - **כל הקורפוסים המשפטיים, כולל אלה שנוספו לאחרונה:**
   - קורפוס החקיקה (batch files)
   - קורפוס פסיקה — guychuk/case-law-israel (כל ערכאות בתי המשפט)
@@ -172,7 +172,7 @@ ollama pull hf.co/BrainboxAI/law-il-E2B:Q4_K_M
 
 | קובץ | תוכן |
 |------|------|
-| [`DEVELOPMENT.md`](./DEVELOPMENT.md) | Reference מלא לסשני Claude Code: כל החבילות, כל 76 המיגרציות, כל API routes, env vars, קונבנציות קוד |
+| [`DEVELOPMENT.md`](./DEVELOPMENT.md) | Reference מלא לסשני Claude Code: כל החבילות, כל המיגרציות, כל API routes, env vars, קונבנציות קוד |
 | [`ARCHITECTURE.md`](./ARCHITECTURE.md) | ארכיטקטורה טכנית: מבנה monorepo, data flow, schema, מודל אבטחה, RBAC, safe mode |
 | [`BUILD.md`](./BUILD.md) | בניית `Factum-IL-Setup.exe` מ-`publish.ps1` + Inno Setup 6 (12 שלבים) |
 | [`CLAUDE.md`](./CLAUDE.md) | הנחיות קריטיות לסשן Claude Code — חובה לקרוא בתחילת כל סשן |
