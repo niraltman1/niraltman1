@@ -56,7 +56,7 @@ factum-il/
 │   ├── encrypted-backup/   # AES-256-GCM scheduled backups, restore pipeline
 │   ├── sdk/                # Public TypeScript SDK for external integrations
 │   └── api/                # Express REST server (port 3001) — all 40+ route modules
-├── migrations/             # SQL files 001–080 (067 intentionally skipped), run exactly once by MigrationRunner
+├── migrations/             # SQL files 001–085 (067 intentionally skipped), run exactly once by MigrationRunner
 ├── powershell/
 │   ├── lib/
 │   │   ├── Config.ps1              # Office root: C:\אלטמן משרד עורכי דין - סדר 2026
@@ -68,7 +68,7 @@ factum-il/
 │       ├── 02-SetupAIModels.ps1
 │       ├── 11-Open-Workspace.ps1
 │       └── …
-├── publish.ps1             # 12-step staging pipeline → FactumIL_Dist\
+├── publish.ps1             # 13-step staging pipeline → FactumIL_Dist\
 ├── installer.iss           # Inno Setup 6 production installer script
 └── Modelfile               # Ollama model definition for law-il-E2B
 ```
@@ -112,7 +112,7 @@ Two database files:
 - WAL mode is always on; FTS5 for full-text search; sqlite-vec for KNN vector search
 - PRAGMA statements must appear before `BEGIN TRANSACTION` in migration files
 
-### All Migrations (001–080, 067 intentionally skipped)
+### All Migrations (001–085, 067 intentionally skipped)
 
 | Migration | Tables / Changes Added |
 |-----------|----------------------|
@@ -196,6 +196,11 @@ Two database files:
 | 078 | StensTemplates seed data — 8 Hebrew legal form templates (small claims, civil, divorce, maintenance, labour, admin, traffic, bail) |
 | 079 | SavedFilters — user-defined document filter queries (Smart Collections, B2) |
 | 080 | Performance indexes — 14 indexes on hot-query columns (B4 hardening) |
+| 081 | patch_system |
+| 082 | legal_knowledge_foundation |
+| 083 | verdict_citations |
+| 084 | legal_document_embeddings |
+| 085 | vec_legal_documents (sqlite-vec) |
 
 ## API Routes
 

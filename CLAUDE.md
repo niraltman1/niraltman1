@@ -106,7 +106,7 @@ packages/
 | Backend | Node.js API (Express, port 3001) |
 | Database | SQLite (better-sqlite3) + FTS5 + sqlite-vec |
 | AI | Ollama local — BrainboxAI/law-il-E2B model |
-| Installer | Inno Setup 6 (`installer.iss` + `publish.ps1` 12-step pipeline) |
+| Installer | Inno Setup 6 (`installer.iss` + `publish.ps1` 13-step pipeline). Thin install (no `ollama create`); model registration + corpus load happen on first launch via the WPF `BootstrapManager` (resumable). |
 | Legacy pipeline | PowerShell 5.1 (separate repo, do not touch) |
 | Auth | Local only — no external auth service |
 | Language | Hebrew-first, RTL, UTF-8 everywhere |

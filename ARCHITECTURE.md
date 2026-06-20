@@ -36,7 +36,7 @@ factum-il/
 │           ├── modules/    # Feature modules: canvas, evidence, gmail, security, updates
 │           ├── routes/     # REST endpoints (one file per resource, 40+ routes)
 │           └── utils/      # MediaPipeline, RAG worker, legal-registry-loader, ingest-adapter
-├── migrations/             # SQL files 001–080 (067 intentionally skipped), run exactly once by MigrationRunner
+├── migrations/             # SQL files 001–085 (067 intentionally skipped), run exactly once by MigrationRunner
 ├── powershell/
 │   ├── lib/
 │   │   ├── Config.ps1              # Office root: C:\אלטמן משרד עורכי דין - סדר 2026
@@ -48,7 +48,7 @@ factum-il/
 │       ├── 02-SetupAIModels.ps1    # Pull law-il-E2B model
 │       ├── 11-Open-Workspace.ps1   # Per-case workspace launcher (opens Explorer)
 │       └── …
-├── publish.ps1             # 12-step staging pipeline → FactumIL_Dist\
+├── publish.ps1             # 13-step staging pipeline → FactumIL_Dist\
 ├── installer.iss           # Inno Setup 6 production installer script
 └── Modelfile               # Ollama definition for law-il-E2B
 ```
@@ -145,7 +145,7 @@ React 19 Dashboard (RTL Hebrew, Vite, TanStack Query)
 WPF Desktop Shell (WebView2 → http://localhost:3001)
 ```
 
-## 4. Full Migration Table (001–079)
+## 4. Full Migration Table (001–085)
 
 > **Canonical reference:** see `DEVELOPMENT.md §"All Migrations"` for the authoritative table.
 > The rows below reflect the actual migration files as of 2026-06-13.
@@ -231,6 +231,12 @@ WPF Desktop Shell (WebView2 → http://localhost:3001)
 | 077 | vec_precedent_verdicts (sqlite-vec, SKIP_ON_ERROR) |
 | 078 | StensTemplates seed — 8 Hebrew legal form templates (small claims, civil, divorce, maintenance, labour, admin, traffic, bail) |
 | 079 | SavedFilters — user-defined document filter queries (Smart Collections) |
+| 080 | performance_indexes |
+| 081 | patch_system |
+| 082 | legal_knowledge_foundation |
+| 083 | verdict_citations |
+| 084 | legal_document_embeddings |
+| 085 | vec_legal_documents (sqlite-vec) |
 
 **Migration runner rules:**
 - Each file runs exactly once; completion recorded in `_migrations` table
@@ -356,16 +362,18 @@ Trained on Israeli law, court verdicts, and legal Hebrew. Understands Israeli co
 
 ## 8. Installer Staging Layout (FactumIL_Dist\)
 
-Output of `publish.ps1` (12-step pipeline), consumed by `installer.iss`:
+Output of `publish.ps1` (13-step pipeline), consumed by `installer.iss`:
 
 ```
 FactumIL_Dist\
-  shell\        WPF desktop shell (FactumIL.Desktop.exe + .NET / WebView2 DLLs)
-  backend\      Express API server + flat production node_modules
-  dashboard\    Compiled React UI (Vite output)
-  migrations\   SQL files 001–079 (067 skipped; applied on first run)
-  runtime\      Portable node.exe (no Node.js installation required on end-user machine)
-  tools\        OllamaSetup.exe + WebView2 bootstrapper + sqlite-vec.dll
-  models\       gemma-4-E2B-it.BF16-mmproj.gguf (~941 MB)
-  powershell\   Legal Registry + helper scripts
+  shell\          WPF desktop shell (FactumIL.Desktop.exe + .NET / WebView2 DLLs)
+  backend\        Express API server + flat production node_modules
+  dashboard\      Compiled React UI (Vite output)
+  migrations\     SQL files 001–085 (067 skipped; applied on first run)
+  legal-corpus\   Legislation corpus (batches\*.jsonl.gz; loaded to SQLite on first run)
+  verdict-corpus\ Verdicts: case-law-il.jsonl.gz + supreme-court-il.jsonl.gz (+ metadata)
+  runtime\        Portable node.exe (no Node.js installation required on end-user machine)
+  tools\          OllamaSetup.exe + WebView2 bootstrapper + sqlite-vec.dll + register-ollama-model.ps1
+  models\         gemma-4-E2B-it.BF16-mmproj.gguf (~941 MB; registered to Ollama on first launch)
+  powershell\     Legal Registry + helper scripts
 ```
