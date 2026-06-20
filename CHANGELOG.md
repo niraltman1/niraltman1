@@ -5,6 +5,29 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ---
 
+## [Installer remediation + full corpus bundling] — 2026-06-20
+PRs #130, #136 (+ download hotfixes #131–#133, Supreme Court ingest encoding fix #135)
+
+### Fixed
+- **Installer hang on a clean machine** — `installer.iss` no longer runs `ollama create` (model registration) synchronously during install (`[Run]` Steps 3–4 removed). Install now completes in seconds; model registration moved to a resumable first-launch step in the WPF shell (PR #130).
+- **Installer build: model / corpus / WebView2 release-asset downloads 404'd** — `publish.ps1` now authenticates GitHub release-asset downloads (Bearer token via the API asset URL) and uses `curl.exe` with retries for the ~941 MB GGUF; the build now fails fast if a required asset is missing instead of silently producing an installer without the model (PRs #130, #131–#133).
+- **Supreme Court corpus garbled text** — CP1255→Latin-1 encoding recovery bug fixed in the LevMuchnik ingest (PR #135).
+
+### Added
+- **Resumable first-launch bootstrap** — `FactumIL.Desktop/BootstrapManager.cs` plus `RetryPolicy`, `OllamaLifecycle`, `SafeModeManager`, `FunctionalHealthChecks`, `StartupLogger`: atomic state file (`.tmp`→validate→rename), numeric step IDs with version reconciliation, named-mutex single-instance, early Safe Mode on first recoverable AI-infra failure, per-step telemetry. The API readiness wait is now non-fatal — it routes to `RecoveryWindow` instead of `Shutdown(1)` (PR #130).
+- **Supreme Court (LevMuchnik/SupremeCourtOfIsrael) corpus bundled end-to-end** — `publish.ps1` stages `supreme-court-il.jsonl.gz` + `supreme-court-metadata.json` from `v-corpus-latest`; `installer.iss` bundles them; `verdict-corpus-loader.ts` now loads BOTH guychuk and Supreme Court datasets into `VerdictCorpus` (separate idempotency/resume keys, namespaced docKeys). New `verdict-corpus-loader.test.ts` (PR #136).
+- **Non-technical Hebrew local-build guide** in `README.md` — step-by-step to build `Factum-IL-Setup.exe` and install it without GitHub Actions (winget toolchain, Hebrew.isl, GitHub token, `publish.ps1` + ISCC, first-launch bootstrap, troubleshooting) (PR #136).
+- `/api/health/functional` fast tier — embedding probe removed; the desktop shell probes the model directly (PR #130).
+
+### Changed
+- `scripts/register-ollama-model.ps1` is now a manual / recovery tool with a bounded `ollama create` timeout (no longer invoked by the installer) (PR #130).
+
+### Known limitations
+- **GitHub Actions (CI + `build-installer.yml`) is currently blocked by the account's billing / spending-limit** — jobs fail at startup with no runner assigned (`runner_id: 0`, ~2 s, no logs). This is an account state, not a code issue. Workarounds: build the installer locally on Windows per the README, restore billing / wait for the monthly free-minutes reset, or use a self-hosted runner.
+- The C# WPF shell compiles only on Windows (`net8.0-windows`); its first real compile happens during the local `publish.ps1` build.
+
+---
+
 ## [Audit UX Round + B2/C7 Completion] — 2026-06-13
 PRs #91, #94–#101
 
