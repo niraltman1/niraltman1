@@ -1,6 +1,6 @@
 export type { Chunk, DocType } from './chunker.js';
 export { chunkDocument } from './chunker.js';
-export { embed, cosineSimilarity } from './embedder.js';
+export { embed, mockEmbed, cosineSimilarity, EMBED_DIM } from './embedder.js';
 export { indexDocument } from './indexer.js';
 export type { IndexResult } from './indexer.js';
 export { hybridSearch } from './hybrid-search.js';

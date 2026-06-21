@@ -1,0 +1,219 @@
+name: Legal-Brain Ingestion (chunk + embed → master DB)
+
+# Consumer pipeline: downloads the pre-built corpus assets from the
+# `v-corpus-latest` release (produced by ingest-knesset-corpus.yml and
+# ingest-caselawil-corpus.yml — NOT touched here), runs the differential chunker,
+# generates chunk-level embeddings, and consolidates everything into a single
+# master SQLite/vector DB.
+#
+# "Divide & conquer": statutes shard across their 18 pre-split legal-domain batch
+# files; verdicts shard across court categories. Each matrix job is small enough
+# to stay well under the 6-hour runner limit; a final job merges the shard DBs.
+#
+# Embeddings default to the deterministic OFFLINE embedder (`--mock`) so the whole
+# pipeline runs on hosted CPU runners without Ollama. Flip `mock=false` only on a
+# self-hosted GPU runner to produce real nomic-embed-text vectors.
+
+on:
+  workflow_dispatch:
+    inputs:
+      mock:
+        description: 'Use deterministic offline (mock) embeddings — required on hosted CPU runners; set false only on a GPU runner with Ollama'
+        type: boolean
+        default: true
+      publish_release:
+        description: 'Publish the consolidated master DB to the v-brain-db-latest release'
+        type: boolean
+        default: false
+
+concurrency:
+  group: legal-brain-ingestion
+  cancel-in-progress: false
+
+permissions:
+  contents: write   # download release assets + (optionally) publish the master DB
+
+env:
+  CORPUS_TAG: v-corpus-latest
+  NODE_OPTIONS: --max-old-space-size=6144
+
+jobs:
+  # ── Statutes: one shard per pre-split legal-domain batch file ────────────────
+  statutes:
+    name: Statutes — ${{ matrix.domain }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 120
+    strategy:
+      fail-fast: false
+      matrix:
+        domain:
+          - administrative
+          - agriculture
+          - civil
+          - civil_procedure
+          - commercial
+          - communications
+          - criminal
+          - enforcement
+          - environment
+          - family
+          - health_welfare
+          - infrastructure
+          - labor
+          - other
+          - real_property
+          - security
+          - tax
+          - traffic
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+        with:
+          version: '9.4.0'
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: pnpm
+          cache-dependency-path: pnpm-lock.yaml
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Download statute batch for this domain
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          mkdir -p corpus
+          gh release download "$CORPUS_TAG" --repo "${{ github.repository }}" \
+            -p "batch-${{ matrix.domain }}.jsonl.gz" -D corpus --clobber
+
+      - name: Chunk + embed statutes
+        run: |
+          MOCK_FLAG=""; [ "${{ inputs.mock }}" = "true" ] && MOCK_FLAG="--mock"
+          pnpm tsx scripts/ingest-corpus-chunks.ts \
+            --input "corpus/batch-${{ matrix.domain }}.jsonl.gz" \
+            --type statute --domain "${{ matrix.domain }}" $MOCK_FLAG \
+            --db "shard-statutes-${{ matrix.domain }}.db"
+
+      - name: Upload shard DB
+        uses: actions/upload-artifact@v4
+        with:
+          name: shard-statutes-${{ matrix.domain }}
+          path: shard-statutes-${{ matrix.domain }}.db
+          retention-days: 5
+          if-no-files-found: error
+
+  # ── Verdicts: one shard per court category ──────────────────────────────────
+  verdicts:
+    name: Verdicts — ${{ matrix.court }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 350
+    strategy:
+      fail-fast: false
+      matrix:
+        court: [supreme, district, magistrate, family, labor, traffic, other]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+        with:
+          version: '9.4.0'
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: pnpm
+          cache-dependency-path: pnpm-lock.yaml
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Download verdict corpus
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          mkdir -p corpus
+          # All-courts dataset feeds every category; the Supreme-only file is added
+          # to the supreme shard for fuller coverage.
+          gh release download "$CORPUS_TAG" --repo "${{ github.repository }}" \
+            -p "case-law-il.jsonl.gz" -D corpus --clobber
+          if [ "${{ matrix.court }}" = "supreme" ]; then
+            gh release download "$CORPUS_TAG" --repo "${{ github.repository }}" \
+              -p "supreme-court-il.jsonl.gz" -D corpus --clobber || true
+          fi
+
+      - name: Chunk + embed verdicts (court=${{ matrix.court }})
+        run: |
+          MOCK_FLAG=""; [ "${{ inputs.mock }}" = "true" ] && MOCK_FLAG="--mock"
+          DB="shard-verdicts-${{ matrix.court }}.db"
+          pnpm tsx scripts/ingest-corpus-chunks.ts \
+            --input "corpus/case-law-il.jsonl.gz" \
+            --type verdict --court "${{ matrix.court }}" $MOCK_FLAG --db "$DB"
+          if [ "${{ matrix.court }}" = "supreme" ] && [ -f corpus/supreme-court-il.jsonl.gz ]; then
+            pnpm tsx scripts/ingest-corpus-chunks.ts \
+              --input "corpus/supreme-court-il.jsonl.gz" \
+              --type verdict --court supreme $MOCK_FLAG --db "$DB"
+          fi
+
+      - name: Upload shard DB
+        uses: actions/upload-artifact@v4
+        with:
+          name: shard-verdicts-${{ matrix.court }}
+          path: shard-verdicts-${{ matrix.court }}.db
+          retention-days: 5
+          if-no-files-found: error
+
+  # ── Consolidate: merge every shard DB into one master ───────────────────────
+  consolidate:
+    name: Consolidate → master DB
+    needs: [statutes, verdicts]
+    if: ${{ always() && (needs.statutes.result == 'success' || needs.verdicts.result == 'success') }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+        with:
+          version: '9.4.0'
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: pnpm
+          cache-dependency-path: pnpm-lock.yaml
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Download all shard DBs
+        uses: actions/download-artifact@v4
+        with:
+          pattern: shard-*
+          path: shards
+          merge-multiple: true
+
+      - name: Merge shards into master DB
+        run: |
+          shopt -s nullglob
+          SHARDS=(shards/*.db)
+          if [ ${#SHARDS[@]} -eq 0 ]; then
+            echo "::error::No shard DBs were produced — nothing to consolidate"
+            exit 1
+          fi
+          echo "::notice::Consolidating ${#SHARDS[@]} shard database(s)"
+          pnpm tsx scripts/merge-corpus-dbs.ts --out factum-il.db "${SHARDS[@]}"
+
+      - name: Upload master DB artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: factum-il-db
+          path: factum-il.db
+          retention-days: 14
+          if-no-files-found: error
+
+      - name: Publish master DB to v-brain-db-latest (optional)
+        if: ${{ inputs.publish_release == true }}
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release create v-brain-db-latest \
+            --repo "${{ github.repository }}" \
+            --title "Legal-Brain master DB (latest)" \
+            --notes "Auto-generated chunk-level legal-brain SQLite/vector DB (statutes + verdicts). Embeddings: ${{ inputs.mock == true && 'mock (offline)' || 'nomic-embed-text' }}." \
+            || true
+          gh release upload v-brain-db-latest \
+            --repo "${{ github.repository }}" --clobber factum-il.db

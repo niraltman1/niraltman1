@@ -1,5 +1,36 @@
 # Factum-IL — Task Tracker
 
+## 🗓️ Session handoff — Legal-Brain ingestion workflow (chunk + embed → master DB) (2026-06-21)
+
+**Branch:** `claude/factum-il-audit-upgrade-1q88cs`
+
+### הושלם הפעם — צינור CI/CD שמייצר את ה-DB הווקטורי של "המוח המשפטי"
+
+workflow מסוג "Divide & Conquer" שמוריד את נכסי הקורפוס מ-Release `v-corpus-latest`, מריץ את ה-chunker הדיפרנציאלי, מייצר embeddings, ומאחד ל-DB מאסטר.
+
+#### תיקון הנחת-יסוד (אומת מול ה-API החי)
+הנתונים **אינם בעץ הריפו** — הם נכסי Release ב-`v-corpus-latest`: 18 קבצי חקיקה `batch-{domain}.jsonl.gz` (כבר מפוצלים לפי דומיין) + `case-law-il.jsonl.gz` (44MB, כל הערכאות) + `supreme-court-il.jsonl.gz`. ה-workflow צורך אותם (לא מושך מ-HuggingFace). **Node 18 הוחלף ל-22** (חוסם: `engines.node>=22`, `better-sqlite3 ^11`).
+
+#### רכיבים
+- **Mock embedder** — `mockEmbed()` ב-`packages/retrieval/src/embedder.ts` (768-dim דטרמיניסטי, FNV-1a→xorshift, מנורמל). מאפשר ריצה ב-CI בלי Ollama. מיוצא + `EMBED_DIM`. test: `embedder.test.ts` (7).
+- **`scripts/ingest-corpus-chunks.ts`** — קורא JSONL(.gz) → ממפה ל-`LegalDocuments` (חקיקה: `ArtifactRecord.sections`→טקסט; פסיקה: שימוש-חוזר ב-`transform.ts` `rawGuychukRowToVerdict`/`rawRowToVerdict`) → `chunkDocument` (פרופיל statute/verdict) → `LegalDocumentChunks` + embeddings (`--mock`/Ollama). דגלים: `--input/--type/--domain/--court/--mock/--db/--limit`. סינון פסיקה לפי קטגוריית ערכאה; אידמפוטנטי לפי `external_id`. פותר את FK ל-`LegalSourceRegistry`.
+- **`scripts/merge-corpus-dbs.ts`** — מאחד shard DBs ל-מאסטר; **ממפה מחדש `document_id`** (כל shard מתחיל FDOC-00000001 — התנגשות!) ל-FDOC חדש במאסטר ומעדכן chunks; בונה-מחדש `vec_legal_chunks` מ-JSON (backfill מיגרציה 088). dedup לפי `external_id`.
+- **`.github/workflows/legal-brain-ingestion.yml`** — Node 22 + pnpm 9.4.0. job `statutes` (matrix 18 דומיינים), job `verdicts` (matrix 7 קטגוריות ערכאה), job `consolidate` (`needs`, מיזוג→artifact `factum-il-db`, פרסום אופציונלי ל-`v-brain-db-latest`). ה-workflows המייצרים (`ingest-knesset/caselawil`) נשארו ללא שינוי.
+
+#### אימות (מקומי — CI לא-פונקציונלי כאן)
+- E2E smoke: ingest חקיקה+פסיקה (mock) + merge → אומת 2 docs נפרדים, 3 chunks ממופים נכון, סינון ערכאה (supreme↔שלום) עובד, `searchLegalChunks` מחזיר.
+- `pnpm -r typecheck`=0. retrieval 68 ✅ (mockEmbed 7 חדשות). YAML תקין (3 jobs, 18+7 shards). אפס `any`, אין נתיבי POSIX קשיחים, אין "Legal-OS".
+
+#### ⚠️ מגבלות
+- **לא הופעל בפועל** — אי-אפשר לאמת/להריץ Actions מהסביבה הזו (404 תוך ~3ש'). יש להפעיל `workflow_dispatch` ב-CI אמיתי.
+- **mock embeddings אינם סמנטיים** — מאכלסים את הצנרת; לאחזור אמיתי יש להריץ עם `mock=false` על GPU runner (nomic-embed-text).
+
+### הצעד הבא
+- הפעלת ה-workflow ב-CI אמיתי; בדיקת artifact `factum-il-db`.
+- בהמשך: ריצה אמיתית עם Ollama/GPU; חיבור ה-DB המאוחד לזמן-ריצה.
+
+---
+
 ## 🗓️ Session handoff — Stage 2 RAG core: chunking + chunk-level case law + guided retrieval (2026-06-21)
 
 **Branch:** `claude/factum-il-audit-upgrade-1q88cs`
