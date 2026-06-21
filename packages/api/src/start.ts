@@ -60,6 +60,8 @@ import {
   VerdictCitationRepository,
   LegalDocumentEmbeddingRepository,
   LegalIngestionProgressRepository,
+  CorpusAuditRepository,
+  LegalCitationGraphRepository,
 } from '@factum-il/database';
 import { createApp } from './app.js';
 import type { Repos } from './db.js';
@@ -246,6 +248,8 @@ const repos: Repos = {
   verdictCitations:        new VerdictCitationRepository(db),
   legalDocumentEmbeddings: new LegalDocumentEmbeddingRepository(db),
   legalIngestionProgress:  new LegalIngestionProgressRepository(db),
+  corpusAudit:   new CorpusAuditRepository(db),
+  citationGraph: new LegalCitationGraphRepository(db),
 };
 
 // ── ConfigIntegrityValidator — seed missing FEATURE_* flags (PRE-4) ───────────

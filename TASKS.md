@@ -1,5 +1,39 @@
 # Factum-IL — Task Tracker
 
+## 🗓️ Session handoff — Legal-Brain audit + RAG/authority foundation (2026-06-21)
+
+**Branch:** `claude/factum-il-audit-upgrade-1q88cs`
+
+### הושלם הפעם — אודיט "המוח המשפטי" + יסודות שדרוג RAG
+
+נבנה אודיט קוד מלא ל"מוח המשפטי" (דו"ח מלא בתיאור ה-PR). מסקנת-על: הסכמה/הצינור/ה-RAG בנויים, אך **אין נתונים בפועל בריפו** — 1,077 חוקים ו-~30K פס"ד מוזנים בזמן ריצה ממקור חיצוני. יושמה פרוסה ראשונה, מקיפה ובדוקה:
+
+#### Phase 1 — אודיט כמותי (AI-1.3)
+- `packages/database/src/queries/corpus-audit.ts` — `CorpusAuditRepository.audit()` מחזיר ספירת חוקים/פס"ד, נפח טקסט גולמי (chars→tokens/MB), יחס embedded↔FTS, טבלאות וקטור חיות, ודגלי צווארי-בקבוק. עמיד לטבלאות חסרות (0 במקום שגיאה).
+- `packages/api/src/routes/corpus-audit.ts` — `GET /api/corpus-audit` (read-only).
+
+#### Phase 2 — צוואר-בקבוק עליון (AI-2.3)
+- `migrations/086_vec_legal_sections.sql` — טבלת sqlite-vec KNN לחוקים (SKIP_ON_ERROR + backfill). מסיר את ה-O(n) JS-cosine.
+- `LegalCorpusRepository`: סנכרון vec ב-`upsertEmbedding`, `knnSearchSections()`, `isVecAvailable()`.
+- `packages/retrieval/src/legal-section-search.ts` — נתיב KNN native תחילה, fallback ל-JS-cosine (נשמר).
+
+#### Requirement A — Legal Citation Graph (יסוד reranking לפי authority)
+- `migrations/087_legal_citation_graph.sql` — `LegalCitationGraph` (cites/followed/applied/approved/distinguished/criticized/overruled).
+- `packages/database/src/queries/legal-citation-graph.ts` — `LegalCitationGraphRepository` + `computeAuthorityScore()` דטרמיניסטי (followed מנצח isolated; overruled נדחק לתחתית). `getTreatmentBatch()` ל-reranking ללא N+1.
+
+#### בדיקות (כולן ירוקות)
+- database: 127→ +17 בדיקות חדשות (corpus-audit, citation-graph, legal-corpus fallback). retrieval: 41 ✅. api: app(33)+corpus-audit route(2)+api-contract(5) ✅.
+- `pnpm -r typecheck` = 0 שגיאות. אפס `any`, אפס נתיבי POSIX, אין "Legal-OS".
+
+### הצעד הבא (לפי התוכנית המאושרת + תוספות A/B/C)
+1. **AI-1.1/1.2 (חוסם):** הזרקת נתונים בפועל (legal-corpus-ingest + factum_il_mvp.jsonl) — דורש Ollama+מקור חיצוני, לא זמין בסביבת ה-sandbox.
+2. **AI-2.4 + Requirement A retrieval:** `packages/retrieval/src/reranker.ts` שצורך את `getTreatmentBatch()` + authorityScore לדירוג-מחדש אחרי RRF.
+3. **Requirement A UI:** אינדיקטורי treatment ("Followed by 42", "Overruled") ב-SupremeCourtSearchPage/PrecedentSuggestionsPanel.
+4. **AI-2.1/2.2:** chunking דיפרנציאלי + vec_legal_chunks. **AI-2.5/2.6:** prompt-keys לרצף נורמטיבי.
+5. **Phase 3 UI** (hover/autocomplete/facets) ו-**Phase 4 + Requirement B** (`packages/argument-engine`, ייצוא DOCX/PDF, footnotes Nevo 2021).
+
+---
+
 ## 🗓️ Session handoff — guychuk/case-law-israel corpus wired (2026-06-19)
 
 **Branch:** `claude/factum-phases-4-7-yym4i8` — PR #126 ✅ MERGED to main

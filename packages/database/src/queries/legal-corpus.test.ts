@@ -100,6 +100,15 @@ describe('LegalCorpusRepository', () => {
     expect(scoped.every((h) => h.sourceKey === 'law_b')).toBe(true);
   });
 
+  it('degrades gracefully without vec_legal_sections (JS-cosine fallback path)', () => {
+    // The inline SCHEMA omits vec_legal_sections, so the native KNN table is absent.
+    expect(repo.isVecAvailable()).toBe(false);
+    const { a } = seedTwoLaws();
+    const sec = repo.getSections(a)[0]!;
+    repo.upsertEmbedding(sec.id, a, [0.1, 0.2, 0.3]); // must not throw without vec table
+    expect(repo.knnSearchSections([0.1, 0.2, 0.3], 5)).toEqual([]);
+  });
+
   it('stores and counts per-section embeddings, cascading on section replace', () => {
     const { a } = seedTwoLaws();
     const secs = repo.getSections(a);

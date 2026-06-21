@@ -42,6 +42,8 @@ import type {
   VerdictCitationRepository,
   LegalDocumentEmbeddingRepository,
   LegalIngestionProgressRepository,
+  CorpusAuditRepository,
+  LegalCitationGraphRepository,
 } from '@factum-il/database';
 import type { ConfigStore } from './utils/config-store.js';
 
@@ -91,4 +93,7 @@ export interface Repos {
   verdictCitations:       VerdictCitationRepository;
   legalDocumentEmbeddings: LegalDocumentEmbeddingRepository;
   legalIngestionProgress: LegalIngestionProgressRepository;
+  // Legal-brain audit + authority graph (audit AI-1.3 / Requirement A)
+  corpusAudit:   CorpusAuditRepository;
+  citationGraph: LegalCitationGraphRepository;
 }

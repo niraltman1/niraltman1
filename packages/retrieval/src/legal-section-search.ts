@@ -84,11 +84,50 @@ export async function searchLegalSections(
     // FTS table may not exist yet (corpus not loaded)
   }
 
-  // ─── Step 2: Vector similarity (JS cosine over JSON embeddings) ────────────
+  // ─── Step 2: Vector similarity ─────────────────────────────────────────────
+  // Native sqlite-vec KNN path first (migration 086, vec_legal_sections); falls
+  // back to the JS-cosine loop when the extension / table is unavailable. This
+  // removes the O(n) full-scan bottleneck on the legislation KB.
   const queryEmbedding = await embed(query);
   const vectorResults: Array<{ row: SectionRow; score: number }> = [];
 
+  let usedNativePath = false;
   if (queryEmbedding) {
+    try {
+      const embeddingJson = JSON.stringify(queryEmbedding);
+      const knnSql = bySource
+        ? `SELECT ls.id, ls.source_id, ls.section_label, ls.heading_he, ls.verbatim_text_he,
+                  src.source_key, src.title_he, v.distance
+             FROM (SELECT rowid, distance FROM vec_legal_sections
+                    WHERE embedding MATCH vec_f32(?) ORDER BY distance LIMIT ?) v
+             JOIN LegalSections ls  ON ls.id  = v.rowid
+             JOIN LegalSources  src ON src.id = ls.source_id
+            WHERE src.source_key = ?`
+        : `SELECT ls.id, ls.source_id, ls.section_label, ls.heading_he, ls.verbatim_text_he,
+                  src.source_key, src.title_he, v.distance
+             FROM (SELECT rowid, distance FROM vec_legal_sections
+                    WHERE embedding MATCH vec_f32(?) ORDER BY distance LIMIT ?) v
+             JOIN LegalSections ls  ON ls.id  = v.rowid
+             JOIN LegalSources  src ON src.id = ls.source_id`;
+      const knnParams: unknown[] = bySource
+        ? [embeddingJson, limit * 5, opts!.sourceKey]
+        : [embeddingJson, limit * 5];
+      const rows = db.prepare(knnSql).all(...knnParams) as Array<SectionRow & { distance: number }>;
+      for (const r of rows) {
+        const score = 1.0 - r.distance; // cosine distance → similarity
+        if (score > 0.3) vectorResults.push({ row: r, score });
+      }
+      vectorResults.sort((a, b) => b.score - a.score);
+      // Only treat the native path as conclusive when it actually produced hits.
+      // A missing vec_legal_sections table throws (→ JS fallback); an empty one
+      // returns no rows, in which case we still try the JS-cosine path.
+      usedNativePath = vectorResults.length > 0;
+    } catch {
+      // vec_legal_sections / sqlite-vec unavailable — fall through to JS cosine.
+    }
+  }
+
+  if (queryEmbedding && !usedNativePath) {
     try {
       const sql = bySource
         ? `SELECT lse.section_id, lse.embedding,
