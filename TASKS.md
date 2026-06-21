@@ -25,12 +25,20 @@
 - database: 127→ +17 בדיקות חדשות (corpus-audit, citation-graph, legal-corpus fallback). retrieval: 41 ✅. api: app(33)+corpus-audit route(2)+api-contract(5) ✅.
 - `pnpm -r typecheck` = 0 שגיאות. אפס `any`, אפס נתיבי POSIX, אין "Legal-OS".
 
-### הצעד הבא (לפי התוכנית המאושרת + תוספות A/B/C)
-1. **AI-1.1/1.2 (חוסם):** הזרקת נתונים בפועל (legal-corpus-ingest + factum_il_mvp.jsonl) — דורש Ollama+מקור חיצוני, לא זמין בסביבת ה-sandbox.
-2. **AI-2.4 + Requirement A retrieval:** `packages/retrieval/src/reranker.ts` שצורך את `getTreatmentBatch()` + authorityScore לדירוג-מחדש אחרי RRF.
-3. **Requirement A UI:** אינדיקטורי treatment ("Followed by 42", "Overruled") ב-SupremeCourtSearchPage/PrecedentSuggestionsPanel.
-4. **AI-2.1/2.2:** chunking דיפרנציאלי + vec_legal_chunks. **AI-2.5/2.6:** prompt-keys לרצף נורמטיבי.
-5. **Phase 3 UI** (hover/autocomplete/facets) ו-**Phase 4 + Requirement B** (`packages/argument-engine`, ייצוא DOCX/PDF, footnotes Nevo 2021).
+### תוספת באותו סשן — חוזה אודיט מדויק + Re-Ranker
+- **Task 1.3 (חוזה מדויק):** `CorpusAuditRepository.legalAuditContract()` + `GET /api/legal/audit` בפורמט השטוח המבוקש (`laws/law_sections/verdicts/chunks/embedded_documents/embedded_chunks/char_count/citation_edges`). CLI: `pnpm legal-audit` (`scripts/legal-audit.ts`).
+- **Task 2.4 (Re-Ranker):** `packages/retrieval/src/reranker.ts` — `rerank()` דטרמיניסטי (base + authority + courtBoost עליון>מחוזי>שלום + recency + statutory exact-match + judge + procedure) ו-`rerankWithCrossEncoder()` עם scorer מוזרק (Ollama) ו-fallback חינני. צורך את authorityScore מגרף הציטוטים (Task 3.4).
+- בדיקות: retrieval 50 (8 reranker), legal-audit route, corpus-audit. typecheck נקי בכל החבילות.
+
+### הצעד הבא (לפי הספֵק הסופי, Phases 1-6)
+1. **חוסם — Phase 1 data:** הזרקת נתונים בפועל (legislation + factum_il_mvp.jsonl) — דורש Ollama+מקור חיצוני, לא זמין ב-sandbox.
+2. **Phase 2 retrieval:** חיווט ה-reranker ל-`hybridSearch`/`searchLegalSections` (orchestrator guided-retrieval 2.6); chunking דיפרנציאלי 2.1; `vec_legal_chunks` 2.2; prompt-keys נורמטיביים 2.5.
+3. **Phase 3 graph:** `packages/legal-graph` — extractor שממלא את `LegalCitationGraph` אוטומטית; `graph_search()`.
+4. **Phase 4:** `packages/argument-engine` (claim/laws/precedents/counterarguments + traceability source_id/chunk_id/citation).
+5. **Phase 5 drafting:** ייצוא DOCX/PDF (RTL, דויד/פרנק-ריהל, headings ממוספרים, footnotes Nevo 2021), `drafting_register` prompt, אנטי-הזיה ב-ai-guardrails.
+6. **Phase 6 UX:** LegalRefPopover, semantic autocomplete, faceted search, citation-graph viz.
+
+> הערה: CI במראָה המקומית (remote `127.0.0.1`) אינו פונקציונלי — כל ה-jobs נכשלים תוך ~3ש' ולוגים מחזירים 404. האימות האמיתי הוא הריצות המקומיות (typecheck=0, כל הסוויטות ירוקות).
 
 ---
 

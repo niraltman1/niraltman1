@@ -21,6 +21,21 @@ const BYTES_PER_CHAR  = 2;
 export const LAWS_TARGET     = 1077;
 export const VERDICTS_TARGET = 30000;
 
+/**
+ * Flat, machine-readable audit contract (Task 1.3).
+ * Shape is fixed for the `GET /api/legal/audit` endpoint and the CLI.
+ */
+export interface LegalAuditContract {
+  readonly laws:               number;
+  readonly law_sections:       number;
+  readonly verdicts:           number;
+  readonly chunks:             number;
+  readonly embedded_documents: number;
+  readonly embedded_chunks:    number;
+  readonly char_count:         number;
+  readonly citation_edges:     number;
+}
+
 export interface CorpusAuditReport {
   readonly generatedAt: string;
   readonly laws: {
@@ -77,6 +92,43 @@ export class CorpusAuditRepository {
     } catch {
       return { available: false, rows: 0 };
     }
+  }
+
+  /**
+   * Flat audit contract for the public endpoint / CLI. Sums across the parallel
+   * verdict + chunk corpora (in practice only one of each is populated, so the
+   * sum equals the live corpus). Every metric is defensive against missing tables.
+   */
+  legalAuditContract(): LegalAuditContract {
+    const verdicts =
+      this.scalar("SELECT COUNT(*) AS v FROM VerdictCorpus") +
+      this.scalar("SELECT COUNT(*) AS v FROM SupremeCourtVerdicts") +
+      this.scalar("SELECT COUNT(*) AS v FROM LegalDocuments WHERE source_type = 'CASE_LAW'");
+
+    const chunks =
+      this.scalar("SELECT COUNT(*) AS v FROM LegalDocumentChunks") +
+      this.scalar("SELECT COUNT(*) AS v FROM PrecedentChunks");
+
+    const embeddedDocuments =
+      this.scalar("SELECT COUNT(*) AS v FROM LegalDocumentEmbeddings") +
+      this.scalar("SELECT COUNT(*) AS v FROM VerdictCorpusEmbeddings") +
+      this.scalar("SELECT COUNT(*) AS v FROM SupremeCourtVerdicts WHERE embedding_done = 1");
+
+    const charCount =
+      this.scalar("SELECT COALESCE(SUM(char_count),0) AS v FROM LegalSections") +
+      this.scalar("SELECT COALESCE(SUM(char_count),0) AS v FROM VerdictCorpus") +
+      this.scalar("SELECT COALESCE(SUM(LENGTH(text)),0) AS v FROM LegalDocuments");
+
+    return {
+      laws:               this.scalar("SELECT COUNT(*) AS v FROM LegalSources WHERE is_active = 1"),
+      law_sections:       this.scalar("SELECT COUNT(*) AS v FROM LegalSections"),
+      verdicts,
+      chunks,
+      embedded_documents: embeddedDocuments,
+      embedded_chunks:    this.scalar("SELECT COUNT(*) AS v FROM LegalDocumentChunks WHERE embedding IS NOT NULL"),
+      char_count:         charCount,
+      citation_edges:     this.scalar("SELECT COUNT(*) AS v FROM LegalCitationGraph"),
+    };
   }
 
   audit(): CorpusAuditReport {

@@ -78,7 +78,7 @@ export type {
 export { PrecedentLibraryRepository } from './queries/precedent-library.js';
 export type { PrecedentLibraryRow, PrecedentLibraryCreateInput } from './queries/precedent-library.js';
 export { CorpusAuditRepository, LAWS_TARGET, VERDICTS_TARGET } from './queries/corpus-audit.js';
-export type { CorpusAuditReport } from './queries/corpus-audit.js';
+export type { CorpusAuditReport, LegalAuditContract } from './queries/corpus-audit.js';
 export { LegalCitationGraphRepository, computeAuthorityScore } from './queries/legal-citation-graph.js';
 export type { LegalTreatmentType, CitationEdgeInput, AuthorityTreatment } from './queries/legal-citation-graph.js';
 export { VerdictCorpusRepository } from './queries/verdict-corpus.js';

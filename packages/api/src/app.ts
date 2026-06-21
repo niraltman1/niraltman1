@@ -61,6 +61,7 @@ import { annotationsRouter } from './routes/annotations.js';
 import { rulesRouter } from './routes/rules.js';
 import { legalCorpusRouter } from './routes/legal-corpus.js';
 import { corpusAuditRouter } from './routes/corpus-audit.js';
+import { legalAuditRouter } from './routes/legal-audit.js';
 import { verdictCorpusRouter } from './routes/verdict-corpus.js';
 import { draftsRouter }      from './routes/drafts.js';
 import { legalBrainRouter }  from './routes/legal-brain.js';
@@ -196,6 +197,7 @@ export function createApp(
   app.use('/api/rules',         rulesRouter(repos));
   app.use('/api/legal-corpus',  legalCorpusRouter(repos));
   app.use('/api/corpus-audit',  corpusAuditRouter(repos));
+  app.use('/api/legal',         legalAuditRouter(repos));
   app.use('/api/drafts',        draftsRouter(repos));
   app.use('/api/legal-brain',   legalBrainRouter(repos));
   app.use('/api/plugins',       pluginsRouter());
