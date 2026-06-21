@@ -61,4 +61,62 @@ describe('chunkDocument', () => {
     expect(combined.length).toBeGreaterThan(0);
     expect(chunks.length).toBeGreaterThan(1);
   });
+
+  it('default docType matches explicit "document" profile (back-compat)', () => {
+    const text = 'משפט לדוגמה. '.repeat(400);
+    const def = chunkDocument(text, 7);
+    const doc = chunkDocument(text, 7, 'document');
+    expect(doc).toEqual(def);
+  });
+});
+
+describe('chunkDocument — statute profile (atomic sections)', () => {
+  it('emits one chunk per section and never splits a section mid-text', () => {
+    const text =
+      'סעיף 1 ' + 'א'.repeat(300) + '\n' +
+      'סעיף 2 ' + 'ב'.repeat(300) + '\n' +
+      'סעיף 3 ' + 'ג'.repeat(300);
+    const chunks = chunkDocument(text, 1, 'statute');
+    expect(chunks).toHaveLength(3);
+    // Each chunk holds exactly one section's filler character — no bleed across sections.
+    expect(chunks[0]!.text).toContain('א');
+    expect(chunks[0]!.text).not.toContain('ב');
+    expect(chunks[1]!.text).toContain('ב');
+    expect(chunks[1]!.text).not.toContain('ג');
+    expect(chunks[2]!.text).toContain('ג');
+  });
+
+  it('size-caps a pathologically long single section', () => {
+    const text = 'סעיף 1 ' + 'א'.repeat(4000);
+    const chunks = chunkDocument(text, 1, 'statute');
+    expect(chunks.length).toBeGreaterThan(1);
+    for (const c of chunks) expect(c.text.length).toBeLessThanOrEqual(1400);
+  });
+});
+
+describe('chunkDocument — verdict profile (larger structural windows)', () => {
+  it('produces larger chunks than the document profile for the same long text', () => {
+    const text = 'מילה '.repeat(2000); // 10,000 chars
+    const asDoc     = chunkDocument(text, 1, 'document');
+    const asVerdict = chunkDocument(text, 1, 'verdict');
+    // Fewer, larger chunks under the verdict profile.
+    expect(asVerdict.length).toBeLessThan(asDoc.length);
+    const maxVerdict = Math.max(...asVerdict.map(c => c.text.length));
+    expect(maxVerdict).toBeGreaterThan(1400);
+    expect(maxVerdict).toBeLessThanOrEqual(2800);
+  });
+
+  it('prefers splitting on verdict structural headings', () => {
+    const text =
+      'רקע\n' + 'א'.repeat(2400) +
+      '\nדיון והכרעה\n' + 'ב'.repeat(2400) +
+      '\nסוף דבר\n' + 'ג'.repeat(2400);
+    const chunks = chunkDocument(text, 1, 'verdict');
+    expect(chunks.length).toBeGreaterThanOrEqual(2);
+    // At least one chunk should start at a structural heading.
+    const startsAtHeading = chunks.some(c =>
+      /^(?:דיון|סוף דבר|הכרעה|רקע)/.test(c.text.trim()),
+    );
+    expect(startsAtHeading).toBe(true);
+  });
 });

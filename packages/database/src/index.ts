@@ -130,5 +130,7 @@ export type {
 } from './queries/verdict-citations.js';
 export { LegalDocumentEmbeddingRepository } from './queries/legal-document-embeddings.js';
 export type { LegalDocumentEmbeddingInput, LegalDocumentEmbeddingRow } from './queries/legal-document-embeddings.js';
+export { LegalDocumentChunkEmbeddingRepository } from './queries/legal-document-chunk-embeddings.js';
+export type { LegalChunkEmbeddingInput, LegalChunkKnnHit } from './queries/legal-document-chunk-embeddings.js';
 export { LegalIngestionProgressRepository } from './queries/legal-ingestion-progress.js';
 export type { IngestionProgressRow, IngestionStatus } from './queries/legal-ingestion-progress.js';

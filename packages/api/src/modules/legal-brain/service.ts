@@ -31,7 +31,7 @@ export async function* ask(
     content:   input.query,
   });
 
-  // 2. Parallel retrieval — all sources at once, ~100ms total
+  // 2. Guided retrieval — normative framework first, then reranked case law
   let sources: RetrievalResult;
   try {
     sources = await retrieveAllSources(input.query, db, legalCorpus,

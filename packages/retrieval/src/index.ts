@@ -1,4 +1,4 @@
-export type { Chunk } from './chunker.js';
+export type { Chunk, DocType } from './chunker.js';
 export { chunkDocument } from './chunker.js';
 export { embed, cosineSimilarity } from './embedder.js';
 export { indexDocument } from './indexer.js';
@@ -10,6 +10,8 @@ export { createCaseScopedRetriever } from './case-scoped-retriever.js';
 export type { CaseScopedRetriever } from './case-scoped-retriever.js';
 export { searchLegalSections } from './legal-section-search.js';
 export type { LegalSectionResult } from './legal-section-search.js';
+export { searchLegalChunks } from './legal-chunk-search.js';
+export type { LegalChunkResult } from './legal-chunk-search.js';
 export { rerank, rerankWithCrossEncoder } from './reranker.js';
 export type {
   RerankCandidate,

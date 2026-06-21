@@ -1,5 +1,39 @@
 # Factum-IL — Task Tracker
 
+## 🗓️ Session handoff — Stage 2 RAG core: chunking + chunk-level case law + guided retrieval (2026-06-21)
+
+**Branch:** `claude/factum-il-audit-upgrade-1q88cs`
+
+### הושלם הפעם — סגירת שלוש פערי ה-RAG הנותרים (AI-2.1 / AI-2.2 / AI-2.6)
+
+המשך ישיר לסשן הקודם (reranker + vec_legal_sections כבר נבנו). בסלייס זה חוברו שלושת הרכיבים שנותרו בליבת ה-RAG:
+
+#### AI-2.1 — Chunking דיפרנציאלי  `packages/retrieval/src/chunker.ts`
+- פרמטר שלישי `docType?: 'document' | 'statute' | 'verdict'` (ברירת מחדל `'document'` = התנהגות מקורית מדויקת, תאימות-לאחור מלאה).
+- פרופילים: `statute` = חיתוך אטומי לפי גבול סעיף (סעיף שלם = chunk, בלי חיתוך באמצע; size-cap לסעיף ענק); `verdict` = ~2,800 תווים בגבולות מבניים (רקע/טענות/דיון/הכרעה/סוף דבר); `document` = 1400/100.
+- **תוקן באג סמוי קודם:** לולאת overlap ייצרה עשרות chunk-ים זעירים חופפים בזנב המסמך (`splitAt - overlap` נחת לפני הסוף) — נוסף `break` כשה-chunk האחרון מגיע לסוף. שיפור איכות הטמעה בכל הפרופילים.
+
+#### AI-2.2 — Embedding ברמת chunk לפסיקה (סוגר A.4 #3)
+- `migrations/088_vec_legal_chunks.sql` — טבלת sqlite-vec KNN ברמת chunk (SKIP_ON_ERROR + backfill).
+- `LegalDocumentChunkEmbeddingRepository` (`packages/database/src/queries/legal-document-chunk-embeddings.ts`) — `upsert`/`knnSearch`/`allEmbeddings`/`count`/`isVecAvailable`, keyed על `LegalDocumentChunks.id`, כותב גם JSON וגם vec0.
+- `packages/retrieval/src/legal-chunk-search.ts` — `searchLegalChunks()` (FTS5 + native KNN + JS-cosine fallback + RRF K=60, סינון לפי `documentIds`).
+- `scripts/build-verdict-chunk-embeddings.ts` — חיתוך פסיקה בפרופיל `verdict` → LegalDocumentChunks → embed לכל chunk (החלפת ה-document-level-truncated-2000 הגס).
+
+#### AI-2.6 — אחזור מודרך + חיווט ה-reranker  `packages/api/src/modules/legal-brain/retriever.ts`
+- רצף "לחשוב כמו עו"ד": חקיקה (מסגרת נורמטיבית) **תחילה** → שמות החוקים הופכים ל-`statutoryRefs` שמטים את דירוג הפסיקה.
+- פסיקה עוברת לנתיב chunk-level (`searchLegalChunks`), over-fetch ואז `rerank()` לפי authority (גרף ציטוטים, `getTreatmentBatch`) + ערכאה + recency. `LegalBrainSource.documentId` הורחב ל-`number | string`.
+
+#### בדיקות (כולן ירוקות)
+- retrieval: 61 ✅ (chunker 13, legal-chunk-search 6 חדשות). database: 133 ✅ (chunk-embedding repo 5 חדשות). `pnpm -r typecheck` = 0. api `tsc --noEmit` = 0. אפס `any`, אין נתיבי POSIX, אין "Legal-OS".
+- smoke: `build-verdict-chunk-embeddings --dry-run` על db זמני — מיגרציות חלות, fallback חינני כש-sqlite-vec חסר.
+
+### הצעד הבא
+- הרצת `build-verdict-chunk-embeddings.ts` בפועל אחרי הזרקת קורפוס (דורש Ollama+נתונים).
+- הרחבת `packages/evals` עם fixtures regression להשוואת precision לפני/אחרי chunk-level + rerank.
+- המשך לפי הספֵק: AI-2.5 (prompt-keys נורמטיביים), Stage 3 (UI), Stage 4 (drafting).
+
+---
+
 ## 🗓️ Session handoff — Legal-Brain audit + RAG/authority foundation (2026-06-21)
 
 **Branch:** `claude/factum-il-audit-upgrade-1q88cs`
