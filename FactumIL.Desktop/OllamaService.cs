@@ -11,7 +11,7 @@ namespace FactumIL.Desktop;
 /// All methods fail gracefully — if Ollama is not installed or unavailable, the flag
 /// <see cref="IsAvailable"/> is set to false and the app continues without AI features.
 /// </summary>
-internal sealed class OllamaService
+public sealed class OllamaService
 {
     public const string RequiredModel = "BrainboxAI/law-il-E2B:Q4_K_M";
 
