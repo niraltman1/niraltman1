@@ -6,7 +6,7 @@ import type { Repos } from './db.js';
 import { requestLogger } from './middleware/request-logger.js';
 import { errorHandler } from './middleware/error.js';
 import { auditMiddleware } from './middleware/audit-logger.js';
-import { authRouter } from './middleware/auth.js';
+import { authRouter, requireAuth } from './middleware/auth.js';
 import { correlationId } from './middleware/correlation-id.js';
 import { observabilityMiddleware } from '@factum-il/observability';
 import { healthRouter }         from './routes/health.js';
@@ -138,6 +138,22 @@ export function createApp(
   app.use(observabilityMiddleware());
   app.use(requestLogger);
   app.use(auditMiddleware(repos));
+
+  // Global auth guard — every /api/* request requires a valid Bearer session,
+  // except the three public paths below (mounted before any route so it runs first):
+  //   /api/health — WPF bootstrap polls this before a session exists
+  //   /api/auth   — login / logout / /me (self-managed auth)
+  //   /api/setup  — first-run setup wizard (creates the initial admin user)
+  app.use((req, res, next) => {
+    const p = req.path;
+    if (
+      p === '/api/health' || p.startsWith('/api/health/') ||
+      p === '/api/auth'   || p.startsWith('/api/auth/')   ||
+      p === '/api/setup'  || p.startsWith('/api/setup/')
+    ) return next();
+    if (p.startsWith('/api/')) return requireAuth(repos)(req, res, next);
+    return next();
+  });
 
   app.use('/api/health',          healthRouter(repos, dbPath ?? '', svc));
   app.use('/api/activity',        activityRouter(repos));

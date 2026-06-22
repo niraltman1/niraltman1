@@ -11,11 +11,26 @@ export class ApiClientError extends Error {
   }
 }
 
+const TOKEN_KEY = 'factum_il_token';
+export const getStoredToken  = (): string | null => localStorage.getItem(TOKEN_KEY);
+export const storeToken      = (t: string): void  => { localStorage.setItem(TOKEN_KEY, t); };
+export const clearStoredToken = (): void           => { localStorage.removeItem(TOKEN_KEY); };
+
 async function request<T>(path: string, init?: RequestInit): Promise<T> {
+  const token = getStoredToken();
   const res = await fetch(path, {
     ...init,
-    headers: { 'Content-Type': 'application/json', ...init?.headers },
+    headers: {
+      'Content-Type': 'application/json',
+      ...(token ? { Authorization: `Bearer ${token}` } : {}),
+      ...init?.headers,
+    },
   });
+  if (res.status === 401) {
+    clearStoredToken();
+    window.location.replace('/login');
+    throw new ApiClientError('UNAUTHORIZED', 'Session expired');
+  }
   const body: ApiResponse<T> = await res.json();
   if (!body.success) {
     throw new ApiClientError(body.error.code, body.error.message);
@@ -36,6 +51,14 @@ function patch<T>(path: string, body?: unknown): Promise<T> {
 }
 
 export const api = {
+  auth: {
+    login: (username: string, password: string) =>
+      post<{ token: string; role: string; username: string }>('/api/auth/login', { username, password }),
+    logout: () =>
+      post<{ message: string }>('/api/auth/logout'),
+    me: () =>
+      get<{ id: number; username: string; role: string; last_login: string | null }>('/api/auth/me'),
+  },
   clients: {
     list: (page = 1, pageSize = 50) =>
       get(`/api/clients?page=${page}&pageSize=${pageSize}`),

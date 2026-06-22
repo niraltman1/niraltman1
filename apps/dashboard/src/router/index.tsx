@@ -3,6 +3,15 @@ import { lazy, Suspense, type ComponentType, type LazyExoticComponent } from 're
 import type { Router as RemixRouter } from '@remix-run/router';
 import { AppShell }    from '@/components/layout/AppShell.js';
 import { NotFoundPage } from '@/components/common/NotFoundPage.js';
+import { getStoredToken } from '@/api/client.js';
+
+// ── Auth guard ───────────────────────────────────────────────────────────────
+// Redirects to /login when no session token is present in localStorage.
+// Uses Navigate (declarative) so it cooperates with React Router's render cycle.
+function RequireAuth({ children }: { children: React.ReactNode }) {
+  if (!getStoredToken()) return <Navigate to="/login" replace />;
+  return <>{children}</>;
+}
 
 // ── Lazy-load helper ─────────────────────────────────────────────────────────
 // React.lazy requires a module with a `default` export; our pages use named
@@ -17,6 +26,7 @@ function lz<T extends Record<string, ComponentType>>(
 
 // ── Page components (lazy-loaded per route) ──────────────────────────────────
 const SetupWizard    = lz(() => import('@/features/setup/SetupWizard.js'),            'SetupWizard');
+const LoginPage      = lz(() => import('@/features/auth/LoginPage.js'),               'LoginPage');
 const DashboardPage  = lz(() => import('@/features/dashboard/DashboardPage.js'),      'DashboardPage');
 const DocumentsPage  = lz(() => import('@/features/documents/DocumentsPage.js'),      'DocumentsPage');
 const DocumentDetail = lz(() => import('@/features/documents/DocumentDetail.js'),     'DocumentDetail');
@@ -77,7 +87,7 @@ const GraphExplorerPage  = lz(() => import('@/features/graph/GraphExplorerPage.j
 // ── Router ───────────────────────────────────────────────────────────────────
 
 export const router: RemixRouter = createBrowserRouter([
-  // Setup wizard lives outside AppShell — wrapped in its own Suspense
+  // Setup wizard and login live outside AppShell — each wrapped in its own Suspense
   {
     path: 'setup',
     element: (
@@ -87,8 +97,16 @@ export const router: RemixRouter = createBrowserRouter([
     ),
   },
   {
+    path: 'login',
+    element: (
+      <Suspense fallback={null}>
+        <LoginPage />
+      </Suspense>
+    ),
+  },
+  {
     path:    '/',
-    element: <AppShell />,
+    element: <RequireAuth><AppShell /></RequireAuth>,
     children: [
       { index: true,               element: <Navigate to="/workspace" replace /> },
       { path: 'workspace',         element: <DashboardHomePage /> },
