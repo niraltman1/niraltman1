@@ -1,0 +1,198 @@
+name: שחרור דאטא סט — מוח משפטי AI
+
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: 'גרסה לשחרור (לדוגמה: v1.0.0)'
+        required: true
+        default: 'v1.0.0'
+
+jobs:
+  release-dataset:
+    name: אריזה ושחרור דאטא סט מוח משפטי
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+
+    steps:
+      - name: שכפול קוד
+        uses: actions/checkout@v4
+
+      - name: הכנת תיקיות עבודה
+        run: |
+          mkdir -p dist/dataset
+          mkdir -p /tmp/api-legal-brain/routes
+          mkdir -p /tmp/api-legal-brain/modules-legal-brain
+          mkdir -p /tmp/api-legal-brain/modules-verdict-corpus
+          mkdir -p /tmp/api-legal-brain/utils
+          mkdir -p /tmp/api-legal-brain/services
+          mkdir -p /tmp/db-queries
+          mkdir -p /tmp/db-migrations
+          mkdir -p /tmp/db-schema
+
+      # ─────────────────────────────────────────────────────────────
+      # חבילות ליבה של המוח המשפטי
+      # ─────────────────────────────────────────────────────────────
+
+      - name: '📦 1 — מנוע AI ישראלי (OllamaClient + שרשרת חשיבה 5 שלבים)'
+        run: zip -r "dist/dataset/מנוע-AI-ישראלי.zip" packages/ai/
+
+      - name: '📦 2 — מסנני בטיחות AI (זיהוי PII + מניעת הזיות)'
+        run: zip -r "dist/dataset/מסנני-בטיחות-AI.zip" packages/ai-guardrails/
+
+      - name: '📦 3 — ניתוב מודלים (בחירת מודל + בדיקת תקינות)'
+        run: zip -r "dist/dataset/ניתוב-מודלים.zip" packages/model-router/
+
+      - name: '📦 4 — אונטולוגיה משפטית ישראלית (היררכיית בתי משפט + טקסונומיה)'
+        run: zip -r "dist/dataset/אונטולוגיה-משפטית-ישראלית.zip" packages/legal-ontology/
+
+      - name: '📦 5 — מנוע אחזור וחיפוש וקטורי (KNN + חיפוש היברידי FTS5+וקטור)'
+        run: zip -r "dist/dataset/מנוע-אחזור-וחיפוש-וקטורי.zip" packages/retrieval/
+
+      - name: '📦 6 — מנוע אסמכתאות ישראלי (פרסר ציטוטים Nevo 2021)'
+        run: zip -r "dist/dataset/מנוע-אסמכתאות-ישראלי.zip" packages/citation-engine/
+
+      - name: '📦 7 — מערכת הערכת AI (regression fixtures + harness הערכה)'
+        run: zip -r "dist/dataset/מערכת-הערכת-AI.zip" packages/evals/
+
+      - name: '📦 8 — ליבת סוכני AI (ממשק סוכן + רישום כלים + RBAC)'
+        run: zip -r "dist/dataset/ליבת-סוכני-AI.zip" packages/agent-core/
+
+      - name: '📦 9 — מתאם סוכני AI (תזמור רב-סוכני + רצף שלבים)'
+        run: zip -r "dist/dataset/מתאם-סוכני-AI.zip" packages/orchestrator/
+
+      - name: '📦 10 — זיכרון שיחה לתיק (זיכרון שיחה לפי תיק, SQLite)'
+        run: zip -r "dist/dataset/זיכרון-שיחה-לתיק.zip" packages/memory/
+
+      - name: '📦 11 — עיבוד קורפוס משפטי וכנסת (כנסת OData + WikiSource)'
+        run: zip -r "dist/dataset/עיבוד-קורפוס-משפטי-וכנסת.zip" packages/legal-corpus-ingest/
+
+      - name: '📦 12 — ניתוח סיכוני ליטיגציה (ניקוד סיכוני מועדים + analytics)'
+        run: zip -r "dist/dataset/ניתוח-סיכוני-ליטיגציה.zip" packages/litigation-intelligence/
+
+      # ─────────────────────────────────────────────────────────────
+      # API — נתיבים, מודולים, שירותים וכלים של המוח המשפטי
+      # ─────────────────────────────────────────────────────────────
+
+      - name: '📦 13 — נתיבי API ומודולי מוח משפטי'
+        run: |
+          # מודולי מוח משפטי
+          [ -d packages/api/src/modules/legal-brain ]   && cp -r packages/api/src/modules/legal-brain/   /tmp/api-legal-brain/modules-legal-brain/
+          [ -d packages/api/src/modules/verdict-corpus ] && cp -r packages/api/src/modules/verdict-corpus/ /tmp/api-legal-brain/modules-verdict-corpus/
+
+          # נתיבי API משפטיים
+          for f in packages/api/src/routes/legal-ai.ts \
+                   packages/api/src/routes/legal-brain.ts \
+                   packages/api/src/routes/legal-corpus.ts \
+                   packages/api/src/routes/legal-engine.ts \
+                   packages/api/src/routes/legal-knowledge.ts \
+                   packages/api/src/routes/verdict-corpus.ts \
+                   packages/api/src/routes/case-law.ts; do
+            [ -f "$f" ] && cp "$f" /tmp/api-legal-brain/routes/
+          done
+
+          # בדיקות API
+          mkdir -p /tmp/api-legal-brain/routes/tests
+          for f in packages/api/src/routes/__tests__/legal-ai.test.ts \
+                   packages/api/src/routes/__tests__/legal-engine.test.ts \
+                   packages/api/src/routes/__tests__/legal-knowledge.test.ts \
+                   packages/api/src/routes/__tests__/case-law.test.ts; do
+            [ -f "$f" ] && cp "$f" /tmp/api-legal-brain/routes/tests/
+          done
+
+          # כלים ומסלולי עזר
+          for f in packages/api/src/utils/legal-corpus-loader.ts \
+                   packages/api/src/utils/legal-corpus-loader.test.ts \
+                   packages/api/src/utils/verdict-corpus-loader.ts \
+                   packages/api/src/utils/legal-registry-loader.ts \
+                   packages/api/src/utils/precedent-search.ts \
+                   packages/api/src/utils/rag-worker.ts \
+                   packages/api/src/utils/rag-healing.ts \
+                   packages/api/src/utils/ollama-legal-client.ts; do
+            [ -f "$f" ] && cp "$f" /tmp/api-legal-brain/utils/
+          done
+
+          # שירותים
+          for f in packages/api/src/services/legal-knowledge-service.ts \
+                   packages/api/src/services/legal-source-loader.ts; do
+            [ -f "$f" ] && cp "$f" /tmp/api-legal-brain/services/
+          done
+
+          zip -r "dist/dataset/נתיבי-API-ומודולי-מוח-משפטי.zip" /tmp/api-legal-brain/
+
+      # ─────────────────────────────────────────────────────────────
+      # שאילתות מסד נתונים משפטי
+      # ─────────────────────────────────────────────────────────────
+
+      - name: '📦 14 — שאילתות מסד נתונים משפטי'
+        run: |
+          for f in packages/database/src/queries/legal-brain-sessions.ts \
+                   packages/database/src/queries/legal-corpus.ts \
+                   packages/database/src/queries/legal-corpus.test.ts \
+                   packages/database/src/queries/legal-document-embeddings.ts \
+                   packages/database/src/queries/legal-documents.ts \
+                   packages/database/src/queries/legal-documents.test.ts \
+                   packages/database/src/queries/legal-engine.ts \
+                   packages/database/src/queries/legal-ingestion-progress.ts \
+                   packages/database/src/queries/legal-source-registry.ts \
+                   packages/database/src/queries/verdict-corpus.ts \
+                   packages/database/src/queries/verdict-corpus.test.ts \
+                   packages/database/src/queries/verdict-citations.ts \
+                   packages/database/src/queries/precedent-library.ts; do
+            [ -f "$f" ] && cp "$f" /tmp/db-queries/
+          done
+          zip -r "dist/dataset/שאילתות-מסד-נתונים-משפטי.zip" /tmp/db-queries/
+
+      # ─────────────────────────────────────────────────────────────
+      # מיגרציות SQL — סכמת המוח המשפטי
+      # ─────────────────────────────────────────────────────────────
+
+      - name: '📦 15 — מיגרציות סכמת מוח משפטי (SQL 069-085 + קשורות)'
+        run: |
+          # מיגרציות ישירות של המוח המשפטי (069-085)
+          for n in 069 070 071 072 073 074 075 076 077 078 079 080 081 082 083 084 085; do
+            f="migrations/${n}_"*.sql
+            [ -f $f ] && cp $f /tmp/db-migrations/ 2>/dev/null || true
+          done
+
+          # מיגרציות תשתית AI וחיפוש קשורות
+          for n in 010 030 031 035 042 043 044 045 046 052 060 061 062; do
+            f="migrations/${n}_"*.sql
+            [ -f $f ] && cp $f /tmp/db-migrations/ 2>/dev/null || true
+          done
+
+          zip -r "dist/dataset/מיגרציות-סכמת-מוח-משפטי.zip" /tmp/db-migrations/
+
+      - name: '📦 16 — סכמת בסיס הנתונים המלאה'
+        run: |
+          [ -f schemas/database.schema.sql ] && cp schemas/database.schema.sql /tmp/db-schema/ || true
+          zip -r "dist/dataset/סכמת-בסיס-הנתונים-המלאה.zip" /tmp/db-schema/ 2>/dev/null || echo "schema file not found"
+
+      # ─────────────────────────────────────────────────────────────
+      # יצירת קובץ README עברי לתיאור הדאטא סט
+      # ─────────────────────────────────────────────────────────────
+
+      - name: יצירת README עברי לריליס
+        run: cp scripts/legal-ai-dataset-readme.md dist/dataset/README-דאטא-סט-מוח-משפטי.md
+
+      - name: רשימת קבצי הארכיון
+        run: ls -lh dist/dataset/
+
+      # ─────────────────────────────────────────────────────────────
+      # שחרור GitHub Release
+      # ─────────────────────────────────────────────────────────────
+
+      - name: יצירת GitHub Release עם כל הקבצים
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          TAG="legal-ai-dataset-${{ github.event.inputs.version }}"
+          TITLE="🧠 דאטא סט מוח משפטי AI — ${{ github.event.inputs.version }}"
+
+          gh release create "$TAG" \
+            --repo "${{ github.repository }}" \
+            --title "$TITLE" \
+            --notes-file scripts/legal-ai-dataset-notes.md \
+            dist/dataset/*.zip \
+            dist/dataset/*.md
