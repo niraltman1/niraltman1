@@ -1,4 +1,5 @@
 import { describe, it, expect, beforeAll, afterAll } from 'vitest';
+import { createHash } from 'node:crypto';
 import request from 'supertest';
 import Database from 'better-sqlite3';
 import {
@@ -283,8 +284,41 @@ function buildTestDb(): Database.Database {
       severity      TEXT NOT NULL DEFAULT 'info',
       logged_at     TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ','now'))
     );
+
+    CREATE TABLE system_users (
+      id            INTEGER PRIMARY KEY AUTOINCREMENT,
+      username      TEXT NOT NULL UNIQUE,
+      password_hash TEXT NOT NULL,
+      role          TEXT NOT NULL DEFAULT 'attorney',
+      is_active     INTEGER NOT NULL DEFAULT 1,
+      last_login    TEXT,
+      created_at    TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ','now'))
+    );
+
+    CREATE TABLE user_sessions (
+      id         INTEGER PRIMARY KEY AUTOINCREMENT,
+      user_id    INTEGER NOT NULL REFERENCES system_users(id) ON DELETE CASCADE,
+      token_hash TEXT NOT NULL UNIQUE,
+      created_at TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ','now')),
+      expires_at TEXT NOT NULL
+    );
   `);
   return raw;
+}
+
+const TEST_TOKEN      = 'factum-il-integration-test-token-v1';
+const TEST_TOKEN_HASH = createHash('sha256').update(TEST_TOKEN).digest('hex');
+
+// Authenticated supertest helper — all integration requests carry a valid Bearer token.
+function r() {
+  const bearer = `Bearer ${TEST_TOKEN}`;
+  const agent  = request(app);
+  return {
+    get:    (p: string) => agent.get(p).set('Authorization', bearer),
+    post:   (p: string) => agent.post(p).set('Authorization', bearer),
+    patch:  (p: string) => agent.patch(p).set('Authorization', bearer),
+    delete: (p: string) => agent.delete(p).set('Authorization', bearer),
+  };
 }
 
 let rawDb: Database.Database;
@@ -333,6 +367,15 @@ beforeAll(() => {
       ((SELECT id FROM LegalSources WHERE source_key = 'il_law_2000479'), 'סעיף 2', 'עבירה היא מעשה האסור על פי דין או מחדל האסור על פי דין.', 1, 54);
   `);
 
+  // Seed an admin user and a non-expiring test session so the global
+  // requireAuth middleware accepts requests from the r() helper.
+  rawDb.exec(`
+    INSERT INTO system_users (username, password_hash, role, is_active)
+      VALUES ('ci-test-admin', 'placeholder', 'admin', 1);
+    INSERT INTO user_sessions (user_id, token_hash, expires_at)
+      VALUES (1, '${TEST_TOKEN_HASH}', '2099-12-31T23:59:59.000Z');
+  `);
+
   app = createApp(repos);
 });
 
@@ -342,7 +385,7 @@ afterAll(() => {
 
 describe('GET /api/clients', () => {
   it('returns empty list initially', async () => {
-    const res = await request(app).get('/api/clients');
+    const res = await r().get('/api/clients');
     expect(res.status).toBe(200);
     expect(res.body.success).toBe(true);
     expect(res.body.data.items).toEqual([]);
@@ -352,7 +395,7 @@ describe('GET /api/clients', () => {
 
 describe('POST /api/clients', () => {
   it('creates a client and returns id', async () => {
-    const res = await request(app)
+    const res = await r()
       .post('/api/clients')
       .send({ nameHe: 'נירה אלטמן', idType: 'personal' });
     expect(res.status).toBe(201);
@@ -361,7 +404,7 @@ describe('POST /api/clients', () => {
   });
 
   it('rejects missing nameHe with 422 VALIDATION_ERROR', async () => {
-    const res = await request(app)
+    const res = await r()
       .post('/api/clients')
       .send({ nameEn: 'Missing Hebrew Name' });
     expect(res.status).toBe(422);
@@ -370,7 +413,7 @@ describe('POST /api/clients', () => {
   });
 
   it('rejects unknown fields (strict mode)', async () => {
-    const res = await request(app)
+    const res = await r()
       .post('/api/clients')
       .send({ nameHe: 'בדיקה', unknownField: true });
     expect(res.status).toBe(422);
@@ -380,18 +423,18 @@ describe('POST /api/clients', () => {
 
 describe('GET /api/clients/:id', () => {
   it('returns 404 for non-existent client', async () => {
-    const res = await request(app).get('/api/clients/99999');
+    const res = await r().get('/api/clients/99999');
     expect(res.status).toBe(404);
     expect(res.body.success).toBe(false);
     expect(res.body.error.code).toBe('NOT_FOUND');
   });
 
   it('returns existing client', async () => {
-    const create = await request(app)
+    const create = await r()
       .post('/api/clients')
       .send({ nameHe: 'ישראל ישראלי' });
     const { id } = create.body.data as { id: number };
-    const res = await request(app).get(`/api/clients/${id}`);
+    const res = await r().get(`/api/clients/${id}`);
     expect(res.status).toBe(200);
     expect(res.body.data.nameHe).toBe('ישראל ישראלי');
   });
@@ -399,11 +442,11 @@ describe('GET /api/clients/:id', () => {
 
 describe('PATCH /api/clients/:id', () => {
   it('updates client and returns updated object', async () => {
-    const create = await request(app)
+    const create = await r()
       .post('/api/clients')
       .send({ nameHe: 'שם ישן' });
     const { id } = create.body.data as { id: number };
-    const res = await request(app)
+    const res = await r()
       .patch(`/api/clients/${id}`)
       .send({ nameHe: 'שם חדש' });
     expect(res.status).toBe(200);
@@ -413,12 +456,12 @@ describe('PATCH /api/clients/:id', () => {
 
 describe('POST /api/cases', () => {
   it('creates a case linked to a client', async () => {
-    const clientRes = await request(app)
+    const clientRes = await r()
       .post('/api/clients')
       .send({ nameHe: 'לקוח לתיק' });
     const clientId = (clientRes.body.data as { id: number }).id;
 
-    const res = await request(app)
+    const res = await r()
       .post('/api/cases')
       .send({ caseNumber: 'TK-001', titleHe: 'תיק בדיקה', clientId });
     expect(res.status).toBe(201);
@@ -428,7 +471,7 @@ describe('POST /api/cases', () => {
 
 describe('GET /api/action-plan', () => {
   it('returns empty list for PENDING status', async () => {
-    const res = await request(app).get('/api/action-plan?status=PENDING');
+    const res = await r().get('/api/action-plan?status=PENDING');
     expect(res.status).toBe(200);
     expect(res.body.success).toBe(true);
     expect(Array.isArray(res.body.data)).toBe(true);
@@ -437,14 +480,14 @@ describe('GET /api/action-plan', () => {
 
 describe('POST /api/action-plan/approve', () => {
   it('rejects empty planIds array with 422', async () => {
-    const res = await request(app)
+    const res = await r()
       .post('/api/action-plan/approve')
       .send({ planIds: [] });
     expect(res.status).toBe(422);
   });
 
   it('approves (no-op for non-existent IDs)', async () => {
-    const res = await request(app)
+    const res = await r()
       .post('/api/action-plan/approve')
       .send({ planIds: ['plan-does-not-exist'] });
     expect(res.status).toBe(200);
@@ -453,13 +496,13 @@ describe('POST /api/action-plan/approve', () => {
 
 describe('GET /api/search', () => {
   it('returns empty array for empty query', async () => {
-    const res = await request(app).get('/api/search?q=');
+    const res = await r().get('/api/search?q=');
     expect(res.status).toBe(200);
     expect(res.body.data).toEqual([]);
   });
 
   it('returns array for valid Hebrew query', async () => {
-    const res = await request(app).get('/api/search?q=%D7%99%D7%A9%D7%A8%D7%90%D7%9C');
+    const res = await r().get('/api/search?q=%D7%99%D7%A9%D7%A8%D7%90%D7%9C');
     expect(res.status).toBe(200);
     expect(Array.isArray(res.body.data)).toBe(true);
   });
@@ -467,7 +510,7 @@ describe('GET /api/search', () => {
 
 describe('GET /api/queue/stats', () => {
   it('returns stats with expected shape', async () => {
-    const res = await request(app).get('/api/queue/stats');
+    const res = await r().get('/api/queue/stats');
     expect(res.status).toBe(200);
     expect(res.body.success).toBe(true);
     expect(typeof res.body.data.total).toBe('number');
@@ -478,7 +521,7 @@ describe('GET /api/queue/stats', () => {
 
 describe('Rules_Engine API', () => {
   it('lists all active rules', async () => {
-    const res = await request(app).get('/api/rules');
+    const res = await r().get('/api/rules');
     expect(res.status).toBe(200);
     expect(res.body.success).toBe(true);
     expect(res.body.data).toHaveLength(3);
@@ -487,7 +530,7 @@ describe('Rules_Engine API', () => {
   });
 
   it('filters rules by procedureType', async () => {
-    const res = await request(app).get('/api/rules?procedureType=civil');
+    const res = await r().get('/api/rules?procedureType=civil');
     expect(res.status).toBe(200);
     expect(res.body.data).toHaveLength(1);
     expect(res.body.data[0].procedureType).toBe('civil');
@@ -495,7 +538,7 @@ describe('Rules_Engine API', () => {
   });
 
   it('returns procedure types with counts', async () => {
-    const res = await request(app).get('/api/rules/types');
+    const res = await r().get('/api/rules/types');
     expect(res.status).toBe(200);
     const types = res.body.data as { procedureType: string; ruleCount: number }[];
     expect(types).toHaveLength(3);
@@ -504,16 +547,16 @@ describe('Rules_Engine API', () => {
   });
 
   it('returns a single rule by id', async () => {
-    const list = await request(app).get('/api/rules?procedureType=criminal');
+    const list = await r().get('/api/rules?procedureType=criminal');
     const id = list.body.data[0].id as number;
-    const res = await request(app).get(`/api/rules/${id}`);
+    const res = await r().get(`/api/rules/${id}`);
     expect(res.status).toBe(200);
     expect(res.body.data.procedureType).toBe('criminal');
     expect(res.body.data.deadlineDays).toBe(45);
   });
 
   it('returns 404 for a non-existent rule', async () => {
-    const res = await request(app).get('/api/rules/99999');
+    const res = await r().get('/api/rules/99999');
     expect(res.status).toBe(404);
     expect(res.body.error.code).toBe('NOT_FOUND');
   });
@@ -531,31 +574,31 @@ describe('Annotations API', () => {
   });
 
   it('GET requires documentId (422)', async () => {
-    const res = await request(app).get('/api/annotations');
+    const res = await r().get('/api/annotations');
     expect(res.status).toBe(422);
     expect(res.body.error.code).toBe('VALIDATION_ERROR');
   });
 
   it('returns empty list for a document with no annotations', async () => {
-    const res = await request(app).get(`/api/annotations?documentId=${docId}`);
+    const res = await r().get(`/api/annotations?documentId=${docId}`);
     expect(res.status).toBe(200);
     expect(res.body.data).toEqual([]);
   });
 
   it('rejects POST without documentId (422)', async () => {
-    const res = await request(app).post('/api/annotations').send({ annotationType: 'note' });
+    const res = await r().post('/api/annotations').send({ annotationType: 'note' });
     expect(res.status).toBe(422);
   });
 
   it('rejects POST with invalid annotationType (422)', async () => {
-    const res = await request(app)
+    const res = await r()
       .post('/api/annotations')
       .send({ documentId: docId, annotationType: 'scribble' });
     expect(res.status).toBe(422);
   });
 
   it('creates, lists, updates and deletes a note annotation', async () => {
-    const create = await request(app)
+    const create = await r()
       .post('/api/annotations')
       .send({ documentId: docId, annotationType: 'note', pageNumber: 2, content: 'הערה ראשונה' });
     expect(create.status).toBe(201);
@@ -563,36 +606,36 @@ describe('Annotations API', () => {
     expect(typeof id).toBe('number');
     expect(create.body.data.pageNumber).toBe(2);
 
-    const list = await request(app).get(`/api/annotations?documentId=${docId}`);
+    const list = await r().get(`/api/annotations?documentId=${docId}`);
     expect(list.body.data).toHaveLength(1);
     expect(list.body.data[0].content).toBe('הערה ראשונה');
 
-    const byPage = await request(app).get(`/api/annotations?documentId=${docId}&page=2`);
+    const byPage = await r().get(`/api/annotations?documentId=${docId}&page=2`);
     expect(byPage.body.data).toHaveLength(1);
-    const otherPage = await request(app).get(`/api/annotations?documentId=${docId}&page=1`);
+    const otherPage = await r().get(`/api/annotations?documentId=${docId}&page=1`);
     expect(otherPage.body.data).toHaveLength(0);
 
-    const patch = await request(app)
+    const patch = await r()
       .patch(`/api/annotations/${id}`)
       .send({ content: 'הערה מעודכנת' });
     expect(patch.status).toBe(200);
     expect(patch.body.data.content).toBe('הערה מעודכנת');
 
-    const del = await request(app).delete(`/api/annotations/${id}`);
+    const del = await r().delete(`/api/annotations/${id}`);
     expect(del.status).toBe(200);
 
-    const after = await request(app).get(`/api/annotations?documentId=${docId}`);
+    const after = await r().get(`/api/annotations?documentId=${docId}`);
     expect(after.body.data).toHaveLength(0);
   });
 
   it('returns 404 when updating a non-existent annotation', async () => {
-    const res = await request(app).patch('/api/annotations/99999').send({ content: 'x' });
+    const res = await r().patch('/api/annotations/99999').send({ content: 'x' });
     expect(res.status).toBe(404);
     expect(res.body.error.code).toBe('NOT_FOUND');
   });
 
   it('returns 404 when deleting a non-existent annotation', async () => {
-    const res = await request(app).delete('/api/annotations/99999');
+    const res = await r().delete('/api/annotations/99999');
     expect(res.status).toBe(404);
     expect(res.body.error.code).toBe('NOT_FOUND');
   });
@@ -600,7 +643,7 @@ describe('Annotations API', () => {
 
 describe('Entities knowledge graph API', () => {
   it('reports empty stats before any population', async () => {
-    const res = await request(app).get('/api/entities/graph/stats');
+    const res = await r().get('/api/entities/graph/stats');
     expect(res.status).toBe(200);
     expect(res.body.data.totalEntities).toBe(0);
     expect(res.body.data.relations).toBe(0);
@@ -616,11 +659,11 @@ describe('Entities knowledge graph API', () => {
       'INSERT INTO DocumentInsights (document_id, case_number, court_name, judge_name) VALUES (?,?,?,?)',
     ).run(docId, 'תא-2024-042', 'שלום תל אביב', 'השופט כהן');
 
-    const back = await request(app).post('/api/entities/backfill');
+    const back = await r().post('/api/entities/backfill');
     expect(back.status).toBe(200);
     expect(back.body.data.documents).toBe(1);
 
-    const stats = await request(app).get('/api/entities/graph/stats');
+    const stats = await r().get('/api/entities/graph/stats');
     expect(stats.body.data.byKind.Judge).toBe(1);
     expect(stats.body.data.byKind.Court).toBe(1);
     expect(stats.body.data.byKind.Case).toBe(1);
@@ -630,7 +673,7 @@ describe('Entities knowledge graph API', () => {
 
 describe('Legal Corpus API', () => {
   it('lists sources with KB stats', async () => {
-    const res = await request(app).get('/api/legal-corpus/sources');
+    const res = await r().get('/api/legal-corpus/sources');
     expect(res.status).toBe(200);
     expect(res.body.data.stats.sources).toBe(1);
     expect(res.body.data.stats.sections).toBe(2);
@@ -638,7 +681,7 @@ describe('Legal Corpus API', () => {
   });
 
   it('returns one law with its verbatim sections', async () => {
-    const res = await request(app).get('/api/legal-corpus/sources/il_law_2000479');
+    const res = await r().get('/api/legal-corpus/sources/il_law_2000479');
     expect(res.status).toBe(200);
     expect(res.body.data.source.shortName).toBe('חוק העונשין');
     expect(res.body.data.sections).toHaveLength(2);
@@ -646,13 +689,13 @@ describe('Legal Corpus API', () => {
   });
 
   it('returns 404 for an unknown source', async () => {
-    const res = await request(app).get('/api/legal-corpus/sources/il_law_999999');
+    const res = await r().get('/api/legal-corpus/sources/il_law_999999');
     expect(res.status).toBe(404);
     expect(res.body.error.code).toBe('NOT_FOUND');
   });
 
   it('keyword-searches sections, source-tagged', async () => {
-    const res = await request(app).get('/api/legal-corpus/search?q=עבירה');
+    const res = await r().get('/api/legal-corpus/search?q=עבירה');
     expect(res.status).toBe(200);
     expect(res.body.data.length).toBeGreaterThan(0);
     expect(res.body.data[0].sourceKey).toBe('il_law_2000479');
@@ -660,7 +703,7 @@ describe('Legal Corpus API', () => {
   });
 
   it('requires q (422)', async () => {
-    const res = await request(app).get('/api/legal-corpus/search');
+    const res = await r().get('/api/legal-corpus/search');
     expect(res.status).toBe(422);
     expect(res.body.error.code).toBe('VALIDATION_ERROR');
   });

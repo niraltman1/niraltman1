@@ -1,7 +1,20 @@
 import { useState, useRef, useCallback, useEffect } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { ApiClientError } from './client.js';
+import { ApiClientError, getStoredToken, clearStoredToken } from './client.js';
 import type { ApiResponse } from './client.js';
+
+function authHeaders(): Record<string, string> {
+  const t = getStoredToken();
+  return t ? { Authorization: `Bearer ${t}` } : {};
+}
+
+function guard401(res: Response): void {
+  if (res.status === 401) {
+    clearStoredToken();
+    window.location.replace('/login');
+    throw new ApiClientError('UNAUTHORIZED', 'Session expired');
+  }
+}
 
 // ─────────────────────────────────────────────
 //  Query keys
@@ -44,7 +57,8 @@ export interface QueueStats {
 }
 
 async function fetchJSON<T>(path: string): Promise<T> {
-  const res = await fetch(path);
+  const res = await fetch(path, { headers: authHeaders() });
+  guard401(res);
   const body: ApiResponse<T> = await res.json();
   if (!body.success) throw new ApiClientError(body.error.code, body.error.message);
   return body.data;
@@ -53,9 +67,10 @@ async function fetchJSON<T>(path: string): Promise<T> {
 async function postJSON<T>(path: string, body?: unknown): Promise<T> {
   const res = await fetch(path, {
     method:  'POST',
-    headers: { 'Content-Type': 'application/json' },
+    headers: { 'Content-Type': 'application/json', ...authHeaders() },
     body:    JSON.stringify(body ?? {}),
   });
+  guard401(res);
   const json: ApiResponse<T> = await res.json();
   if (!json.success) throw new ApiClientError(json.error.code, json.error.message);
   return json.data;
@@ -64,9 +79,10 @@ async function postJSON<T>(path: string, body?: unknown): Promise<T> {
 async function patchJSON<T>(path: string, body?: unknown): Promise<T> {
   const res = await fetch(path, {
     method:  'PATCH',
-    headers: { 'Content-Type': 'application/json' },
+    headers: { 'Content-Type': 'application/json', ...authHeaders() },
     body:    JSON.stringify(body ?? {}),
   });
+  guard401(res);
   const json: ApiResponse<T> = await res.json();
   if (!json.success) throw new ApiClientError(json.error.code, json.error.message);
   return json.data;
@@ -75,16 +91,18 @@ async function patchJSON<T>(path: string, body?: unknown): Promise<T> {
 async function putJSON<T>(path: string, body?: unknown): Promise<T> {
   const res = await fetch(path, {
     method:  'PUT',
-    headers: { 'Content-Type': 'application/json' },
+    headers: { 'Content-Type': 'application/json', ...authHeaders() },
     body:    JSON.stringify(body ?? {}),
   });
+  guard401(res);
   const json: ApiResponse<T> = await res.json();
   if (!json.success) throw new ApiClientError(json.error.code, json.error.message);
   return json.data;
 }
 
 export async function deleteJSON<T>(path: string): Promise<T> {
-  const res = await fetch(path, { method: 'DELETE' });
+  const res = await fetch(path, { method: 'DELETE', headers: authHeaders() });
+  guard401(res);
   const json: ApiResponse<T> = await res.json();
   if (!json.success) throw new ApiClientError(json.error.code, json.error.message);
   return json.data;
