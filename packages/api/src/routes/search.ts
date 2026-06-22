@@ -6,7 +6,7 @@ import { ok } from '../utils/response.js';
 import { validate } from '../middleware/validate.js';
 
 const searchQuerySchema = z.object({
-  q:     z.string().min(1),
+  q:     z.string(),
   limit: z.coerce.number().int().min(1).max(100).default(20),
 });
 
@@ -16,6 +16,7 @@ export function searchRouter(repos: Repos): Router {
 
   router.get('/', validate(searchQuerySchema, 'query'), asyncHandler((req, res) => {
     const { q, limit } = req.query as unknown as z.infer<typeof searchQuerySchema>;
+    if (!q.trim()) { ok(res, []); return; }
     const hits = search.search(q, { limit });
     ok(res, hits);
   }));
