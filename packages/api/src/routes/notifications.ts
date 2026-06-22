@@ -1,17 +1,27 @@
+import { z } from 'zod';
 import { Router } from 'express';
 import type { Repos } from '../db.js';
 import { asyncHandler } from '../utils/async-handler.js';
 import { ok } from '../utils/response.js';
-import { ValidationError } from '../errors/api-error.js';
+import { validate } from '../middleware/validate.js';
+import { positiveIntParam, validateRequest } from '../utils/request-validation.js';
+
+const listQuerySchema = z.object({
+  limit: z.coerce.number().int().min(1).max(200).default(50),
+});
+
+const idParamSchema = z.object({
+  id: positiveIntParam,
+});
+
 
 export function notificationsRouter(repos: Repos): Router {
   const router = Router();
   const { notifications } = repos;
 
   // GET /api/notifications?limit=50 → { items, unread }
-  router.get('/', asyncHandler((req, res) => {
-    const raw = Number(req.query['limit']);
-    const limit = Number.isFinite(raw) ? Math.min(Math.max(raw, 1), 200) : 50;
+  router.get('/', validate(listQuerySchema, 'query'), asyncHandler((req, res) => {
+    const { limit } = req.query as unknown as z.infer<typeof listQuerySchema>;
     const items = notifications.listRecent(limit);
     const unread = notifications.unreadCount();
     ok(res, { items, unread });
@@ -25,8 +35,7 @@ export function notificationsRouter(repos: Repos): Router {
 
   // POST /api/notifications/:id/read → mark one notification read
   router.post('/:id/read', asyncHandler((req, res) => {
-    const id = Number(req.params['id']);
-    if (!Number.isFinite(id)) throw new ValidationError('invalid id');
+    const { id } = validateRequest(idParamSchema, req.params);
     notifications.markRead(id);
     ok(res, { ok: true });
   }));

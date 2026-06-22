@@ -16,7 +16,7 @@
  * Returns { valid: boolean, errors: string[] }. No side effects.
  */
 
-import { createHash } from 'node:crypto';
+import { createHash, createPublicKey } from 'node:crypto';
 import { readFile } from 'node:fs/promises';
 import { join } from 'node:path';
 import type { PatchManifest } from './types.js';
@@ -27,14 +27,35 @@ const SUPPORTED_FORMAT_VERSION = 1;
 
 /**
  * Trusted signing keys registry.
- * keyId → base64url-encoded Ed25519 public key.
+ * keyId → base64url-encoded Ed25519 SPKI DER public key.
  * To rotate: add new key, release code, sign new patches with new key,
  * remove old key after all clients update.
+ * Private key lives in CI secret FACTUM_SIGN_PRIVATE_KEY — never commit it.
  */
 export const TrustedSigningKeys: Record<string, string> = {
-  'factum-prod-2026': 'FACTUM_PROD_2026_PUBLIC_KEY_PLACEHOLDER',
+  'factum-prod-2026': 'MCowBQYDK2VwAyEAoLUplxRkUlA1slULuu9hDgfrTSFXo5PwbAEpmPwPuZo',
   // Add future keys here: 'factum-prod-2027': '...'
 };
+
+// Startup guard — fail immediately in production if keys are misconfigured.
+// Catches: empty registry, placeholder values, corrupt base64url encoding.
+(function validateTrustedKeysOnStartup() {
+  if (process.env['NODE_ENV'] !== 'production') return;
+  const entries = Object.entries(TrustedSigningKeys);
+  if (entries.length === 0) {
+    throw new Error('PatchValidator: no trusted signing keys configured');
+  }
+  for (const [keyId, pub] of entries) {
+    if (pub.includes('PLACEHOLDER')) {
+      throw new Error(`PatchValidator: placeholder key detected in production (keyId="${keyId}")`);
+    }
+    try {
+      createPublicKey({ key: Buffer.from(pub, 'base64url'), format: 'der', type: 'spki' });
+    } catch {
+      throw new Error(`PatchValidator: signing key "${keyId}" cannot be decoded as a valid Ed25519 public key`);
+    }
+  }
+})();
 
 export interface PatchValidationResult {
   valid:  boolean;
@@ -100,27 +121,16 @@ export class PatchValidator {
         const manifestBytes = await readFile(manifestPath);
         const publicKeyBase64 = TrustedSigningKeys[manifest.signingKeyId]!;
 
-        // In production, this would use node:crypto verify with Ed25519.
-        // The placeholder key triggers a verification failure; replace with
-        // the real public key before deploying.
-        const isPlaceholder = publicKeyBase64.includes('PLACEHOLDER');
-        if (isPlaceholder) {
-          // Allow in test/dev environments only
-          if (process.env['NODE_ENV'] === 'production') {
-            errors.push('Signing key is a placeholder — production patches must be signed with a real key');
-          }
-        } else {
-          const { verify, createPublicKey } = await import('node:crypto');
-          const publicKey = createPublicKey({
-            key:    Buffer.from(publicKeyBase64, 'base64url'),
-            format: 'der',
-            type:   'spki',
-          });
-          const sigBuf = Buffer.from(sigBase64, 'base64url');
-          const digest = createHash('sha256').update(manifestBytes).digest();
-          const ok = verify(null, digest, publicKey, sigBuf);
-          if (!ok) errors.push('Ed25519 signature verification failed');
-        }
+        const { verify } = await import('node:crypto');
+        const publicKey = createPublicKey({
+          key:    Buffer.from(publicKeyBase64, 'base64url'),
+          format: 'der',
+          type:   'spki',
+        });
+        const sigBuf = Buffer.from(sigBase64, 'base64url');
+        const digest = createHash('sha256').update(manifestBytes).digest();
+        const ok = verify(null, digest, publicKey, sigBuf);
+        if (!ok) errors.push('Ed25519 signature verification failed');
       } catch (err) {
         errors.push(`Signature verification error: ${err instanceof Error ? err.message : String(err)}`);
       }

@@ -9,12 +9,20 @@
  *   POST   /api/legal-brain/messages/:id/feedback — rate an assistant response
  */
 
+import { z } from 'zod';
 import { Router } from 'express';
 import type { Repos } from '../db.js';
 import { asyncHandler } from '../utils/async-handler.js';
 import { ok } from '../utils/response.js';
 import { ValidationError, NotFoundError } from '../errors/api-error.js';
+import { validate } from '../middleware/validate.js';
 import { ask } from '../modules/legal-brain/service.js';
+
+const createSessionSchema = z.object({
+  userId: z.string().optional(),
+  caseId: z.number().int().positive().optional(),
+  title:  z.string().max(500).optional(),
+});
 
 export function legalBrainRouter(repos: Repos): Router {
   const router = Router();
@@ -22,12 +30,8 @@ export function legalBrainRouter(repos: Repos): Router {
 
   // ── Session management ────────────────────────────────────────────────────
 
-  router.post('/sessions', asyncHandler((req, res) => {
-    const { userId, caseId, title } = req.body as {
-      userId?: string;
-      caseId?: number;
-      title?:  string;
-    };
+  router.post('/sessions', validate(createSessionSchema), asyncHandler((req, res) => {
+    const { userId, caseId, title } = req.body as z.infer<typeof createSessionSchema>;
     const session = legalBrainSessions.createSession({
       ...(userId !== undefined ? { userId } : {}),
       ...(caseId !== undefined ? { caseId } : {}),
