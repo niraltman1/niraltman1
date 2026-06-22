@@ -13,6 +13,7 @@ export default defineConfig({
     baseURL: 'http://localhost:5173',
     locale: 'he-IL',
     trace: 'on-first-retry',
+    storageState: 'e2e/.auth/state.json',
   },
 
   webServer: [
@@ -26,6 +27,7 @@ export default defineConfig({
         FACTUM_IL_DB_PATH: join(tmpdir(), 'factum-il-e2e-test.db'),
         PORT: '3001',
         FACTUM_IL_SAFE_MODE: '1',
+        FACTUM_IL_ADMIN_PASS: 'e2e-test-password',
       },
     },
     {
@@ -37,9 +39,15 @@ export default defineConfig({
   ],
 
   projects: [
+    // Auth setup runs once before all tests and saves localStorage state to disk.
+    {
+      name: 'setup',
+      testMatch: /auth\.setup\.ts/,
+    },
     {
       name: 'chromium',
       use: { ...devices['Desktop Chrome'] },
+      dependencies: ['setup'],
     },
   ],
 });

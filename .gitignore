@@ -65,6 +65,7 @@ FactumIL_Dist/
 coverage/
 playwright-report/
 test-results/
+e2e/.auth/
 
 # Claude Code internal state
 .claude/
