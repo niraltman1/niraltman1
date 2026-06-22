@@ -26,7 +26,7 @@ let _aiClassifyActive = 0;
 function runAiClassify(
   messageId: number,
   body: string,
-  setAITags: (id: number, urgency: string, tags: string[]) => void,
+  setAITags: (id: number, urgency: 'urgent' | 'normal' | 'low', tags: string[]) => void,
 ): void {
   if (_aiClassifyActive >= AI_CLASSIFY_MAX_CONCURRENT) return; // shed load; message still ingested
   _aiClassifyActive++;
@@ -35,7 +35,7 @@ function runAiClassify(
       if (classification) setAITags(messageId, classification.urgency, classification.tags);
     })
     .catch((err: unknown) => {
-      logger.warn({ err, messageId }, 'AI classification failed — message ingested without tags');
+      logger.warn(`AI classification failed on message ${messageId}: ${err instanceof Error ? err.message : String(err)}`);
     })
     .finally(() => { _aiClassifyActive--; });
 }
