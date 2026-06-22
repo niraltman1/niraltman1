@@ -13,7 +13,8 @@ export default defineConfig({
     baseURL: 'http://localhost:5173',
     locale: 'he-IL',
     trace: 'on-first-retry',
-    storageState: 'e2e/.auth/state.json',
+    // storageState is set per-project below: the setup project must NOT load it
+    // (the file doesn't exist yet when setup runs), only chromium tests use it.
   },
 
   webServer: [
@@ -46,7 +47,7 @@ export default defineConfig({
     },
     {
       name: 'chromium',
-      use: { ...devices['Desktop Chrome'] },
+      use: { ...devices['Desktop Chrome'], storageState: 'e2e/.auth/state.json' },
       dependencies: ['setup'],
     },
   ],
