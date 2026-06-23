@@ -130,6 +130,7 @@ jobs:
         run: powershell -File powershell\scripts\Verify-Install.ps1 -DevMode
 
       - name: Install & verify production layout
+        timeout-minutes: 15
         shell: pwsh
         run: |
           # Install sqlite3 CLI so Verify-Install.ps1 can check migration count
@@ -142,7 +143,13 @@ jobs:
           Write-Host "Running silent install..."
           $proc = Start-Process -FilePath .\Factum-IL-Setup.exe `
             -ArgumentList '/VERYSILENT', '/SUPPRESSMSGBOXES', '/NORESTART' `
-            -Wait -PassThru
+            -PassThru
+          # 8-minute hard cap — installer should complete in < 2 min on a cold runner
+          if (-not $proc.WaitForExit(480000)) {
+            $proc.Kill()
+            Write-Error "Installer timed out after 8 minutes — killing process"
+            exit 1
+          }
           if ($proc.ExitCode -ne 0) {
             Write-Error "Installer exited with code $($proc.ExitCode)"
             exit 1
