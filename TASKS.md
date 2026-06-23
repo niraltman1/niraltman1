@@ -1,5 +1,66 @@
 # Factum-IL — Task Tracker
 
+## 🗓️ Session handoff — Validation Audit Remediation + CTO Delivery (2026-06-22/23)
+
+**Branch:** `claude/factum-il-validation-audit-ldzeuk` — PR #146 ✅ MERGED to main (`82cf266`)
+
+### תיקון false positives בדוח הביקורת
+
+דוח הביקורת (commit `37939d2`) כלל 5 ממצאים שגויים — כולם נדחו עם הוכחות ישירות:
+
+| ממצא | מצב אמיתי |
+|------|-----------|
+| CI חסום בגלל billing | ✅ שגוי — 3 ריצות success ב-2026-06-22 |
+| 48/57 routes ללא auth | ✅ שגוי — auth גלובלי ב-`app.ts:142-156` |
+| נכסי קורפוס חסרים | ✅ שגוי — `v-corpus-latest`: 44.7MB + 15.1MB + 16 batches |
+| ollama create ללא timeout | ✅ שגוי — `OllamaService.cs:51-52`: 30 דקות configurable |
+| OCR fallback לא מחובר | ✅ שגוי — `media-pipeline.ts:29,327-344` |
+
+### הושלם הפעם (PR #146)
+
+- ✅ **Fix 1 — Ed25519 signing key (P0):**
+  - `packages/update-core/src/PatchValidator.ts` — placeholder הוחלף במפתח ציבורי אמיתי (`factum-prod-2026`)
+  - `scripts/generate-signing-key.mjs` + `scripts/sign-patch.mjs` — כלי CI לחתימה
+  - `packages/update-core/src/__tests__/patch-signing.test.ts` — 11 בדיקות E2E signing
+  - מפתח פרטי: `FACTUM_SIGN_PRIVATE_KEY` ב-CI secret בלבד (לעולם לא ב-repo)
+
+- ✅ **Fix 2 — AI tagging על POST /api/communications/inbound (P2):**
+  - `packages/api/src/routes/communications.ts` — `runAiClassify()` helper עם bounded concurrency (max 5)
+  - fire-and-forget עם try/catch; HTTP response לא מעוכב; graceful degradation
+
+- ✅ **Fix 3 — Zod validation על 4 routes (P2):**
+  - `packages/api/src/routes/search.ts` — `searchQuerySchema` + empty-string early return
+  - `packages/api/src/routes/calendar.ts` — `eventsQuerySchema` + `deadlinesQuerySchema`
+  - `packages/api/src/routes/notifications.ts` — `listQuerySchema` + `idParamSchema`
+  - `packages/api/src/routes/legal-brain.ts` — `createSessionSchema`
+  - `packages/api/src/utils/request-validation.ts` — `validateRequest<T>()` + `positiveIntParam` + `isoDateString`
+
+- ✅ **`docs/ENGINEERING_VALIDATION_REPORT.md`** — עודכן: 5 false positives מתוקנים, 3 fixes מתועדים,
+  Task 5 (Bootstrap Integrity) + Task 6 (Ollama Recovery) ממצאים. ציון: 63%→83%; Production Readiness: 35%→72%.
+  Engineering: 🟢 GREEN. Installer/Production: 🟡 YELLOW.
+
+### אומת
+
+- `pnpm -r typecheck` → 0 errors (25 packages) ✅
+- כל 5 בדיקות CI ירוקות ב-PR #146 ✅
+- 11 בדיקות E2E לחתימת Ed25519 ✅
+
+### חסום / מחוץ לתחום (נותר ל-CTO)
+
+- **Windows installer** — `build-installer.yml` דורש Windows runner פעיל. כל הנכסים קיימים (GGUF + corpus + WebView2); מעולם לא רץ בהצלחה. דורש self-hosted Windows runner.
+- **C1 Telegram live validation** — חסום-סביבה (api.telegram.org לא ב-allowlist)
+- **C2 WhatsApp** — החלטה ארכיטקטורית (self-hosted whatsapp-web.js + WebView2 מקומי)
+- **Bootstrap integrity gaps** — SHA-256 חסר ל-`OllamaSetup.exe` ובbatches קורפוס (ראה Task 5 בדוח)
+- **Corrupted model detection** — `ModelExistsAsync()` לא מאמת תקינות GGUF בזמן runtime (ראה Task 6 בדוח)
+
+### מה לעשות עכשיו (פעולות ל-CTO)
+
+1. **Windows installer** — הגדר self-hosted Windows runner → הפעל `build-installer.yml`
+2. **קרא `docs/ENGINEERING_VALIDATION_REPORT.md`** — סיכום מלא של מצב ההנדסה, כל הממצאים, וציוני הבשלות
+3. **Code signing** — Authenticode cert ל-`Factum-IL-Setup.exe` (ללא זה: SmartScreen warning)
+
+---
+
 ## 🗓️ Session handoff — installer remediation landed + full corpus bundling (2026-06-20)
 
 **Merged to `main` (@ `800c294`):** PR #130 (installer fix + first-launch bootstrap),
@@ -26,9 +87,8 @@ hotfixes #131–#133 and Supreme Court ingest encoding fix #135 also on `main`.
   `BootstrapManager`/`RecoveryWindow`/`BootstrapProgress` תואמות.
 
 ### חסום / בתהליך
-- **GitHub Actions חסום בגלל חיוב/spending-limit** — כל ה-jobs נכשלים ב-startup
-  (`runner_id: 0`, ~2 שניות, ללא logs). מצב חשבון, לא בעיית קוד. לכן CI ו-`build-installer.yml`
-  לא רצים ב-GitHub כרגע.
+- **⚠️ תוקן 2026-06-22:** הטענה ש-"GitHub Actions חסום בגלל חיוב" הייתה **שגויה** — CI אומת כעובד: 3 ריצות success ב-2026-06-22 (PR #146, כל 5 הבדיקות ירוקות).
+- **`build-installer.yml`** — עדיין לא הושלם; דורש Windows runner פעיל (בעיית runner, לא billing).
 
 ### מה לעשות עכשיו
 1. **בנייה מקומית על Windows** לפי `README.md` (שלבים 0–6) — שם מתבצעת הקומפילציה האמיתית של
